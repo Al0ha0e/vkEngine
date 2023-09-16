@@ -1,6 +1,9 @@
 # env = Environment(tools=['mingw'])
 
-Program("test",
+env = Environment(CC = 'cl',
+                   CCFLAGS = '/std:c++17')
+
+env.Program("out/test",
         ["./tests/test.cpp" ],
         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
         SCONS_CXX_STANDARD="c++17")

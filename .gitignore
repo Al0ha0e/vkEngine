@@ -1,5 +1,6 @@
 *.exe
 *.obj
 *.dblite
+*.spv
 .vscode
 assets
