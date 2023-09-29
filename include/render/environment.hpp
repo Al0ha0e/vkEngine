@@ -30,24 +30,8 @@ namespace vke_render
     {
     private:
         static RenderEnvironment *instance;
-        RenderEnvironment(){};
-        ~RenderEnvironment()
-        {
-            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-            {
-                vkDestroySemaphore(logicalDevice, renderFinishedSemaphores[i], nullptr);
-                vkDestroySemaphore(logicalDevice, imageAvailableSemaphores[i], nullptr);
-                vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
-            }
-            vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
-            for (auto imageView : swapChainImageViews)
-                vkDestroyImageView(logicalDevice, imageView, nullptr);
-            vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
-            vkDestroyDevice(logicalDevice, nullptr);
-            vkDestroySurfaceKHR(vkinstance, surface, nullptr);
-            vkDestroyInstance(vkinstance, nullptr);
-            glfwTerminate();
-        }
+        RenderEnvironment() {}
+        ~RenderEnvironment() {}
         RenderEnvironment(const RenderEnvironment &);
         RenderEnvironment &operator=(const RenderEnvironment);
 
@@ -84,6 +68,24 @@ namespace vke_render
             createCommandPool();
             createCommandBuffers();
             createSyncObjects();
+        }
+
+        void Dispose()
+        {
+            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+            {
+                vkDestroySemaphore(logicalDevice, renderFinishedSemaphores[i], nullptr);
+                vkDestroySemaphore(logicalDevice, imageAvailableSemaphores[i], nullptr);
+                vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
+            }
+            vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
+            for (auto imageView : swapChainImageViews)
+                vkDestroyImageView(logicalDevice, imageView, nullptr);
+            vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
+            vkDestroyDevice(logicalDevice, nullptr);
+            vkDestroySurfaceKHR(vkinstance, surface, nullptr);
+            vkDestroyInstance(vkinstance, nullptr);
+            glfwTerminate();
         }
 
         int window_width;
