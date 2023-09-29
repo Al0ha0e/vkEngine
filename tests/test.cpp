@@ -223,6 +223,7 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device)
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
 
     int i = 0;
     for (const auto &queueFamily : queueFamilies)

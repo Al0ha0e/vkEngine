@@ -8,6 +8,11 @@ env.Program("out/test",
         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
         SCONS_CXX_STANDARD="c++17")
 
+env.Program("out/test_env",
+        ["./tests/test_env.cpp","./src/render/environment.cpp" ],
+        LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
+        SCONS_CXX_STANDARD="c++17")
+
 # Program("test",
 #         ["./src/stb_image.cpp",
 #          "./src/events/event.cpp",
