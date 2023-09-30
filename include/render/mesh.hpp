@@ -26,7 +26,7 @@ namespace vke_render
         Mesh(size_t vertSize, void *vertData, std::vector<uint32_t> &index) : indexCnt(index.size())
         {
             createBufferAndTransfer(vertSize, vertData, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
-            createBufferAndTransfer(index.size(), index.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
+            createBufferAndTransfer(index.size() * sizeof(uint32_t), index.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
         }
 
         ~Mesh()

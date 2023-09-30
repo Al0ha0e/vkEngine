@@ -219,7 +219,7 @@ namespace vke_render
         renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = environment->swapChainExtent;
-        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+        VkClearValue clearColor = {{{0.0f, 0.5f, 0.3f, 1.0f}}};
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = &clearColor;
 
@@ -240,6 +240,7 @@ namespace vke_render
         scissor.offset = {0, 0};
         scissor.extent = environment->swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
         renderInfo.Render(commandBuffer);
         // vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
