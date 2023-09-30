@@ -4,6 +4,9 @@
 #include <common.hpp>
 #include <optional>
 #include <vector>
+#include <iostream>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
 namespace vke_render
 {
@@ -54,38 +57,118 @@ namespace vke_render
             return instance;
         }
 
-        void Init(int width, int height)
+        static RenderEnvironment *Init(int width, int height)
         {
-            window_width = width;
-            window_height = height;
-            initWindow();
-            createInstance();
-            createSurface();
-            pickPhysicalDevice();
-            createLogicalDevice();
-            createSwapChain();
-            createImageViews();
-            createCommandPool();
-            createCommandBuffers();
-            createSyncObjects();
+            instance = new RenderEnvironment();
+            instance->window_width = width;
+            instance->window_height = height;
+            instance->initWindow();
+            instance->createInstance();
+            instance->createSurface();
+            instance->pickPhysicalDevice();
+            instance->createLogicalDevice();
+            instance->createSwapChain();
+            instance->createImageViews();
+            instance->createCommandPool();
+            instance->createCommandBuffers();
+            instance->createSyncObjects();
+            return instance;
         }
 
-        void Dispose()
+        static void Dispose()
         {
+            VkDevice logicalDevice = instance->logicalDevice;
+
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
             {
-                vkDestroySemaphore(logicalDevice, renderFinishedSemaphores[i], nullptr);
-                vkDestroySemaphore(logicalDevice, imageAvailableSemaphores[i], nullptr);
-                vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
+                vkDestroySemaphore(logicalDevice, instance->renderFinishedSemaphores[i], nullptr);
+                vkDestroySemaphore(logicalDevice, instance->imageAvailableSemaphores[i], nullptr);
+                vkDestroyFence(logicalDevice, instance->inFlightFences[i], nullptr);
             }
-            vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
-            for (auto imageView : swapChainImageViews)
+            vkDestroyCommandPool(logicalDevice, instance->commandPool, nullptr);
+            for (auto imageView : instance->swapChainImageViews)
                 vkDestroyImageView(logicalDevice, imageView, nullptr);
-            vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
+            vkDestroySwapchainKHR(logicalDevice, instance->swapChain, nullptr);
             vkDestroyDevice(logicalDevice, nullptr);
-            vkDestroySurfaceKHR(vkinstance, surface, nullptr);
-            vkDestroyInstance(vkinstance, nullptr);
+            vkDestroySurfaceKHR(instance->vkinstance, instance->surface, nullptr);
+            vkDestroyInstance(instance->vkinstance, nullptr);
             glfwTerminate();
+        }
+
+        static uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+        {
+            VkPhysicalDeviceMemoryProperties memProperties;
+            vkGetPhysicalDeviceMemoryProperties(instance->physicalDevice, &memProperties);
+            for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+                if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+                    return i;
+
+            throw std::runtime_error("failed to find suitable memory type!");
+        }
+
+        static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory)
+        {
+            VkBufferCreateInfo bufferInfo{};
+            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            bufferInfo.size = size;
+            bufferInfo.usage = usage;
+            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            VkDevice logicalDevice = instance->logicalDevice;
+
+            if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create buffer!");
+            }
+
+            VkMemoryRequirements memRequirements;
+            vkGetBufferMemoryRequirements(logicalDevice, buffer, &memRequirements);
+
+            VkMemoryAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            allocInfo.allocationSize = memRequirements.size;
+            allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
+
+            if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to allocate buffer memory!");
+            }
+
+            vkBindBufferMemory(logicalDevice, buffer, bufferMemory, 0);
+        }
+
+        static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+        {
+            VkCommandBufferAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            allocInfo.commandPool = instance->commandPool;
+            allocInfo.commandBufferCount = 1;
+
+            VkCommandBuffer commandBuffer;
+            vkAllocateCommandBuffers(instance->logicalDevice, &allocInfo, &commandBuffer);
+
+            VkCommandBufferBeginInfo beginInfo{};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+            vkBeginCommandBuffer(commandBuffer, &beginInfo);
+            VkBufferCopy copyRegion{};
+            copyRegion.srcOffset = 0; // Optional
+            copyRegion.dstOffset = 0; // Optional
+            copyRegion.size = size;
+            vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+            vkEndCommandBuffer(commandBuffer);
+
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &commandBuffer;
+
+            vkQueueSubmit(instance->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+            vkQueueWaitIdle(instance->graphicsQueue);
+
+            vkFreeCommandBuffers(instance->logicalDevice, instance->commandPool, 1, &commandBuffer);
         }
 
         int window_width;

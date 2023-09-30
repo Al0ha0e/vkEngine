@@ -24,11 +24,10 @@ vke_common::Engine *engine;
 
 int main()
 {
-    engine = vke_common::Engine::GetInstance();
-    engine->Init(WIDTH, HEIGHT);
+    engine = vke_common::Engine::Init(WIDTH, HEIGHT);
 
     engine->MainLoop();
 
-    engine->Dispose();
+    vke_common::Engine::Dispose();
     return 0;
 }

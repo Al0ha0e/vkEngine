@@ -2,6 +2,7 @@
 #define ENGINE_H
 
 #include <render/render.hpp>
+#include <render/resource.hpp>
 
 namespace vke_common
 {
@@ -34,20 +35,26 @@ namespace vke_common
         }
 
         vke_render::RenderEnvironment *environment;
-        vke_render::OpaqueRenderer *opaq_renderer;
+        vke_render::RenderResourceManager *renderRM;
+        vke_render::OpaqueRenderer *opaqRenderer;
 
-        void Init(int width, int height)
+        static Engine *Init(int width, int height)
         {
-            environment = vke_render::RenderEnvironment::GetInstance();
-            environment->Init(width, height);
-            opaq_renderer = vke_render::OpaqueRenderer::GetInstance();
-            opaq_renderer->Init();
+            instance = new Engine();
+            instance->environment = vke_render::RenderEnvironment::Init(width, height);
+            instance->renderRM = vke_render::RenderResourceManager::Init();
+            instance->opaqRenderer = vke_render::OpaqueRenderer::Init();
+            vke_render::OpaqueRenderer::AddMesh(
+                vke_render::RenderResourceManager::LoadMaterial(""),
+                vke_render::RenderResourceManager::LoadMesh(""));
+            return instance;
         }
 
-        void Dispose()
+        static void Dispose()
         {
-            opaq_renderer->Dispose();
-            environment->Dispose();
+            // opaq_renderer->Dispose();
+            vke_render::OpaqueRenderer::Dispose();
+            instance->environment->Dispose();
         }
 
         void MainLoop();
