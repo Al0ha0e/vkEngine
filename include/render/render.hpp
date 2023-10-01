@@ -6,7 +6,7 @@
 #include <render/material.hpp>
 #include <render/mesh.hpp>
 #include <ds/id_allocator.hpp>
-
+#include <vector>
 #include <map>
 
 namespace vke_render
@@ -15,23 +15,49 @@ namespace vke_render
     {
     };
 
+    struct RenderUnit
+    {
+        Mesh *mesh;
+        VkDescriptorSet descriptorSet;
+
+        void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout)
+        {
+            vkCmdBindDescriptorSets(
+                commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipelineLayout,
+                0, 1,
+                &descriptorSet,
+                0, nullptr);
+            mesh->Render(commandBuffer);
+        }
+    };
+
     class RenderInfo
     {
     public:
         Material *material;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
-        std::vector<Mesh *> meshes;
+        std::vector<RenderUnit> units;
 
-        void AddMesh(Mesh *mesh)
+        void AddUnit(RenderUnit unit)
         {
-            meshes.push_back(mesh);
+            units.push_back(unit);
         }
 
-        void Render(VkCommandBuffer &commandBuffer)
+        void Render(VkCommandBuffer &commandBuffer, std::vector<VkDescriptorSet> globalDescriptorSets)
         {
-            for (auto &mesh : meshes)
-                mesh->Render(commandBuffer);
+            vkCmdBindDescriptorSets(
+                commandBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipelineLayout,
+                0,
+                globalDescriptorSets.size(),
+                globalDescriptorSets.data(),
+                0, nullptr);
+            for (auto &unit : units)
+                unit.Render(commandBuffer, pipelineLayout);
         }
     };
 
@@ -60,6 +86,9 @@ namespace vke_render
         std::vector<VkFramebuffer> swapChainFramebuffers;
         uint32_t currentFrame;
 
+        VkDescriptorSetLayout vpDescriptorSetLayout;
+        VkDescriptorSet vpDescriptorSet;
+
         static OpaqueRenderer *GetInstance()
         {
             if (instance == nullptr)
@@ -74,6 +103,7 @@ namespace vke_render
             instance->environment = RenderEnvironment::GetInstance();
             instance->createRenderPass();
             instance->createFramebuffers();
+            instance->initDefaultDescriptorSet();
             return instance;
         }
 
@@ -107,11 +137,13 @@ namespace vke_render
             // return id;
         }
 
-        static void AddMesh(Material *material, Mesh *mesh)
+        static void AddUnit(Material *material, RenderUnit unit)
         {
             RegisterMaterial(material);
-            instance->renderInfoMap[material].AddMesh(mesh);
+            instance->renderInfoMap[material].AddUnit(unit);
         }
+
+        static void UpdateVPMatrix() {}
 
     private:
         RenderEnvironment *environment;
@@ -125,6 +157,8 @@ namespace vke_render
 
         void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void drawFrame();
+
+        void initDefaultDescriptorSet();
     };
 }
 

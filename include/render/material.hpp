@@ -13,16 +13,22 @@ namespace vke_render
         Shader *shader;
         std::vector<VkVertexInputBindingDescription> bindingDescriptions;
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
         int uniformOffset;
 
         void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
-                             VkPipelineShaderStageCreateInfo *&stages)
+                             VkPipelineShaderStageCreateInfo *&stages,
+                             std::vector<VkDescriptorSetLayout> &globalDescriptorSetLayouts)
         {
             vertexInputInfo.vertexBindingDescriptionCount = bindingDescriptions.size();
             vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
             vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
             vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
             stages = shader->shaderStages.data();
+            globalDescriptorSetLayouts.insert(
+                globalDescriptorSetLayouts.end(),
+                descriptorSetLayouts.begin(),
+                descriptorSetLayouts.end());
         }
     };
 }

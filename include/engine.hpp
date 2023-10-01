@@ -46,7 +46,7 @@ namespace vke_common
             instance->renderRM = vke_render::RenderResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
             instance->opaqRenderer = vke_render::OpaqueRenderer::Init();
-            vke_render::OpaqueRenderer::AddMesh(
+            vke_render::OpaqueRenderer::AddUnit(
                 vke_render::RenderResourceManager::LoadMaterial(""),
                 vke_render::RenderResourceManager::LoadMesh(""));
             return instance;
