@@ -5,11 +5,26 @@
 #include <optional>
 #include <vector>
 #include <iostream>
+#include <map>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
 namespace vke_render
 {
+    const int MAX_FRAMES_IN_FLIGHT = 2;
+
+    struct DescriptorSetInfo
+    {
+        VkDescriptorSetLayout layout;
+        int uniformDescriptorCnt;
+    };
+
+    struct DescriptorSetPoolInfo
+    {
+        int setCnt;
+        int uniformDescriptorCnt;
+    };
+
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphicsFamily;
@@ -26,8 +41,6 @@ namespace vke_render
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
     };
-
-    const int MAX_FRAMES_IN_FLIGHT = 2;
 
     class RenderEnvironment
     {
@@ -209,6 +222,131 @@ namespace vke_render
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
+    };
+
+    class DescriptorSetAllocator
+    {
+    private:
+        static DescriptorSetAllocator *instance;
+        static const int MAX_SET_CNT = 10;
+        static const int MAX_UNIFORM_DESC_CNT = 10;
+
+        DescriptorSetAllocator()
+        {
+            DescriptorSetPoolInfo info = {MAX_SET_CNT, MAX_UNIFORM_DESC_CNT};
+            VkDescriptorPool pool = createDescriptorPool(info);
+            descriptorSetPools[pool] = info;
+        }
+
+        ~DescriptorSetAllocator() {}
+        DescriptorSetAllocator(const DescriptorSetAllocator &);
+        DescriptorSetAllocator &operator=(const DescriptorSetAllocator);
+
+        class Deletor
+        {
+        public:
+            ~Deletor()
+            {
+                if (DescriptorSetAllocator::instance != nullptr)
+                    delete DescriptorSetAllocator::instance;
+            }
+        };
+        static Deletor deletor;
+
+    public:
+        static DescriptorSetAllocator *GetInstance()
+        {
+            if (instance == nullptr)
+                instance = new DescriptorSetAllocator();
+            return instance;
+        }
+
+        static DescriptorSetAllocator *Init()
+        {
+            instance = new DescriptorSetAllocator();
+            return instance;
+        }
+
+        static DescriptorSetAllocator *Init(int poolCnt, DescriptorSetPoolInfo info)
+        {
+            instance = new DescriptorSetAllocator();
+            for (int i = 0; i < poolCnt; i++)
+            {
+                VkDescriptorPool pool = instance->createDescriptorPool(info);
+                instance->descriptorSetPools[pool] = info;
+            }
+            return instance;
+        }
+
+        // DescriptorSetAllocator(int poolCnt, DescriptorSetPoolInfo info)
+        // {
+        //     for (int i = 0; i < poolCnt; i++)
+        //     {
+        //         VkDescriptorPool pool = createDescriptorPool(info);
+        //         descriptorSetPools[pool] = info;
+        //     }
+        // }
+
+        static VkDescriptorSet AllocateDescriptorSet(DescriptorSetInfo info)
+        {
+            for (auto &pool : instance->descriptorSetPools)
+            {
+                DescriptorSetPoolInfo &poolInfo = pool.second;
+                if (poolInfo.setCnt > 0 && poolInfo.uniformDescriptorCnt >= info.uniformDescriptorCnt)
+                {
+                    poolInfo.setCnt--;
+                    poolInfo.uniformDescriptorCnt -= info.uniformDescriptorCnt;
+                    return instance->allocateDescriptorSet(pool.first, &info.layout);
+                }
+            }
+
+            DescriptorSetPoolInfo poolInfo = {MAX_SET_CNT, info.uniformDescriptorCnt * 2};
+            VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
+            instance->descriptorSetPools[pool] = poolInfo;
+            return instance->allocateDescriptorSet(pool, &info.layout);
+        }
+
+    private:
+        std::map<VkDescriptorPool, DescriptorSetPoolInfo> descriptorSetPools;
+
+        VkDescriptorPool createDescriptorPool(DescriptorSetPoolInfo &info)
+        {
+            VkDescriptorPoolSize uniformPoolSize{};
+            uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            uniformPoolSize.descriptorCount = info.uniformDescriptorCnt;
+
+            VkDescriptorPoolCreateInfo poolInfo{};
+            poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+            poolInfo.poolSizeCount = 1;
+            poolInfo.pPoolSizes = &uniformPoolSize;
+            poolInfo.maxSets = info.setCnt;
+
+            VkDescriptorPool ret;
+            if (vkCreateDescriptorPool(RenderEnvironment::GetInstance()->logicalDevice, &poolInfo, nullptr, &ret) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create descriptor pool!");
+            }
+            return ret;
+        }
+
+        VkDescriptorSet allocateDescriptorSet(const VkDescriptorPool &pool, const VkDescriptorSetLayout *layout)
+        {
+            VkDescriptorSetAllocateInfo allocInfo{};
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = pool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = layout;
+
+            VkDescriptorSet ret;
+            if (vkAllocateDescriptorSets(
+                    RenderEnvironment::GetInstance()->logicalDevice,
+                    &allocInfo,
+                    &ret) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to allocate descriptor sets!");
+            }
+            return ret;
+        }
     };
 }
 

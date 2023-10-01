@@ -6,6 +6,7 @@
 
 namespace vke_render
 {
+    DescriptorSetAllocator *DescriptorSetAllocator::instance = nullptr;
     RenderEnvironment *RenderEnvironment::instance = nullptr;
     // using QueueFamilyIndices = RenderEnvironment::QueueFamilyIndices;
     // using SwapChainSupportDetails = RenderEnvironment::SwapChainSupportDetails;

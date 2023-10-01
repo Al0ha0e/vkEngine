@@ -36,6 +36,7 @@ namespace vke_common
 
         vke_render::RenderEnvironment *environment;
         vke_render::RenderResourceManager *renderRM;
+        vke_render::DescriptorSetAllocator *allocator;
         vke_render::OpaqueRenderer *opaqRenderer;
 
         static Engine *Init(int width, int height)
@@ -43,6 +44,7 @@ namespace vke_common
             instance = new Engine();
             instance->environment = vke_render::RenderEnvironment::Init(width, height);
             instance->renderRM = vke_render::RenderResourceManager::Init();
+            instance->allocator = vke_render::DescriptorSetAllocator::Init();
             instance->opaqRenderer = vke_render::OpaqueRenderer::Init();
             vke_render::OpaqueRenderer::AddMesh(
                 vke_render::RenderResourceManager::LoadMaterial(""),
