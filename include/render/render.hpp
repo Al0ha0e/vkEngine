@@ -20,15 +20,52 @@ namespace vke_render
         Mesh *mesh;
         VkDescriptorSet descriptorSet;
 
-        void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout)
+        RenderUnit(Mesh *msh) : mesh(msh), descriptorSet(nullptr) {}
+
+        RenderUnit(
+            Mesh *msh,
+            DescriptorSetInfo descriptorSetInfo,
+            std::vector<DescriptorInfo> &descriptorInfos,
+            std::vector<VkBuffer> &buffers) : mesh(msh)
         {
-            vkCmdBindDescriptorSets(
-                commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipelineLayout,
-                0, 1,
-                &descriptorSet,
-                0, nullptr);
+            descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
+            int descriptorCnt = descriptorInfos.size();
+            std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
+            std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
+            for (int i = 0; i < descriptorCnt; i++)
+            {
+                DescriptorInfo &info = descriptorInfos[i];
+                VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
+                bufferInfo.buffer = buffers[i];
+                bufferInfo.offset = 0;
+                bufferInfo.range = info.bufferSize;
+
+                VkWriteDescriptorSet &descriptorWrite = descriptorWrites[i];
+                descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                descriptorWrite.dstSet = descriptorSet;
+                descriptorWrite.dstBinding = info.bindingInfo.binding;
+                descriptorWrite.dstArrayElement = 0;
+                descriptorWrite.descriptorType = info.bindingInfo.descriptorType;
+                descriptorWrite.descriptorCount = 1;
+                descriptorWrite.pBufferInfo = &bufferInfo;
+                descriptorWrite.pImageInfo = nullptr;       // Optional
+                descriptorWrite.pTexelBufferView = nullptr; // Optional
+            }
+            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
+        }
+
+        void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout, int descriptorSetOffset)
+        {
+            if (descriptorSet)
+                vkCmdBindDescriptorSets(
+                    commandBuffer,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineLayout,
+                    descriptorSetOffset,
+                    1,
+                    &descriptorSet,
+                    0, nullptr);
+
             mesh->Render(commandBuffer);
         }
     };
@@ -39,26 +76,127 @@ namespace vke_render
         Material *material;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
-        std::vector<RenderUnit> units;
+        DescriptorSetInfo commonDescriptorSetInfo;
+        VkDescriptorSet commonDescriptorSet;
+        DescriptorSetInfo perUnitDescriptorSetInfo;
+        bool hasCommonDescriptorSet;
+        bool hasPerUnitDescriptorSet;
+        std::map<uint64_t, RenderUnit> units;
 
-        void AddUnit(RenderUnit unit)
+        RenderInfo(Material *mat)
+            : material(mat),
+              commonDescriptorSet(nullptr)
         {
-            units.push_back(unit);
+            hasCommonDescriptorSet = mat->commonDescriptorInfos.size() > 0;
+            hasPerUnitDescriptorSet = mat->perUnitDescriptorInfos.size() > 0;
+
+            VkDescriptorSetLayoutCreateInfo layoutInfo{};
+            if (hasCommonDescriptorSet)
+            {
+                commonDescriptorSetInfo.uniformDescriptorCnt = 0;
+                std::vector<VkDescriptorSetLayoutBinding> commonBindings;
+                for (auto &dInfo : mat->commonDescriptorInfos)
+                {
+                    if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                        commonDescriptorSetInfo.uniformDescriptorCnt++;
+                    commonBindings.push_back(dInfo.bindingInfo);
+                }
+
+                layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+                layoutInfo.bindingCount = commonBindings.size();
+                layoutInfo.pBindings = commonBindings.data();
+
+                if (vkCreateDescriptorSetLayout(
+                        RenderEnvironment::GetInstance()->logicalDevice,
+                        &layoutInfo,
+                        nullptr,
+                        &commonDescriptorSetInfo.layout) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("failed to create descriptor set layout!");
+                }
+                commonDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(commonDescriptorSetInfo);
+            }
+
+            if (hasPerUnitDescriptorSet)
+            {
+                perUnitDescriptorSetInfo.uniformDescriptorCnt = 0;
+                std::vector<VkDescriptorSetLayoutBinding> perUnitBindings;
+                for (auto &dInfo : mat->perUnitDescriptorInfos)
+                {
+                    if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                        perUnitDescriptorSetInfo.uniformDescriptorCnt++;
+                    perUnitBindings.push_back(dInfo.bindingInfo);
+                }
+
+                layoutInfo.bindingCount = perUnitBindings.size();
+                layoutInfo.pBindings = perUnitBindings.data();
+
+                if (vkCreateDescriptorSetLayout(
+                        RenderEnvironment::GetInstance()->logicalDevice,
+                        &layoutInfo,
+                        nullptr,
+                        &perUnitDescriptorSetInfo.layout) != VK_SUCCESS)
+                {
+                    throw std::runtime_error("failed to create descriptor set layout!");
+                }
+            }
         }
 
-        void Render(VkCommandBuffer &commandBuffer, std::vector<VkDescriptorSet> globalDescriptorSets)
+        ~RenderInfo()
         {
-            vkCmdBindDescriptorSets(
-                commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipelineLayout,
-                0,
-                globalDescriptorSets.size(),
-                globalDescriptorSets.data(),
-                0, nullptr);
+            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
+            vkDestroyDescriptorSetLayout(logicalDevice, commonDescriptorSetInfo.layout, nullptr);
+            vkDestroyDescriptorSetLayout(logicalDevice, perUnitDescriptorSetInfo.layout, nullptr);
+        }
+
+        void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
+                             VkPipelineShaderStageCreateInfo *&stages,
+                             std::vector<VkDescriptorSetLayout> &globalDescriptorSetLayouts)
+        {
+            material->ApplyToPipeline(vertexInputInfo, stages);
+
+            if (hasCommonDescriptorSet)
+                globalDescriptorSetLayouts.push_back(commonDescriptorSetInfo.layout);
+            if (hasPerUnitDescriptorSet)
+                globalDescriptorSetLayouts.push_back(perUnitDescriptorSetInfo.layout);
+        }
+
+        uint64_t AddUnit(Mesh *mesh, std::vector<VkBuffer> &buffers)
+        {
+            uint64_t id = allocator.Alloc();
+            units[id] = hasPerUnitDescriptorSet ? RenderUnit(mesh, perUnitDescriptorSetInfo, material->perUnitDescriptorInfos, buffers)
+                                                : RenderUnit(mesh);
+            return id;
+        }
+
+        void Render(VkCommandBuffer &commandBuffer, VkDescriptorSet *globalDescriptorSet)
+        {
+            int setcnt = 0;
+            if (globalDescriptorSet)
+                vkCmdBindDescriptorSets(
+                    commandBuffer,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineLayout,
+                    setcnt++,
+                    1,
+                    globalDescriptorSet,
+                    0, nullptr);
+
+            if (hasCommonDescriptorSet)
+                vkCmdBindDescriptorSets(
+                    commandBuffer,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineLayout,
+                    setcnt++,
+                    1,
+                    &commonDescriptorSet,
+                    0, nullptr);
             for (auto &unit : units)
-                unit.Render(commandBuffer, pipelineLayout);
+                unit.second.Render(commandBuffer, pipelineLayout, setcnt);
         }
+
+    private:
+        vke_ds::NaiveIDAllocator<uint64_t> allocator;
     };
 
     class OpaqueRenderer
@@ -86,8 +224,8 @@ namespace vke_render
         std::vector<VkFramebuffer> swapChainFramebuffers;
         uint32_t currentFrame;
 
-        VkDescriptorSetLayout vpDescriptorSetLayout;
-        VkDescriptorSet vpDescriptorSet;
+        DescriptorSetInfo globalDescriptorSetInfo;
+        VkDescriptorSet globalDescriptorSet;
 
         static OpaqueRenderer *GetInstance()
         {
@@ -101,9 +239,9 @@ namespace vke_render
             instance = new OpaqueRenderer();
             instance->currentFrame = 0;
             instance->environment = RenderEnvironment::GetInstance();
+            instance->createGlobalDescriptorSet();
             instance->createRenderPass();
             instance->createFramebuffers();
-            instance->initDefaultDescriptorSet();
             return instance;
         }
 
@@ -123,6 +261,11 @@ namespace vke_render
 
         void Update();
 
+        static void RegisterCamera(VkBuffer buffer)
+        {
+            // TODO
+        }
+
         static void RegisterMaterial(Material *material)
         {
             // uint32_t id = instance->materialIDAllocator.Alloc();
@@ -130,17 +273,16 @@ namespace vke_render
             if (rMap.find(material) != rMap.end())
                 return;
 
-            RenderInfo info;
-            info.material = material;
-            instance->createGraphicsPipelineForMaterial(info);
+            RenderInfo info(material);
+            instance->createGraphicsPipeline(info);
             rMap[material] = info;
             // return id;
         }
 
-        static void AddUnit(Material *material, RenderUnit unit)
+        static uint64_t AddUnit(Material *material, Mesh *mesh, std::vector<VkBuffer> &buffers)
         {
             RegisterMaterial(material);
-            instance->renderInfoMap[material].AddUnit(unit);
+            return instance->renderInfoMap[material].AddUnit(mesh, buffers);
         }
 
         static void UpdateVPMatrix() {}
@@ -150,15 +292,13 @@ namespace vke_render
         // vke_ds::DynamicIDAllocator<uint32_t> materialIDAllocator;
         std::map<Material *, RenderInfo> renderInfoMap;
 
+        void createGlobalDescriptorSet();
         void createRenderPass();
-
-        void createGraphicsPipelineForMaterial(RenderInfo &renderInfo);
+        void createGraphicsPipeline(RenderInfo &renderInfo);
         void createFramebuffers();
 
         void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
         void drawFrame();
-
-        void initDefaultDescriptorSet();
     };
 }
 

@@ -13,10 +13,20 @@ namespace vke_render
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
+    struct DescriptorInfo
+    {
+        VkDescriptorSetLayoutBinding bindingInfo;
+        size_t bufferSize;
+    };
+
     struct DescriptorSetInfo
     {
         VkDescriptorSetLayout layout;
         int uniformDescriptorCnt;
+
+        DescriptorSetInfo() = default;
+        DescriptorSetInfo(VkDescriptorSetLayout lo,
+                          int dcnt) : layout(lo), uniformDescriptorCnt(dcnt) {}
     };
 
     struct DescriptorSetPoolInfo

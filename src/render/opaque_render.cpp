@@ -4,6 +4,29 @@ namespace vke_render
 {
     OpaqueRenderer *OpaqueRenderer::instance = nullptr;
 
+    void OpaqueRenderer::createGlobalDescriptorSet()
+    {
+        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+        uboLayoutBinding.binding = 0;
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboLayoutBinding.descriptorCount = 1;
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &uboLayoutBinding;
+
+        if (vkCreateDescriptorSetLayout(environment->logicalDevice, &layoutInfo, nullptr, &globalDescriptorSetInfo.layout) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create descriptor set layout!");
+        }
+
+        globalDescriptorSetInfo.uniformDescriptorCnt = 1;
+        globalDescriptorSet = DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
+    }
+
     void OpaqueRenderer::createRenderPass()
     {
         VkAttachmentDescription colorAttachment{};
@@ -48,7 +71,7 @@ namespace vke_render
         }
     }
 
-    void OpaqueRenderer::createGraphicsPipelineForMaterial(RenderInfo &renderInfo)
+    void OpaqueRenderer::createGraphicsPipeline(RenderInfo &renderInfo)
     {
         std::vector<VkDynamicState> dynamicStates = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -65,9 +88,9 @@ namespace vke_render
         VkPipelineShaderStageCreateInfo *stages;
 
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-        descriptorSetLayouts.push_back(vpDescriptorSetLayout);
+        descriptorSetLayouts.push_back(globalDescriptorSetInfo.layout);
 
-        renderInfo.material->ApplyToPipeline(vertexInputInfo, stages, descriptorSetLayouts);
+        renderInfo.ApplyToPipeline(vertexInputInfo, stages, descriptorSetLayouts);
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -222,7 +245,7 @@ namespace vke_render
         scissor.extent = environment->swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        renderInfo.Render(commandBuffer, std::vector<VkDescriptorSet>{vpDescriptorSet});
+        renderInfo.Render(commandBuffer, &globalDescriptorSet);
         // vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);
@@ -278,30 +301,5 @@ namespace vke_render
     {
         drawFrame();
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-    }
-
-    void OpaqueRenderer::initDefaultDescriptorSet()
-    {
-        VkDescriptorSetLayoutBinding uboLayoutBinding{};
-        uboLayoutBinding.binding = 0;
-        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = 1;
-        layoutInfo.pBindings = &uboLayoutBinding;
-
-        if (vkCreateDescriptorSetLayout(environment->logicalDevice, &layoutInfo, nullptr, &vpDescriptorSetLayout) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create descriptor set layout!");
-        }
-
-        DescriptorSetInfo info = {vpDescriptorSetLayout, 1};
-        vpDescriptorSet = DescriptorSetAllocator::AllocateDescriptorSet(info);
-
-        // TODO bind buffer
     }
 }

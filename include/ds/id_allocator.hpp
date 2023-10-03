@@ -7,6 +7,20 @@
 namespace vke_ds
 {
     template <typename T>
+    class NaiveIDAllocator
+    {
+    public:
+        T id;
+        NaiveIDAllocator() : id(0) {}
+        NaiveIDAllocator(T st) : id(st) {}
+
+        T Alloc()
+        {
+            return id++;
+        }
+    };
+
+    template <typename T>
     class DynamicIDAllocator
     {
     public:
