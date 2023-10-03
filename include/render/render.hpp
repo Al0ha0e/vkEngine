@@ -11,14 +11,28 @@
 
 namespace vke_render
 {
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo);
+
     class Renderer
     {
+    };
+
+    struct CameraInfo
+    {
+        glm::mat4 view;
+        glm::mat4 projection;
+        glm::vec4 viewPos;
+
+        CameraInfo(glm::mat4 view, glm::mat4 projection, glm::vec3 viewPos)
+            : view(view), projection(projection), viewPos(viewPos, 1.0) {}
     };
 
     struct RenderUnit
     {
         Mesh *mesh;
         VkDescriptorSet descriptorSet;
+
+        RenderUnit() = default;
 
         RenderUnit(Mesh *msh) : mesh(msh), descriptorSet(nullptr) {}
 
@@ -40,16 +54,7 @@ namespace vke_render
                 bufferInfo.offset = 0;
                 bufferInfo.range = info.bufferSize;
 
-                VkWriteDescriptorSet &descriptorWrite = descriptorWrites[i];
-                descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                descriptorWrite.dstSet = descriptorSet;
-                descriptorWrite.dstBinding = info.bindingInfo.binding;
-                descriptorWrite.dstArrayElement = 0;
-                descriptorWrite.descriptorType = info.bindingInfo.descriptorType;
-                descriptorWrite.descriptorCount = 1;
-                descriptorWrite.pBufferInfo = &bufferInfo;
-                descriptorWrite.pImageInfo = nullptr;       // Optional
-                descriptorWrite.pTexelBufferView = nullptr; // Optional
+                descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, &bufferInfo);
             }
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
         }
@@ -83,6 +88,8 @@ namespace vke_render
         bool hasPerUnitDescriptorSet;
         std::map<uint64_t, RenderUnit> units;
 
+        RenderInfo() = default;
+
         RenderInfo(Material *mat)
             : material(mat),
               commonDescriptorSet(nullptr)
@@ -91,18 +98,19 @@ namespace vke_render
             hasPerUnitDescriptorSet = mat->perUnitDescriptorInfos.size() > 0;
 
             VkDescriptorSetLayoutCreateInfo layoutInfo{};
+            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             if (hasCommonDescriptorSet)
             {
+                std::vector<DescriptorInfo> &commonDescriptorInfos = mat->commonDescriptorInfos;
                 commonDescriptorSetInfo.uniformDescriptorCnt = 0;
                 std::vector<VkDescriptorSetLayoutBinding> commonBindings;
-                for (auto &dInfo : mat->commonDescriptorInfos)
+                for (auto &dInfo : commonDescriptorInfos)
                 {
                     if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                         commonDescriptorSetInfo.uniformDescriptorCnt++;
                     commonBindings.push_back(dInfo.bindingInfo);
                 }
 
-                layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
                 layoutInfo.bindingCount = commonBindings.size();
                 layoutInfo.pBindings = commonBindings.data();
 
@@ -115,6 +123,21 @@ namespace vke_render
                     throw std::runtime_error("failed to create descriptor set layout!");
                 }
                 commonDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(commonDescriptorSetInfo);
+
+                int descriptorCnt = commonDescriptorInfos.size();
+                std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
+                std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
+                for (int i = 0; i < descriptorCnt; i++)
+                {
+                    DescriptorInfo &info = commonDescriptorInfos[i];
+                    VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
+                    bufferInfo.buffer = material->commonBuffers[i];
+                    bufferInfo.offset = 0;
+                    bufferInfo.range = info.bufferSize;
+
+                    descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, &bufferInfo);
+                }
+                vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
             }
 
             if (hasPerUnitDescriptorSet)
@@ -224,6 +247,7 @@ namespace vke_render
         std::vector<VkFramebuffer> swapChainFramebuffers;
         uint32_t currentFrame;
 
+        std::vector<DescriptorInfo> globalDescriptorInfos;
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
@@ -263,7 +287,13 @@ namespace vke_render
 
         static void RegisterCamera(VkBuffer buffer)
         {
-            // TODO
+            DescriptorInfo &info = instance->globalDescriptorInfos[0];
+            VkDescriptorBufferInfo bufferInfo;
+            bufferInfo.buffer = buffer;
+            bufferInfo.offset = 0;
+            bufferInfo.range = info.bufferSize;
+            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(instance->globalDescriptorSet, info, &bufferInfo);
+            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
         }
 
         static void RegisterMaterial(Material *material)

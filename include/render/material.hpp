@@ -15,6 +15,7 @@ namespace vke_render
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
         std::vector<DescriptorInfo> commonDescriptorInfos;
         std::vector<DescriptorInfo> perUnitDescriptorInfos;
+        std::vector<VkBuffer> commonBuffers;
 
         void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
                              VkPipelineShaderStageCreateInfo *&stages)

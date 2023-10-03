@@ -82,9 +82,20 @@ namespace vke_render
             attributeDescriptions[1].offset = offsetof(Vertex, color);
 
             Material *ret = new Material;
+            ret->shader = LoadShader("./tests/shader/vert.spv", "./tests/shader/frag.spv");
             ret->bindingDescriptions = bindingDescriptions;
             ret->attributeDescriptions = attributeDescriptions;
-            ret->shader = LoadShader("./tests/shader/vert.spv", "./tests/shader/frag.spv");
+
+            VkDescriptorSetLayoutBinding modelLayoutBinding;
+            modelLayoutBinding.binding = 0;
+            modelLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            modelLayoutBinding.descriptorCount = 1;
+            modelLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+            modelLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+            vke_render::DescriptorInfo descriptorInfo(modelLayoutBinding, sizeof(glm::mat4));
+            ret->perUnitDescriptorInfos.push_back(descriptorInfo);
+
             return ret;
         }
 

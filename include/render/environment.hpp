@@ -13,10 +13,20 @@ namespace vke_render
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
+    void CreateBufferAndTransferStaged(
+        size_t size,
+        void *srcdata,
+        VkBufferUsageFlags flags,
+        VkBuffer &buffer,
+        VkDeviceMemory &bufferMemory);
+
     struct DescriptorInfo
     {
         VkDescriptorSetLayoutBinding bindingInfo;
         size_t bufferSize;
+
+        DescriptorInfo(VkDescriptorSetLayoutBinding bInfo, size_t bSize)
+            : bindingInfo(bInfo), bufferSize(bSize) {}
     };
 
     struct DescriptorSetInfo

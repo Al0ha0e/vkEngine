@@ -44,6 +44,8 @@ namespace vke_common
         TransformParameter transform;
         std::vector<Component *> components;
 
+        GameObject(TransformParameter &tp) : transform(tp){};
+
         void RotateGlobal(float det, glm::vec3 &axis)
         {
             glm::vec3 gaxis = glm::transpose(transform.rotation) * glm::vec4(axis, 0.0f);

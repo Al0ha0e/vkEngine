@@ -1,7 +1,7 @@
 # env = Environment(tools=['mingw'])
 
 env = Environment(CC = 'cl',
-                   CCFLAGS = '/std:c++17')
+                   CCFLAGS = ['/std:c++17','/EHsc'])
 
 env.Program("out/test",
         ["./tests/test.cpp" ],
@@ -9,7 +9,8 @@ env.Program("out/test",
         SCONS_CXX_STANDARD="c++17")
 
 env.Program("out/test_env",
-        ["./tests/test_env.cpp","./src/render/environment.cpp","./src/render/resource.cpp", "./src/render/opaque_render.cpp","./src/engine.cpp"],
+            ["./tests/test_env.cpp", "./src/render/environment.cpp", "./src/render/resource.cpp",
+                "./src/render/render.cpp", "./src/render/opaque_render.cpp", "./src/engine.cpp"],
         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
         SCONS_CXX_STANDARD="c++17")
 

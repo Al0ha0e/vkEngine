@@ -6,16 +6,10 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
-#include <iostream>
-#include <vector>
-#include <optional>
-#include <set>
-#include <cstdint>
-#include <limits>
-#include <algorithm>
-#include <fstream>
-
 #include <engine.hpp>
+#include <gameobject.hpp>
+#include <component/camera.hpp>
+#include <component/renderable_object.hpp>
 
 const uint32_t WIDTH = 1024;
 const uint32_t HEIGHT = 768;
@@ -25,6 +19,20 @@ vke_common::Engine *engine;
 int main()
 {
     engine = vke_common::Engine::Init(WIDTH, HEIGHT);
+
+    vke_common::TransformParameter camParam(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3());
+    vke_common::TransformParameter targetParam(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3());
+    vke_common::GameObject cameraGameObj(camParam);
+    vke_common::GameObject targetGameObj(targetParam);
+
+    vke_component::Camera camera(90, WIDTH, HEIGHT, 0.01, 1000, &cameraGameObj);
+
+    vke_render::RenderResourceManager *manager = vke_render::RenderResourceManager::GetInstance();
+
+    vke_render::Material *material = manager->LoadMaterial("");
+    vke_render::Mesh *mesh = manager->LoadMesh("");
+
+    vke_component::RenderableObject renderObj(material, mesh, &targetGameObj);
 
     engine->MainLoop();
 
