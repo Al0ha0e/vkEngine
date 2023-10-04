@@ -15,7 +15,6 @@ namespace vke_render
 
         globalDescriptorInfos.push_back(DescriptorInfo(vpLayoutBinding, sizeof(CameraInfo)));
 
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
         globalDescriptorSetInfo.uniformDescriptorCnt = 0;
         std::vector<VkDescriptorSetLayoutBinding> globalBindings;
         for (auto &dInfo : globalDescriptorInfos)
@@ -25,6 +24,7 @@ namespace vke_render
             globalBindings.push_back(dInfo.bindingInfo);
         }
 
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = globalBindings.size();
         layoutInfo.pBindings = globalBindings.data();
@@ -239,10 +239,10 @@ namespace vke_render
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = &clearColor;
 
-        RenderInfo &renderInfo = renderInfoMap.begin()->second;
+        RenderInfo *renderInfo = renderInfoMap.begin()->second;
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo.pipeline);
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->pipeline);
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
@@ -257,7 +257,7 @@ namespace vke_render
         scissor.extent = environment->swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        renderInfo.Render(commandBuffer, &globalDescriptorSet);
+        renderInfo->Render(commandBuffer, &globalDescriptorSet);
         // vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
         vkCmdEndRenderPass(commandBuffer);

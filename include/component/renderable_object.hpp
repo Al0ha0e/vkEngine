@@ -38,7 +38,6 @@ namespace vke_component
                 &mappedBufferMemory);
 
             memcpy(mappedBufferMemory, &gameObject->transform.model, sizeof(glm::mat4));
-            vke_render::OpaqueRenderer::RegisterCamera(buffer);
 
             buffers.push_back(buffer);
             bufferMemories.push_back(bufferMemory);

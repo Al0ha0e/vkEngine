@@ -23,6 +23,8 @@ namespace vke_render
         glm::mat4 projection;
         glm::vec4 viewPos;
 
+        CameraInfo() = default;
+
         CameraInfo(glm::mat4 view, glm::mat4 projection, glm::vec3 viewPos)
             : view(view), projection(projection), viewPos(viewPos, 1.0) {}
     };
@@ -38,7 +40,7 @@ namespace vke_render
 
         RenderUnit(
             Mesh *msh,
-            DescriptorSetInfo descriptorSetInfo,
+            DescriptorSetInfo &descriptorSetInfo,
             std::vector<DescriptorInfo> &descriptorInfos,
             std::vector<VkBuffer> &buffers) : mesh(msh)
         {
@@ -54,7 +56,7 @@ namespace vke_render
                 bufferInfo.offset = 0;
                 bufferInfo.range = info.bufferSize;
 
-                descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, &bufferInfo);
+                descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, bufferInfos.data() + i);
             }
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
         }
@@ -118,7 +120,7 @@ namespace vke_render
                         RenderEnvironment::GetInstance()->logicalDevice,
                         &layoutInfo,
                         nullptr,
-                        &commonDescriptorSetInfo.layout) != VK_SUCCESS)
+                        &(commonDescriptorSetInfo.layout)) != VK_SUCCESS)
                 {
                     throw std::runtime_error("failed to create descriptor set layout!");
                 }
@@ -158,7 +160,7 @@ namespace vke_render
                         RenderEnvironment::GetInstance()->logicalDevice,
                         &layoutInfo,
                         nullptr,
-                        &perUnitDescriptorSetInfo.layout) != VK_SUCCESS)
+                        &(perUnitDescriptorSetInfo.layout)) != VK_SUCCESS)
                 {
                     throw std::runtime_error("failed to create descriptor set layout!");
                 }
@@ -168,8 +170,10 @@ namespace vke_render
         ~RenderInfo()
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkDestroyDescriptorSetLayout(logicalDevice, commonDescriptorSetInfo.layout, nullptr);
-            vkDestroyDescriptorSetLayout(logicalDevice, perUnitDescriptorSetInfo.layout, nullptr);
+            if (hasCommonDescriptorSet)
+                vkDestroyDescriptorSetLayout(logicalDevice, commonDescriptorSetInfo.layout, nullptr);
+            if (hasPerUnitDescriptorSet)
+                vkDestroyDescriptorSetLayout(logicalDevice, perUnitDescriptorSetInfo.layout, nullptr);
         }
 
         void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
@@ -195,7 +199,7 @@ namespace vke_render
         void Render(VkCommandBuffer &commandBuffer, VkDescriptorSet *globalDescriptorSet)
         {
             int setcnt = 0;
-            if (globalDescriptorSet)
+            if (*globalDescriptorSet)
                 vkCmdBindDescriptorSets(
                     commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -277,8 +281,8 @@ namespace vke_render
             }
             for (auto &renderInfo : instance->renderInfoMap)
             {
-                vkDestroyPipeline(instance->environment->logicalDevice, renderInfo.second.pipeline, nullptr);
-                vkDestroyPipelineLayout(instance->environment->logicalDevice, renderInfo.second.pipelineLayout, nullptr);
+                vkDestroyPipeline(instance->environment->logicalDevice, renderInfo.second->pipeline, nullptr);
+                vkDestroyPipelineLayout(instance->environment->logicalDevice, renderInfo.second->pipelineLayout, nullptr);
             }
             vkDestroyRenderPass(instance->environment->logicalDevice, instance->renderPass, nullptr);
         }
@@ -288,7 +292,7 @@ namespace vke_render
         static void RegisterCamera(VkBuffer buffer)
         {
             DescriptorInfo &info = instance->globalDescriptorInfos[0];
-            VkDescriptorBufferInfo bufferInfo;
+            VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = buffer;
             bufferInfo.offset = 0;
             bufferInfo.range = info.bufferSize;
@@ -303,8 +307,8 @@ namespace vke_render
             if (rMap.find(material) != rMap.end())
                 return;
 
-            RenderInfo info(material);
-            instance->createGraphicsPipeline(info);
+            RenderInfo *info = new RenderInfo(material);
+            instance->createGraphicsPipeline(*info);
             rMap[material] = info;
             // return id;
         }
@@ -312,15 +316,13 @@ namespace vke_render
         static uint64_t AddUnit(Material *material, Mesh *mesh, std::vector<VkBuffer> &buffers)
         {
             RegisterMaterial(material);
-            return instance->renderInfoMap[material].AddUnit(mesh, buffers);
+            return instance->renderInfoMap[material]->AddUnit(mesh, buffers);
         }
-
-        static void UpdateVPMatrix() {}
 
     private:
         RenderEnvironment *environment;
         // vke_ds::DynamicIDAllocator<uint32_t> materialIDAllocator;
-        std::map<Material *, RenderInfo> renderInfoMap;
+        std::map<Material *, RenderInfo *> renderInfoMap;
 
         void createGlobalDescriptorSet();
         void createRenderPass();

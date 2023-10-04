@@ -86,7 +86,7 @@ namespace vke_render
             ret->bindingDescriptions = bindingDescriptions;
             ret->attributeDescriptions = attributeDescriptions;
 
-            VkDescriptorSetLayoutBinding modelLayoutBinding;
+            VkDescriptorSetLayoutBinding modelLayoutBinding{};
             modelLayoutBinding.binding = 0;
             modelLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             modelLayoutBinding.descriptorCount = 1;

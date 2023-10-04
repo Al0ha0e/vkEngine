@@ -307,7 +307,7 @@ namespace vke_render
         //     }
         // }
 
-        static VkDescriptorSet AllocateDescriptorSet(DescriptorSetInfo info)
+        static VkDescriptorSet AllocateDescriptorSet(DescriptorSetInfo &info)
         {
             for (auto &pool : instance->descriptorSetPools)
             {
@@ -316,14 +316,14 @@ namespace vke_render
                 {
                     poolInfo.setCnt--;
                     poolInfo.uniformDescriptorCnt -= info.uniformDescriptorCnt;
-                    return instance->allocateDescriptorSet(pool.first, &info.layout);
+                    return instance->allocateDescriptorSet(pool.first, &(info.layout));
                 }
             }
 
             DescriptorSetPoolInfo poolInfo = {MAX_SET_CNT, info.uniformDescriptorCnt * 2};
             VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
             instance->descriptorSetPools[pool] = poolInfo;
-            return instance->allocateDescriptorSet(pool, &info.layout);
+            return instance->allocateDescriptorSet(pool, &(info.layout));
         }
 
     private:
