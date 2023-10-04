@@ -3,6 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/resource.hpp>
+#include <render/descriptor_pool.hpp>
 
 namespace vke_common
 {

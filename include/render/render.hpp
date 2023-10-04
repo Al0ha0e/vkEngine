@@ -5,6 +5,7 @@
 #include <render/environment.hpp>
 #include <render/material.hpp>
 #include <render/mesh.hpp>
+#include <render/descriptor_pool.hpp>
 #include <ds/id_allocator.hpp>
 #include <vector>
 #include <map>
@@ -12,7 +13,7 @@
 namespace vke_render
 {
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo);
-
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo);
     class Renderer
     {
     };
@@ -105,11 +106,14 @@ namespace vke_render
             {
                 std::vector<DescriptorInfo> &commonDescriptorInfos = mat->commonDescriptorInfos;
                 commonDescriptorSetInfo.uniformDescriptorCnt = 0;
+                commonDescriptorSetInfo.combinedImageSamplerCnt = 0;
                 std::vector<VkDescriptorSetLayoutBinding> commonBindings;
                 for (auto &dInfo : commonDescriptorInfos)
                 {
                     if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                         commonDescriptorSetInfo.uniformDescriptorCnt++;
+                    else if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                        commonDescriptorSetInfo.combinedImageSamplerCnt++;
                     commonBindings.push_back(dInfo.bindingInfo);
                 }
 
@@ -127,17 +131,29 @@ namespace vke_render
                 commonDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(commonDescriptorSetInfo);
 
                 int descriptorCnt = commonDescriptorInfos.size();
-                std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
+                // std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
                 std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
                 for (int i = 0; i < descriptorCnt; i++)
                 {
                     DescriptorInfo &info = commonDescriptorInfos[i];
-                    VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
-                    bufferInfo.buffer = material->commonBuffers[i];
-                    bufferInfo.offset = 0;
-                    bufferInfo.range = info.bufferSize;
 
-                    descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, &bufferInfo);
+                    if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                    {
+                        // VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
+                        VkDescriptorBufferInfo bufferInfo = {};
+                        bufferInfo.buffer = material->commonBuffers[i];
+                        bufferInfo.offset = 0;
+                        bufferInfo.range = info.bufferSize;
+                        descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, &bufferInfo);
+                    }
+                    else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    {
+                        VkDescriptorImageInfo imageInfo{};
+                        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfo.imageView = info.imageView;
+                        imageInfo.sampler = info.imageSampler;
+                        descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, &imageInfo);
+                    }
                 }
                 vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
             }

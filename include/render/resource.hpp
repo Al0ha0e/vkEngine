@@ -4,6 +4,7 @@
 #include <render/shader.hpp>
 #include <render/material.hpp>
 #include <render/mesh.hpp>
+#include <render/texture.hpp>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -61,6 +62,19 @@ namespace vke_render
             return ret;
         }
 
+        static Texture2D *LoadTexture2D(std::string pth)
+        {
+            int texWidth, texHeight, texChannels;
+            stbi_uc *pixels = stbi_load(pth.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+            if (!pixels)
+            {
+                throw std::runtime_error("failed to load texture image!");
+            }
+
+            return new Texture2D(pixels, texWidth, texHeight);
+        }
+
         static Material *LoadMaterial(std::string pth)
         {
             // TODO
@@ -71,7 +85,7 @@ namespace vke_render
             std::vector<VkVertexInputBindingDescription> bindingDescriptions;
             bindingDescriptions.push_back(bindingDescription);
 
-            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(2);
+            std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
             attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -80,8 +94,15 @@ namespace vke_render
             attributeDescriptions[1].location = 1;
             attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
             attributeDescriptions[1].offset = offsetof(Vertex, color);
+            attributeDescriptions[2].binding = 0;
+            attributeDescriptions[2].location = 2;
+            attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+            attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
             Material *ret = new Material;
+
+            Texture2D *texture = LoadTexture2D("./resources/texture/texture.jpg");
+            ret->textures.push_back(texture);
             ret->shader = LoadShader("./tests/shader/vert.spv", "./tests/shader/frag.spv");
             ret->bindingDescriptions = bindingDescriptions;
             ret->attributeDescriptions = attributeDescriptions;
@@ -92,9 +113,17 @@ namespace vke_render
             modelLayoutBinding.descriptorCount = 1;
             modelLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
             modelLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
             vke_render::DescriptorInfo descriptorInfo(modelLayoutBinding, sizeof(glm::mat4));
             ret->perUnitDescriptorInfos.push_back(descriptorInfo);
+
+            VkDescriptorSetLayoutBinding textureLayoutBinding{};
+            textureLayoutBinding.binding = 0;
+            textureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            textureLayoutBinding.descriptorCount = 1;
+            textureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            textureLayoutBinding.pImmutableSamplers = nullptr; // Optional
+            vke_render::DescriptorInfo textureDescriptorInfo(textureLayoutBinding, texture->textureImageView, texture->textureSampler);
+            ret->commonDescriptorInfos.push_back(textureDescriptorInfo);
 
             return ret;
         }
@@ -103,10 +132,10 @@ namespace vke_render
         {
             // TODO
             const std::vector<Vertex> vertices = {
-                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+                {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
             std::vector<uint32_t> indices = {
                 0, 1, 2, 2, 3, 0};
             Mesh *ret = new Mesh(vertices.size() * sizeof(Vertex), (void *)vertices.data(), indices);

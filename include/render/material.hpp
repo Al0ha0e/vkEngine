@@ -2,6 +2,8 @@
 #define MATERIAL_H
 
 #include <render/shader.hpp>
+#include <render/descriptor_pool.hpp>
+#include <render/texture.hpp>
 
 namespace vke_render
 {
@@ -11,6 +13,7 @@ namespace vke_render
         Material() = default;
 
         Shader *shader;
+        std::vector<Texture2D *> textures;
         std::vector<VkVertexInputBindingDescription> bindingDescriptions;
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
         std::vector<DescriptorInfo> commonDescriptorInfos;

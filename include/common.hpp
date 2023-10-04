@@ -6,6 +6,8 @@
 #include <GLFW/glfw3.h>
 #endif
 
+#include <stb_image.h>
+
 const bool DEBUG_MODE = true;
 
 #endif
