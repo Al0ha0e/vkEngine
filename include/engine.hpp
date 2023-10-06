@@ -2,8 +2,9 @@
 #define ENGINE_H
 
 #include <render/render.hpp>
+#include <render/opaque_render.hpp>
 #include <render/resource.hpp>
-#include <render/descriptor_pool.hpp>
+#include <render/descriptor.hpp>
 
 namespace vke_common
 {

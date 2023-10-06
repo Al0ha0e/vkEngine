@@ -2,7 +2,7 @@
 #define MATERIAL_H
 
 #include <render/shader.hpp>
-#include <render/descriptor_pool.hpp>
+#include <render/descriptor.hpp>
 #include <render/texture.hpp>
 
 namespace vke_render

@@ -3,7 +3,7 @@
 #include <set>
 #include <string>
 #include <algorithm>
-#include <render/descriptor_pool.hpp>
+#include <render/descriptor.hpp>
 
 namespace vke_render
 {

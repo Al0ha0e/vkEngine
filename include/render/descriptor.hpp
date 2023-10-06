@@ -1,5 +1,5 @@
-#ifndef DESC_POOL_H
-#define DESC_POOL_H
+#ifndef DESCRIPTOR_H
+#define DESCRIPTOR_H
 
 #include <render/environment.hpp>
 
@@ -175,6 +175,9 @@ namespace vke_render
             return ret;
         }
     };
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo);
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo);
 }
 
 #endif

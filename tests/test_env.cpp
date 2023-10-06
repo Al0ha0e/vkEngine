@@ -21,7 +21,7 @@ int main()
     engine = vke_common::Engine::Init(WIDTH, HEIGHT);
 
     vke_common::TransformParameter camParam(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, glm::radians(0.0f), 0.0f));
-    vke_common::TransformParameter targetParam(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
+    vke_common::TransformParameter targetParam(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
     vke_common::TransformParameter targetParam2(glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
     vke_common::GameObject cameraGameObj(camParam);
     vke_common::GameObject targetGameObj(targetParam);

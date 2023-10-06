@@ -1,4 +1,5 @@
 #include <render/render.hpp>
+#include <render/opaque_render.hpp>
 
 namespace vke_render
 {
