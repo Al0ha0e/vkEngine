@@ -1,7 +1,6 @@
 #ifndef OPAQUE_RENDER_H
 #define OPAQUE_RENDER_H
 
-#include <render/render.hpp>
 #include <render/renderinfo.hpp>
 
 namespace vke_render

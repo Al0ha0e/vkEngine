@@ -3,7 +3,6 @@
 
 #include <common.hpp>
 #include <render/environment.hpp>
-#include <render/descriptor.hpp>
 #include <vector>
 #include <map>
 
