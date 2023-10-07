@@ -24,10 +24,6 @@ namespace vke_render
         static Deletor deletor;
 
     public:
-        VkRenderPass renderPass;
-        std::vector<VkFramebuffer> swapChainFramebuffers;
-        uint32_t currentFrame;
-
         static BaseRenderer *Init()
         {
             instance = new BaseRenderer();
@@ -36,8 +32,6 @@ namespace vke_render
 
     private:
         RenderEnvironment *environment;
-        void createRenderPass();
-        void createFramebuffers();
     };
 }
 

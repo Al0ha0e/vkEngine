@@ -12,7 +12,7 @@ namespace vke_common
         while (!glfwWindowShouldClose(environment->window))
         {
             glfwPollEvents();
-            opaqRenderer->Update();
+            renderer->Update();
         }
         vkDeviceWaitIdle(environment->logicalDevice);
     }

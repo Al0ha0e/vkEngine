@@ -26,9 +26,8 @@ namespace vke_render
 
     public:
         VkRenderPass renderPass;
-        // VkPipelineLayout pipelineLayout;
-        std::vector<VkFramebuffer> swapChainFramebuffers;
-        uint32_t currentFrame;
+        std::vector<VkFramebuffer> *frameBuffers;
+        int subpassID;
 
         std::vector<DescriptorInfo> globalDescriptorInfos;
         DescriptorSetInfo globalDescriptorSetInfo;
@@ -41,32 +40,25 @@ namespace vke_render
             return instance;
         }
 
-        static OpaqueRenderer *Init()
+        static OpaqueRenderer *Init(int subpassID, VkRenderPass renderPass, std::vector<VkFramebuffer> *frameBuffers)
         {
             instance = new OpaqueRenderer();
-            instance->currentFrame = 0;
+            instance->subpassID = subpassID;
+            instance->renderPass = renderPass;
+            instance->frameBuffers = frameBuffers;
             instance->environment = RenderEnvironment::GetInstance();
             instance->createGlobalDescriptorSet();
-            instance->createRenderPass();
-            instance->createFramebuffers();
             return instance;
         }
 
         static void Dispose()
         {
-            for (auto framebuffer : instance->swapChainFramebuffers)
-            {
-                vkDestroyFramebuffer(instance->environment->logicalDevice, framebuffer, nullptr);
-            }
             for (auto &renderInfo : instance->renderInfoMap)
             {
                 vkDestroyPipeline(instance->environment->logicalDevice, renderInfo.second->pipeline, nullptr);
                 vkDestroyPipelineLayout(instance->environment->logicalDevice, renderInfo.second->pipelineLayout, nullptr);
             }
-            vkDestroyRenderPass(instance->environment->logicalDevice, instance->renderPass, nullptr);
         }
-
-        void Update();
 
         static void RegisterCamera(VkBuffer buffer)
         {
@@ -98,18 +90,14 @@ namespace vke_render
             return instance->renderInfoMap[material]->AddUnit(mesh, buffers);
         }
 
+        void Render(VkCommandBuffer commandBuffer);
+
     private:
         RenderEnvironment *environment;
-        // vke_ds::DynamicIDAllocator<uint32_t> materialIDAllocator;
         std::map<Material *, RenderInfo *> renderInfoMap;
 
         void createGlobalDescriptorSet();
-        void createRenderPass();
         void createGraphicsPipeline(RenderInfo &renderInfo);
-        void createFramebuffers();
-
-        void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-        void drawFrame();
     };
 }
 

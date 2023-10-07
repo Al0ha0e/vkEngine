@@ -39,7 +39,7 @@ namespace vke_common
         vke_render::RenderEnvironment *environment;
         vke_render::RenderResourceManager *renderRM;
         vke_render::DescriptorSetAllocator *allocator;
-        vke_render::OpaqueRenderer *opaqRenderer;
+        vke_render::Renderer *renderer;
 
         static Engine *Init(int width, int height)
         {
@@ -47,14 +47,13 @@ namespace vke_common
             instance->environment = vke_render::RenderEnvironment::Init(width, height);
             instance->renderRM = vke_render::RenderResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
-            instance->opaqRenderer = vke_render::OpaqueRenderer::Init();
+            instance->renderer = vke_render::Renderer::Init();
             return instance;
         }
 
         static void Dispose()
         {
-            // opaq_renderer->Dispose();
-            vke_render::OpaqueRenderer::Dispose();
+            vke_render::Renderer::Dispose();
             instance->environment->Dispose();
         }
 
