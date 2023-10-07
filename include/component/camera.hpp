@@ -49,7 +49,7 @@ namespace vke_component
 
             memcpy(mappedBufferMemory, &cameraInfo, sizeof(vke_render::CameraInfo));
 
-            vke_render::OpaqueRenderer::RegisterCamera(buffer);
+            vke_render::Renderer::RegisterCamera(buffer);
         }
 
         ~Camera()

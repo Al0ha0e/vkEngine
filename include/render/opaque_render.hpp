@@ -25,9 +25,8 @@ namespace vke_render
         static Deletor deletor;
 
     public:
-        VkRenderPass renderPass;
-        std::vector<VkFramebuffer> *frameBuffers;
         int subpassID;
+        VkRenderPass renderPass;
 
         std::vector<DescriptorInfo> globalDescriptorInfos;
         DescriptorSetInfo globalDescriptorSetInfo;
@@ -40,12 +39,11 @@ namespace vke_render
             return instance;
         }
 
-        static OpaqueRenderer *Init(int subpassID, VkRenderPass renderPass, std::vector<VkFramebuffer> *frameBuffers)
+        static OpaqueRenderer *Init(int subpassID, VkRenderPass renderPass)
         {
             instance = new OpaqueRenderer();
             instance->subpassID = subpassID;
             instance->renderPass = renderPass;
-            instance->frameBuffers = frameBuffers;
             instance->environment = RenderEnvironment::GetInstance();
             instance->createGlobalDescriptorSet();
             return instance;

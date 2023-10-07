@@ -31,7 +31,7 @@ namespace vke_render
     public:
         VkRenderPass renderPass;
         uint32_t currentFrame;
-        // BaseRenderer *baseRenderer;
+        BaseRenderer *baseRenderer;
         OpaqueRenderer *opaqueRenderer;
 
         static Renderer *GetInstance()
@@ -48,11 +48,14 @@ namespace vke_render
             instance->environment = RenderEnvironment::GetInstance();
             instance->createRenderPass();
             instance->createFramebuffers();
-            // instance->baseRenderer = BaseRenderer::Init();
-            instance->opaqueRenderer = OpaqueRenderer::Init(
+            instance->baseRenderer = BaseRenderer::Init(
                 0,
-                instance->renderPass,
-                &instance->frameBuffers);
+                instance->renderPass);
+            instance->opaqueRenderer = OpaqueRenderer::Init(
+                1,
+                instance->renderPass);
+
+            std::cout << "INIT OK\n";
             return instance;
         }
 
@@ -63,6 +66,12 @@ namespace vke_render
                 vkDestroyFramebuffer(instance->environment->logicalDevice, framebuffer, nullptr);
             }
             vkDestroyRenderPass(instance->environment->logicalDevice, instance->renderPass, nullptr);
+        }
+
+        static void RegisterCamera(VkBuffer buffer)
+        {
+            instance->baseRenderer->RegisterCamera(buffer);
+            instance->opaqueRenderer->RegisterCamera(buffer);
         }
 
         void Update();
