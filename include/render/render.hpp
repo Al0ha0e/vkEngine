@@ -55,7 +55,6 @@ namespace vke_render
                 1,
                 instance->renderPass);
 
-            std::cout << "INIT OK\n";
             return instance;
         }
 
