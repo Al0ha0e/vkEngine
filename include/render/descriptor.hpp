@@ -24,10 +24,29 @@ namespace vke_render
         VkDescriptorSetLayout layout;
         int uniformDescriptorCnt;
         int combinedImageSamplerCnt;
+        int storageDescriptorCnt;
 
         DescriptorSetInfo() = default;
-        DescriptorSetInfo(VkDescriptorSetLayout lo, int dcnt, int ciscnt)
-            : layout(lo), uniformDescriptorCnt(dcnt), combinedImageSamplerCnt(ciscnt) {}
+        DescriptorSetInfo(VkDescriptorSetLayout layout, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
+            : layout(layout),
+              uniformDescriptorCnt(uniformDescriptorCnt),
+              combinedImageSamplerCnt(combinedImageSamplerCnt),
+              storageDescriptorCnt(storageDescriptorCnt) {}
+        void AddCnt(VkDescriptorType type)
+        {
+            switch (type)
+            {
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                uniformDescriptorCnt++;
+                break;
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                combinedImageSamplerCnt++;
+                break;
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                storageDescriptorCnt++;
+                break;
+            }
+        }
     };
 
     struct DescriptorSetPoolInfo
@@ -35,10 +54,14 @@ namespace vke_render
         int setCnt;
         int uniformDescriptorCnt;
         int combinedImageSamplerCnt;
+        int storageDescriptorCnt;
 
         DescriptorSetPoolInfo() = default;
-        DescriptorSetPoolInfo(int sCcnt, int ucnt, int ciscnt)
-            : setCnt(sCcnt), uniformDescriptorCnt(ucnt), combinedImageSamplerCnt(ciscnt) {}
+        DescriptorSetPoolInfo(int setCnt, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
+            : setCnt(setCnt),
+              uniformDescriptorCnt(uniformDescriptorCnt),
+              combinedImageSamplerCnt(combinedImageSamplerCnt),
+              storageDescriptorCnt(storageDescriptorCnt) {}
     };
 
     class DescriptorSetAllocator
@@ -48,10 +71,11 @@ namespace vke_render
         static const int MAX_SET_CNT = 10;
         static const int MAX_UNIFORM_DESC_CNT = 10;
         static const int MAX_COMBINED_IMAGE_SAMPLER_DESC_CNT = 20;
+        static const int MAX_STORAGE_DESC_CNT = 10;
 
         DescriptorSetAllocator()
         {
-            DescriptorSetPoolInfo info(MAX_SET_CNT, MAX_UNIFORM_DESC_CNT, MAX_COMBINED_IMAGE_SAMPLER_DESC_CNT);
+            DescriptorSetPoolInfo info(MAX_SET_CNT, MAX_UNIFORM_DESC_CNT, MAX_COMBINED_IMAGE_SAMPLER_DESC_CNT, MAX_STORAGE_DESC_CNT);
             VkDescriptorPool pool = createDescriptorPool(info);
             descriptorSetPools[pool] = info;
         }
@@ -121,7 +145,11 @@ namespace vke_render
                 }
             }
 
-            DescriptorSetPoolInfo poolInfo(MAX_SET_CNT, info.uniformDescriptorCnt * 2, info.combinedImageSamplerCnt * 2);
+            DescriptorSetPoolInfo poolInfo(
+                MAX_SET_CNT,
+                info.uniformDescriptorCnt * 2,
+                info.combinedImageSamplerCnt * 2,
+                info.storageDescriptorCnt * 2);
             VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
             instance->descriptorSetPools[pool] = poolInfo;
             return instance->allocateDescriptorSet(pool, &(info.layout));

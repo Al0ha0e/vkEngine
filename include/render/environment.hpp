@@ -293,6 +293,7 @@ namespace vke_render
         VkPhysicalDevice physicalDevice;
         VkDevice logicalDevice;
         VkQueue graphicsQueue;
+        VkQueue computeQueue;
         VkQueue presentQueue;
         VkSwapchainKHR swapChain;
         std::vector<VkImage> swapChainImages;

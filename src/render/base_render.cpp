@@ -21,8 +21,7 @@ namespace vke_render
         std::vector<VkDescriptorSetLayoutBinding> globalBindings;
         for (auto &dInfo : globalDescriptorInfos)
         {
-            if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                globalDescriptorSetInfo.uniformDescriptorCnt++;
+            globalDescriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
             globalBindings.push_back(dInfo.bindingInfo);
         }
 

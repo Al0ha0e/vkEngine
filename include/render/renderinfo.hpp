@@ -100,10 +100,7 @@ namespace vke_render
                 std::vector<VkDescriptorSetLayoutBinding> commonBindings;
                 for (auto &dInfo : commonDescriptorInfos)
                 {
-                    if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                        commonDescriptorSetInfo.uniformDescriptorCnt++;
-                    else if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                        commonDescriptorSetInfo.combinedImageSamplerCnt++;
+                    commonDescriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
                     commonBindings.push_back(dInfo.bindingInfo);
                 }
 
@@ -154,8 +151,7 @@ namespace vke_render
                 std::vector<VkDescriptorSetLayoutBinding> perUnitBindings;
                 for (auto &dInfo : mat->perUnitDescriptorInfos)
                 {
-                    if (dInfo.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                        perUnitDescriptorSetInfo.uniformDescriptorCnt++;
+                    perUnitDescriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
                     perUnitBindings.push_back(dInfo.bindingInfo);
                 }
 
