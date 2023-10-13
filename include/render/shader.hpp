@@ -11,7 +11,6 @@ namespace vke_render
     {
     public:
         Shader() = default;
-        std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
     protected:
         VkShaderModule createShaderModule(const std::vector<char> &code)
@@ -34,6 +33,8 @@ namespace vke_render
     class VertFragShader : public Shader
     {
     public:
+        std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+
         VertFragShader() = default;
         VertFragShader(const std::vector<char> &vcode, const std::vector<char> &fcode) : Shader()
         {
@@ -70,18 +71,18 @@ namespace vke_render
     class ComputeShader : public Shader
     {
     public:
+        VkPipelineShaderStageCreateInfo shaderStageInfo;
+
         ComputeShader() = default;
         ComputeShader(const std::vector<char> &code) : Shader()
         {
             shaderModule = createShaderModule(code);
 
-            VkPipelineShaderStageCreateInfo shaderStageInfo{};
+            shaderStageInfo = VkPipelineShaderStageCreateInfo{};
             shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             shaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
             shaderStageInfo.module = shaderModule;
             shaderStageInfo.pName = "main";
-
-            shaderStages = {shaderStageInfo};
         }
 
         ~ComputeShader()
