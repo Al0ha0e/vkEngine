@@ -11,7 +11,31 @@ namespace vke_render
     {
     public:
         Shader() = default;
-        Shader(const std::vector<char> &vcode, const std::vector<char> &fcode)
+        std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+
+    protected:
+        VkShaderModule createShaderModule(const std::vector<char> &code)
+        {
+            VkShaderModuleCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+            createInfo.codeSize = code.size();
+            createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+            RenderEnvironment *env = RenderEnvironment::GetInstance();
+            VkShaderModule shaderModule;
+            if (vkCreateShaderModule(env->logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to create shader module!");
+            }
+
+            return shaderModule;
+        }
+    };
+
+    class VertFragShader : public Shader
+    {
+    public:
+        VertFragShader() = default;
+        VertFragShader(const std::vector<char> &vcode, const std::vector<char> &fcode) : Shader()
         {
             vertShaderModule = createShaderModule(vcode);
             fragShaderModule = createShaderModule(fcode);
@@ -31,34 +55,43 @@ namespace vke_render
             shaderStages = {vertShaderStageInfo, fragShaderStageInfo};
         }
 
-        ~Shader()
+        ~VertFragShader()
         {
             RenderEnvironment *env = RenderEnvironment::GetInstance();
             vkDestroyShaderModule(env->logicalDevice, fragShaderModule, nullptr);
             vkDestroyShaderModule(env->logicalDevice, vertShaderModule, nullptr);
         }
 
-        std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-
     private:
         VkShaderModule vertShaderModule;
         VkShaderModule fragShaderModule;
+    };
 
-        VkShaderModule createShaderModule(const std::vector<char> &code)
+    class ComputeShader : public Shader
+    {
+    public:
+        ComputeShader() = default;
+        ComputeShader(const std::vector<char> &code) : Shader()
         {
-            VkShaderModuleCreateInfo createInfo{};
-            createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-            createInfo.codeSize = code.size();
-            createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
-            RenderEnvironment *env = RenderEnvironment::GetInstance();
-            VkShaderModule shaderModule;
-            if (vkCreateShaderModule(env->logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create shader module!");
-            }
+            shaderModule = createShaderModule(code);
 
-            return shaderModule;
+            VkPipelineShaderStageCreateInfo shaderStageInfo{};
+            shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            shaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+            shaderStageInfo.module = shaderModule;
+            shaderStageInfo.pName = "main";
+
+            shaderStages = {shaderStageInfo};
         }
+
+        ~ComputeShader()
+        {
+            RenderEnvironment *env = RenderEnvironment::GetInstance();
+            vkDestroyShaderModule(env->logicalDevice, shaderModule, nullptr);
+        }
+
+    private:
+        VkShaderModule shaderModule;
     };
 }
 

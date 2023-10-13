@@ -216,7 +216,7 @@ namespace vke_render
 
         Texture2D *texture = RenderResourceManager::LoadTexture2D("./resources/texture/skybox.png");
         skyboxMaterial->textures.push_back(texture);
-        skyboxMaterial->shader = RenderResourceManager::LoadShader("./tests/shader/skyvert.spv", "./tests/shader/skyfrag.spv");
+        skyboxMaterial->shader = RenderResourceManager::LoadVertFragShader("./tests/shader/skyvert.spv", "./tests/shader/skyfrag.spv");
         skyboxMaterial->bindingDescriptions = bindingDescriptions;
         skyboxMaterial->attributeDescriptions = attributeDescriptions;
 

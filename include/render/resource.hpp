@@ -47,18 +47,31 @@ namespace vke_render
 
         static void Dispose() {}
 
-        static Shader *LoadShader(std::string vpth, std::string fpth)
+        static VertFragShader *LoadVertFragShader(std::string vpth, std::string fpth)
         {
             auto &cache = instance->shaderCache;
             std::string id = vpth + "_" + fpth;
             auto it = cache.find(id);
             if (it != cache.end())
-                return it->second;
+                return (VertFragShader *)it->second;
 
             auto vcode = readFile(vpth);
             auto fcode = readFile(fpth);
-            Shader *ret = new Shader(vcode, fcode);
+            VertFragShader *ret = new VertFragShader(vcode, fcode);
             cache[id] = ret;
+            return ret;
+        }
+
+        static ComputeShader *LoadComputeShader(std::string pth)
+        {
+            auto &cache = instance->shaderCache;
+            auto it = cache.find(pth);
+            if (it != cache.end())
+                return (ComputeShader *)it->second;
+
+            auto code = readFile(pth);
+            ComputeShader *ret = new ComputeShader(code);
+            cache[pth] = ret;
             return ret;
         }
 
@@ -103,7 +116,7 @@ namespace vke_render
 
             Texture2D *texture = LoadTexture2D("./resources/texture/texture.jpg");
             ret->textures.push_back(texture);
-            ret->shader = LoadShader("./tests/shader/vert.spv", "./tests/shader/frag.spv");
+            ret->shader = LoadVertFragShader("./tests/shader/vert.spv", "./tests/shader/frag.spv");
             ret->bindingDescriptions = bindingDescriptions;
             ret->attributeDescriptions = attributeDescriptions;
 

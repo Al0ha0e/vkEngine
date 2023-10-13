@@ -12,7 +12,7 @@ namespace vke_render
     public:
         Material() = default;
 
-        Shader *shader;
+        VertFragShader *shader;
         std::vector<Texture2D *> textures;
         std::vector<VkVertexInputBindingDescription> bindingDescriptions;
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
