@@ -4,32 +4,29 @@
 #include <render/environment.hpp>
 #include <render/shader.hpp>
 #include <render/descriptor.hpp>
+#include <ds/id_allocator.hpp>
 
 namespace vke_render
 {
-    class ComputeTask
+    class ComputeTaskInstance
     {
     public:
-        ComputeShader *shader;
-        std::vector<DescriptorInfo> descriptorInfos;
         std::vector<VkBuffer> buffers;
+        std::vector<VkSemaphore> waitSemaphores;
+        std::vector<VkPipelineStageFlags> waitStages;
+        std::vector<VkSemaphore> signalSemaphores;
+        VkDescriptorSet descriptorSet;
 
-        ComputeTask() = default;
+        ComputeTaskInstance() = default;
+        ComputeTaskInstance(std::vector<VkBuffer> &&buffers,
+                            std::vector<VkSemaphore> &&waitSemaphores,
+                            std::vector<VkPipelineStageFlags> &&waitStages,
+                            std::vector<VkSemaphore> &&signalSemaphores) : buffers(buffers),
+                                                                           waitSemaphores(waitSemaphores),
+                                                                           waitStages(waitStages),
+                                                                           signalSemaphores(signalSemaphores) {}
 
-        ComputeTask(
-            ComputeShader *shader,
-            std::vector<DescriptorInfo> &&descriptorInfos,
-            std::vector<VkBuffer> &&buffers)
-            : shader(shader),
-              descriptorInfos(descriptorInfos),
-              descriptorSetInfo(nullptr, 0, 0, 0),
-              buffers(buffers)
-        {
-            createDescriptorSet();
-            createGraphicsPipeline();
-        }
-
-        void Dispatch(VkCommandBuffer commandBuffer, uint32_t x, uint32_t y, uint32_t z)
+        void Dispatch(VkCommandBuffer commandBuffer, glm::i32vec3 dim3, VkPipelineLayout pipelineLayout, VkPipeline pipeline)
         {
             vkResetCommandBuffer(commandBuffer, 0);
 
@@ -44,7 +41,7 @@ namespace vke_render
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, 0);
 
-            vkCmdDispatch(commandBuffer, x, y, z);
+            vkCmdDispatch(commandBuffer, dim3.x, dim3.y, dim3.z);
 
             if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
             {
@@ -53,12 +50,37 @@ namespace vke_render
 
             VkSubmitInfo submitInfo{};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            // TODO
+            submitInfo.waitSemaphoreCount = waitSemaphores.size();
+            submitInfo.pWaitSemaphores = waitSemaphores.data();
+            submitInfo.pWaitDstStageMask = waitStages.data();
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &commandBuffer;
+            submitInfo.signalSemaphoreCount = signalSemaphores.size();
+            submitInfo.pSignalSemaphores = signalSemaphores.data();
 
             if (vkQueueSubmit(RenderEnvironment::GetInstance()->computeQueue, 1, &submitInfo, nullptr) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to submit compute command buffer!");
             };
+        }
+    };
+
+    class ComputeTask
+    {
+    public:
+        ComputeShader *shader;
+        std::vector<DescriptorInfo> descriptorInfos;
+        std::map<uint64_t, ComputeTaskInstance *> instances;
+
+        ComputeTask() = default;
+
+        ComputeTask(ComputeShader *shader, std::vector<DescriptorInfo> &&descriptorInfos)
+            : shader(shader),
+              descriptorInfos(descriptorInfos),
+              descriptorSetInfo(nullptr, 0, 0, 0)
+        {
+            initDescriptorSetLayout();
+            createGraphicsPipeline();
         }
 
         ~ComputeTask()
@@ -68,13 +90,33 @@ namespace vke_render
             vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
+        uint64_t AddInstance(std::vector<VkBuffer> &&buffers,
+                             std::vector<VkSemaphore> &&waitSemaphores,
+                             std::vector<VkPipelineStageFlags> &&waitStages,
+                             std::vector<VkSemaphore> &&signalSemaphores)
+        {
+            uint64_t id = allocator.Alloc();
+            ComputeTaskInstance *instance = new ComputeTaskInstance(std::move(buffers),
+                                                                    std::move(waitSemaphores),
+                                                                    std::move(waitStages),
+                                                                    std::move(signalSemaphores));
+            instances[id] = instance;
+            createDescriptorSet(*instance);
+            return id;
+        }
+
+        void Dispatch(uint64_t id, VkCommandBuffer commandBuffer, glm::i32vec3 dim3)
+        {
+            instances[id]->Dispatch(commandBuffer, dim3, pipelineLayout, pipeline);
+        }
+
     private:
         DescriptorSetInfo descriptorSetInfo;
-        VkDescriptorSet descriptorSet;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
+        vke_ds::NaiveIDAllocator<uint64_t> allocator;
 
-        void createDescriptorSet()
+        void initDescriptorSetLayout()
         {
             std::vector<VkDescriptorSetLayoutBinding> bindings;
             for (auto &dInfo : descriptorInfos)
@@ -95,34 +137,6 @@ namespace vke_render
             {
                 throw std::runtime_error("failed to create descriptor set layout!");
             }
-            descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
-
-            int descriptorCnt = descriptorInfos.size();
-            std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
-            for (int i = 0; i < descriptorCnt; i++)
-            {
-                DescriptorInfo &info = descriptorInfos[i];
-
-                if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-                    info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-                {
-                    // VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
-                    VkDescriptorBufferInfo bufferInfo = {};
-                    bufferInfo.buffer = buffers[i];
-                    bufferInfo.offset = 0;
-                    bufferInfo.range = info.bufferSize;
-                    descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, &bufferInfo);
-                }
-                else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                {
-                    VkDescriptorImageInfo imageInfo{};
-                    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    imageInfo.imageView = info.imageView;
-                    imageInfo.sampler = info.imageSampler;
-                    descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, &imageInfo);
-                }
-            }
-            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
         }
 
         void createGraphicsPipeline()
@@ -148,6 +162,38 @@ namespace vke_render
             {
                 throw std::runtime_error("failed to create compute pipeline!");
             }
+        }
+
+        void createDescriptorSet(ComputeTaskInstance &instance)
+        {
+            instance.descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
+
+            int descriptorCnt = descriptorInfos.size();
+            std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
+            for (int i = 0; i < descriptorCnt; i++)
+            {
+                DescriptorInfo &info = descriptorInfos[i];
+
+                if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
+                    info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+                {
+                    // VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
+                    VkDescriptorBufferInfo bufferInfo = {};
+                    bufferInfo.buffer = instance.buffers[i];
+                    bufferInfo.offset = 0;
+                    bufferInfo.range = info.bufferSize;
+                    descriptorWrites[i] = ConstructDescriptorSetWrite(instance.descriptorSet, info, &bufferInfo);
+                }
+                else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                {
+                    VkDescriptorImageInfo imageInfo{};
+                    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    imageInfo.imageView = info.imageView;
+                    imageInfo.sampler = info.imageSampler;
+                    descriptorWrites[i] = ConstructDescriptorSetWrite(instance.descriptorSet, info, &imageInfo);
+                }
+            }
+            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
         }
     };
 }
