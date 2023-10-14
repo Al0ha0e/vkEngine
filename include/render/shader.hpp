@@ -80,7 +80,7 @@ namespace vke_render
 
             shaderStageInfo = VkPipelineShaderStageCreateInfo{};
             shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-            shaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+            shaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
             shaderStageInfo.module = shaderModule;
             shaderStageInfo.pName = "main";
         }

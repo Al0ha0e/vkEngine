@@ -26,7 +26,12 @@ namespace vke_render
                                                                            waitStages(waitStages),
                                                                            signalSemaphores(signalSemaphores) {}
 
-        void Dispatch(VkCommandBuffer commandBuffer, glm::i32vec3 dim3, VkPipelineLayout pipelineLayout, VkPipeline pipeline)
+        void Dispatch(
+            VkCommandBuffer commandBuffer,
+            glm::ivec3 dim3,
+            VkPipelineLayout pipelineLayout,
+            VkPipeline pipeline,
+            VkFence fence)
         {
             vkResetCommandBuffer(commandBuffer, 0);
 
@@ -58,7 +63,11 @@ namespace vke_render
             submitInfo.signalSemaphoreCount = signalSemaphores.size();
             submitInfo.pSignalSemaphores = signalSemaphores.data();
 
-            if (vkQueueSubmit(RenderEnvironment::GetInstance()->computeQueue, 1, &submitInfo, nullptr) != VK_SUCCESS)
+            if (vkQueueSubmit(
+                    RenderEnvironment::GetInstance()->computeQueue,
+                    1,
+                    &submitInfo,
+                    fence) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to submit compute command buffer!");
             };
@@ -105,9 +114,9 @@ namespace vke_render
             return id;
         }
 
-        void Dispatch(uint64_t id, VkCommandBuffer commandBuffer, glm::i32vec3 dim3)
+        void Dispatch(uint64_t id, VkCommandBuffer commandBuffer, glm::ivec3 dim3, VkFence fence)
         {
-            instances[id]->Dispatch(commandBuffer, dim3, pipelineLayout, pipeline);
+            instances[id]->Dispatch(commandBuffer, dim3, pipelineLayout, pipeline, fence);
         }
 
     private:
