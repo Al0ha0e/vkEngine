@@ -5,6 +5,21 @@
 
 namespace vke_render
 {
+
+    void InitDescriptorSetLayoutBinding(VkDescriptorSetLayoutBinding &dst,
+                                        uint32_t binding,
+                                        VkDescriptorType descriptorType,
+                                        uint32_t descriptorCount,
+                                        VkShaderStageFlags stageFlags,
+                                        const VkSampler *pImmutableSamplers)
+    {
+        dst.binding = binding;
+        dst.descriptorType = descriptorType;
+        dst.descriptorCount = descriptorCount;
+        dst.stageFlags = stageFlags;
+        dst.pImmutableSamplers = pImmutableSamplers;
+    }
+
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo)
     {
         VkWriteDescriptorSet descriptorWrite{};
