@@ -5,6 +5,14 @@
 
 namespace vke_render
 {
+
+    void InitDescriptorSetLayoutBinding(VkDescriptorSetLayoutBinding &dst,
+                                        uint32_t binding,
+                                        VkDescriptorType descriptorType,
+                                        uint32_t descriptorCount,
+                                        VkShaderStageFlags stageFlags,
+                                        const VkSampler *pImmutableSamplers);
+
     struct DescriptorInfo
     {
         VkDescriptorSetLayoutBinding bindingInfo;

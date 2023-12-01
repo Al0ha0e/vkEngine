@@ -121,20 +121,16 @@ namespace vke_render
             ret->attributeDescriptions = attributeDescriptions;
 
             VkDescriptorSetLayoutBinding modelLayoutBinding{};
-            modelLayoutBinding.binding = 0;
-            modelLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            modelLayoutBinding.descriptorCount = 1;
-            modelLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-            modelLayoutBinding.pImmutableSamplers = nullptr; // Optional
+            InitDescriptorSetLayoutBinding(modelLayoutBinding, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
+                                           VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr);
+
             vke_render::DescriptorInfo descriptorInfo(modelLayoutBinding, sizeof(glm::mat4));
             ret->perUnitDescriptorInfos.push_back(descriptorInfo);
 
             VkDescriptorSetLayoutBinding textureLayoutBinding{};
-            textureLayoutBinding.binding = 0;
-            textureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            textureLayoutBinding.descriptorCount = 1;
-            textureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            textureLayoutBinding.pImmutableSamplers = nullptr; // Optional
+            InitDescriptorSetLayoutBinding(textureLayoutBinding, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
+                                           VK_SHADER_STAGE_FRAGMENT_BIT, nullptr);
+
             vke_render::DescriptorInfo textureDescriptorInfo(textureLayoutBinding, texture->textureImageView, texture->textureSampler);
             ret->commonDescriptorInfos.push_back(textureDescriptorInfo);
 

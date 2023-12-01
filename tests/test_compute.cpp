@@ -11,11 +11,8 @@ int main()
     vke_render::ComputeShader *shader = vke_render::RenderResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");
     std::vector<vke_render::DescriptorInfo> descriptorInfos;
     VkDescriptorSetLayoutBinding binding{};
-    binding.binding = 0;
-    binding.descriptorCount = 1;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    binding.pImmutableSamplers = nullptr;
-    binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    vke_render::InitDescriptorSetLayoutBinding(binding, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+
     VkDeviceSize bufferSize = 1024 * sizeof(int);
     descriptorInfos.push_back(vke_render::DescriptorInfo(binding, bufferSize));
 
