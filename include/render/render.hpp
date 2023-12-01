@@ -5,6 +5,7 @@
 #include <render/environment.hpp>
 #include <render/base_render.hpp>
 #include <render/opaque_render.hpp>
+#include <render/render_pass.hpp>
 #include <vector>
 #include <map>
 
@@ -29,7 +30,7 @@ namespace vke_render
         static Deletor deletor;
 
     public:
-        VkRenderPass renderPass;
+        RenderPasses *renderPass;
         uint32_t currentFrame;
         BaseRenderer *baseRenderer;
         OpaqueRenderer *opaqueRenderer;
@@ -46,14 +47,14 @@ namespace vke_render
             instance = new Renderer();
             instance->currentFrame = 0;
             instance->environment = RenderEnvironment::GetInstance();
-            instance->createRenderPass();
+            instance->initRenderPass();
             instance->createFramebuffers();
             instance->baseRenderer = BaseRenderer::Init(
                 0,
-                instance->renderPass);
+                instance->renderPass->renderPass);
             instance->opaqueRenderer = OpaqueRenderer::Init(
                 1,
-                instance->renderPass);
+                instance->renderPass->renderPass);
 
             return instance;
         }
@@ -64,7 +65,6 @@ namespace vke_render
             {
                 vkDestroyFramebuffer(instance->environment->logicalDevice, framebuffer, nullptr);
             }
-            vkDestroyRenderPass(instance->environment->logicalDevice, instance->renderPass, nullptr);
         }
 
         static void RegisterCamera(VkBuffer buffer)
@@ -79,7 +79,7 @@ namespace vke_render
         RenderEnvironment *environment;
         std::vector<VkFramebuffer> frameBuffers;
 
-        void createRenderPass();
+        void initRenderPass();
         void createFramebuffers();
         void render();
     };
