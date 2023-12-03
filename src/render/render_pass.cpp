@@ -51,12 +51,12 @@ namespace vke_render
         {
             VkSubpassDependency &dependency = dependencies[i];
             dependency = VkSubpassDependency{};
-            dependencies[0].srcSubpass = i - 1;
-            dependencies[0].dstSubpass = i;
-            dependencies[0].srcStageMask = passInfo[i - 1].stageMask;
-            dependencies[0].srcAccessMask = passInfo[i - 1].accessMask;
-            dependencies[0].dstStageMask = passInfo[i].stageMask;   // VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependencies[0].dstAccessMask = passInfo[i].accessMask; // VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dependency.srcSubpass = i - 1;
+            dependency.dstSubpass = i;
+            dependency.srcStageMask = passInfo[i - 1].stageMask;
+            dependency.srcAccessMask = passInfo[i - 1].accessMask;
+            dependency.dstStageMask = passInfo[i].stageMask;   // VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.dstAccessMask = passInfo[i].accessMask; // VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         }
 
         renderPassInfo.dependencyCount = passcnt;
