@@ -22,6 +22,12 @@ env.Program("out/test_compute",
         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
         SCONS_CXX_STANDARD="c++17")
 
+env.Library("out/vkengine",["./src/render/environment.cpp", "./src/render/resource.cpp", "./src/render/descriptor.cpp", 
+                            "./src/render/render_pass.cpp","./src/render/base_render.cpp","./src/render/opaque_render.cpp",
+                                "./src/render/render.cpp", "./src/engine.cpp"],
+                        LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
+                        SCONS_CXX_STANDARD="c++17")
+
 # Program("test",
 #         ["./src/stb_image.cpp",
 #          "./src/events/event.cpp",
