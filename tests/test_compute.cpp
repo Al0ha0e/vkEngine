@@ -1,6 +1,7 @@
 #include <render/compute.hpp>
 #include <render/resource.hpp>
 #include <render/descriptor.hpp>
+#include <render/buffer.hpp>
 #include <engine.hpp>
 #include <vector>
 
@@ -16,40 +17,18 @@ int main()
     VkDeviceSize bufferSize = 1024 * sizeof(int);
     descriptorInfos.push_back(vke_render::DescriptorInfo(binding, bufferSize));
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    vke_render::RenderEnvironment::CreateBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        stagingBuffer,
-        stagingBufferMemory);
-
     int *oridata = new int[1024];
     memset(oridata, 0, bufferSize);
 
-    VkBuffer buffer;
-    VkDeviceMemory bufferMemory;
-    void *data;
     VkDevice logicalDevice = vke_render::RenderEnvironment::GetInstance()->logicalDevice;
-    vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, oridata, (size_t)bufferSize);
-    // vkUnmapMemory(logicalDevice, stagingBufferMemory);
-    vke_render::RenderEnvironment::CreateBuffer(
-        bufferSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        buffer,
-        bufferMemory);
-    vke_render::RenderEnvironment::CopyBuffer(
-        stagingBuffer,
-        buffer,
-        bufferSize);
+
+    vke_render::StagedBuffer buffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    buffer.ToBuffer(0, oridata, bufferSize);
 
     vke_render::ComputeTask task(shader, std::move(descriptorInfos));
 
     uint64_t id = task.AddInstance(
-        std::move(std::vector<VkBuffer>{buffer}),
+        std::move(std::vector<VkBuffer>{buffer.buffer}),
         std::move(std::vector<VkSemaphore>{}),
         std::move(std::vector<VkPipelineStageFlags>{}),
         std::move(std::vector<VkSemaphore>{}));
@@ -76,11 +55,7 @@ int main()
 
     vkWaitForFences(logicalDevice, 1, &fence, VK_TRUE, UINT64_MAX);
 
-    vke_render::RenderEnvironment::CopyBuffer(
-        buffer,
-        stagingBuffer,
-        bufferSize);
-    memcpy(oridata, data, (size_t)bufferSize);
+    buffer.FromBuffer(0, oridata, bufferSize);
 
     for (int i = 0; i < 10; i++)
         std::cout << oridata[i] << " ";

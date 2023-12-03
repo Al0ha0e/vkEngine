@@ -82,7 +82,7 @@ namespace vke_render
             // return id;
         }
 
-        static uint64_t AddUnit(Material *material, Mesh *mesh, std::vector<VkBuffer> &buffers)
+        static uint64_t AddUnit(Material *material, Mesh *mesh, std::vector<HostCoherentBuffer> &buffers)
         {
             RegisterMaterial(material);
             return instance->renderInfoMap[material]->AddUnit(mesh, buffers);

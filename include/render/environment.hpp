@@ -13,13 +13,6 @@ namespace vke_render
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
-    void CreateBufferAndTransferStaged(
-        size_t size,
-        void *srcdata,
-        VkBufferUsageFlags flags,
-        VkBuffer &buffer,
-        VkDeviceMemory &bufferMemory);
-
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphicsAndComputeFamily;

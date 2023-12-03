@@ -4,6 +4,7 @@
 #include <render/environment.hpp>
 #include <render/material.hpp>
 #include <render/mesh.hpp>
+#include <render/buffer.hpp>
 #include <ds/id_allocator.hpp>
 
 namespace vke_render
@@ -33,7 +34,7 @@ namespace vke_render
             Mesh *msh,
             DescriptorSetInfo &descriptorSetInfo,
             std::vector<DescriptorInfo> &descriptorInfos,
-            std::vector<VkBuffer> &buffers) : mesh(msh)
+            std::vector<HostCoherentBuffer> &buffers) : mesh(msh)
         {
             descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
             int descriptorCnt = descriptorInfos.size();
@@ -43,7 +44,7 @@ namespace vke_render
             {
                 DescriptorInfo &info = descriptorInfos[i];
                 VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
-                bufferInfo.buffer = buffers[i];
+                bufferInfo.buffer = buffers[i].buffer;
                 bufferInfo.offset = 0;
                 bufferInfo.range = info.bufferSize;
 
@@ -190,7 +191,8 @@ namespace vke_render
                 globalDescriptorSetLayouts.push_back(perUnitDescriptorSetInfo.layout);
         }
 
-        uint64_t AddUnit(Mesh *mesh, std::vector<VkBuffer> &buffers)
+        uint64_t AddUnit(Mesh *mesh, std::vector<HostCoherentBuffer> &buffers)
+        // uint64_t AddUnit(Mesh *mesh, std::vector<VkBuffer> &buffers)
         {
             uint64_t id = allocator.Alloc();
             units[id] = hasPerUnitDescriptorSet ? RenderUnit(mesh, perUnitDescriptorSetInfo, material->perUnitDescriptorInfos, buffers)

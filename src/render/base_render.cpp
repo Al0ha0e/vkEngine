@@ -236,7 +236,7 @@ namespace vke_render
             indices.push_back(i);
         Mesh *skyboxMesh = new Mesh(skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
 
-        std::vector<VkBuffer> buffers;
+        std::vector<HostCoherentBuffer> buffers;
         renderInfo->AddUnit(skyboxMesh, buffers);
         instance->createGraphicsPipeline();
     }

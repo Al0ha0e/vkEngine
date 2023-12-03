@@ -12,39 +12,6 @@ namespace vke_render
     // using QueueFamilyIndices = RenderEnvironment::QueueFamilyIndices;
     // using SwapChainSupportDetails = RenderEnvironment::SwapChainSupportDetails;
 
-    void CreateBufferAndTransferStaged(
-        size_t size,
-        void *srcdata,
-        VkBufferUsageFlags flags,
-        VkBuffer &buffer,
-        VkDeviceMemory &bufferMemory)
-    {
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        RenderEnvironment::CreateBuffer(size,
-                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                        stagingBuffer,
-                                        stagingBufferMemory);
-
-        VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-        void *dstdata;
-        vkMapMemory(logicalDevice, stagingBufferMemory, 0, size, 0, &dstdata);
-        memcpy(dstdata, srcdata, size);
-        vkUnmapMemory(logicalDevice, stagingBufferMemory);
-
-        RenderEnvironment::CreateBuffer(size,
-                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT | flags,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                        buffer,
-                                        bufferMemory);
-
-        RenderEnvironment::CopyBuffer(stagingBuffer, buffer, size);
-
-        vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
-        vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
-    }
-
     void RenderEnvironment::initWindow()
     {
         glfwInit();

@@ -2,6 +2,7 @@
 #define MESH_H
 
 #include <render/environment.hpp>
+#include <render/buffer.hpp>
 #include <iostream>
 
 namespace vke_render
@@ -16,35 +17,33 @@ namespace vke_render
     class Mesh
     {
     public:
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
-        VkBuffer indexBuffer;
-        VkDeviceMemory indexBufferMemory;
+        DeviceBuffer vertexBuffer;
+        DeviceBuffer indexBuffer;
         size_t indexCnt;
 
         Mesh() = default;
 
-        Mesh(size_t vertSize, void *vertData, std::vector<uint32_t> &index) : indexCnt(index.size())
+        Mesh(size_t vertSize, void *vertData, std::vector<uint32_t> &index)
+            : indexCnt(index.size()),
+              vertexBuffer(vertSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), indexBuffer(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
         {
-            CreateBufferAndTransferStaged(vertSize, vertData, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, vertexBuffer, vertexBufferMemory);
-            CreateBufferAndTransferStaged(index.size() * sizeof(uint32_t), index.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indexBuffer, indexBufferMemory);
+            vertexBuffer.ToBuffer(0, vertData, vertSize);
+            indexBuffer.ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
         }
 
         ~Mesh()
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
-            vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
-            vkDestroyBuffer(logicalDevice, indexBuffer, nullptr);
-            vkFreeMemory(logicalDevice, indexBufferMemory, nullptr);
+            vertexBuffer.Dispose();
+            indexBuffer.Dispose();
         }
 
         void Render(VkCommandBuffer &commandBuffer)
         {
-            VkBuffer vertexBuffers[] = {vertexBuffer};
+            VkBuffer vertexBuffers[] = {vertexBuffer.buffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(commandBuffer, indexCnt, 1, 0, 0, 0);
         }
     };

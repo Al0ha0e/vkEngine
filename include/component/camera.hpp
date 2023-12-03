@@ -2,6 +2,7 @@
 #define CAMERA_H
 
 #include <render/render.hpp>
+#include <render/buffer.hpp>
 #include <gameobject.hpp>
 
 namespace vke_component
@@ -18,11 +19,13 @@ namespace vke_component
         glm::mat4 view;
         glm::mat4 projection;
         glm::vec3 viewPos;
-        VkBuffer buffer;
+        vke_render::HostCoherentBuffer buffer;
 
         Camera(float fov, float width, float height,
                float near, float far, vke_common::GameObject *obj)
-            : fov(fov), width(width), height(height), aspect(width / height), near(near), far(far), Component(obj)
+            : fov(fov), width(width), height(height), aspect(width / height),
+              near(near), far(far), Component(obj),
+              buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {
             vke_common::TransformParameter &transform = gameObject->transform;
             viewPos = transform.position;
@@ -32,31 +35,14 @@ namespace vke_component
             projection = glm::perspective(fov, aspect, near, far);
 
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-
-            VkDeviceSize bufferSize = sizeof(vke_render::CameraInfo);
-            vke_render::RenderEnvironment::CreateBuffer(
-                bufferSize,
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                buffer, bufferMemory);
-            vkMapMemory(
-                vke_render::RenderEnvironment::GetInstance()->logicalDevice,
-                bufferMemory,
-                0,
-                bufferSize,
-                0,
-                &mappedBufferMemory);
-
-            memcpy(mappedBufferMemory, &cameraInfo, sizeof(vke_render::CameraInfo));
-
-            vke_render::Renderer::RegisterCamera(buffer);
+            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+            vke_render::Renderer::RegisterCamera(buffer.buffer);
         }
 
         ~Camera()
         {
             VkDevice logicalDevice = vke_render::RenderEnvironment::GetInstance()->logicalDevice;
-            vkDestroyBuffer(logicalDevice, buffer, nullptr);
-            vkFreeMemory(logicalDevice, bufferMemory, nullptr);
+            buffer.~HostCoherentBuffer();
         }
 
         void OnTransformed(vke_common::TransformParameter &param) override
@@ -66,12 +52,8 @@ namespace vke_component
             viewPos = param.position;
             view = glm::lookAt(viewPos, viewPos + gfront, gup);
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            memcpy(mappedBufferMemory, &cameraInfo, sizeof(vke_render::CameraInfo));
+            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
         }
-
-    private:
-        VkDeviceMemory bufferMemory;
-        void *mappedBufferMemory;
     };
 }
 
