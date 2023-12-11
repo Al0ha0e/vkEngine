@@ -10,6 +10,10 @@ namespace vke_render
     {
         VkPipelineStageFlags stageMask;
         VkAccessFlags accessMask;
+
+        RenderPassInfo() {}
+        RenderPassInfo(VkPipelineStageFlags stageMask, VkAccessFlags accessMask)
+            : stageMask(stageMask), accessMask(accessMask) {}
     };
 
     class RenderPasses

@@ -4,8 +4,6 @@
 
 namespace vke_render
 {
-    BaseRenderer *BaseRenderer::instance;
-
     void BaseRenderer::createGlobalDescriptorSet()
     {
         VkDescriptorSetLayoutBinding vpLayoutBinding{};
@@ -238,7 +236,7 @@ namespace vke_render
 
         std::vector<HostCoherentBuffer> buffers;
         renderInfo->AddUnit(skyboxMesh, buffers);
-        instance->createGraphicsPipeline();
+        createGraphicsPipeline();
     }
 
     void BaseRenderer::Render(VkCommandBuffer commandBuffer)

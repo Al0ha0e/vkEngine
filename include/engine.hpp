@@ -41,13 +41,18 @@ namespace vke_common
         vke_render::DescriptorSetAllocator *allocator;
         vke_render::Renderer *renderer;
 
-        static Engine *Init(int width, int height)
+        static Engine *Init(
+            int width,
+            int height,
+            std::vector<vke_render::PassType> &passes,
+            std::vector<vke_render::SubpassBase *> &customPasses,
+            std::vector<vke_render::RenderPassInfo> &customPassInfo)
         {
             instance = new Engine();
             instance->environment = vke_render::RenderEnvironment::Init(width, height);
             instance->renderRM = vke_render::RenderResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
-            instance->renderer = vke_render::Renderer::Init();
+            instance->renderer = vke_render::Renderer::Init(passes, customPasses, customPassInfo);
             return instance;
         }
 

@@ -5,71 +5,44 @@
 #include <render/renderinfo.hpp>
 #include <render/material.hpp>
 #include <render/mesh.hpp>
+#include <render/subpass.hpp>
 
 namespace vke_render
 {
-    class BaseRenderer
+    class BaseRenderer : public SubpassBase
     {
-    private:
-        static BaseRenderer *instance;
-        BaseRenderer() = default;
-        ~BaseRenderer() {}
-
-        class Deletor
-        {
-        public:
-            ~Deletor()
-            {
-                if (BaseRenderer::instance != nullptr)
-                    delete BaseRenderer::instance;
-            }
-        };
-        static Deletor deletor;
-
     public:
-        int subpassID;
-        VkRenderPass renderPass;
-
         std::vector<DescriptorInfo> globalDescriptorInfos;
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        static BaseRenderer *GetInstance()
+        BaseRenderer() {}
+        BaseRenderer(int subpassID, VkRenderPass renderPass)
+            : SubpassBase(subpassID, renderPass)
         {
-            if (instance == nullptr)
-                instance = new BaseRenderer();
-            return instance;
+            environment = RenderEnvironment::GetInstance();
+            createGlobalDescriptorSet();
+            createSkyBox();
         }
 
-        static BaseRenderer *Init(int subpassID, VkRenderPass renderPass)
+        void Dispose() override
         {
-            instance = new BaseRenderer();
-            instance->subpassID = subpassID;
-            instance->renderPass = renderPass;
-            instance->environment = RenderEnvironment::GetInstance();
-            instance->createGlobalDescriptorSet();
-            instance->createSkyBox();
-            return instance;
+            vkDestroyPipeline(environment->logicalDevice, renderInfo->pipeline, nullptr);
+            vkDestroyPipelineLayout(environment->logicalDevice, renderInfo->pipelineLayout, nullptr);
         }
 
-        static void Dispose()
+        void RegisterCamera(VkBuffer buffer) override
         {
-            vkDestroyPipeline(instance->environment->logicalDevice, instance->renderInfo->pipeline, nullptr);
-            vkDestroyPipelineLayout(instance->environment->logicalDevice, instance->renderInfo->pipelineLayout, nullptr);
-        }
-
-        static void RegisterCamera(VkBuffer buffer)
-        {
-            DescriptorInfo &info = instance->globalDescriptorInfos[0];
+            DescriptorInfo &info = globalDescriptorInfos[0];
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = buffer;
             bufferInfo.offset = 0;
             bufferInfo.range = info.bufferSize;
-            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(instance->globalDescriptorSet, info, &bufferInfo);
+            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
         }
 
-        void Render(VkCommandBuffer commandBuffer);
+        void Render(VkCommandBuffer commandBuffer) override;
 
     private:
         RenderEnvironment *environment;

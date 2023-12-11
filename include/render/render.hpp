@@ -11,6 +11,13 @@
 
 namespace vke_render
 {
+    enum PassType
+    {
+        CUSTOM_RENDERER,
+        BASE_RENDERER,
+        OPAQUE_RENDERER
+    };
+
     class Renderer
     {
     private:
@@ -42,25 +49,64 @@ namespace vke_render
             return instance;
         }
 
-        static Renderer *Init()
+        static Renderer *Init(std::vector<PassType> &passes, std::vector<SubpassBase *> &customPasses, std::vector<RenderPassInfo> &customPassInfo)
         {
             instance = new Renderer();
             instance->currentFrame = 0;
             instance->environment = RenderEnvironment::GetInstance();
-            instance->initRenderPass();
+
+            std::vector<RenderPassInfo> passInfo;
+            int customPassID = 0;
+            for (int i = 0; i < passes.size(); i++)
+            {
+                PassType pass = passes[i];
+                switch (pass)
+                {
+                case CUSTOM_RENDERER:
+                    passInfo.push_back(customPassInfo[customPassID++]);
+                    break;
+                case BASE_RENDERER:
+                    passInfo.push_back(RenderPassInfo(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT));
+                    break;
+                case OPAQUE_RENDERER:
+                    passInfo.push_back(RenderPassInfo(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT));
+                    break;
+                default:
+                    break;
+                }
+            }
+            instance->renderPass = RenderPasses::Init(passInfo);
             instance->createFramebuffers();
-            instance->baseRenderer = BaseRenderer::Init(
-                0,
-                instance->renderPass->renderPass);
-            instance->opaqueRenderer = OpaqueRenderer::Init(
-                1,
-                instance->renderPass->renderPass);
+
+            customPassID = 0;
+            for (int i = 0; i < passes.size(); i++)
+            {
+                PassType pass = passes[i];
+                switch (pass)
+                {
+                case CUSTOM_RENDERER:
+                    instance->subPasses.push_back(customPasses[customPassID++]);
+                    break;
+                case BASE_RENDERER:
+                    instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
+                    instance->subPasses.push_back(instance->baseRenderer);
+                    break;
+                case OPAQUE_RENDERER:
+                    instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
+                    instance->subPasses.push_back(instance->opaqueRenderer);
+                    break;
+                default:
+                    break;
+                }
+            }
 
             return instance;
         }
 
         static void Dispose()
         {
+            for (SubpassBase *pass : instance->subPasses)
+                pass->Dispose();
             for (auto framebuffer : instance->frameBuffers)
             {
                 vkDestroyFramebuffer(instance->environment->logicalDevice, framebuffer, nullptr);
@@ -69,8 +115,8 @@ namespace vke_render
 
         static void RegisterCamera(VkBuffer buffer)
         {
-            instance->baseRenderer->RegisterCamera(buffer);
-            instance->opaqueRenderer->RegisterCamera(buffer);
+            for (SubpassBase *pass : instance->subPasses)
+                pass->RegisterCamera(buffer);
         }
 
         void Update();
@@ -78,8 +124,8 @@ namespace vke_render
     private:
         RenderEnvironment *environment;
         std::vector<VkFramebuffer> frameBuffers;
+        std::vector<SubpassBase *> subPasses;
 
-        void initRenderPass();
         void createFramebuffers();
         void render();
     };

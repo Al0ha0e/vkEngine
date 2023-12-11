@@ -24,7 +24,7 @@ namespace vke_component
             buffer.ToBuffer(0, &gameObject->transform.model, sizeof(glm::mat4));
             buffers.push_back(std::move(buffer));
 
-            renderID = vke_render::OpaqueRenderer::AddUnit(material, mesh, buffers);
+            renderID = vke_render::Renderer::GetInstance()->opaqueRenderer->AddUnit(material, mesh, buffers);
         }
 
         ~RenderableObject() {}

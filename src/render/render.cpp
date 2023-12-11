@@ -4,16 +4,6 @@ namespace vke_render
 {
     Renderer *Renderer::instance;
 
-    void Renderer::initRenderPass()
-    {
-        std::vector<RenderPassInfo> passInfo(2);
-        passInfo[0].accessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        passInfo[0].stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        passInfo[1].accessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        passInfo[1].stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        renderPass = RenderPasses::Init(passInfo);
-    }
-
     void Renderer::createFramebuffers()
     {
         frameBuffers.resize(environment->swapChainImageViews.size());
@@ -68,9 +58,12 @@ namespace vke_render
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        baseRenderer->Render(commandBuffer);
-        vkCmdNextSubpass(commandBuffer, VK_SUBPASS_CONTENTS_INLINE);
-        opaqueRenderer->Render(commandBuffer);
+        subPasses[0]->Render(commandBuffer);
+        for (int i = 1; i < subPasses.size(); i++)
+        {
+            vkCmdNextSubpass(commandBuffer, VK_SUBPASS_CONTENTS_INLINE);
+            subPasses[i]->Render(commandBuffer);
+        }
 
         vkCmdEndRenderPass(commandBuffer);
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)

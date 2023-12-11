@@ -3,8 +3,6 @@
 
 namespace vke_render
 {
-    OpaqueRenderer *OpaqueRenderer::instance = nullptr;
-
     void OpaqueRenderer::createGlobalDescriptorSet()
     {
         VkDescriptorSetLayoutBinding vpLayoutBinding{};

@@ -24,7 +24,12 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
 int main()
 {
-    engine = vke_common::Engine::Init(WIDTH, HEIGHT);
+    std::vector<vke_render::PassType> passes = {
+        vke_render::BASE_RENDERER,
+        vke_render::OPAQUE_RENDERER};
+    std::vector<vke_render::SubpassBase *> customPasses;
+    std::vector<vke_render::RenderPassInfo> customPassInfo;
+    engine = vke_common::Engine::Init(WIDTH, HEIGHT, passes, customPasses, customPassInfo);
 
     vke_common::TransformParameter targetParam(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
     vke_common::TransformParameter targetParam2(glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));

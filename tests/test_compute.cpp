@@ -7,7 +7,12 @@
 
 int main()
 {
-    vke_common::Engine *engine = vke_common::Engine::Init(800, 600);
+    std::vector<vke_render::PassType> passes = {
+        vke_render::BASE_RENDERER,
+        vke_render::OPAQUE_RENDERER};
+    std::vector<vke_render::SubpassBase *> customPasses;
+    std::vector<vke_render::RenderPassInfo> customPassInfo;
+    vke_common::Engine *engine = vke_common::Engine::Init(800, 600, passes, customPasses, customPassInfo);
 
     vke_render::ComputeShader *shader = vke_render::RenderResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");
     std::vector<vke_render::DescriptorInfo> descriptorInfos;
