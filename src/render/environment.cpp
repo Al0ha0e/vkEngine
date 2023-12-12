@@ -133,7 +133,8 @@ namespace vke_render
     }
 
     const std::vector<const char *> deviceExtensions =
-        {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+         VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME};
 
     bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice)
     {
@@ -244,6 +245,7 @@ namespace vke_render
 
         VkPhysicalDeviceFeatures deviceFeatures{};
         deviceFeatures.samplerAnisotropy = VK_TRUE;
+        deviceFeatures.shaderInt64 = VK_TRUE;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
