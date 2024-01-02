@@ -13,6 +13,11 @@ namespace vke_render
                                         VkShaderStageFlags stageFlags,
                                         const VkSampler *pImmutableSamplers);
 
+    void InitDescriptorBufferInfo(VkDescriptorBufferInfo &bufferInfo,
+                                  VkBuffer buffer,
+                                  VkDeviceSize offset,
+                                  VkDeviceSize range);
+
     struct DescriptorInfo
     {
         VkDescriptorSetLayoutBinding bindingInfo;

@@ -20,6 +20,16 @@ namespace vke_render
         dst.pImmutableSamplers = pImmutableSamplers;
     }
 
+    void InitDescriptorBufferInfo(VkDescriptorBufferInfo &bufferInfo,
+                                  VkBuffer buffer,
+                                  VkDeviceSize offset,
+                                  VkDeviceSize range)
+    {
+        bufferInfo.buffer = buffer;
+        bufferInfo.offset = offset;
+        bufferInfo.range = range;
+    }
+
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo)
     {
         VkWriteDescriptorSet descriptorWrite{};

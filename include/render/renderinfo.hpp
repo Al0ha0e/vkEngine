@@ -43,11 +43,7 @@ namespace vke_render
             for (int i = 0; i < descriptorCnt; i++)
             {
                 DescriptorInfo &info = descriptorInfos[i];
-                VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
-                bufferInfo.buffer = buffers[i].buffer;
-                bufferInfo.offset = 0;
-                bufferInfo.range = info.bufferSize;
-
+                InitDescriptorBufferInfo(bufferInfos[i], buffers[i].buffer, 0, info.bufferSize);
                 descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, bufferInfos.data() + i);
             }
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
@@ -119,7 +115,7 @@ namespace vke_render
                 commonDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(commonDescriptorSetInfo);
 
                 int descriptorCnt = commonDescriptorInfos.size();
-                // std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
+                std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
                 std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
                 for (int i = 0; i < descriptorCnt; i++)
                 {
@@ -127,12 +123,8 @@ namespace vke_render
 
                     if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                     {
-                        // VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
-                        VkDescriptorBufferInfo bufferInfo = {};
-                        bufferInfo.buffer = material->commonBuffers[i];
-                        bufferInfo.offset = 0;
-                        bufferInfo.range = info.bufferSize;
-                        descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, &bufferInfo);
+                        InitDescriptorBufferInfo(bufferInfos[i], material->commonBuffers[i], 0, info.bufferSize);
+                        descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, bufferInfos.data() + i);
                     }
                     else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                     {

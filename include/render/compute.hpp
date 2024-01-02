@@ -178,6 +178,7 @@ namespace vke_render
             instance.descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
 
             int descriptorCnt = descriptorInfos.size();
+            std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
             std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
             for (int i = 0; i < descriptorCnt; i++)
             {
@@ -186,12 +187,8 @@ namespace vke_render
                 if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
                     info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
                 {
-                    // VkDescriptorBufferInfo &bufferInfo = bufferInfos[i];
-                    VkDescriptorBufferInfo bufferInfo = {};
-                    bufferInfo.buffer = instance.buffers[i];
-                    bufferInfo.offset = 0;
-                    bufferInfo.range = info.bufferSize;
-                    descriptorWrites[i] = ConstructDescriptorSetWrite(instance.descriptorSet, info, &bufferInfo);
+                    InitDescriptorBufferInfo(bufferInfos[i], instance.buffers[i], 0, info.bufferSize);
+                    descriptorWrites[i] = ConstructDescriptorSetWrite(instance.descriptorSet, info, bufferInfos.data() + i);
                 }
                 else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                 {

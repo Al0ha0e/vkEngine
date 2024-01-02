@@ -35,9 +35,7 @@ namespace vke_render
         {
             DescriptorInfo &info = globalDescriptorInfos[0];
             VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = buffer;
-            bufferInfo.offset = 0;
-            bufferInfo.range = info.bufferSize;
+            InitDescriptorBufferInfo(bufferInfo, buffer, 0, info.bufferSize);
             VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
         }
