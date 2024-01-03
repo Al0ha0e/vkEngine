@@ -191,12 +191,23 @@ namespace vke_render
             SwapChainSupportDetails swapChainSupport = querySwapChainSupport(pdevice);
             swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
         }
-        VkPhysicalDeviceFeatures supportedFeatures;
-        vkGetPhysicalDeviceFeatures(pdevice, &supportedFeatures);
+
+        VkPhysicalDeviceFeatures2 supportedFeatures2 = {};
+        supportedFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        VkPhysicalDeviceVulkan12Features supportedFeatures12 = {};
+        supportedFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        supportedFeatures2.pNext = &supportedFeatures12;
+        vkGetPhysicalDeviceFeatures2(pdevice, &supportedFeatures2);
+        VkPhysicalDeviceFeatures &supportedFeatures = supportedFeatures2.features;
+
         return indices.isComplete() &&
                extensionsSupported &&
                swapChainAdequate &&
-               supportedFeatures.samplerAnisotropy;
+               supportedFeatures.samplerAnisotropy &&
+               supportedFeatures.shaderInt64 &&
+               supportedFeatures.multiDrawIndirect &&
+               supportedFeatures12.shaderBufferInt64Atomics &&
+               supportedFeatures12.shaderSharedInt64Atomics;
     }
 
     void RenderEnvironment::pickPhysicalDevice()
@@ -243,16 +254,26 @@ namespace vke_render
             queueCreateInfos.push_back(queueCreateInfo);
         }
 
-        VkPhysicalDeviceFeatures deviceFeatures{};
+        VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
+        deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        VkPhysicalDeviceFeatures &deviceFeatures = deviceFeatures2.features;
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         deviceFeatures.shaderInt64 = VK_TRUE;
         deviceFeatures.multiDrawIndirect = VK_TRUE;
 
+        VkPhysicalDeviceVulkan12Features deviceFeatures12 = {};
+        deviceFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        deviceFeatures12.shaderBufferInt64Atomics = VK_TRUE;
+        deviceFeatures12.shaderSharedInt64Atomics = VK_TRUE;
+        deviceFeatures2.pNext = &deviceFeatures12;
+
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        createInfo.queueCreateInfoCount = createInfo.queueCreateInfoCount = 1;
+        createInfo.queueCreateInfoCount = 1;
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
-        createInfo.pEnabledFeatures = &deviceFeatures;
+        // createInfo.pEnabledFeatures = &deviceFeatures;
+        createInfo.pEnabledFeatures = nullptr;
+        createInfo.pNext = &deviceFeatures2;
 
         createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
         createInfo.ppEnabledExtensionNames = deviceExtensions.data();
