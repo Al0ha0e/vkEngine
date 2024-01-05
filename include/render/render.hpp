@@ -82,17 +82,24 @@ namespace vke_render
             for (int i = 0; i < passes.size(); i++)
             {
                 PassType pass = passes[i];
+                SubpassBase *customPass;
                 switch (pass)
                 {
                 case CUSTOM_RENDERER:
-                    instance->subPasses.push_back(customPasses[customPassID++]);
+                    customPass = customPasses[customPassID++];
+                    customPass->Init(i, instance->renderPass->renderPass);
+                    instance->subPasses.push_back(customPass);
                     break;
                 case BASE_RENDERER:
-                    instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
+                    // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
+                    instance->baseRenderer = new BaseRenderer();
+                    instance->baseRenderer->Init(i, instance->renderPass->renderPass);
                     instance->subPasses.push_back(instance->baseRenderer);
                     break;
                 case OPAQUE_RENDERER:
-                    instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
+                    // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
+                    instance->opaqueRenderer = new OpaqueRenderer();
+                    instance->opaqueRenderer->Init(i, instance->renderPass->renderPass);
                     instance->subPasses.push_back(instance->opaqueRenderer);
                     break;
                 default:

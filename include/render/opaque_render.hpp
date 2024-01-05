@@ -14,9 +14,10 @@ namespace vke_render
         VkDescriptorSet globalDescriptorSet;
 
         OpaqueRenderer() {}
-        OpaqueRenderer(int subpassID, VkRenderPass renderPass)
-            : SubpassBase(subpassID, renderPass)
+
+        void Init(int subpassID, VkRenderPass renderPass) override
         {
+            SubpassBase::Init(subpassID, renderPass);
             environment = RenderEnvironment::GetInstance();
             createGlobalDescriptorSet();
         }

@@ -17,9 +17,10 @@ namespace vke_render
         VkDescriptorSet globalDescriptorSet;
 
         BaseRenderer() {}
-        BaseRenderer(int subpassID, VkRenderPass renderPass)
-            : SubpassBase(subpassID, renderPass)
+
+        void Init(int subpassID, VkRenderPass renderPass) override
         {
+            SubpassBase::Init(subpassID, renderPass);
             environment = RenderEnvironment::GetInstance();
             createGlobalDescriptorSet();
             createSkyBox();

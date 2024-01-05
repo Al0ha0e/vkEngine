@@ -12,13 +12,16 @@ namespace vke_render
         VkRenderPass renderPass;
 
         SubpassBase() {}
-        SubpassBase(int subpassID, VkRenderPass renderPass)
-            : subpassID(subpassID),
-              renderPass(renderPass) {}
 
         virtual void Dispose() = 0;
         virtual void RegisterCamera(VkBuffer buffer) = 0;
         virtual void Render(VkCommandBuffer commandBuffer) = 0;
+
+        virtual void Init(int subpassID, VkRenderPass renderPass)
+        {
+            this->subpassID = subpassID;
+            this->renderPass = renderPass;
+        }
     };
 }
 
