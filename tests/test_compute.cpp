@@ -58,8 +58,6 @@ int main()
 
     task.Dispatch(id, commandBuffer, glm::ivec3(1, 1, 1), fence);
 
-    vkWaitForFences(logicalDevice, 1, &fence, VK_TRUE, UINT64_MAX);
-
     buffer.FromBuffer(0, oridata, bufferSize);
 
     for (int i = 0; i < 10; i++)

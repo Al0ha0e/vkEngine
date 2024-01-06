@@ -5,6 +5,7 @@
 #include <render/shader.hpp>
 #include <render/descriptor.hpp>
 #include <ds/id_allocator.hpp>
+#include <engine.hpp>
 
 namespace vke_render
 {
@@ -71,6 +72,13 @@ namespace vke_render
             {
                 throw std::runtime_error("failed to submit compute command buffer!");
             };
+
+            if (fence)
+            {
+                VkDevice logicalDevice = vke_common::Engine::GetInstance()->environment->logicalDevice;
+                vkWaitForFences(logicalDevice, 1, &fence, VK_TRUE, uint64_t(-1));
+                vkResetFences(logicalDevice, 1, &fence);
+            }
         }
     };
 
