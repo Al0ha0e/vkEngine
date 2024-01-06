@@ -62,6 +62,8 @@ namespace vke_common
             instance->environment->Dispose();
         }
 
+        void Update();
+
         void MainLoop();
     };
 };

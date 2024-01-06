@@ -7,12 +7,17 @@ namespace vke_common
 {
     Engine *Engine::instance = nullptr;
 
+    void Engine::Update()
+    {
+        renderer->Update();
+    }
+
     void Engine::MainLoop()
     {
         while (!glfwWindowShouldClose(environment->window))
         {
             glfwPollEvents();
-            renderer->Update();
+            Update();
         }
         vkDeviceWaitIdle(environment->logicalDevice);
     }
