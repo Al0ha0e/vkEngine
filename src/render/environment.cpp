@@ -99,6 +99,34 @@ namespace vke_render
         }
     }
 
+    VkFormat RenderEnvironment::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+    {
+        for (VkFormat format : candidates)
+        {
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            {
+                return format;
+            }
+            else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            {
+                return format;
+            }
+        }
+
+        throw std::runtime_error("failed to find supported format!");
+    }
+
+    VkFormat RenderEnvironment::findDepthFormat()
+    {
+        return findSupportedFormat(
+            {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
+
     QueueFamilyIndices RenderEnvironment::findQueueFamilies(VkPhysicalDevice pdevice)
     {
         QueueFamilyIndices indices;
@@ -206,6 +234,7 @@ namespace vke_render
                supportedFeatures.samplerAnisotropy &&
                supportedFeatures.shaderInt64 &&
                supportedFeatures.multiDrawIndirect &&
+               supportedFeatures.fillModeNonSolid &&
                supportedFeatures12.shaderBufferInt64Atomics &&
                supportedFeatures12.shaderSharedInt64Atomics;
     }
@@ -257,6 +286,7 @@ namespace vke_render
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
         deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
         VkPhysicalDeviceFeatures &deviceFeatures = deviceFeatures2.features;
+        deviceFeatures.fillModeNonSolid = VK_TRUE;
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         deviceFeatures.shaderInt64 = VK_TRUE;
         deviceFeatures.multiDrawIndirect = VK_TRUE;
@@ -395,6 +425,9 @@ namespace vke_render
 
         swapChainImageFormat = surfaceFormat.format;
         swapChainExtent = extent;
+
+        depthFormat = findDepthFormat();
+        CreateImage(extent.width, extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
     }
 
     void RenderEnvironment::createImageViews()
@@ -402,7 +435,8 @@ namespace vke_render
         swapChainImageViews.resize(swapChainImages.size());
 
         for (size_t i = 0; i < swapChainImages.size(); i++)
-            swapChainImageViews[i] = CreateImageView(swapChainImages[i], swapChainImageFormat);
+            swapChainImageViews[i] = CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+        depthImageView = CreateImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 
     void RenderEnvironment::createCommandPool()

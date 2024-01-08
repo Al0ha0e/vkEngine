@@ -189,14 +189,14 @@ namespace vke_render
             vkBindImageMemory(instance->logicalDevice, image, imageMemory, 0);
         }
 
-        static VkImageView CreateImageView(VkImage image, VkFormat format)
+        static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
         {
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.image = image;
             viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = format;
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            viewInfo.subresourceRange.aspectMask = aspectFlags;
             viewInfo.subresourceRange.baseMipLevel = 0;
             viewInfo.subresourceRange.levelCount = 1;
             viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -293,6 +293,10 @@ namespace vke_render
         VkFormat swapChainImageFormat;
         VkExtent2D swapChainExtent;
         std::vector<VkImageView> swapChainImageViews;
+        VkFormat depthFormat;
+        VkImage depthImage;
+        VkDeviceMemory depthImageMemory;
+        VkImageView depthImageView;
         VkCommandPool commandPool;
         std::vector<VkCommandBuffer> commandBuffers;
         std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -303,6 +307,8 @@ namespace vke_render
         void initWindow();
         void createInstance();
         void createSurface();
+        VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+        VkFormat findDepthFormat();
         QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pdevice);
         SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice);
         bool isDeviceSuitable(VkPhysicalDevice pdevice);

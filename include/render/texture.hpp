@@ -50,7 +50,7 @@ namespace vke_render
             vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
             vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
 
-            textureImageView = RenderEnvironment::CreateImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB);
+            textureImageView = RenderEnvironment::CreateImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
             createTextureSampler();
         }
 

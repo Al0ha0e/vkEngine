@@ -6,6 +6,9 @@
 #include <GLFW/glfw3.h>
 #endif
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <stb_image.h>
 
 const bool DEBUG_MODE = true;

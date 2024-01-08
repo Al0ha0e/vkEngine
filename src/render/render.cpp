@@ -9,12 +9,14 @@ namespace vke_render
         frameBuffers.resize(environment->swapChainImageViews.size());
         for (size_t i = 0; i < environment->swapChainImageViews.size(); i++)
         {
-            VkImageView attachments[] = {environment->swapChainImageViews[i]};
+            VkImageView attachments[] = {
+                environment->swapChainImageViews[i],
+                environment->depthImageView};
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = renderPass->renderPass;
-            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.attachmentCount = 2;
             framebufferInfo.pAttachments = attachments;
             framebufferInfo.width = environment->swapChainExtent.width;
             framebufferInfo.height = environment->swapChainExtent.height;
@@ -52,9 +54,11 @@ namespace vke_render
         renderPassInfo.framebuffer = frameBuffers[imageIndex];
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = environment->swapChainExtent;
-        VkClearValue clearColor = {{{1.0f, 0.5f, 0.3f, 1.0f}}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        VkClearValue clearValues[2];
+        clearValues[0].color = {{1.0f, 0.5f, 0.3f, 1.0f}};
+        clearValues[1].depthStencil = {1.0f, 0};
+        renderPassInfo.clearValueCount = 2;
+        renderPassInfo.pClearValues = clearValues;
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 

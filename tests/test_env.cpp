@@ -31,7 +31,7 @@ int main()
     std::vector<vke_render::RenderPassInfo> customPassInfo;
     engine = vke_common::Engine::Init(WIDTH, HEIGHT, passes, customPasses, customPassInfo);
 
-    vke_common::TransformParameter targetParam(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
+    vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
     vke_common::TransformParameter targetParam2(glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
     vke_common::GameObject targetGameObj(targetParam);
     vke_common::GameObject targetGameObj2(targetParam2);
@@ -62,7 +62,7 @@ int main()
             time_prev = glfwGetTime();
         time_delta = now - time_prev;
         time_prev = now;
-        std::cout << 1 / time_delta << std::endl;
+        // std::cout << 1 / time_delta << std::endl;
 
         processInput(engine->environment->window, &cameraGameObj);
 
