@@ -20,22 +20,11 @@ namespace vke_render
         RenderResourceManager(const RenderResourceManager &);
         RenderResourceManager &operator=(const RenderResourceManager);
 
-        class Deletor
-        {
-        public:
-            ~Deletor()
-            {
-                if (RenderResourceManager::instance != nullptr)
-                    delete RenderResourceManager::instance;
-            }
-        };
-        static Deletor deletor;
-
     public:
         static RenderResourceManager *GetInstance()
         {
             if (instance == nullptr)
-                instance = new RenderResourceManager();
+                throw std::runtime_error("RenderResourceManager not initialized!");
             return instance;
         }
 
@@ -45,37 +34,40 @@ namespace vke_render
             return instance;
         }
 
-        static void Dispose() {}
+        static void Dispose()
+        {
+            delete instance;
+        }
 
-        static VertFragShader *LoadVertFragShader(std::string vpth, std::string fpth)
+        static std::shared_ptr<VertFragShader> LoadVertFragShader(std::string vpth, std::string fpth)
         {
             auto &cache = instance->shaderCache;
             std::string id = vpth + "_" + fpth;
             auto it = cache.find(id);
             if (it != cache.end())
-                return (VertFragShader *)it->second;
+                return std::static_pointer_cast<VertFragShader>(it->second);
 
             auto vcode = readFile(vpth);
             auto fcode = readFile(fpth);
-            VertFragShader *ret = new VertFragShader(vcode, fcode);
+            std::shared_ptr<VertFragShader> ret = std::make_shared<VertFragShader>(vcode, fcode);
             cache[id] = ret;
             return ret;
         }
 
-        static ComputeShader *LoadComputeShader(std::string pth)
+        static std::shared_ptr<ComputeShader> LoadComputeShader(std::string pth)
         {
             auto &cache = instance->shaderCache;
             auto it = cache.find(pth);
             if (it != cache.end())
-                return (ComputeShader *)it->second;
+                return std::static_pointer_cast<ComputeShader>(it->second);
 
             auto code = readFile(pth);
-            ComputeShader *ret = new ComputeShader(code);
+            std::shared_ptr<ComputeShader> ret = std::make_shared<ComputeShader>(code);
             cache[pth] = ret;
             return ret;
         }
 
-        static Texture2D *LoadTexture2D(std::string pth)
+        static std::shared_ptr<Texture2D> LoadTexture2D(std::string pth)
         {
             int texWidth, texHeight, texChannels;
             stbi_uc *pixels = stbi_load(pth.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
@@ -85,10 +77,10 @@ namespace vke_render
                 throw std::runtime_error("failed to load texture image!");
             }
 
-            return new Texture2D(pixels, texWidth, texHeight);
+            return std::make_shared<Texture2D>(pixels, texWidth, texHeight);
         }
 
-        static Material *LoadMaterial(std::string pth)
+        static std::shared_ptr<Material> LoadMaterial(std::string pth)
         {
             // TODO
             VkVertexInputBindingDescription bindingDescription{};
@@ -114,7 +106,7 @@ namespace vke_render
 
             Material *ret = new Material;
 
-            Texture2D *texture = LoadTexture2D("./resources/texture/texture.jpg");
+            std::shared_ptr<Texture2D> texture = LoadTexture2D("./resources/texture/texture.jpg");
             ret->textures.push_back(texture);
             ret->shader = LoadVertFragShader("./tests/shader/vert.spv", "./tests/shader/frag.spv");
             ret->bindingDescriptions = bindingDescriptions;
@@ -125,19 +117,19 @@ namespace vke_render
                                            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr);
 
             vke_render::DescriptorInfo descriptorInfo(modelLayoutBinding, sizeof(glm::mat4));
-            ret->perUnitDescriptorInfos.push_back(descriptorInfo);
+            ret->perUnitDescriptorInfos.push_back(std::move(descriptorInfo));
 
             VkDescriptorSetLayoutBinding textureLayoutBinding{};
             InitDescriptorSetLayoutBinding(textureLayoutBinding, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,
                                            VK_SHADER_STAGE_FRAGMENT_BIT, nullptr);
 
             vke_render::DescriptorInfo textureDescriptorInfo(textureLayoutBinding, texture->textureImageView, texture->textureSampler);
-            ret->commonDescriptorInfos.push_back(textureDescriptorInfo);
+            ret->commonDescriptorInfos.push_back(std::move(textureDescriptorInfo));
 
-            return ret;
+            return std::shared_ptr<Material>(ret);
         }
 
-        static Mesh *LoadMesh(std::string pth)
+        static std::shared_ptr<Mesh> LoadMesh(std::string pth)
         {
             // TODO
             const std::vector<Vertex> vertices = {
@@ -147,12 +139,12 @@ namespace vke_render
                 {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
             std::vector<uint32_t> indices = {
                 0, 1, 2, 2, 3, 0};
-            Mesh *ret = new Mesh(vertices.size() * sizeof(Vertex), (void *)vertices.data(), indices);
+            std::shared_ptr<Mesh> ret = std::make_shared<Mesh>(vertices.size() * sizeof(Vertex), (void *)vertices.data(), indices);
             return ret;
         }
 
     private:
-        std::map<std::string, Shader *> shaderCache;
+        std::map<std::string, std::shared_ptr<Shader>> shaderCache;
         std::map<std::string, Material *> materialCache;
 
         static std::vector<char> readFile(const std::string &filename)

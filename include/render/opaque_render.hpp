@@ -13,7 +13,7 @@ namespace vke_render
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        OpaqueRenderer() {}
+        OpaqueRenderer() : globalDescriptorSetInfo(nullptr, 0, 0, 0) {}
 
         void Init(int subpassID, VkRenderPass renderPass) override
         {
@@ -22,14 +22,7 @@ namespace vke_render
             createGlobalDescriptorSet();
         }
 
-        void Dispose() override
-        {
-            for (auto &renderInfo : renderInfoMap)
-            {
-                vkDestroyPipeline(environment->logicalDevice, renderInfo.second->pipeline, nullptr);
-                vkDestroyPipelineLayout(environment->logicalDevice, renderInfo.second->pipelineLayout, nullptr);
-            }
-        }
+        ~OpaqueRenderer() {}
 
         void RegisterCamera(VkBuffer buffer) override
         {
@@ -40,30 +33,31 @@ namespace vke_render
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
         }
 
-        void RegisterMaterial(Material *material)
+        void RegisterMaterial(std::shared_ptr<Material> &material)
         {
             // uint32_t id = instance->materialIDAllocator.Alloc();
             auto &rMap = renderInfoMap;
-            if (rMap.find(material) != rMap.end())
+            Material *matp = material.get();
+            if (rMap.find(matp) != rMap.end())
                 return;
 
             RenderInfo *info = new RenderInfo(material);
             createGraphicsPipeline(*info);
-            rMap[material] = info;
+            rMap[matp] = std::move(std::unique_ptr<RenderInfo>(info));
             // return id;
         }
 
-        uint64_t AddUnit(Material *material, Mesh *mesh, std::vector<HostCoherentBuffer> &buffers)
+        uint64_t AddUnit(std::shared_ptr<Material> &material, std::shared_ptr<Mesh> &mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
         {
             RegisterMaterial(material);
-            return renderInfoMap[material]->AddUnit(mesh, buffers);
+            return renderInfoMap[material.get()]->AddUnit(mesh, buffers);
         }
 
         void Render(VkCommandBuffer commandBuffer) override;
 
     private:
         RenderEnvironment *environment;
-        std::map<Material *, RenderInfo *> renderInfoMap;
+        std::map<Material *, std::unique_ptr<RenderInfo>> renderInfoMap;
 
         void createGlobalDescriptorSet();
         void createGraphicsPipeline(RenderInfo &renderInfo);

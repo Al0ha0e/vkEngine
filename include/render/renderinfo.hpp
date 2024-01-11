@@ -23,18 +23,18 @@ namespace vke_render
 
     struct RenderUnit
     {
-        Mesh *mesh;
+        std::shared_ptr<Mesh> mesh;
         VkDescriptorSet descriptorSet;
 
         RenderUnit() = default;
 
-        RenderUnit(Mesh *msh) : mesh(msh), descriptorSet(nullptr) {}
+        RenderUnit(std::shared_ptr<Mesh> &msh) : mesh(msh), descriptorSet(nullptr) {}
 
         RenderUnit(
-            Mesh *msh,
+            std::shared_ptr<Mesh> &msh,
             DescriptorSetInfo &descriptorSetInfo,
             std::vector<DescriptorInfo> &descriptorInfos,
-            std::vector<HostCoherentBuffer> &buffers) : mesh(msh)
+            std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers) : mesh(msh)
         {
             descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
             int descriptorCnt = descriptorInfos.size();
@@ -43,7 +43,7 @@ namespace vke_render
             for (int i = 0; i < descriptorCnt; i++)
             {
                 DescriptorInfo &info = descriptorInfos[i];
-                InitDescriptorBufferInfo(bufferInfos[i], buffers[i].buffer, 0, info.bufferSize);
+                InitDescriptorBufferInfo(bufferInfos[i], buffers[i]->buffer, 0, info.bufferSize);
                 descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, bufferInfos.data() + i);
             }
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
@@ -68,7 +68,7 @@ namespace vke_render
     class RenderInfo
     {
     public:
-        Material *material;
+        std::shared_ptr<Material> material;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
         DescriptorSetInfo commonDescriptorSetInfo;
@@ -78,11 +78,11 @@ namespace vke_render
         bool hasPerUnitDescriptorSet;
         std::map<uint64_t, RenderUnit> units;
 
-        RenderInfo() = default;
-
-        RenderInfo(Material *mat)
+        RenderInfo(std::shared_ptr<Material> &mat)
             : material(mat),
-              commonDescriptorSet(nullptr)
+              commonDescriptorSet(nullptr),
+              commonDescriptorSetInfo(nullptr, 0, 0, 0),
+              perUnitDescriptorSetInfo(nullptr, 0, 0, 0)
         {
             hasCommonDescriptorSet = mat->commonDescriptorInfos.size() > 0;
             hasPerUnitDescriptorSet = mat->perUnitDescriptorInfos.size() > 0;
@@ -165,10 +165,8 @@ namespace vke_render
         ~RenderInfo()
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            if (hasCommonDescriptorSet)
-                vkDestroyDescriptorSetLayout(logicalDevice, commonDescriptorSetInfo.layout, nullptr);
-            if (hasPerUnitDescriptorSet)
-                vkDestroyDescriptorSetLayout(logicalDevice, perUnitDescriptorSetInfo.layout, nullptr);
+            vkDestroyPipeline(logicalDevice, pipeline, nullptr);
+            vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
         void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
@@ -183,7 +181,7 @@ namespace vke_render
                 globalDescriptorSetLayouts.push_back(perUnitDescriptorSetInfo.layout);
         }
 
-        uint64_t AddUnit(Mesh *mesh, std::vector<HostCoherentBuffer> &buffers)
+        uint64_t AddUnit(std::shared_ptr<Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
         // uint64_t AddUnit(Mesh *mesh, std::vector<VkBuffer> &buffers)
         {
             uint64_t id = allocator.Alloc();

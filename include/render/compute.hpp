@@ -18,7 +18,6 @@ namespace vke_render
         std::vector<VkSemaphore> signalSemaphores;
         VkDescriptorSet descriptorSet;
 
-        ComputeTaskInstance() = default;
         ComputeTaskInstance(std::vector<VkBuffer> &&buffers,
                             std::vector<VkSemaphore> &&waitSemaphores,
                             std::vector<VkPipelineStageFlags> &&waitStages,
@@ -85,15 +84,15 @@ namespace vke_render
     class ComputeTask
     {
     public:
-        ComputeShader *shader;
+        std::shared_ptr<ComputeShader> shader;
         std::vector<DescriptorInfo> descriptorInfos;
-        std::map<uint64_t, ComputeTaskInstance *> instances;
+        std::map<uint64_t, std::unique_ptr<ComputeTaskInstance>> instances;
 
         ComputeTask() = default;
 
-        ComputeTask(ComputeShader *shader, std::vector<DescriptorInfo> &&descriptorInfos)
+        ComputeTask(std::shared_ptr<ComputeShader> &shader, std::vector<DescriptorInfo> &&descriptorInfos)
             : shader(shader),
-              descriptorInfos(descriptorInfos),
+              descriptorInfos(std::forward<std::vector<DescriptorInfo>>(descriptorInfos)),
               descriptorSetInfo(nullptr, 0, 0, 0)
         {
             initDescriptorSetLayout();
@@ -113,12 +112,12 @@ namespace vke_render
                              std::vector<VkSemaphore> &&signalSemaphores)
         {
             uint64_t id = allocator.Alloc();
-            ComputeTaskInstance *instance = new ComputeTaskInstance(std::move(buffers),
-                                                                    std::move(waitSemaphores),
-                                                                    std::move(waitStages),
-                                                                    std::move(signalSemaphores));
-            instances[id] = instance;
+            ComputeTaskInstance *instance = new ComputeTaskInstance(std::forward<std::vector<VkBuffer>>(buffers),
+                                                                    std::forward<std::vector<VkSemaphore>>(waitSemaphores),
+                                                                    std::forward<std::vector<VkPipelineStageFlags>>(waitStages),
+                                                                    std::forward<std::vector<VkSemaphore>>(signalSemaphores));
             createDescriptorSet(*instance);
+            instances[id] = std::move(std::unique_ptr<ComputeTaskInstance>(instance));
             return id;
         }
 

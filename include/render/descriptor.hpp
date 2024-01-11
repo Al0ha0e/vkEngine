@@ -30,6 +30,16 @@ namespace vke_render
 
         DescriptorInfo(VkDescriptorSetLayoutBinding bInfo, VkImageView view, VkSampler sampler)
             : bindingInfo(bInfo), bufferSize(0), imageView(view), imageSampler(sampler) {}
+
+        DescriptorInfo(DescriptorInfo &&ori)
+        {
+            bindingInfo = ori.bindingInfo;
+            bufferSize = ori.bufferSize;
+            imageView = ori.imageView;
+            imageSampler = ori.imageSampler;
+            ori.imageView = nullptr;
+            ori.imageSampler = nullptr;
+        }
     };
 
     struct DescriptorSetInfo
@@ -39,12 +49,21 @@ namespace vke_render
         int combinedImageSamplerCnt;
         int storageDescriptorCnt;
 
-        DescriptorSetInfo() = default;
         DescriptorSetInfo(VkDescriptorSetLayout layout, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
             : layout(layout),
               uniformDescriptorCnt(uniformDescriptorCnt),
               combinedImageSamplerCnt(combinedImageSamplerCnt),
               storageDescriptorCnt(storageDescriptorCnt) {}
+
+        ~DescriptorSetInfo()
+        {
+            if (layout)
+            {
+                VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
+                vkDestroyDescriptorSetLayout(logicalDevice, layout, nullptr);
+            }
+        }
+
         void AddCnt(VkDescriptorType type)
         {
             switch (type)
@@ -94,25 +113,15 @@ namespace vke_render
         }
 
         ~DescriptorSetAllocator() {}
+
         DescriptorSetAllocator(const DescriptorSetAllocator &);
         DescriptorSetAllocator &operator=(const DescriptorSetAllocator);
-
-        class Deletor
-        {
-        public:
-            ~Deletor()
-            {
-                if (DescriptorSetAllocator::instance != nullptr)
-                    delete DescriptorSetAllocator::instance;
-            }
-        };
-        static Deletor deletor;
 
     public:
         static DescriptorSetAllocator *GetInstance()
         {
             if (instance == nullptr)
-                instance = new DescriptorSetAllocator();
+                throw std::runtime_error("DescriptorSetAllocator not initialized!");
             return instance;
         }
 
@@ -133,14 +142,13 @@ namespace vke_render
             return instance;
         }
 
-        // DescriptorSetAllocator(int poolCnt, DescriptorSetPoolInfo info)
-        // {
-        //     for (int i = 0; i < poolCnt; i++)
-        //     {
-        //         VkDescriptorPool pool = createDescriptorPool(info);
-        //         descriptorSetPools[pool] = info;
-        //     }
-        // }
+        static void Dispose()
+        {
+            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
+            for (auto kv : instance->descriptorSetPools)
+                vkDestroyDescriptorPool(logicalDevice, kv.first, nullptr);
+            delete DescriptorSetAllocator::instance;
+        }
 
         static VkDescriptorSet AllocateDescriptorSet(DescriptorSetInfo &info)
         {

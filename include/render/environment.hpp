@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -54,7 +55,7 @@ namespace vke_render
         static RenderEnvironment *GetInstance()
         {
             if (instance == nullptr)
-                instance = new RenderEnvironment();
+                throw std::runtime_error("RenderEnvironment not initialized!");
             return instance;
         }
 
@@ -89,6 +90,9 @@ namespace vke_render
             vkDestroyCommandPool(logicalDevice, instance->commandPool, nullptr);
             for (auto imageView : instance->swapChainImageViews)
                 vkDestroyImageView(logicalDevice, imageView, nullptr);
+            vkDestroyImageView(logicalDevice, instance->depthImageView, nullptr);
+            vkDestroyImage(logicalDevice, instance->depthImage, nullptr);
+            vkFreeMemory(logicalDevice, instance->depthImageMemory, nullptr);
             vkDestroySwapchainKHR(logicalDevice, instance->swapChain, nullptr);
             vkDestroyDevice(logicalDevice, nullptr);
             vkDestroySurfaceKHR(instance->vkinstance, instance->surface, nullptr);

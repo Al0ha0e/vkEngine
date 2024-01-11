@@ -24,24 +24,13 @@ namespace vke_render
         RenderPasses() = default;
         ~RenderPasses() {}
 
-        class Deletor
-        {
-        public:
-            ~Deletor()
-            {
-                if (RenderPasses::instance != nullptr)
-                    delete RenderPasses::instance;
-            }
-        };
-        static Deletor deletor;
-
     public:
         VkRenderPass renderPass;
 
         static RenderPasses *GetInstance()
         {
             if (instance == nullptr)
-                instance = new RenderPasses();
+                throw std::runtime_error("RenderPasses not initialized!");
             return instance;
         }
 

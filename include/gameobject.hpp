@@ -4,6 +4,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
+#include <iostream>
+#include <memory>
 
 namespace vke_common
 {
@@ -34,6 +36,7 @@ namespace vke_common
     public:
         GameObject *gameObject;
         Component(GameObject *obj) : gameObject(obj) {}
+        virtual ~Component() {}
 
         virtual void OnTransformed(TransformParameter &param) {}
     };
@@ -42,9 +45,16 @@ namespace vke_common
     {
     public:
         TransformParameter transform;
-        std::vector<Component *> components;
+        std::vector<std::unique_ptr<Component>> components;
 
         GameObject(TransformParameter &tp) : transform(tp){};
+
+        ~GameObject() {}
+
+        void AddComponent(std::unique_ptr<Component> &&component)
+        {
+            components.push_back(std::forward<std::unique_ptr<Component>>(component));
+        }
 
         void RotateGlobal(float det, glm::vec3 &axis)
         {

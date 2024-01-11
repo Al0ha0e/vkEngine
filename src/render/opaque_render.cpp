@@ -162,7 +162,7 @@ namespace vke_render
 
     void OpaqueRenderer::Render(VkCommandBuffer commandBuffer)
     {
-        RenderInfo *renderInfo = renderInfoMap.begin()->second;
+        std::unique_ptr<RenderInfo> &renderInfo = renderInfoMap.begin()->second;
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->pipeline);
         VkViewport viewport{};
         viewport.x = 0.0f;

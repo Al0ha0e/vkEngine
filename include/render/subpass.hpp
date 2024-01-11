@@ -13,7 +13,8 @@ namespace vke_render
 
         SubpassBase() {}
 
-        virtual void Dispose() = 0;
+        virtual ~SubpassBase() {}
+
         virtual void RegisterCamera(VkBuffer buffer) = 0;
         virtual void Render(VkCommandBuffer commandBuffer) = 0;
 

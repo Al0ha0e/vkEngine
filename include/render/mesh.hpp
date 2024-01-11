@@ -21,8 +21,6 @@ namespace vke_render
         DeviceBuffer indexBuffer;
         size_t indexCnt;
 
-        Mesh() = default;
-
         Mesh(size_t vertSize, void *vertData, std::vector<uint32_t> &index)
             : indexCnt(index.size()),
               vertexBuffer(vertSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), indexBuffer(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
@@ -31,12 +29,7 @@ namespace vke_render
             indexBuffer.ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
         }
 
-        ~Mesh()
-        {
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vertexBuffer.Dispose();
-            indexBuffer.Dispose();
-        }
+        ~Mesh() {}
 
         void Render(VkCommandBuffer &commandBuffer)
         {

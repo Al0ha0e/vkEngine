@@ -16,7 +16,9 @@ namespace vke_render
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        BaseRenderer() {}
+        BaseRenderer() : globalDescriptorSetInfo(nullptr, 0, 0, 0) {}
+
+        ~BaseRenderer() {}
 
         void Init(int subpassID, VkRenderPass renderPass) override
         {
@@ -24,12 +26,6 @@ namespace vke_render
             environment = RenderEnvironment::GetInstance();
             createGlobalDescriptorSet();
             createSkyBox();
-        }
-
-        void Dispose() override
-        {
-            vkDestroyPipeline(environment->logicalDevice, renderInfo->pipeline, nullptr);
-            vkDestroyPipelineLayout(environment->logicalDevice, renderInfo->pipelineLayout, nullptr);
         }
 
         void RegisterCamera(VkBuffer buffer) override
@@ -45,7 +41,7 @@ namespace vke_render
 
     private:
         RenderEnvironment *environment;
-        RenderInfo *renderInfo;
+        std::unique_ptr<RenderInfo> renderInfo;
 
         void createGlobalDescriptorSet();
         void createSkyBox();

@@ -11,6 +11,7 @@ namespace vke_render
     {
     public:
         Shader() = default;
+        virtual ~Shader() {}
 
     protected:
         VkShaderModule createShaderModule(const std::vector<char> &code)

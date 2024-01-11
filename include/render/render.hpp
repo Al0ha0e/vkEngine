@@ -25,31 +25,18 @@ namespace vke_render
         Renderer() = default;
         ~Renderer() {}
 
-        class Deletor
-        {
-        public:
-            ~Deletor()
-            {
-                if (Renderer::instance != nullptr)
-                    delete Renderer::instance;
-            }
-        };
-        static Deletor deletor;
-
     public:
         RenderPasses *renderPass;
         uint32_t currentFrame;
-        BaseRenderer *baseRenderer;
-        OpaqueRenderer *opaqueRenderer;
 
         static Renderer *GetInstance()
         {
             if (instance == nullptr)
-                instance = new Renderer();
+                throw std::runtime_error("Renderer not initialized!");
             return instance;
         }
 
-        static Renderer *Init(std::vector<PassType> &passes, std::vector<SubpassBase *> &customPasses, std::vector<RenderPassInfo> &customPassInfo)
+        static Renderer *Init(std::vector<PassType> &passes, std::vector<std::unique_ptr<SubpassBase>> &customPasses, std::vector<RenderPassInfo> &customPassInfo)
         {
             instance = new Renderer();
             instance->currentFrame = 0;
@@ -86,48 +73,58 @@ namespace vke_render
             for (int i = 0; i < passes.size(); i++)
             {
                 PassType pass = passes[i];
-                SubpassBase *customPass;
+                // SubpassBase *customPass;
                 switch (pass)
                 {
                 case CUSTOM_RENDERER:
-                    customPass = customPasses[customPassID++];
+                {
+                    std::unique_ptr<SubpassBase> &customPass = customPasses[customPassID++];
                     customPass->Init(i, instance->renderPass->renderPass);
-                    instance->subPasses.push_back(customPass);
+                    instance->subPasses.push_back(std::move(customPass));
                     break;
+                }
                 case BASE_RENDERER:
-                    // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
-                    instance->baseRenderer = new BaseRenderer();
-                    instance->baseRenderer->Init(i, instance->renderPass->renderPass);
-                    instance->subPasses.push_back(instance->baseRenderer);
+                { // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
+                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>();
+                    baseRenderer->Init(i, instance->renderPass->renderPass);
+                    instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(baseRenderer));
                     break;
+                }
                 case OPAQUE_RENDERER:
-                    // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
-                    instance->opaqueRenderer = new OpaqueRenderer();
-                    instance->opaqueRenderer->Init(i, instance->renderPass->renderPass);
-                    instance->subPasses.push_back(instance->opaqueRenderer);
+                { // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
+                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>();
+                    opaqueRenderer->Init(i, instance->renderPass->renderPass);
+                    instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(opaqueRenderer));
                     break;
+                }
                 default:
                     break;
                 }
             }
-
             return instance;
         }
 
         static void Dispose()
         {
-            for (SubpassBase *pass : instance->subPasses)
-                pass->Dispose();
             for (auto framebuffer : instance->frameBuffers)
             {
                 vkDestroyFramebuffer(instance->environment->logicalDevice, framebuffer, nullptr);
             }
+            RenderPasses::Dispose();
+            delete instance;
         }
 
         static void RegisterCamera(VkBuffer buffer)
         {
-            for (SubpassBase *pass : instance->subPasses)
+            for (auto &pass : instance->subPasses)
                 pass->RegisterCamera(buffer);
+        }
+
+        static OpaqueRenderer *GetOpaqueRenderer()
+        {
+            return static_cast<OpaqueRenderer *>(instance->subPasses[instance->subPassMap[OPAQUE_RENDERER]].get());
         }
 
         void Update();
@@ -135,7 +132,8 @@ namespace vke_render
     private:
         RenderEnvironment *environment;
         std::vector<VkFramebuffer> frameBuffers;
-        std::vector<SubpassBase *> subPasses;
+        std::vector<std::unique_ptr<SubpassBase>> subPasses;
+        std::map<PassType, int> subPassMap;
 
         void createFramebuffers();
         void render();

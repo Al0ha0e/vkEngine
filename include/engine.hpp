@@ -5,6 +5,7 @@
 #include <render/opaque_render.hpp>
 #include <render/resource.hpp>
 #include <render/descriptor.hpp>
+#include <scene.hpp>
 
 namespace vke_common
 {
@@ -17,22 +18,11 @@ namespace vke_common
         Engine(const Engine &);
         Engine &operator=(const Engine);
 
-        class Deletor
-        {
-        public:
-            ~Deletor()
-            {
-                if (Engine::instance != nullptr)
-                    delete Engine::instance;
-            }
-        };
-        static Deletor deletor;
-
     public:
         static Engine *GetInstance()
         {
             if (instance == nullptr)
-                instance = new Engine();
+                throw std::runtime_error("Engine not initialized!");
             return instance;
         }
 
@@ -45,7 +35,7 @@ namespace vke_common
             int width,
             int height,
             std::vector<vke_render::PassType> &passes,
-            std::vector<vke_render::SubpassBase *> &customPasses,
+            std::vector<std::unique_ptr<vke_render::SubpassBase>> &customPasses,
             std::vector<vke_render::RenderPassInfo> &customPassInfo)
         {
             instance = new Engine();
@@ -53,13 +43,18 @@ namespace vke_common
             instance->renderRM = vke_render::RenderResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
             instance->renderer = vke_render::Renderer::Init(passes, customPasses, customPassInfo);
+            SceneManager::Init();
             return instance;
         }
 
         static void Dispose()
         {
+            SceneManager::Dispose();
             vke_render::Renderer::Dispose();
+            vke_render::DescriptorSetAllocator::Dispose();
+            vke_render::RenderResourceManager::Dispose();
             instance->environment->Dispose();
+            delete instance;
         }
 
         void Update();

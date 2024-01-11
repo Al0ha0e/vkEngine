@@ -39,11 +39,7 @@ namespace vke_component
             vke_render::Renderer::RegisterCamera(buffer.buffer);
         }
 
-        ~Camera()
-        {
-            VkDevice logicalDevice = vke_render::RenderEnvironment::GetInstance()->logicalDevice;
-            buffer.~HostCoherentBuffer();
-        }
+        ~Camera() {}
 
         void OnTransformed(vke_common::TransformParameter &param) override
         {
