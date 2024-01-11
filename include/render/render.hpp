@@ -6,6 +6,7 @@
 #include <render/base_render.hpp>
 #include <render/opaque_render.hpp>
 #include <render/render_pass.hpp>
+#include <event.hpp>
 #include <vector>
 #include <map>
 
@@ -39,8 +40,12 @@ namespace vke_render
         static Renderer *Init(std::vector<PassType> &passes, std::vector<std::unique_ptr<SubpassBase>> &customPasses, std::vector<RenderPassInfo> &customPassInfo)
         {
             instance = new Renderer();
+            instance->framebufferResized = false;
             instance->currentFrame = 0;
             instance->environment = RenderEnvironment::GetInstance();
+
+            instance->createSwapChain();
+            instance->createImageViews();
 
             std::vector<RenderPassInfo> passInfo;
             int customPassID = 0;
@@ -103,16 +108,15 @@ namespace vke_render
                     break;
                 }
             }
+
+            vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, instance, vke_common::EventCallback(OnWindowResize));
             return instance;
         }
 
         static void Dispose()
         {
-            for (auto framebuffer : instance->frameBuffers)
-            {
-                vkDestroyFramebuffer(instance->environment->logicalDevice, framebuffer, nullptr);
-            }
             RenderPasses::Dispose();
+            instance->cleanupSwapChain();
             delete instance;
         }
 
@@ -127,14 +131,32 @@ namespace vke_render
             return static_cast<OpaqueRenderer *>(instance->subPasses[instance->subPassMap[OPAQUE_RENDERER]].get());
         }
 
+        static void OnWindowResize(void *listener, void *info)
+        {
+            instance->framebufferResized = true;
+        }
+
         void Update();
 
     private:
+        bool framebufferResized;
         RenderEnvironment *environment;
+
         std::vector<VkFramebuffer> frameBuffers;
+        VkSwapchainKHR swapChain;
+        std::vector<VkImage> swapChainImages;
+
+        std::vector<VkImageView> swapChainImageViews;
+        VkImage depthImage;
+        VkDeviceMemory depthImageMemory;
+        VkImageView depthImageView;
         std::vector<std::unique_ptr<SubpassBase>> subPasses;
         std::map<PassType, int> subPassMap;
 
+        void createSwapChain();
+        void cleanupSwapChain();
+        void recreateSwapChain();
+        void createImageViews();
         void createFramebuffers();
         void render();
     };

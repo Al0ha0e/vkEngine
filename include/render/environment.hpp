@@ -69,8 +69,6 @@ namespace vke_render
             instance->createSurface();
             instance->pickPhysicalDevice();
             instance->createLogicalDevice();
-            instance->createSwapChain();
-            instance->createImageViews();
             instance->createCommandPool();
             instance->createCommandBuffers();
             instance->createSyncObjects();
@@ -88,12 +86,7 @@ namespace vke_render
                 vkDestroyFence(logicalDevice, instance->inFlightFences[i], nullptr);
             }
             vkDestroyCommandPool(logicalDevice, instance->commandPool, nullptr);
-            for (auto imageView : instance->swapChainImageViews)
-                vkDestroyImageView(logicalDevice, imageView, nullptr);
-            vkDestroyImageView(logicalDevice, instance->depthImageView, nullptr);
-            vkDestroyImage(logicalDevice, instance->depthImage, nullptr);
-            vkFreeMemory(logicalDevice, instance->depthImageMemory, nullptr);
-            vkDestroySwapchainKHR(logicalDevice, instance->swapChain, nullptr);
+
             vkDestroyDevice(logicalDevice, nullptr);
             vkDestroySurfaceKHR(instance->vkinstance, instance->surface, nullptr);
             vkDestroyInstance(instance->vkinstance, nullptr);
@@ -281,6 +274,66 @@ namespace vke_render
             vkFreeCommandBuffers(instance->logicalDevice, instance->commandPool, 1, &commandBuffer);
         }
 
+        static SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice pdevice)
+        {
+            SwapChainSupportDetails details;
+            VkSurfaceKHR surface = instance->surface;
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pdevice, surface, &details.capabilities);
+
+            uint32_t formatCount;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(pdevice, surface, &formatCount, nullptr);
+
+            if (formatCount != 0)
+            {
+                details.formats.resize(formatCount);
+                vkGetPhysicalDeviceSurfaceFormatsKHR(pdevice, surface, &formatCount, details.formats.data());
+            }
+
+            uint32_t presentModeCount;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &presentModeCount, nullptr);
+
+            if (presentModeCount != 0)
+            {
+                details.presentModes.resize(presentModeCount);
+                vkGetPhysicalDeviceSurfacePresentModesKHR(pdevice, surface, &presentModeCount, details.presentModes.data());
+            }
+
+            return details;
+        }
+
+        static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice pdevice)
+        {
+            QueueFamilyIndices indices;
+            // Assign index to queue families that could be found
+            uint32_t queueFamilyCount = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
+            std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+            vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilies.data());
+
+            std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
+
+            int i = 0;
+            for (const auto &queueFamily : queueFamilies)
+            {
+                if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                    (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                    indices.graphicsAndComputeFamily = i;
+
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, instance->surface, &presentSupport);
+
+                if (presentSupport)
+                    indices.presentFamily = i;
+
+                if (indices.isComplete())
+                    break;
+
+                i++;
+            }
+
+            return indices;
+        }
+
         int window_width;
         int window_height;
 
@@ -292,15 +345,9 @@ namespace vke_render
         VkQueue graphicsQueue;
         VkQueue computeQueue;
         VkQueue presentQueue;
-        VkSwapchainKHR swapChain;
-        std::vector<VkImage> swapChainImages;
         VkFormat swapChainImageFormat;
         VkExtent2D swapChainExtent;
-        std::vector<VkImageView> swapChainImageViews;
         VkFormat depthFormat;
-        VkImage depthImage;
-        VkDeviceMemory depthImageMemory;
-        VkImageView depthImageView;
         VkCommandPool commandPool;
         std::vector<VkCommandBuffer> commandBuffers;
         std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -311,18 +358,9 @@ namespace vke_render
         void initWindow();
         void createInstance();
         void createSurface();
-        VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-        VkFormat findDepthFormat();
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pdevice);
-        SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice);
         bool isDeviceSuitable(VkPhysicalDevice pdevice);
         void pickPhysicalDevice();
         void createLogicalDevice();
-        VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
-        VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes);
-        VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
-        void createSwapChain();
-        void createImageViews();
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();

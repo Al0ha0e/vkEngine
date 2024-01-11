@@ -6,6 +6,7 @@
 #include <render/resource.hpp>
 #include <render/descriptor.hpp>
 #include <scene.hpp>
+#include <event.hpp>
 
 namespace vke_common
 {
@@ -39,6 +40,7 @@ namespace vke_common
             std::vector<vke_render::RenderPassInfo> &customPassInfo)
         {
             instance = new Engine();
+            EventSystem::Init();
             instance->environment = vke_render::RenderEnvironment::Init(width, height);
             instance->renderRM = vke_render::RenderResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
@@ -54,7 +56,13 @@ namespace vke_common
             vke_render::DescriptorSetAllocator::Dispose();
             vke_render::RenderResourceManager::Dispose();
             instance->environment->Dispose();
+            EventSystem::Dispose();
             delete instance;
+        }
+
+        static void OnWindowResize(GLFWwindow *window, int width, int height)
+        {
+            EventSystem::DispatchEvent(EVENT_WINDOW_RESIZE, nullptr);
         }
 
         void Update();

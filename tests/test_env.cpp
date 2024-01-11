@@ -57,8 +57,9 @@ int main()
 
     vke_common::SceneManager::SetCurrentScene(std::move(scene));
 
-    glfwSetInputMode(engine->environment->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(engine->environment->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(engine->environment->window, mouse_callback);
+    glfwSetFramebufferSizeCallback(engine->environment->window, vke_common::Engine::OnWindowResize);
 
     while (!glfwWindowShouldClose(engine->environment->window))
     {

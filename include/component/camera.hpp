@@ -3,6 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/buffer.hpp>
+#include <event.hpp>
 #include <gameobject.hpp>
 
 namespace vke_component
@@ -27,6 +28,8 @@ namespace vke_component
               near(near), far(far), Component(obj),
               buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {
+            resizeListenerID = vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, this, vke_common::EventCallback(OnWindowResize));
+
             vke_common::TransformParameter &transform = gameObject->transform;
             viewPos = transform.position;
             glm::vec3 gfront = transform.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
@@ -39,7 +42,10 @@ namespace vke_component
             vke_render::Renderer::RegisterCamera(buffer.buffer);
         }
 
-        ~Camera() {}
+        ~Camera()
+        {
+            vke_common::EventSystem::RemoveEventListener(vke_common::EVENT_WINDOW_RESIZE, resizeListenerID);
+        }
 
         void OnTransformed(vke_common::TransformParameter &param) override
         {
@@ -50,6 +56,26 @@ namespace vke_component
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
             buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
         }
+
+        void UpdateProjection()
+        {
+            VkExtent2D &ext = vke_render::RenderEnvironment::GetInstance()->swapChainExtent;
+            width = ext.width;
+            height = ext.height;
+            aspect = width / height;
+            projection = glm::perspective(fov, aspect, near, far);
+            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
+            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+        }
+
+        static void OnWindowResize(void *listener, void *info)
+        {
+            Camera *cam = (Camera *)listener;
+            cam->UpdateProjection();
+        }
+
+    private:
+        int resizeListenerID;
     };
 }
 
