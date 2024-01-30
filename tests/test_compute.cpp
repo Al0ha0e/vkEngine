@@ -1,5 +1,5 @@
 #include <render/compute.hpp>
-#include <render/resource.hpp>
+#include <resource.hpp>
 #include <render/descriptor.hpp>
 #include <render/buffer.hpp>
 #include <engine.hpp>

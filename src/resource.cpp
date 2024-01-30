@@ -1,4 +1,4 @@
-#include <render/resource.hpp>
+#include <resource.hpp>
 #include <vector>
 #include <fstream>
 #include <string>

@@ -39,7 +39,14 @@ namespace vke_render
             delete instance;
         }
 
-        static std::shared_ptr<VertFragShader> LoadVertFragShader(std::string vpth, std::string fpth)
+        static std::shared_ptr<std::string> LoadJSON(const std::string &pth)
+        {
+            auto content = readFile(pth);
+            std::shared_ptr<std::string> ret = std::make_shared<std::string>(content.data(), content.size());
+            return ret;
+        }
+
+        static std::shared_ptr<VertFragShader> LoadVertFragShader(const std::string &vpth, const std::string &fpth)
         {
             auto &cache = instance->shaderCache;
             std::string id = vpth + "_" + fpth;
@@ -54,7 +61,7 @@ namespace vke_render
             return ret;
         }
 
-        static std::shared_ptr<ComputeShader> LoadComputeShader(std::string pth)
+        static std::shared_ptr<ComputeShader> LoadComputeShader(const std::string &pth)
         {
             auto &cache = instance->shaderCache;
             auto it = cache.find(pth);
@@ -67,7 +74,7 @@ namespace vke_render
             return ret;
         }
 
-        static std::shared_ptr<Texture2D> LoadTexture2D(std::string pth)
+        static std::shared_ptr<Texture2D> LoadTexture2D(const std::string &pth)
         {
             int texWidth, texHeight, texChannels;
             stbi_uc *pixels = stbi_load(pth.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
@@ -80,7 +87,7 @@ namespace vke_render
             return std::make_shared<Texture2D>(pixels, texWidth, texHeight);
         }
 
-        static std::shared_ptr<Material> LoadMaterial(std::string pth)
+        static std::shared_ptr<Material> LoadMaterial(const std::string &pth)
         {
             // TODO
             VkVertexInputBindingDescription bindingDescription{};
@@ -129,7 +136,7 @@ namespace vke_render
             return std::shared_ptr<Material>(ret);
         }
 
-        static std::shared_ptr<Mesh> LoadMesh(std::string pth)
+        static std::shared_ptr<Mesh> LoadMesh(const std::string &pth)
         {
             // TODO
             const std::vector<Vertex> vertices = {

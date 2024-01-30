@@ -1,6 +1,6 @@
 #include <render/render.hpp>
 #include <render/base_render.hpp>
-#include <render/resource.hpp>
+#include <resource.hpp>
 
 namespace vke_render
 {

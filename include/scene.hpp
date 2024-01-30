@@ -55,6 +55,10 @@ namespace vke_common
         {
             std::exchange<std::unique_ptr<Scene>>(instance->currentScene, std::forward<std::unique_ptr<Scene>>(scene));
         }
+
+        static void LoadScene(const std::string &pth)
+        {
+        }
     };
 }
 

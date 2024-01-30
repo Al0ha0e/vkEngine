@@ -3,7 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/opaque_render.hpp>
-#include <render/resource.hpp>
+#include <resource.hpp>
 #include <render/descriptor.hpp>
 #include <scene.hpp>
 #include <event.hpp>
