@@ -139,6 +139,9 @@ namespace vke_render
         VkPhysicalDeviceVulkan12Features supportedFeatures12 = {};
         supportedFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         supportedFeatures2.pNext = &supportedFeatures12;
+        VkPhysicalDeviceVulkan11Features supportedFeatures11 = {};
+        supportedFeatures11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        supportedFeatures12.pNext = &supportedFeatures11;
         vkGetPhysicalDeviceFeatures2(pdevice, &supportedFeatures2);
         VkPhysicalDeviceFeatures &supportedFeatures = supportedFeatures2.features;
 
@@ -149,10 +152,12 @@ namespace vke_render
                supportedFeatures.shaderInt64 &&
                supportedFeatures.multiDrawIndirect &&
                supportedFeatures.fillModeNonSolid &&
+               supportedFeatures11.uniformAndStorageBuffer16BitAccess &&
                supportedFeatures12.shaderBufferInt64Atomics &&
                supportedFeatures12.shaderSharedInt64Atomics &&
                supportedFeatures12.shaderFloat16 &&
-               supportedFeatures12.shaderInt8;
+               supportedFeatures12.shaderInt8 &&
+               supportedFeatures12.uniformAndStorageBuffer8BitAccess;
     }
 
     void RenderEnvironment::pickPhysicalDevice()
@@ -213,7 +218,13 @@ namespace vke_render
         deviceFeatures12.shaderSharedInt64Atomics = VK_TRUE;
         deviceFeatures12.shaderFloat16 = VK_TRUE;
         deviceFeatures12.shaderInt8 = VK_TRUE;
+        deviceFeatures12.uniformAndStorageBuffer8BitAccess = VK_TRUE;
         deviceFeatures2.pNext = &deviceFeatures12;
+
+        VkPhysicalDeviceVulkan11Features deviceFeatures11 = {};
+        deviceFeatures11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        deviceFeatures11.uniformAndStorageBuffer16BitAccess = VK_TRUE;
+        deviceFeatures12.pNext = &deviceFeatures11;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
