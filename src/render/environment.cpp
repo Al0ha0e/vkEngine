@@ -101,7 +101,8 @@ namespace vke_render
 
     const std::vector<const char *> deviceExtensions =
         {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-         VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME};
+         VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
+         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME};
 
     bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice)
     {
@@ -149,7 +150,9 @@ namespace vke_render
                supportedFeatures.multiDrawIndirect &&
                supportedFeatures.fillModeNonSolid &&
                supportedFeatures12.shaderBufferInt64Atomics &&
-               supportedFeatures12.shaderSharedInt64Atomics;
+               supportedFeatures12.shaderSharedInt64Atomics &&
+               supportedFeatures12.shaderFloat16 &&
+               supportedFeatures12.shaderInt8;
     }
 
     void RenderEnvironment::pickPhysicalDevice()
@@ -208,6 +211,8 @@ namespace vke_render
         deviceFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         deviceFeatures12.shaderBufferInt64Atomics = VK_TRUE;
         deviceFeatures12.shaderSharedInt64Atomics = VK_TRUE;
+        deviceFeatures12.shaderFloat16 = VK_TRUE;
+        deviceFeatures12.shaderInt8 = VK_TRUE;
         deviceFeatures2.pNext = &deviceFeatures12;
 
         VkDeviceCreateInfo createInfo{};
