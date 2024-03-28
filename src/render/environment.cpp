@@ -150,8 +150,10 @@ namespace vke_render
                swapChainAdequate &&
                supportedFeatures.samplerAnisotropy &&
                supportedFeatures.shaderInt64 &&
+               supportedFeatures.shaderInt16 &&
                supportedFeatures.multiDrawIndirect &&
                supportedFeatures.fillModeNonSolid &&
+               supportedFeatures11.storageBuffer16BitAccess &&
                supportedFeatures11.uniformAndStorageBuffer16BitAccess &&
                supportedFeatures12.shaderBufferInt64Atomics &&
                supportedFeatures12.shaderSharedInt64Atomics &&
@@ -210,6 +212,7 @@ namespace vke_render
         deviceFeatures.fillModeNonSolid = VK_TRUE;
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         deviceFeatures.shaderInt64 = VK_TRUE;
+        deviceFeatures.shaderInt16 = VK_TRUE;
         deviceFeatures.multiDrawIndirect = VK_TRUE;
 
         VkPhysicalDeviceVulkan12Features deviceFeatures12 = {};
@@ -223,6 +226,7 @@ namespace vke_render
 
         VkPhysicalDeviceVulkan11Features deviceFeatures11 = {};
         deviceFeatures11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        deviceFeatures11.storageBuffer16BitAccess = VK_TRUE;
         deviceFeatures11.uniformAndStorageBuffer16BitAccess = VK_TRUE;
         deviceFeatures12.pNext = &deviceFeatures11;
 
