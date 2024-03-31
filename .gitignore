@@ -1,7 +1,7 @@
 *.exe
 *.obj
-*.lib
 *.dblite
 *.spv
 .vscode
 assets
+out

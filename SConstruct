@@ -3,29 +3,33 @@
 env = Environment(CC = 'cl',
                    CCFLAGS = ['/std:c++17','/EHsc'])
 
+libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3', 'assimp']
+libpath = ['./libs','D:/VulkanSDK/Lib']
+cpppath = ['./include','D:/VulkanSDK/Include']
+
 env.Program("out/test",
         ["./tests/test.cpp" ],
-        LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
+        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath,
         SCONS_CXX_STANDARD="c++17")
 
 env.Program("out/test_env",
             ["./tests/test_env.cpp", "./src/render/environment.cpp", "./src/resource.cpp",
                 "./src/render/descriptor.cpp", "./src/render/render_pass.cpp","./src/render/base_render.cpp","./src/render/opaque_render.cpp",
                 "./src/render/render.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp"],
-        LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
+        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath,
         SCONS_CXX_STANDARD="c++17")
 
 env.Program("out/test_compute",
             ["./tests/test_compute.cpp", "./src/render/environment.cpp", "./src/resource.cpp",
                 "./src/render/descriptor.cpp", "./src/render/render_pass.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp",
                 "./src/render/render.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp"],
-        LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
+        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath,
         SCONS_CXX_STANDARD="c++17")
 
 env.Library("out/vkengine",["./src/render/environment.cpp", "./src/resource.cpp", "./src/render/descriptor.cpp", 
                             "./src/render/render_pass.cpp","./src/render/base_render.cpp","./src/render/opaque_render.cpp",
                                 "./src/render/render.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp"],
-                        LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1', 'glfw3'], LIBPATH=['./libs','D:/VulkanSDK/Lib'], CPPPATH=['./include','D:/VulkanSDK/Include'],
+                        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath,
                         SCONS_CXX_STANDARD="c++17")
 
 # Program("test",
