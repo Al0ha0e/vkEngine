@@ -9,34 +9,66 @@ namespace vke_render
 {
     struct Vertex
     {
-        glm::vec2 pos;
-        glm::vec3 color;
+        glm::vec3 pos;
+        glm::vec3 normal;
         glm::vec2 texCoord;
+
+        Vertex() {}
+        Vertex(glm::vec3 p, glm::vec3 n, glm::vec2 t) : pos(p), normal(n), texCoord(t) {}
     };
 
     class Mesh
     {
     public:
-        DeviceBuffer vertexBuffer;
-        DeviceBuffer indexBuffer;
+        std::string path;
+        std::unique_ptr<DeviceBuffer> vertexBuffer;
+        std::unique_ptr<DeviceBuffer> indexBuffer;
         size_t indexCnt;
+        std::vector<std::shared_ptr<Mesh>> subMeshes;
 
-        Mesh(size_t vertSize, void *vertData, std::vector<uint32_t> &index)
-            : indexCnt(index.size()),
-              vertexBuffer(vertSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT), indexBuffer(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+        Mesh() : indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
+
+        Mesh(const std::string &path) : path(path), indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
+
+        Mesh(const std::string &path, std::vector<Vertex> &vertices, std::vector<uint32_t> &index)
+            : path(path),
+              indexCnt(index.size()),
+              vertexBuffer(std::make_unique<DeviceBuffer>(vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)),
+              indexBuffer(std::make_unique<DeviceBuffer>(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT))
         {
-            vertexBuffer.ToBuffer(0, vertData, vertSize);
-            indexBuffer.ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
+            vertexBuffer->ToBuffer(0, vertices.data(), vertices.size() * sizeof(Vertex));
+            indexBuffer->ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
+        }
+
+        Mesh(const std::string &path, size_t vertSize, void *vertData, std::vector<uint32_t> &index)
+            : path(path),
+              indexCnt(index.size()),
+              vertexBuffer(std::make_unique<DeviceBuffer>(vertSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)),
+              indexBuffer(std::make_unique<DeviceBuffer>(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT))
+        {
+            vertexBuffer->ToBuffer(0, vertData, vertSize);
+            indexBuffer->ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
         }
 
         ~Mesh() {}
 
         void Render(VkCommandBuffer &commandBuffer)
         {
-            VkBuffer vertexBuffers[] = {vertexBuffer.buffer};
+            if (indexCnt > 0)
+            {
+                render(commandBuffer);
+            }
+            for (auto &submesh : subMeshes)
+                submesh->Render(commandBuffer);
+        }
+
+    private:
+        void render(VkCommandBuffer &commandBuffer)
+        {
+            VkBuffer vertexBuffers[] = {vertexBuffer->buffer};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-            vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindIndexBuffer(commandBuffer, indexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(commandBuffer, indexCnt, 1, 0, 0, 0);
         }
     };

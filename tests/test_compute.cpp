@@ -15,7 +15,7 @@ int main()
     vke_common::Engine *engine = vke_common::Engine::Init(800, 600, passes, customPasses, customPassInfo);
 
     {
-        std::shared_ptr<vke_render::ComputeShader> shader = vke_render::RenderResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");
+        std::shared_ptr<vke_render::ComputeShader> shader = vke_common::ResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");
         std::vector<vke_render::DescriptorInfo> descriptorInfos;
         VkDescriptorSetLayoutBinding binding{};
         vke_render::InitDescriptorSetLayoutBinding(binding, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);

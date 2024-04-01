@@ -1,23 +1,59 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+#include <ds/id_allocator.hpp>
+#include <resource.hpp>
 #include <gameobject.hpp>
+
 #include <memory>
 #include <iostream>
+#include <fstream>
+#include <map>
 
 namespace vke_common
 {
     class Scene
     {
     public:
-        std::vector<std::unique_ptr<GameObject>> objects;
+        std::map<int, std::unique_ptr<GameObject>> objects;
 
-        void AddObject(std::unique_ptr<GameObject> &&object)
+        Scene() {}
+
+        Scene(nlohmann::json &json)
         {
-            objects.push_back(std::forward<std::unique_ptr<GameObject>>(object));
+            idAllocator = vke_ds::NaiveIDAllocator<int>(json["maxid"]);
+            auto &objs = json["objects"];
+            for (auto &obj : objs)
+            {
+                std::unique_ptr<GameObject> object = std::make_unique<GameObject>(obj);
+                objects[object->id] = std::move(object);
+            }
         }
 
         ~Scene() {}
+
+        std::string ToJSON()
+        {
+            std::string ret = "{\n";
+            ret += "\"maxid\": " + std::to_string(idAllocator.id) + ",\n";
+            ret += "\"objects\": [";
+            for (auto &obj : objects)
+                ret += "\n" + obj.second->ToJSON() + ",";
+            ret[ret.length() - 1] = ']';
+            ret += "\n}";
+
+            return ret;
+        }
+
+        void AddObject(std::unique_ptr<GameObject> &&object)
+        {
+            int id = idAllocator.Alloc();
+            object->id = id;
+            objects[id] = std::forward<std::unique_ptr<GameObject>>(object);
+        }
+
+    private:
+        vke_ds::NaiveIDAllocator<int> idAllocator;
     };
 
     class SceneManager
@@ -58,6 +94,18 @@ namespace vke_common
 
         static void LoadScene(const std::string &pth)
         {
+            nlohmann::json json(vke_common::ResourceManager::LoadJSON(pth));
+            SetCurrentScene(std::make_unique<Scene>(json));
+        }
+
+        static void SaveScene(const std::string &pth)
+        {
+            if (instance->currentScene != nullptr)
+            {
+                std::ofstream ofs(pth);
+                ofs << instance->currentScene->ToJSON();
+                ofs.close();
+            }
         }
     };
 }

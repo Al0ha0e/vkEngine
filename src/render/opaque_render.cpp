@@ -162,22 +162,25 @@ namespace vke_render
 
     void OpaqueRenderer::Render(VkCommandBuffer commandBuffer)
     {
-        std::unique_ptr<RenderInfo> &renderInfo = renderInfoMap.begin()->second;
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->pipeline);
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(environment->swapChainExtent.width);
-        viewport.height = static_cast<float>(environment->swapChainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        for (auto &kv : renderInfoMap)
+        {
+            std::unique_ptr<RenderInfo> &renderInfo = kv.second;
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->pipeline);
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = static_cast<float>(environment->swapChainExtent.width);
+            viewport.height = static_cast<float>(environment->swapChainExtent.height);
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = environment->swapChainExtent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = environment->swapChainExtent;
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        renderInfo->Render(commandBuffer, &globalDescriptorSet);
+            renderInfo->Render(commandBuffer, &globalDescriptorSet);
+        }
     }
 }

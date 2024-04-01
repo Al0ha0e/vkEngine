@@ -3,6 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/buffer.hpp>
+#include <resource.hpp>
 #include <gameobject.hpp>
 
 namespace vke_component
@@ -20,16 +21,26 @@ namespace vke_component
             vke_common::GameObject *obj)
             : material(mat), mesh(msh), Component(obj)
         {
-            std::unique_ptr<vke_render::HostCoherentBuffer> bufferp = std::make_unique<vke_render::HostCoherentBuffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-            bufferp->ToBuffer(0, &gameObject->transform.model, sizeof(glm::mat4));
-            buffers.push_back(std::move(bufferp));
+            init();
+        }
 
-            // renderID = vke_render::Renderer::GetInstance()->opaqueRenderer->AddUnit(material, mesh, buffers);
-            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, buffers);
+        RenderableObject(vke_common::GameObject *obj, nlohmann::json &json) : Component(obj)
+        {
+            material = vke_common::ResourceManager::LoadMaterial(json["material"]);
+            mesh = vke_common::ResourceManager::LoadMesh(json["mesh"]);
+            init();
         }
 
         ~RenderableObject() {}
+
+        std::string ToJSON()
+        {
+            std::string ret = "{\n\"type\":\"renderableObject\"";
+            ret += ",\n\"material\": \"" + material->path + "\"";
+            ret += ",\n\"mesh\": \"" + mesh->path + "\"";
+            ret += "\n}";
+            return ret;
+        }
 
         void OnTransformed(vke_common::TransformParameter &param) override
         {
@@ -38,6 +49,18 @@ namespace vke_component
 
     private:
         uint64_t renderID;
+
+        void init()
+        {
+            std::unique_ptr<vke_render::HostCoherentBuffer> bufferp = std::make_unique<vke_render::HostCoherentBuffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+            bufferp->ToBuffer(0, &gameObject->transform.model, sizeof(glm::mat4));
+            buffers.push_back(std::move(bufferp));
+
+            // renderID = vke_render::Renderer::GetInstance()->opaqueRenderer->AddUnit(material, mesh, buffers);
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, buffers);
+        }
     };
 }
 

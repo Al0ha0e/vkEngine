@@ -223,9 +223,9 @@ namespace vke_render
 
         std::shared_ptr<Material> skyboxMaterial(new Material);
 
-        std::shared_ptr<Texture2D> texture = RenderResourceManager::LoadTexture2D("./resources/texture/skybox.png");
+        std::shared_ptr<Texture2D> texture = vke_common::ResourceManager::LoadTexture2D("./resources/texture/skybox.png");
         skyboxMaterial->textures.push_back(texture);
-        skyboxMaterial->shader = RenderResourceManager::LoadVertFragShader("./tests/shader/skyvert.spv", "./tests/shader/skyfrag.spv");
+        skyboxMaterial->shader = vke_common::ResourceManager::LoadVertFragShader("./tests/shader/skyvert.spv", "./tests/shader/skyfrag.spv");
         skyboxMaterial->bindingDescriptions = bindingDescriptions;
         skyboxMaterial->attributeDescriptions = attributeDescriptions;
 
@@ -244,7 +244,7 @@ namespace vke_render
         std::vector<uint32_t> indices;
         for (int i = 0; i < skyboxVertices.size(); i++)
             indices.push_back(i);
-        std::shared_ptr<Mesh> skyboxMesh = std::make_shared<Mesh>(skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
+        std::shared_ptr<Mesh> skyboxMesh = std::make_shared<Mesh>("", skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
 
         std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> buffers;
         renderInfo->AddUnit(skyboxMesh, buffers);

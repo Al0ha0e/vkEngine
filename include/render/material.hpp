@@ -14,6 +14,7 @@ namespace vke_render
 
         ~Material() {}
 
+        std::string path;
         std::shared_ptr<VertFragShader> shader;
         std::vector<std::shared_ptr<Texture2D>> textures;
         std::vector<VkVertexInputBindingDescription> bindingDescriptions;

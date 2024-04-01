@@ -28,7 +28,7 @@ namespace vke_common
         }
 
         vke_render::RenderEnvironment *environment;
-        vke_render::RenderResourceManager *renderRM;
+        vke_common::ResourceManager *resourceManager;
         vke_render::DescriptorSetAllocator *allocator;
         vke_render::Renderer *renderer;
 
@@ -42,7 +42,7 @@ namespace vke_common
             instance = new Engine();
             EventSystem::Init();
             instance->environment = vke_render::RenderEnvironment::Init(width, height);
-            instance->renderRM = vke_render::RenderResourceManager::Init();
+            instance->resourceManager = vke_common::ResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
             instance->renderer = vke_render::Renderer::Init(passes, customPasses, customPassInfo);
             SceneManager::Init();
@@ -54,7 +54,7 @@ namespace vke_common
             SceneManager::Dispose();
             vke_render::Renderer::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();
-            vke_render::RenderResourceManager::Dispose();
+            vke_common::ResourceManager::Dispose();
             instance->environment->Dispose();
             EventSystem::Dispose();
             delete instance;

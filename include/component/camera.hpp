@@ -28,23 +28,32 @@ namespace vke_component
               near(near), far(far), Component(obj),
               buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {
-            resizeListenerID = vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, this, vke_common::EventCallback(OnWindowResize));
+            init();
+        }
 
-            vke_common::TransformParameter &transform = gameObject->transform;
-            viewPos = transform.position;
-            glm::vec3 gfront = transform.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            glm::vec3 gup = transform.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            view = glm::lookAt(viewPos, viewPos + gfront, gup);
-            projection = glm::perspective(fov, aspect, near, far);
-
-            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
-            vke_render::Renderer::RegisterCamera(buffer.buffer);
+        Camera(vke_common::GameObject *obj, nlohmann::json &json)
+            : fov(json["fov"]), width(json["width"]), height(json["height"]), aspect(width / height),
+              near(json["near"]), far(json["far"]), Component(obj),
+              buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+        {
+            init();
         }
 
         ~Camera()
         {
             vke_common::EventSystem::RemoveEventListener(vke_common::EVENT_WINDOW_RESIZE, resizeListenerID);
+        }
+
+        std::string ToJSON()
+        {
+            std::string ret = "{\n\"type\":\"camera\",\n";
+            ret += "\"fov\": " + std::to_string(fov) + ",\n";
+            ret += "\"width\": " + std::to_string(width) + ",\n";
+            ret += "\"height\": " + std::to_string(height) + ",\n";
+            ret += "\"near\": " + std::to_string(near) + ",\n";
+            ret += "\"far\": " + std::to_string(far);
+            ret += "\n}";
+            return ret;
         }
 
         void OnTransformed(vke_common::TransformParameter &param) override
@@ -76,6 +85,22 @@ namespace vke_component
 
     private:
         int resizeListenerID;
+
+        void init()
+        {
+            resizeListenerID = vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, this, vke_common::EventCallback(OnWindowResize));
+
+            vke_common::TransformParameter &transform = gameObject->transform;
+            viewPos = transform.position;
+            glm::vec3 gfront = transform.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            glm::vec3 gup = transform.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+            view = glm::lookAt(viewPos, viewPos + gfront, gup);
+            projection = glm::perspective(fov, aspect, near, far);
+
+            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
+            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+            vke_render::Renderer::RegisterCamera(buffer.buffer);
+        }
     };
 }
 

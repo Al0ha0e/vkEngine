@@ -16,7 +16,7 @@ const uint32_t HEIGHT = 768;
 
 vke_common::Engine *engine;
 float time_prev, time_delta;
-vke_common::TransformParameter camParam(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, glm::radians(0.0f), 0.0f));
+vke_common::TransformParameter camParam(glm::vec3(0.0f, 14.0f, 1.0f), glm::vec3(0.0f, glm::radians(0.0f), 0.0f));
 vke_common::GameObject *camp = nullptr;
 
 void processInput(GLFWwindow *window, vke_common::GameObject *target);
@@ -31,33 +31,35 @@ int main()
     std::vector<vke_render::RenderPassInfo> customPassInfo;
     engine = vke_common::Engine::Init(WIDTH, HEIGHT, passes, customPasses, customPassInfo);
 
-    vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
-    vke_common::TransformParameter targetParam2(glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
-    std::unique_ptr<vke_common::GameObject> targetGameObj = std::make_unique<vke_common::GameObject>(targetParam);
-    std::unique_ptr<vke_common::GameObject> targetGameObj2 = std::make_unique<vke_common::GameObject>(targetParam2);
+    // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(0.0f, 0.0f, glm::radians(0.0f)));
+    // vke_common::TransformParameter targetParam2(glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
+    // std::unique_ptr<vke_common::GameObject> targetGameObj = std::make_unique<vke_common::GameObject>(targetParam);
+    // std::unique_ptr<vke_common::GameObject> targetGameObj2 = std::make_unique<vke_common::GameObject>(targetParam2);
 
-    std::unique_ptr<vke_common::GameObject> cameraGameObj = std::make_unique<vke_common::GameObject>(camParam);
-    camp = cameraGameObj.get();
-    cameraGameObj->AddComponent(std::make_unique<vke_component::Camera>(105, WIDTH, HEIGHT, 0.01, 1000, camp));
+    // std::unique_ptr<vke_common::GameObject> cameraGameObj = std::make_unique<vke_common::GameObject>(camParam);
+    // camp = cameraGameObj.get();
+    // cameraGameObj->AddComponent(std::make_unique<vke_component::Camera>(105, WIDTH, HEIGHT, 0.01, 1000, camp));
 
-    vke_render::RenderResourceManager *manager = vke_render::RenderResourceManager::GetInstance();
+    // vke_common::ResourceManager *manager = vke_common::ResourceManager::GetInstance();
 
-    {
-        std::shared_ptr<vke_render::Material> material = manager->LoadMaterial("");
-        std::shared_ptr<vke_render::Mesh> mesh = manager->LoadMesh("");
+    // {
+    //     std::shared_ptr<vke_render::Material> material = manager->LoadMaterial("./tests/material/mat1.json");
+    //     std::shared_ptr<vke_render::Mesh> mesh = manager->LoadMesh("./tests/model/nanosuit.obj");
 
-        targetGameObj->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj.get()));
-        targetGameObj2->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj2.get()));
-    }
+    //     targetGameObj->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj.get()));
+    //     targetGameObj2->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj2.get()));
+    // }
 
-    std::unique_ptr<vke_common::Scene> scene = std::make_unique<vke_common::Scene>();
-    scene->AddObject(std::move(cameraGameObj));
-    scene->AddObject(std::move(targetGameObj));
-    scene->AddObject(std::move(targetGameObj2));
+    // std::unique_ptr<vke_common::Scene> scene = std::make_unique<vke_common::Scene>();
+    // scene->AddObject(std::move(cameraGameObj));
+    // scene->AddObject(std::move(targetGameObj));
+    // scene->AddObject(std::move(targetGameObj2));
 
-    vke_common::SceneManager::SetCurrentScene(std::move(scene));
+    // vke_common::SceneManager::SetCurrentScene(std::move(scene));
+    vke_common::SceneManager::LoadScene("./tests/scene/test_scene.json");
+    camp = vke_common::SceneManager::GetInstance()->currentScene->objects[0].get();
 
-    // glfwSetInputMode(engine->environment->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(engine->environment->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(engine->environment->window, mouse_callback);
     glfwSetFramebufferSizeCallback(engine->environment->window, vke_common::Engine::OnWindowResize);
 
@@ -109,6 +111,10 @@ void processInput(GLFWwindow *window, vke_common::GameObject *target)
     CHECK_KEY(GLFW_KEY_D)
     {
         target->TranslateLocal(glm::vec3(moveSpeed * time_delta, 0, 0));
+    }
+    CHECK_KEY(GLFW_KEY_0)
+    {
+        vke_common::SceneManager::SaveScene("./tests/scene/test_scene.json");
     }
 }
 

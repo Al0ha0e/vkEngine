@@ -3,6 +3,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <nlohmann/json.hpp>
 #include <vector>
 #include <iostream>
 #include <memory>
@@ -21,10 +22,40 @@ namespace vke_common
         TransformParameter() {}
         TransformParameter(glm::vec3 pos, glm::vec3 dir) : position(pos), direction(dir)
         {
-            rotation = glm::rotate(glm::mat4(1.0f), dir.x, glm::vec3(1.0f, 0.0f, 0.0f));
-            rotation = glm::rotate(rotation, dir.y, glm::vec3(0.0f, 1.0f, 0.0f));
-            rotation = glm::rotate(rotation, dir.z, glm::vec3(0.0f, 0.0f, 1.0f));
-            translation = glm::translate(glm::mat4(1.0f), pos);
+            init();
+        }
+
+        TransformParameter(nlohmann::json &json)
+        {
+            auto pos = json["pos"];
+            auto dir = json["dir"];
+            position = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
+            direction = glm::vec3(dir[0].get<float>(), dir[1].get<float>(), dir[2].get<float>());
+            init();
+        }
+
+        std::string ToJSON()
+        {
+            std::string ret = "{\n";
+            ret += "\"pos\": [";
+            for (int i = 0; i < 3; i++)
+                ret += std::to_string(position[i]) + ",";
+            ret[ret.length() - 1] = ']';
+            ret += ",\n\"dir\": [";
+            for (int i = 0; i < 3; i++)
+                ret += std::to_string(direction[i]) + ",";
+            ret[ret.length() - 1] = ']';
+            ret += "\n}";
+            return ret;
+        }
+
+    private:
+        void init()
+        {
+            rotation = glm::rotate(glm::mat4(1.0f), direction.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            rotation = glm::rotate(rotation, direction.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            rotation = glm::rotate(rotation, direction.z, glm::vec3(0.0f, 0.0f, 1.0f));
+            translation = glm::translate(glm::mat4(1.0f), position);
             model = translation * rotation;
         }
     };
@@ -38,18 +69,41 @@ namespace vke_common
         Component(GameObject *obj) : gameObject(obj) {}
         virtual ~Component() {}
 
+        virtual std::string ToJSON() = 0;
+
         virtual void OnTransformed(TransformParameter &param) {}
     };
 
     class GameObject
     {
     public:
+        int id;
         TransformParameter transform;
         std::vector<std::unique_ptr<Component>> components;
 
         GameObject(TransformParameter &tp) : transform(tp){};
 
+        GameObject(nlohmann::json &json) : id(json["id"]), transform(json["transform"])
+        {
+            auto &comps = json["components"];
+            for (auto &comp : comps)
+                components.push_back(loadComponent(comp));
+        }
+
         ~GameObject() {}
+
+        std::string ToJSON()
+        {
+            std::string ret = "{\n";
+            ret += "\"id\": " + std::to_string(id) + ",\n";
+            ret += "\"transform\": " + transform.ToJSON();
+            ret += ",\n\"components\": [";
+            for (auto &component : components)
+                ret += "\n" + component->ToJSON() + ",";
+            ret[ret.length() - 1] = ']';
+            ret += "\n}";
+            return ret;
+        }
 
         void AddComponent(std::unique_ptr<Component> &&component)
         {
@@ -93,6 +147,8 @@ namespace vke_common
                 component->OnTransformed(transform);
             }
         }
+
+        std::unique_ptr<Component> loadComponent(nlohmann::json &json);
     };
 }
 
