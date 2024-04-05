@@ -17,15 +17,14 @@ namespace vke_common
     public:
         std::map<int, std::unique_ptr<GameObject>> objects;
 
-        Scene() {}
+        Scene() : idAllocator(1) {}
 
-        Scene(nlohmann::json &json)
+        Scene(nlohmann::json &json) : idAllocator(json["maxid"])
         {
-            idAllocator = vke_ds::NaiveIDAllocator<int>(json["maxid"]);
             auto &objs = json["objects"];
             for (auto &obj : objs)
             {
-                std::unique_ptr<GameObject> object = std::make_unique<GameObject>(obj);
+                std::unique_ptr<GameObject> object = std::make_unique<GameObject>(obj, objects);
                 objects[object->id] = std::move(object);
             }
         }
@@ -38,7 +37,8 @@ namespace vke_common
             ret += "\"maxid\": " + std::to_string(idAllocator.id) + ",\n";
             ret += "\"objects\": [";
             for (auto &obj : objects)
-                ret += "\n" + obj.second->ToJSON() + ",";
+                if (obj.second->parent == nullptr)
+                    ret += "\n" + obj.second->ToJSON() + ",";
             ret[ret.length() - 1] = ']';
             ret += "\n}";
 
@@ -50,6 +50,14 @@ namespace vke_common
             int id = idAllocator.Alloc();
             object->id = id;
             objects[id] = std::forward<std::unique_ptr<GameObject>>(object);
+        }
+
+        GameObject *GetObject(int id)
+        {
+            auto it = objects.find(id);
+            if (it == objects.end())
+                return nullptr;
+            return it->second.get();
         }
 
     private:

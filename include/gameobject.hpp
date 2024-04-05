@@ -3,6 +3,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <nlohmann/json.hpp>
 #include <vector>
 #include <iostream>
@@ -14,24 +15,128 @@ namespace vke_common
     struct TransformParameter
     {
         glm::mat4 model;
-        glm::mat4 translation;
-        glm::mat4 rotation;
         glm::vec3 position;
-        glm::vec3 direction;
+        glm::vec3 localPosition;
+        glm::vec3 lossyScale;
+        glm::vec3 localScale;
+        glm::quat rotation;
+        glm::quat localRotation;
 
-        TransformParameter() {}
-        TransformParameter(glm::vec3 pos, glm::vec3 dir) : position(pos), direction(dir)
+        TransformParameter()
+            : model(1), position(0), localPosition(0), lossyScale(1), localScale(1), rotation(glm::vec3(0)), localRotation(glm::vec3(0))
         {
             init();
+        }
+
+        TransformParameter(glm::vec3 pos, glm::vec3 scl, glm::quat rot)
+            : localPosition(pos), localScale(scl), localRotation(rot)
+        {
+            init();
+        }
+
+        TransformParameter(const TransformParameter &fa, glm::vec3 pos, glm::vec3 scl, glm::quat rot)
+            : localPosition(pos), localScale(scl), localRotation(rot)
+        {
+            initWithParent(fa);
         }
 
         TransformParameter(nlohmann::json &json)
         {
             auto pos = json["pos"];
-            auto dir = json["dir"];
-            position = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
-            direction = glm::vec3(dir[0].get<float>(), dir[1].get<float>(), dir[2].get<float>());
+            auto scl = json["scl"];
+            auto rot = json["rot"];
+            localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
+            localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
+            localRotation = glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>());
             init();
+        }
+
+        TransformParameter(const TransformParameter &fa, nlohmann::json &json)
+        {
+            auto pos = json["pos"];
+            auto scl = json["scl"];
+            auto rot = json["rot"];
+            localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
+            localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
+            localRotation = glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>());
+            initWithParent(fa);
+        }
+
+        void RemoveParent()
+        {
+            localPosition = position;
+            // localScale = lossyScale;
+            localRotation = rotation;
+            calcModelMatrix();
+        }
+
+        void SetParent(const TransformParameter &fa)
+        {
+            glm::mat4 inv(glm::inverse(fa.model));
+            localPosition = inv * glm::vec4(position, 1);
+            // localScale = inv * glm::vec4(lossyScale, 0);
+            localRotation = glm::inverse(fa.rotation) * rotation;
+            calcModelMatrixWithParent(fa.model);
+        }
+
+        void TranslateLocal(glm::vec3 &det)
+        {
+            glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
+            localPosition += localDet;
+            position += localDet;
+            calcModelMatrix();
+        }
+
+        void TranslateLocalWithParent(const glm::mat4 &fa, glm::vec3 &det)
+        {
+            glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
+            localPosition += localDet;
+            calcModelMatrixWithParent(fa);
+            position = model[3];
+        }
+
+        void TranslateGlobal(glm::vec3 &det)
+        {
+            position += det;
+            localPosition += det;
+            calcModelMatrix();
+        }
+
+        void TranslateGlobalWithParent(const glm::mat4 &fa, glm::vec3 &det)
+        {
+            position += det;
+            localPosition = glm::inverse(fa) * glm::vec4(position, 1);
+            calcModelMatrixWithParent(fa);
+        }
+
+        void RotateLocal(float det, glm::vec3 &axis)
+        {
+            localRotation = glm::rotate(localRotation, det, axis);
+            rotation = localRotation;
+            calcModelMatrix();
+        }
+
+        void RotateLocalWithParent(const TransformParameter &fa, float det, glm::vec3 &axis)
+        {
+            localRotation = glm::rotate(localRotation, det, axis);
+            rotation = fa.rotation * localRotation;
+            calcModelMatrixWithParent(fa.model);
+        }
+
+        void RotateGlobal(float det, glm::vec3 &axis)
+        {
+            glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
+            localRotation = glm::rotate(localRotation, det, gaxis);
+            rotation = localRotation;
+            calcModelMatrix();
+        }
+
+        void RotateGlobalWithParent(const TransformParameter &fa, float det, glm::vec3 &axis)
+        {
+            glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
+            localRotation = glm::rotate(localRotation, det, gaxis);
+            rotation = fa.rotation * localRotation;
+            calcModelMatrixWithParent(fa.model);
         }
 
         std::string ToJSON()
@@ -39,24 +144,56 @@ namespace vke_common
             std::string ret = "{\n";
             ret += "\"pos\": [";
             for (int i = 0; i < 3; i++)
-                ret += std::to_string(position[i]) + ",";
+                ret += std::to_string(localPosition[i]) + ",";
             ret[ret.length() - 1] = ']';
-            ret += ",\n\"dir\": [";
+
+            ret += ",\n\"scl\": [";
             for (int i = 0; i < 3; i++)
-                ret += std::to_string(direction[i]) + ",";
+                ret += std::to_string(localScale[i]) + ",";
+            ret[ret.length() - 1] = ']';
+
+            ret += ",\n\"rot\": [";
+            for (int i = 0; i < 4; i++)
+                ret += std::to_string(localRotation[i]) + ",";
             ret[ret.length() - 1] = ']';
             ret += "\n}";
             return ret;
         }
 
+        void UpdateWithParent(const TransformParameter &fa)
+        {
+            initWithParent(fa);
+        }
+
     private:
+        void calcModelMatrix()
+        {
+            model = glm::translate(glm::mat4(1.0f), localPosition) *
+                    glm::mat4_cast(localRotation) *
+                    glm::scale(glm::mat4(1.0f), localScale);
+        }
+
+        void calcModelMatrixWithParent(const glm::mat4 &fa)
+        {
+            model = fa * glm::translate(glm::mat4(1.0f), localPosition) *
+                    glm::mat4_cast(localRotation) *
+                    glm::scale(glm::mat4(1.0f), localScale);
+        }
+
         void init()
         {
-            rotation = glm::rotate(glm::mat4(1.0f), direction.x, glm::vec3(1.0f, 0.0f, 0.0f));
-            rotation = glm::rotate(rotation, direction.y, glm::vec3(0.0f, 1.0f, 0.0f));
-            rotation = glm::rotate(rotation, direction.z, glm::vec3(0.0f, 0.0f, 1.0f));
-            translation = glm::translate(glm::mat4(1.0f), position);
-            model = translation * rotation;
+            calcModelMatrix();
+            position = localPosition;
+            lossyScale = localScale;
+            rotation = localRotation;
+        }
+
+        void initWithParent(const TransformParameter &fa)
+        {
+            calcModelMatrixWithParent(fa.model);
+            position = model[3];
+            // lossyScale = fa.model * glm::vec4(localScale, 0);
+            rotation = fa.rotation * localRotation;
         }
     };
 
@@ -78,16 +215,44 @@ namespace vke_common
     {
     public:
         int id;
+        GameObject *parent;
+        std::map<int, GameObject *> children;
+
         TransformParameter transform;
         std::vector<std::unique_ptr<Component>> components;
 
-        GameObject(TransformParameter &tp) : transform(tp){};
+        GameObject(TransformParameter &tp) : parent(nullptr), transform(tp){};
 
-        GameObject(nlohmann::json &json) : id(json["id"]), transform(json["transform"])
+        GameObject(nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
+            : parent(nullptr), id(json["id"]), transform(json["transform"])
         {
             auto &comps = json["components"];
             for (auto &comp : comps)
                 components.push_back(loadComponent(comp));
+
+            auto &chs = json["children"];
+            for (auto &ch : chs)
+            {
+                GameObject *child = new GameObject(this, ch, objects);
+                children[ch["id"]] = child;
+                objects[child->id] = std::unique_ptr<GameObject>(child);
+            }
+        }
+
+        GameObject(GameObject *fa, nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
+            : parent(fa), id(json["id"]), transform(fa->transform, json["transform"])
+        {
+            auto &comps = json["components"];
+            for (auto &comp : comps)
+                components.push_back(loadComponent(comp));
+
+            auto &chs = json["children"];
+            for (auto &ch : chs)
+            {
+                GameObject *child = new GameObject(this, ch, objects);
+                children[child->id] = child;
+                objects[child->id] = std::unique_ptr<GameObject>(child);
+            }
         }
 
         ~GameObject() {}
@@ -96,12 +261,21 @@ namespace vke_common
         {
             std::string ret = "{\n";
             ret += "\"id\": " + std::to_string(id) + ",\n";
+            ret += "\"parent\": " + std::to_string(parent ? parent->id : 0) + ",\n";
+
             ret += "\"transform\": " + transform.ToJSON();
+
             ret += ",\n\"components\": [";
             for (auto &component : components)
                 ret += "\n" + component->ToJSON() + ",";
             ret[ret.length() - 1] = ']';
+
+            ret += ",\n\"children\": [ ";
+            for (auto &kv : children)
+                ret += "\n" + kv.second->ToJSON() + ",";
+            ret[ret.length() - 1] = ']';
             ret += "\n}";
+
             return ret;
         }
 
@@ -110,42 +284,62 @@ namespace vke_common
             components.push_back(std::forward<std::unique_ptr<Component>>(component));
         }
 
+        void SetParent(GameObject *fa)
+        {
+            if (fa == parent)
+                return;
+            if (parent != nullptr)
+            {
+                parent->children.erase(id);
+                transform.RemoveParent();
+            }
+            parent = fa;
+            if (fa == nullptr)
+            {
+                updateTransform(true);
+                return;
+            }
+
+            transform.SetParent(fa->transform);
+            fa->children[id] = this;
+            updateTransform(true);
+        }
+
         void RotateGlobal(float det, glm::vec3 &axis)
         {
-            glm::vec3 gaxis = glm::transpose(transform.rotation) * glm::vec4(axis, 0.0f);
-            transform.rotation = glm::rotate(transform.rotation, det, glm::normalize(gaxis));
-            updateTransform();
+            parent ? transform.RotateGlobalWithParent(parent->transform, det, axis) : transform.RotateGlobal(det, axis);
+            updateTransform(true);
         }
 
         void RotateLocal(float det, glm::vec3 &axis)
         {
-            transform.rotation = glm::rotate(transform.rotation, det, glm::normalize(axis));
-            updateTransform();
+            parent ? transform.RotateLocalWithParent(parent->transform, det, axis) : transform.RotateLocal(det, axis);
+            updateTransform(true);
         }
 
         void TranslateLocal(glm::vec3 det)
         {
-            glm::vec3 gdet = transform.rotation * glm::vec4(det, 0.0f);
-            transform.translation = glm::translate(transform.translation, gdet);
-            transform.position = transform.translation * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-            updateTransform();
+            parent ? transform.TranslateLocalWithParent(parent->transform.model, det) : transform.TranslateLocal(det);
+            updateTransform(true);
         }
 
         void TranslateGlobal(glm::vec3 det)
         {
-            transform.translation = glm::translate(transform.translation, det);
-            transform.position = transform.translation * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-            updateTransform();
+            parent ? transform.TranslateGlobalWithParent(parent->transform.model, det) : transform.TranslateGlobal(det);
+            updateTransform(true);
         }
 
     private:
-        void updateTransform()
+        void updateTransform(bool first)
         {
-            transform.model = transform.translation * transform.rotation;
+            if (!first)
+                transform.UpdateWithParent(parent->transform);
+
             for (auto &component : components)
-            {
                 component->OnTransformed(transform);
-            }
+
+            for (auto &kv : children)
+                kv.second->updateTransform(false);
         }
 
         std::unique_ptr<Component> loadComponent(nlohmann::json &json);

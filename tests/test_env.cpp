@@ -16,10 +16,11 @@ const uint32_t HEIGHT = 768;
 
 vke_common::Engine *engine;
 float time_prev, time_delta;
-vke_common::TransformParameter camParam(glm::vec3(0.0f, 14.0f, 1.0f), glm::vec3(0.0f, glm::radians(0.0f), 0.0f));
+vke_common::TransformParameter camParam(glm::vec3(-5.0f, 14.0f, 10.0f), glm::vec3(1), glm::quat(1.0, 0.0, 0.0, 0.0));
 vke_common::GameObject *camp = nullptr;
+vke_common::GameObject *objp = nullptr, *obj2p = nullptr;
 
-void processInput(GLFWwindow *window, vke_common::GameObject *target);
+void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common::GameObject *obj);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
 int main()
@@ -31,10 +32,12 @@ int main()
     std::vector<vke_render::RenderPassInfo> customPassInfo;
     engine = vke_common::Engine::Init(WIDTH, HEIGHT, passes, customPasses, customPassInfo);
 
-    // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(0.0f, 0.0f, glm::radians(0.0f)));
-    // vke_common::TransformParameter targetParam2(glm::vec3(-1.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, glm::radians(30.0f)));
+    // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
+    // vke_common::TransformParameter targetParam2(glm::vec3(-10.0f, 1.0f, 0.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     // std::unique_ptr<vke_common::GameObject> targetGameObj = std::make_unique<vke_common::GameObject>(targetParam);
     // std::unique_ptr<vke_common::GameObject> targetGameObj2 = std::make_unique<vke_common::GameObject>(targetParam2);
+    // objp = targetGameObj.get();
+    // obj2p = targetGameObj2.get();
 
     // std::unique_ptr<vke_common::GameObject> cameraGameObj = std::make_unique<vke_common::GameObject>(camParam);
     // camp = cameraGameObj.get();
@@ -57,7 +60,9 @@ int main()
 
     // vke_common::SceneManager::SetCurrentScene(std::move(scene));
     vke_common::SceneManager::LoadScene("./tests/scene/test_scene.json");
-    camp = vke_common::SceneManager::GetInstance()->currentScene->objects[0].get();
+    camp = vke_common::SceneManager::GetInstance()->currentScene->objects[1].get();
+    objp = vke_common::SceneManager::GetInstance()->currentScene->objects[2].get();
+    obj2p = vke_common::SceneManager::GetInstance()->currentScene->objects[3].get();
 
     glfwSetInputMode(engine->environment->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(engine->environment->window, mouse_callback);
@@ -74,7 +79,7 @@ int main()
         time_prev = now;
         // std::cout << 1 / time_delta << std::endl;
 
-        processInput(engine->environment->window, camp);
+        processInput(engine->environment->window, camp, objp);
 
         engine->renderer->Update();
     }
@@ -91,7 +96,7 @@ int main()
 float moveSpeed = 0.5f;
 float rotateSpeed = 1.0f;
 
-void processInput(GLFWwindow *window, vke_common::GameObject *target)
+void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common::GameObject *obj)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -115,6 +120,69 @@ void processInput(GLFWwindow *window, vke_common::GameObject *target)
     CHECK_KEY(GLFW_KEY_0)
     {
         vke_common::SceneManager::SaveScene("./tests/scene/test_scene.json");
+    }
+    CHECK_KEY(GLFW_KEY_1)
+    {
+        obj->RotateLocal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
+    }
+    CHECK_KEY(GLFW_KEY_2)
+    {
+        obj->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
+    }
+    CHECK_KEY(GLFW_KEY_3)
+    {
+        obj->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
+    }
+    CHECK_KEY(GLFW_KEY_4)
+    {
+        obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
+    }
+    CHECK_KEY(GLFW_KEY_5)
+    {
+        obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
+    }
+    CHECK_KEY(GLFW_KEY_6)
+    {
+        obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
+    }
+
+    CHECK_KEY(GLFW_KEY_T)
+    {
+        obj2p->TranslateGlobal(glm::vec3(moveSpeed * time_delta, 0, 0));
+        // obj2p->RotateLocal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
+    }
+    CHECK_KEY(GLFW_KEY_Y)
+    {
+        obj2p->TranslateGlobal(glm::vec3(0, moveSpeed * time_delta, 0));
+        // obj2p->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
+    }
+    CHECK_KEY(GLFW_KEY_U)
+    {
+        obj2p->TranslateGlobal(glm::vec3(0, 0, moveSpeed * time_delta));
+        // obj2p->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
+    }
+    CHECK_KEY(GLFW_KEY_G)
+    {
+        obj2p->RotateGlobal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
+    }
+    CHECK_KEY(GLFW_KEY_H)
+    {
+        obj2p->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
+    }
+    CHECK_KEY(GLFW_KEY_J)
+    {
+        obj2p->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
+    }
+    static bool pressed = false;
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS && !pressed)
+    {
+        pressed = true;
+        std::cout << obj2p->parent << "\n";
+        obj2p->SetParent(obj2p->parent ? nullptr : objp);
+    }
+    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_RELEASE)
+    {
+        pressed = false;
     }
 }
 
