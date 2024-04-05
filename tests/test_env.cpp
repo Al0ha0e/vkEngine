@@ -16,7 +16,7 @@ const uint32_t HEIGHT = 768;
 
 vke_common::Engine *engine;
 float time_prev, time_delta;
-vke_common::TransformParameter camParam(glm::vec3(-5.0f, 14.0f, 10.0f), glm::vec3(1), glm::quat(1.0, 0.0, 0.0, 0.0));
+vke_common::TransformParameter camParam(glm::vec3(-5.0f, 4.0f, 10.0f), glm::vec3(1), glm::quat(1.0, 0.0, 0.0, 0.0));
 vke_common::GameObject *camp = nullptr;
 vke_common::GameObject *objp = nullptr, *obj2p = nullptr;
 
@@ -47,7 +47,8 @@ int main()
 
     // {
     //     std::shared_ptr<vke_render::Material> material = manager->LoadMaterial("./tests/material/mat1.json");
-    //     std::shared_ptr<vke_render::Mesh> mesh = manager->LoadMesh("./tests/model/nanosuit.obj");
+    //     // std::shared_ptr<const vke_render::Mesh> mesh = manager->LoadMesh("./tests/model/nanosuit.obj");
+    //     std::shared_ptr<const vke_render::Mesh> mesh = manager->LoadMesh(vke_common::BuiltinMonkeyPath);
 
     //     targetGameObj->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj.get()));
     //     targetGameObj2->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj2.get()));
@@ -59,6 +60,7 @@ int main()
     // scene->AddObject(std::move(targetGameObj2));
 
     // vke_common::SceneManager::SetCurrentScene(std::move(scene));
+
     vke_common::SceneManager::LoadScene("./tests/scene/test_scene.json");
     camp = vke_common::SceneManager::GetInstance()->currentScene->objects[1].get();
     objp = vke_common::SceneManager::GetInstance()->currentScene->objects[2].get();
@@ -93,7 +95,7 @@ int main()
 
 #define CHECK_KEY(x) if (glfwGetKey(window, x) == GLFW_PRESS)
 
-float moveSpeed = 0.5f;
+float moveSpeed = 2.5f;
 float rotateSpeed = 1.0f;
 
 void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common::GameObject *obj)
@@ -177,7 +179,6 @@ void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common
     if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS && !pressed)
     {
         pressed = true;
-        std::cout << obj2p->parent << "\n";
         obj2p->SetParent(obj2p->parent ? nullptr : objp);
     }
     if (glfwGetKey(window, GLFW_KEY_7) == GLFW_RELEASE)

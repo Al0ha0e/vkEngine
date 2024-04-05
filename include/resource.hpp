@@ -13,11 +13,18 @@
 
 namespace vke_common
 {
+    extern const std::string BuiltinPlanePath;
+    extern const std::string BuiltinCubePath;
+    extern const std::string BuiltinSpherePath;
+    // extern const std::string BuiltinCapsulePath;
+    extern const std::string BuiltinCylinderPath;
+    extern const std::string BuiltinMonkeyPath;
+
     class ResourceManager
     {
     private:
         static ResourceManager *instance;
-        ResourceManager() {}
+        ResourceManager(){};
         ~ResourceManager() {}
         ResourceManager(const ResourceManager &);
         ResourceManager &operator=(const ResourceManager);
@@ -30,11 +37,7 @@ namespace vke_common
             return instance;
         }
 
-        static ResourceManager *Init()
-        {
-            instance = new ResourceManager();
-            return instance;
-        }
+        static ResourceManager *Init();
 
         static void Dispose()
         {
@@ -51,7 +54,12 @@ namespace vke_common
 
         static std::shared_ptr<vke_render::Material> LoadMaterial(const std::string &pth);
 
-        static std::shared_ptr<vke_render::Mesh> ResourceManager::LoadMesh(const std::string &pth);
+        static std::shared_ptr<vke_render::Mesh> LoadMesh(const std::string &pth, const std::string &key);
+
+        static std::shared_ptr<vke_render::Mesh> LoadMesh(const std::string &pth)
+        {
+            return LoadMesh(pth, pth);
+        }
 
     private:
         std::map<std::string, std::shared_ptr<vke_render::Shader>> shaderCache;

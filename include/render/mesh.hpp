@@ -30,7 +30,7 @@ namespace vke_render
 
         Mesh(const std::string &path) : path(path), indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
 
-        Mesh(const std::string &path, std::vector<Vertex> &vertices, std::vector<uint32_t> &index)
+        Mesh(const std::string &path, const std::vector<Vertex> &vertices, const std::vector<uint32_t> &index)
             : path(path),
               indexCnt(index.size()),
               vertexBuffer(std::make_unique<DeviceBuffer>(vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)),
@@ -40,7 +40,7 @@ namespace vke_render
             indexBuffer->ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
         }
 
-        Mesh(const std::string &path, size_t vertSize, void *vertData, std::vector<uint32_t> &index)
+        Mesh(const std::string &path, size_t vertSize, const void *vertData, const std::vector<uint32_t> &index)
             : path(path),
               indexCnt(index.size()),
               vertexBuffer(std::make_unique<DeviceBuffer>(vertSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)),
@@ -52,7 +52,7 @@ namespace vke_render
 
         ~Mesh() {}
 
-        void Render(VkCommandBuffer &commandBuffer)
+        void Render(VkCommandBuffer &commandBuffer) const
         {
             if (indexCnt > 0)
             {
@@ -63,7 +63,7 @@ namespace vke_render
         }
 
     private:
-        void render(VkCommandBuffer &commandBuffer)
+        void render(VkCommandBuffer &commandBuffer) const
         {
             VkBuffer vertexBuffers[] = {vertexBuffer->buffer};
             VkDeviceSize offsets[] = {0};

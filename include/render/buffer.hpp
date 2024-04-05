@@ -69,7 +69,7 @@ namespace vke_render
             }
         }
 
-        void ToBuffer(size_t dstOffset, void *src, size_t size)
+        void ToBuffer(size_t dstOffset, const void *src, size_t size)
         {
             memcpy((char *)data + dstOffset, src, size);
         }
@@ -92,7 +92,7 @@ namespace vke_render
 
         ~DeviceBuffer() {}
 
-        void ToBuffer(size_t dstOffset, void *src, size_t size)
+        void ToBuffer(size_t dstOffset, const void *src, size_t size)
         {
             Buffer stagingBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
@@ -145,7 +145,7 @@ namespace vke_render
             }
         }
 
-        void ToBuffer(size_t dstOffset, void *src, size_t size)
+        void ToBuffer(size_t dstOffset, const void *src, size_t size)
         {
             memcpy((char *)data + dstOffset, src, size);
             RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, bufferSize);

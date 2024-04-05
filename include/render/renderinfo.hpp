@@ -23,15 +23,15 @@ namespace vke_render
 
     struct RenderUnit
     {
-        std::shared_ptr<Mesh> mesh;
+        std::shared_ptr<const Mesh> mesh;
         VkDescriptorSet descriptorSet;
 
         RenderUnit() = default;
 
-        RenderUnit(std::shared_ptr<Mesh> &msh) : mesh(msh), descriptorSet(nullptr) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh) : mesh(msh), descriptorSet(nullptr) {}
 
         RenderUnit(
-            std::shared_ptr<Mesh> &msh,
+            std::shared_ptr<const Mesh> &msh,
             DescriptorSetInfo &descriptorSetInfo,
             std::vector<DescriptorInfo> &descriptorInfos,
             std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers) : mesh(msh)
@@ -181,7 +181,7 @@ namespace vke_render
                 globalDescriptorSetLayouts.push_back(perUnitDescriptorSetInfo.layout);
         }
 
-        uint64_t AddUnit(std::shared_ptr<Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
+        uint64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
         // uint64_t AddUnit(Mesh *mesh, std::vector<VkBuffer> &buffers)
         {
             uint64_t id = allocator.Alloc();

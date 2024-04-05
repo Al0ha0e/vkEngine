@@ -24,7 +24,7 @@ namespace vke_render
         std::vector<VkBuffer> commonBuffers;
 
         void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
-                             VkPipelineShaderStageCreateInfo *&stages)
+                             VkPipelineShaderStageCreateInfo *&stages) const
         {
             vertexInputInfo.vertexBindingDescriptionCount = bindingDescriptions.size();
             vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();

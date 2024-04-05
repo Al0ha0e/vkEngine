@@ -5,9 +5,9 @@
 "id": 1,
 "parent": 0,
 "transform": {
-"pos": [-5.000000,14.000000,10.000000],
+"pos": [-5.000000,4.000000,10.000000],
 "scl": [1.000000,1.000000,1.000000],
-"rot": [-0.188756,-0.104903,-0.020284,0.976193]
+"rot": [0.000000,0.000000,0.000000,1.000000]
 },
 "components": [
 {
@@ -26,30 +26,30 @@
 "transform": {
 "pos": [-0.500000,0.500000,-1.000000],
 "scl": [1.000000,1.000000,1.000000],
-"rot": [-0.262561,-0.044059,-0.054255,-0.962370]
+"rot": [0.000000,0.000000,0.000000,1.000000]
 },
 "components": [
 {
 "type":"renderableObject",
 "material": "./tests/material/mat1.json",
-"mesh": "./tests/model/nanosuit.obj"
-}],
-"children": [ 
-{
-"id": 3,
-"parent": 2,
-"transform": {
-"pos": [-9.078356,1.214840,1.499719],
-"scl": [1.000000,1.000000,1.000000],
-"rot": [-0.190330,-0.366435,0.158885,0.896796]
-},
-"components": [
-{
-"type":"renderableObject",
-"material": "./tests/material/mat1.json",
-"mesh": "./tests/model/nanosuit.obj"
+"mesh": "@m"
 }],
 "children": []
-}]
+},
+{
+"id": 3,
+"parent": 0,
+"transform": {
+"pos": [-10.000000,1.000000,0.000000],
+"scl": [1.000000,1.000000,1.000000],
+"rot": [0.000000,0.000000,0.000000,1.000000]
+},
+"components": [
+{
+"type":"renderableObject",
+"material": "./tests/material/mat1.json",
+"mesh": "@m"
+}],
+"children": []
 }]
 }

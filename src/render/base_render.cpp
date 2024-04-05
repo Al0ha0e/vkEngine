@@ -223,7 +223,7 @@ namespace vke_render
 
         std::shared_ptr<Material> skyboxMaterial(new Material);
 
-        std::shared_ptr<Texture2D> texture = vke_common::ResourceManager::LoadTexture2D("./resources/texture/skybox.png");
+        std::shared_ptr<Texture2D> texture = vke_common::ResourceManager::LoadTexture2D("./tests/texture/skybox.png");
         skyboxMaterial->textures.push_back(texture);
         skyboxMaterial->shader = vke_common::ResourceManager::LoadVertFragShader("./tests/shader/skyvert.spv", "./tests/shader/skyfrag.spv");
         skyboxMaterial->bindingDescriptions = bindingDescriptions;

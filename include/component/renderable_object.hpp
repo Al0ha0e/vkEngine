@@ -12,12 +12,12 @@ namespace vke_component
     {
     public:
         std::shared_ptr<vke_render::Material> material;
-        std::shared_ptr<vke_render::Mesh> mesh;
+        std::shared_ptr<const vke_render::Mesh> mesh;
         std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> buffers;
 
         RenderableObject(
             std::shared_ptr<vke_render::Material> &mat,
-            std::shared_ptr<vke_render::Mesh> &msh,
+            std::shared_ptr<const vke_render::Mesh> &msh,
             vke_common::GameObject *obj)
             : material(mat), mesh(msh), Component(obj)
         {

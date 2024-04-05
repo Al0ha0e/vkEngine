@@ -10,6 +10,20 @@ namespace vke_common
 {
     ResourceManager *ResourceManager::instance = nullptr;
 
+    extern const std::vector<vke_render::Vertex> planeVertices;
+    extern const std::vector<uint32_t> planeIndices;
+
+    ResourceManager *ResourceManager::Init()
+    {
+        instance = new ResourceManager();
+        instance->meshCache[BuiltinPlanePath] = std::make_shared<vke_render::Mesh>(BuiltinPlanePath, planeVertices, planeIndices);
+        LoadMesh("./builtin_resources/mesh/cube.obj", BuiltinCubePath)->path = BuiltinCubePath;
+        LoadMesh("./builtin_resources/mesh/sphere.obj", BuiltinSpherePath)->path = BuiltinSpherePath;
+        LoadMesh("./builtin_resources/mesh/cylinder.obj", BuiltinCylinderPath)->path = BuiltinCylinderPath;
+        LoadMesh("./builtin_resources/mesh/monkey.obj", BuiltinMonkeyPath)->path = BuiltinMonkeyPath;
+        return instance;
+    }
+
     nlohmann::json ResourceManager::LoadJSON(const std::string &pth)
     {
         nlohmann::json ret;
@@ -73,10 +87,7 @@ namespace vke_common
         auto &cache = instance->materialCache;
         auto it = cache.find(pth);
         if (it != cache.end())
-        {
-            std::cout << pth << " hit\n";
             return it->second;
-        }
 
         VkVertexInputBindingDescription bindingDescription{};
         bindingDescription.binding = 0;
@@ -160,7 +171,6 @@ namespace vke_common
     static std::shared_ptr<vke_render::Mesh> processNode(const std::string &pth, aiNode *node, const aiScene *scene)
     {
         std::shared_ptr<vke_render::Mesh> ret = nullptr;
-
         if (node->mNumMeshes == 0)
         {
             ret = std::make_shared<vke_render::Mesh>(pth);
@@ -189,10 +199,10 @@ namespace vke_common
         return ret;
     }
 
-    std::shared_ptr<vke_render::Mesh> ResourceManager::LoadMesh(const std::string &pth)
+    std::shared_ptr<vke_render::Mesh> ResourceManager::LoadMesh(const std::string &pth, const std::string &key)
     {
         auto &cache = instance->meshCache;
-        auto it = cache.find(pth);
+        auto it = cache.find(key);
         if (it != cache.end())
             return it->second;
 
@@ -204,7 +214,7 @@ namespace vke_common
             return nullptr;
         }
         std::shared_ptr<vke_render::Mesh> ret = processNode(pth, scene->mRootNode, scene);
-        cache[pth] = ret;
+        cache[key] = ret;
         return ret;
     }
 };

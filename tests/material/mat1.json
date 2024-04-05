@@ -1,5 +1,5 @@
 {
   "vert": "./tests/shader/vert.spv",
   "frag": "./tests/shader/frag.spv",
-  "textures": ["./resources/texture/texture.jpg"]
+  "textures": ["./tests/texture/texture.jpg"]
 }

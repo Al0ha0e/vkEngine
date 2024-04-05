@@ -47,7 +47,7 @@ namespace vke_render
             // return id;
         }
 
-        uint64_t AddUnit(std::shared_ptr<Material> &material, std::shared_ptr<Mesh> &mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
+        uint64_t AddUnit(std::shared_ptr<Material> &material, std::shared_ptr<const Mesh> &mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
         {
             RegisterMaterial(material);
             return renderInfoMap[material.get()]->AddUnit(mesh, buffers);
