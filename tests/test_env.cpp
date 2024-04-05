@@ -147,6 +147,14 @@ void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common
     {
         obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
     }
+    CHECK_KEY(GLFW_KEY_8)
+    {
+        obj->Scale(glm::vec3(0.2 * time_delta, 0, 0));
+    }
+    CHECK_KEY(GLFW_KEY_9)
+    {
+        obj->Scale(glm::vec3(-0.2 * time_delta, 0, 0));
+    }
 
     CHECK_KEY(GLFW_KEY_T)
     {

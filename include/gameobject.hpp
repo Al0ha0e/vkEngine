@@ -65,7 +65,7 @@ namespace vke_common
         void RemoveParent()
         {
             localPosition = position;
-            // localScale = lossyScale;
+            localScale = lossyScale;
             localRotation = rotation;
             calcModelMatrix();
         }
@@ -74,8 +74,8 @@ namespace vke_common
         {
             glm::mat4 inv(glm::inverse(fa.model));
             localPosition = inv * glm::vec4(position, 1);
-            // localScale = inv * glm::vec4(lossyScale, 0);
             localRotation = glm::inverse(fa.rotation) * rotation;
+            localScale = glm::mat4_cast(glm::inverse(localRotation)) * inv * glm::mat4_cast(rotation) * glm::vec4(lossyScale, 0);
             calcModelMatrixWithParent(fa.model);
         }
 
@@ -139,6 +139,20 @@ namespace vke_common
             calcModelMatrixWithParent(fa.model);
         }
 
+        void Scale(glm::vec3 &scale)
+        {
+            localScale += scale;
+            lossyScale = localScale;
+            calcModelMatrix();
+        }
+
+        void ScaleWithParent(const TransformParameter &fa, glm::vec3 &scale)
+        {
+            localScale += scale;
+            lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
+            calcModelMatrixWithParent(fa.model);
+        }
+
         std::string ToJSON()
         {
             std::string ret = "{\n";
@@ -192,8 +206,8 @@ namespace vke_common
         {
             calcModelMatrixWithParent(fa.model);
             position = model[3];
-            // lossyScale = fa.model * glm::vec4(localScale, 0);
             rotation = fa.rotation * localRotation;
+            lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
         }
     };
 
@@ -326,6 +340,12 @@ namespace vke_common
         void TranslateGlobal(glm::vec3 det)
         {
             parent ? transform.TranslateGlobalWithParent(parent->transform.model, det) : transform.TranslateGlobal(det);
+            updateTransform(true);
+        }
+
+        void Scale(glm::vec3 scale)
+        {
+            parent ? transform.ScaleWithParent(parent->transform, scale) : transform.Scale(scale);
             updateTransform(true);
         }
 
