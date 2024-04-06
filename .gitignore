@@ -2,6 +2,7 @@
 *.obj
 *.dblite
 *.spv
+PhysXGpu_64.dll
 .vscode
 assets
 out
