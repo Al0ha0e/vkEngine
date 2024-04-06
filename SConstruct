@@ -1,4 +1,15 @@
+import os
+import shutil
+
 # env = Environment(tools=['mingw'])
+
+
+for root,dir,files in os.walk("./libs"):
+    for filename in files:
+        name,suf = os.path.splitext(filename)
+        if suf == '.dll':
+            shutil.copy("./libs/"+filename,"./out/"+filename)
+
 
 env = Environment(CC = 'cl',
                    CCFLAGS = ['/std:c++17','/EHsc'])

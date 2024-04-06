@@ -5,3 +5,4 @@
 .vscode
 assets
 out
+!builtin_resources/**/*.obj
