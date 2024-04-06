@@ -11,6 +11,12 @@
 
 #include <stb_image.h>
 
+#define VKE_DEBUG
+
+#ifdef VKE_DEBUG
 const bool DEBUG_MODE = true;
+#else
+const bool DEBUG_MODE = false;
+#endif
 
 #endif
