@@ -17,10 +17,10 @@ namespace vke_common
     {
         instance = new ResourceManager();
         instance->meshCache[BuiltinPlanePath] = std::make_shared<vke_render::Mesh>(BuiltinPlanePath, planeVertices, planeIndices);
-        LoadMesh("./builtin_resources/mesh/cube.obj", BuiltinCubePath)->path = BuiltinCubePath;
-        LoadMesh("./builtin_resources/mesh/sphere.obj", BuiltinSpherePath)->path = BuiltinSpherePath;
-        LoadMesh("./builtin_resources/mesh/cylinder.obj", BuiltinCylinderPath)->path = BuiltinCylinderPath;
-        LoadMesh("./builtin_resources/mesh/monkey.obj", BuiltinMonkeyPath)->path = BuiltinMonkeyPath;
+        LoadMesh(std::string(REL_DIR) + "/builtin_resources/mesh/cube.obj", BuiltinCubePath)->path = BuiltinCubePath;
+        LoadMesh(std::string(REL_DIR) + "/builtin_resources/mesh/sphere.obj", BuiltinSpherePath)->path = BuiltinSpherePath;
+        LoadMesh(std::string(REL_DIR) + "/builtin_resources/mesh/cylinder.obj", BuiltinCylinderPath)->path = BuiltinCylinderPath;
+        LoadMesh(std::string(REL_DIR) + "/builtin_resources/mesh/monkey.obj", BuiltinMonkeyPath)->path = BuiltinMonkeyPath;
         return instance;
     }
 

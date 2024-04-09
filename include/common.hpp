@@ -19,4 +19,8 @@ const bool DEBUG_MODE = true;
 const bool DEBUG_MODE = false;
 #endif
 
+#ifndef COMPILE_TO_LIB
+#define REL_DIR "."
+#endif
+
 #endif

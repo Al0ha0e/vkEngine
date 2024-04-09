@@ -29,6 +29,7 @@ namespace vke_render
     public:
         RenderPasses *renderPass;
         uint32_t currentFrame;
+        uint32_t imageCount;
 
         static Renderer *GetInstance()
         {
