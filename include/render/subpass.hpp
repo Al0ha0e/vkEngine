@@ -1,17 +1,34 @@
 #ifndef SUBPASS_H
 #define SUBPASS_H
 
-#include <render/renderinfo.hpp>
-
 namespace vke_render
 {
+
+    enum PassType
+    {
+        CUSTOM_RENDERER,
+        BASE_RENDERER,
+        OPAQUE_RENDERER
+    };
+
+    struct RenderPassInfo
+    {
+        VkPipelineStageFlags stageMask;
+        VkAccessFlags accessMask;
+
+        RenderPassInfo() {}
+        RenderPassInfo(VkPipelineStageFlags stageMask, VkAccessFlags accessMask)
+            : stageMask(stageMask), accessMask(accessMask) {}
+    };
+
     class SubpassBase
     {
     public:
+        PassType type;
         int subpassID;
         VkRenderPass renderPass;
 
-        SubpassBase() {}
+        SubpassBase(PassType type) : type(type) {}
 
         virtual ~SubpassBase() {}
 

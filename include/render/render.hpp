@@ -5,19 +5,12 @@
 #include <render/environment.hpp>
 #include <render/base_render.hpp>
 #include <render/opaque_render.hpp>
-#include <render/render_pass.hpp>
 #include <event.hpp>
 #include <vector>
 #include <map>
 
 namespace vke_render
 {
-    enum PassType
-    {
-        CUSTOM_RENDERER,
-        BASE_RENDERER,
-        OPAQUE_RENDERER
-    };
 
     class Renderer
     {
@@ -27,9 +20,9 @@ namespace vke_render
         ~Renderer() {}
 
     public:
-        RenderPasses *renderPass;
         uint32_t currentFrame;
-        uint32_t imageCount;
+        uint32_t imageCnt;
+        uint32_t passcnt;
 
         static Renderer *GetInstance()
         {
@@ -44,6 +37,7 @@ namespace vke_render
             instance->framebufferResized = false;
             instance->currentFrame = 0;
             instance->environment = RenderEnvironment::GetInstance();
+            instance->passcnt = passes.size();
 
             instance->createSwapChain();
             instance->createImageViews();
@@ -72,7 +66,7 @@ namespace vke_render
                     break;
                 }
             }
-            instance->renderPass = RenderPasses::Init(passInfo);
+            instance->createRenderPass(passInfo);
             instance->createFramebuffers();
 
             customPassID = 0;
@@ -85,14 +79,14 @@ namespace vke_render
                 case CUSTOM_RENDERER:
                 {
                     std::unique_ptr<SubpassBase> &customPass = customPasses[customPassID++];
-                    customPass->Init(i, instance->renderPass->renderPass);
+                    customPass->Init(i, instance->renderPass);
                     instance->subPasses.push_back(std::move(customPass));
                     break;
                 }
                 case BASE_RENDERER:
                 { // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
                     std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>();
-                    baseRenderer->Init(i, instance->renderPass->renderPass);
+                    baseRenderer->Init(i, instance->renderPass);
                     instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(baseRenderer));
                     break;
@@ -100,7 +94,7 @@ namespace vke_render
                 case OPAQUE_RENDERER:
                 { // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
                     std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>();
-                    opaqueRenderer->Init(i, instance->renderPass->renderPass);
+                    opaqueRenderer->Init(i, instance->renderPass);
                     instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(opaqueRenderer));
                     break;
@@ -116,7 +110,7 @@ namespace vke_render
 
         static void Dispose()
         {
-            RenderPasses::Dispose();
+            vkDestroyRenderPass(instance->environment->logicalDevice, instance->renderPass, nullptr);
             instance->cleanupSwapChain();
             delete instance;
         }
@@ -140,6 +134,8 @@ namespace vke_render
         void Update();
 
     private:
+        VkRenderPass renderPass;
+
         bool framebufferResized;
         RenderEnvironment *environment;
 
@@ -158,6 +154,7 @@ namespace vke_render
         void cleanupSwapChain();
         void recreateSwapChain();
         void createImageViews();
+        void createRenderPass(std::vector<RenderPassInfo> &passInfo);
         void createFramebuffers();
         void render();
     };

@@ -16,7 +16,7 @@ namespace vke_render
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        BaseRenderer() : globalDescriptorSetInfo(nullptr, 0, 0, 0) {}
+        BaseRenderer() : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(BASE_RENDERER) {}
 
         ~BaseRenderer() {}
 
