@@ -23,6 +23,13 @@ vke_common::GameObject *objp = nullptr, *obj2p = nullptr;
 void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common::GameObject *obj);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
+GLFWwindow *initWindow(int width, int height)
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    return glfwCreateWindow(width, height, "Vulkan window", nullptr, nullptr);
+}
+
 int main()
 {
     std::vector<vke_render::PassType> passes = {
@@ -30,7 +37,8 @@ int main()
         vke_render::OPAQUE_RENDERER};
     std::vector<std::unique_ptr<vke_render::SubpassBase>> customPasses;
     std::vector<vke_render::RenderPassInfo> customPassInfo;
-    engine = vke_common::Engine::Init(WIDTH, HEIGHT, passes, customPasses, customPassInfo);
+    GLFWwindow *window = initWindow(WIDTH, HEIGHT);
+    engine = vke_common::Engine::Init(window, passes, customPasses, customPassInfo);
 
     // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     // vke_common::TransformParameter targetParam2(glm::vec3(-10.0f, 1.0f, 0.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
@@ -66,11 +74,11 @@ int main()
     objp = vke_common::SceneManager::GetInstance()->currentScene->objects[2].get();
     obj2p = vke_common::SceneManager::GetInstance()->currentScene->objects[3].get();
 
-    glfwSetInputMode(engine->environment->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(engine->environment->window, mouse_callback);
-    glfwSetFramebufferSizeCallback(engine->environment->window, vke_common::Engine::OnWindowResize);
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetFramebufferSizeCallback(window, vke_common::Engine::OnWindowResize);
 
-    while (!glfwWindowShouldClose(engine->environment->window))
+    while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
 
@@ -81,7 +89,7 @@ int main()
         time_prev = now;
         // std::cout << 1 / time_delta << std::endl;
 
-        processInput(engine->environment->window, camp, objp);
+        processInput(window, camp, objp);
 
         engine->renderer->Update();
     }

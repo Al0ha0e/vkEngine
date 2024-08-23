@@ -20,9 +20,13 @@ namespace vke_render
         ~Renderer() {}
 
     public:
+        uint32_t width;
+        uint32_t height;
         uint32_t currentFrame;
         uint32_t imageCnt;
         uint32_t passcnt;
+
+        vke_common::EventHub<std::pair<uint32_t, uint32_t>> resizeEventHub;
 
         static Renderer *GetInstance()
         {
@@ -31,16 +35,19 @@ namespace vke_render
             return instance;
         }
 
-        static Renderer *Init(std::vector<PassType> &passes, std::vector<std::unique_ptr<SubpassBase>> &customPasses, std::vector<RenderPassInfo> &customPassInfo)
+        static Renderer *Init(RendererCreateInfo info,
+                              std::vector<PassType> &passes,
+                              std::vector<std::unique_ptr<SubpassBase>> &customPasses,
+                              std::vector<RenderPassInfo> &customPassInfo)
         {
             instance = new Renderer();
-            instance->framebufferResized = false;
+            instance->width = info.width;
+            instance->height = info.height;
+            instance->imageCnt = info.imageViews->size();
+            instance->imageViews = info.imageViews;
             instance->currentFrame = 0;
             instance->environment = RenderEnvironment::GetInstance();
             instance->passcnt = passes.size();
-
-            instance->createSwapChain();
-            instance->createImageViews();
 
             std::vector<RenderPassInfo> passInfo;
             int customPassID = 0;
@@ -104,14 +111,16 @@ namespace vke_render
                 }
             }
 
-            vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, instance, vke_common::EventCallback(OnWindowResize));
+            instance->environment->resizeEventHub.AddEventListener(instance,
+                                                                   vke_common::EventHub<RendererCreateInfo>::callback_t(OnWindowResize));
+
             return instance;
         }
 
         static void Dispose()
         {
             vkDestroyRenderPass(instance->environment->logicalDevice, instance->renderPass, nullptr);
-            instance->cleanupSwapChain();
+            instance->cleanup();
             delete instance;
         }
 
@@ -126,9 +135,11 @@ namespace vke_render
             return static_cast<OpaqueRenderer *>(instance->subPasses[instance->subPassMap[OPAQUE_RENDERER]].get());
         }
 
-        static void OnWindowResize(void *listener, void *info)
+        static void OnWindowResize(void *listener, RendererCreateInfo *info)
         {
-            instance->framebufferResized = true;
+            instance->recreate(info);
+            std::pair<uint32_t, uint32_t> extent{info->width, info->height};
+            instance->resizeEventHub.DispatchEvent(&extent);
         }
 
         void Update();
@@ -136,24 +147,15 @@ namespace vke_render
     private:
         VkRenderPass renderPass;
 
-        bool framebufferResized;
         RenderEnvironment *environment;
 
+        std::vector<std::vector<VkImageView>> *imageViews;
         std::vector<VkFramebuffer> frameBuffers;
-        VkSwapchainKHR swapChain;
-        std::vector<VkImage> swapChainImages;
-
-        std::vector<VkImageView> swapChainImageViews;
-        VkImage depthImage;
-        VkDeviceMemory depthImageMemory;
-        VkImageView depthImageView;
         std::vector<std::unique_ptr<SubpassBase>> subPasses;
         std::map<PassType, int> subPassMap;
 
-        void createSwapChain();
-        void cleanupSwapChain();
-        void recreateSwapChain();
-        void createImageViews();
+        void cleanup();
+        void recreate(RendererCreateInfo *info);
         void createRenderPass(std::vector<RenderPassInfo> &passInfo);
         void createFramebuffers();
         void render();

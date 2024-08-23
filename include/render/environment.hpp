@@ -7,6 +7,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <event.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -31,11 +32,18 @@ namespace vke_render
         std::vector<VkPresentModeKHR> presentModes;
     };
 
+    struct RendererCreateInfo
+    {
+        uint32_t width;
+        uint32_t height;
+        std::vector<std::vector<VkImageView>> *imageViews;
+    };
+
     class RenderEnvironment
     {
     private:
         static RenderEnvironment *instance;
-        RenderEnvironment() {}
+        RenderEnvironment() : windowResized(false) {}
         ~RenderEnvironment() {}
         RenderEnvironment(const RenderEnvironment &);
         RenderEnvironment &operator=(const RenderEnvironment);
@@ -59,12 +67,10 @@ namespace vke_render
             return instance;
         }
 
-        static RenderEnvironment *Init(int width, int height)
+        static RenderEnvironment *Init(GLFWwindow *window)
         {
             instance = new RenderEnvironment();
-            instance->window_width = width;
-            instance->window_height = height;
-            instance->initWindow();
+            instance->window = window;
             instance->createInstance();
             instance->createSurface();
             instance->pickPhysicalDevice();
@@ -72,11 +78,15 @@ namespace vke_render
             instance->createCommandPool();
             instance->createCommandBuffers();
             instance->createSyncObjects();
+            instance->createSwapChain();
+            instance->createImageViews();
+            vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, instance, vke_common::EventCallback(OnWindowResize));
             return instance;
         }
 
         static void Dispose()
         {
+            instance->cleanupSwapChain();
             VkDevice logicalDevice = instance->logicalDevice;
 
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -301,6 +311,11 @@ namespace vke_render
             return details;
         }
 
+        static void OnWindowResize(void *listener, void *info)
+        {
+            instance->windowResized = true;
+        }
+
         static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice pdevice)
         {
             QueueFamilyIndices indices;
@@ -334,9 +349,76 @@ namespace vke_render
             return indices;
         }
 
-        int window_width;
-        int window_height;
+        static uint32_t AcquireNextImage(uint32_t currentFrame)
+        {
+            vkWaitForFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+            uint32_t imageIndex;
+            VkResult result = vkAcquireNextImageKHR(instance->logicalDevice,
+                                                    instance->swapChain,
+                                                    UINT64_MAX,
+                                                    instance->imageAvailableSemaphores[currentFrame],
+                                                    VK_NULL_HANDLE,
+                                                    &imageIndex);
+            if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                instance->recreateSwapChain();
+                instance->windowResized = false;
+                // return;
+            }
+            else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+            {
+                throw std::runtime_error("failed to acquire swap chain image!");
+            }
+            vkResetFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame]);
+            return imageIndex;
+        }
 
+        static void Present(uint32_t currentFrame, uint32_t imageIndex)
+        {
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+            VkSemaphore waitSemaphores[] = {instance->imageAvailableSemaphores[currentFrame]};
+            VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = waitSemaphores;
+            submitInfo.pWaitDstStageMask = waitStages;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &instance->commandBuffers[currentFrame];
+            VkSemaphore signalSemaphores[] = {instance->renderFinishedSemaphores[currentFrame]};
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = signalSemaphores;
+
+            if (vkQueueSubmit(instance->graphicsQueue, 1, &submitInfo, instance->inFlightFences[currentFrame]) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to submit draw command buffer!");
+            }
+
+            VkPresentInfoKHR presentInfo{};
+            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+            presentInfo.waitSemaphoreCount = 1;
+            presentInfo.pWaitSemaphores = signalSemaphores;
+
+            VkSwapchainKHR swapChains[] = {instance->swapChain};
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = swapChains;
+            presentInfo.pImageIndices = &imageIndex;
+            presentInfo.pResults = nullptr; // Optional
+            VkResult result = vkQueuePresentKHR(instance->presentQueue, &presentInfo);
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || instance->windowResized)
+            {
+                instance->recreateSwapChain();
+                instance->windowResized = false;
+            }
+            else if (result != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to present swap chain image!");
+            }
+        }
+
+        uint32_t imageCnt;
+        vke_common::EventHub<RendererCreateInfo> resizeEventHub;
         GLFWwindow *window;
         VkInstance vkinstance;
         VkSurfaceKHR surface;
@@ -353,9 +435,17 @@ namespace vke_render
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
         std::vector<VkFence> inFlightFences;
+        VkSwapchainKHR swapChain;
+        std::vector<VkImage> swapChainImages;
+        std::vector<VkImageView> swapChainImageViews;
+        std::vector<VkImage> depthImages;
+        std::vector<VkDeviceMemory> depthImageMemories;
+        std::vector<VkImageView> depthImageViews;
+        std::vector<std::vector<VkImageView>> imageViews;
 
     private:
-        void initWindow();
+        bool windowResized;
+
         void createInstance();
         void createSurface();
         bool isDeviceSuitable(VkPhysicalDevice pdevice);
@@ -364,6 +454,10 @@ namespace vke_render
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
+        void createSwapChain();
+        void cleanupSwapChain();
+        void recreateSwapChain();
+        void createImageViews();
     };
 }
 

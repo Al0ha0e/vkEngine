@@ -5,6 +5,13 @@
 #include <engine.hpp>
 #include <vector>
 
+GLFWwindow *initWindow(int width, int height)
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    return glfwCreateWindow(width, height, "Vulkan window", nullptr, nullptr);
+}
+
 int main()
 {
     std::vector<vke_render::PassType> passes = {
@@ -12,7 +19,8 @@ int main()
         vke_render::OPAQUE_RENDERER};
     std::vector<std::unique_ptr<vke_render::SubpassBase>> customPasses;
     std::vector<vke_render::RenderPassInfo> customPassInfo;
-    vke_common::Engine *engine = vke_common::Engine::Init(800, 600, passes, customPasses, customPassInfo);
+    GLFWwindow *window = initWindow(800, 600);
+    vke_common::Engine *engine = vke_common::Engine::Init(window, passes, customPasses, customPassInfo);
 
     {
         std::shared_ptr<vke_render::ComputeShader> shader = vke_common::ResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");

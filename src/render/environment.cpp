@@ -12,17 +12,10 @@ namespace vke_render
     // using QueueFamilyIndices = RenderEnvironment::QueueFamilyIndices;
     // using SwapChainSupportDetails = RenderEnvironment::SwapChainSupportDetails;
 
-    void RenderEnvironment::initWindow()
-    {
-        glfwInit();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        window = glfwCreateWindow(window_width, window_height, "Vulkan window", nullptr, nullptr);
-    }
-
     const std::vector<const char *> validationLayers = {
         "VK_LAYER_KHRONOS_validation"};
 
-    bool checkValidationLayerSupport()
+    static bool checkValidationLayerSupport()
     {
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -104,7 +97,7 @@ namespace vke_render
          VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
          VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME};
 
-    bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice)
+    static bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice)
     {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(pdevice, nullptr, &extensionCount, nullptr);
@@ -302,6 +295,192 @@ namespace vke_render
 
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
             }
+        }
+    }
+
+    static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
+    {
+        for (const auto &availableFormat : availableFormats)
+        {
+            if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            {
+                return availableFormat;
+            }
+        }
+
+        return availableFormats[0];
+    }
+
+    static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes)
+    {
+        for (const auto &availablePresentMode : availablePresentModes)
+        {
+            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+            {
+                return availablePresentMode;
+            }
+        }
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    static VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
+    {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        {
+            return capabilities.currentExtent;
+        }
+        else
+        {
+            int width, height;
+            glfwGetFramebufferSize(RenderEnvironment::GetInstance()->window, &width, &height);
+
+            VkExtent2D actualExtent = {
+                static_cast<uint32_t>(width),
+                static_cast<uint32_t>(height)};
+
+            actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+            return actualExtent;
+        }
+    }
+
+    static VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+    {
+        for (VkFormat format : candidates)
+        {
+            VkFormatProperties props;
+            vkGetPhysicalDeviceFormatProperties(RenderEnvironment::GetInstance()->physicalDevice, format, &props);
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            {
+                return format;
+            }
+            else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            {
+                return format;
+            }
+        }
+
+        throw std::runtime_error("failed to find supported format!");
+    }
+
+    static VkFormat findDepthFormat()
+    {
+        return findSupportedFormat(
+            {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    }
+
+    void RenderEnvironment::createSwapChain()
+    {
+        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice);
+        VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+        VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+        VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+
+        imageCnt = swapChainSupport.capabilities.minImageCount + 1;
+
+        if (swapChainSupport.capabilities.maxImageCount > 0 && imageCnt > swapChainSupport.capabilities.maxImageCount)
+        {
+            imageCnt = swapChainSupport.capabilities.maxImageCount;
+        }
+
+        VkSwapchainCreateInfoKHR createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = surface;
+
+        createInfo.minImageCount = imageCnt;
+        createInfo.imageFormat = surfaceFormat.format;
+        createInfo.imageColorSpace = surfaceFormat.colorSpace;
+        createInfo.imageExtent = extent;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
+        uint32_t queueFamilyIndices[] = {indices.graphicsAndComputeFamily.value(), indices.presentFamily.value()};
+
+        if (indices.graphicsAndComputeFamily != indices.presentFamily)
+        {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = 2;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        }
+        else
+        {
+            createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            createInfo.queueFamilyIndexCount = 0;     // Optional
+            createInfo.pQueueFamilyIndices = nullptr; // Optional
+        }
+
+        createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode = presentMode;
+        createInfo.clipped = VK_TRUE;
+        createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+        if (vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create swap chain!");
+        }
+
+        vkGetSwapchainImagesKHR(logicalDevice, swapChain, &imageCnt, nullptr);
+        swapChainImages.resize(imageCnt);
+        vkGetSwapchainImagesKHR(logicalDevice, swapChain, &imageCnt, swapChainImages.data());
+
+        std::cout << "IMAGE COUNT " << imageCnt << "\n";
+
+        swapChainImageFormat = surfaceFormat.format;
+        swapChainExtent = extent;
+
+        depthFormat = findDepthFormat();
+        depthImages.resize(imageCnt);
+        depthImageMemories.resize(imageCnt);
+
+        for (int i = 0; i < imageCnt; i++)
+            CreateImage(extent.width, extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImages[i], depthImageMemories[i]);
+    }
+
+    void RenderEnvironment::cleanupSwapChain()
+    {
+
+        for (auto imageView : instance->swapChainImageViews)
+            vkDestroyImageView(logicalDevice, imageView, nullptr);
+
+        for (auto imageView : instance->depthImageViews)
+            vkDestroyImageView(logicalDevice, imageView, nullptr);
+
+        for (auto image : instance->depthImages)
+            vkDestroyImage(logicalDevice, image, nullptr);
+
+        for (auto imageMemory : instance->depthImageMemories)
+            vkFreeMemory(logicalDevice, imageMemory, nullptr);
+
+        vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
+    }
+
+    void RenderEnvironment::recreateSwapChain()
+    {
+        vkDeviceWaitIdle(logicalDevice);
+        cleanupSwapChain();
+        createSwapChain();
+        createImageViews();
+        RendererCreateInfo info = {swapChainExtent.width, swapChainExtent.height, &imageViews};
+        resizeEventHub.DispatchEvent(&info);
+    }
+
+    void RenderEnvironment::createImageViews()
+    {
+        swapChainImageViews.resize(imageCnt);
+        depthImageViews.resize(imageCnt);
+        imageViews.resize(imageCnt);
+
+        for (size_t i = 0; i < imageCnt; i++)
+        {
+            swapChainImageViews[i] = RenderEnvironment::CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+            depthImageViews[i] = RenderEnvironment::CreateImageView(depthImages[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+            imageViews[i] = {swapChainImageViews[i], depthImageViews[i]};
         }
     }
 };
