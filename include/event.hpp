@@ -7,12 +7,61 @@
 
 namespace vke_common
 {
-    enum EventType
+    enum GlobalEventType
     {
         EVENT_WINDOW_RESIZE
     };
 
+    using EventType = int;
     using EventCallback = std::function<void(void *, void *)>;
+
+    template <typename MT>
+    class EventHub
+    {
+    private:
+        using innerCallback_t = std::function<void(MT *)>;
+        using callbackTable_t = std::map<int, innerCallback_t>;
+
+    public:
+        using callback_t = std::function<void(void *, MT *)>;
+
+        EventHub() : id(0)
+        {
+        }
+        ~EventHub() {}
+        EventHub(const EventHub<MT> &) = delete;
+        EventHub &operator=(const EventHub<MT> &) = delete;
+        EventHub(const EventHub<MT> &&ano) : id(ano.id), callbackTable(std::forward<callbackTable_t>(ano.callbackTable)) {}
+        EventHub &operator=(EventHub<MT> &&ano)
+        {
+            id = ano.id;
+            callbackTable = std::forward<callbackTable_t>(ano.callbackTable);
+            return *this;
+        }
+
+        int AddEventListener(void *listener, callback_t &callback)
+        {
+            // TODO check type
+            int ret = ++id;
+            callbackTable[ret] = std::bind(callback, listener, std::placeholders::_1);
+            return ret;
+        }
+
+        void RemoveEventListener(int id)
+        {
+            callbackTable.erase(id);
+        }
+
+        void DispatchEvent(MT *info)
+        {
+            for (auto &kv : callbackTable)
+                kv.second(info);
+        }
+
+    private:
+        callbackTable_t callbackTable;
+        int id;
+    };
 
     class EventSystem
     {
@@ -23,8 +72,7 @@ namespace vke_common
         EventSystem(const EventSystem &);
         EventSystem &operator=(const EventSystem);
 
-        using innerCallback = std::function<void(void *)>;
-        using callbackTable = std::map<int, innerCallback>;
+        using eventHubType = EventHub<void>;
 
     public:
         static EventSystem *GetInstance()
@@ -37,8 +85,7 @@ namespace vke_common
         static EventSystem *Init()
         {
             instance = new EventSystem;
-            instance->callbackTables[EVENT_WINDOW_RESIZE] = callbackTable();
-            instance->ids[EVENT_WINDOW_RESIZE] = 0;
+            instance->eventHubs[EVENT_WINDOW_RESIZE] = std::move(eventHubType());
             return instance;
         }
 
@@ -47,28 +94,24 @@ namespace vke_common
             delete instance;
         }
 
-        static int AddEventListener(EventType type, void *listener, EventCallback &callback)
+        static int AddEventListener(GlobalEventType type, void *listener, EventCallback &callback)
         {
             // TODO check type
-            int ret = ++(instance->ids[type]);
-            (instance->callbackTables[type])[ret] = std::bind(callback, listener, std::placeholders::_1);
-            return ret;
+            return instance->eventHubs[type].AddEventListener(listener, callback);
         }
 
-        static void RemoveEventListener(EventType type, int id)
+        static void RemoveEventListener(GlobalEventType type, int id)
         {
-            instance->callbackTables[type].erase(id);
+            instance->eventHubs[type].RemoveEventListener(id);
         }
 
-        static void DispatchEvent(EventType type, void *info)
+        static void DispatchEvent(GlobalEventType type, void *info)
         {
-            for (auto &kv : instance->callbackTables[type])
-                kv.second(info);
+            instance->eventHubs[type].DispatchEvent(info);
         }
 
     private:
-        std::map<EventType, callbackTable> callbackTables;
-        std::map<EventType, int> ids;
+        std::map<GlobalEventType, eventHubType> eventHubs;
     };
 }
 
