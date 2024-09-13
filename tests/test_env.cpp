@@ -38,7 +38,9 @@ int main()
     std::vector<std::unique_ptr<vke_render::SubpassBase>> customPasses;
     std::vector<vke_render::RenderPassInfo> customPassInfo;
     GLFWwindow *window = initWindow(WIDTH, HEIGHT);
-    engine = vke_common::Engine::Init(window, passes, customPasses, customPassInfo);
+    vke_common::EventSystem::Init();
+    vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
+    engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
 
     // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     // vke_common::TransformParameter targetParam2(glm::vec3(-10.0f, 1.0f, 0.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));

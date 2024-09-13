@@ -20,7 +20,9 @@ int main()
     std::vector<std::unique_ptr<vke_render::SubpassBase>> customPasses;
     std::vector<vke_render::RenderPassInfo> customPassInfo;
     GLFWwindow *window = initWindow(800, 600);
-    vke_common::Engine *engine = vke_common::Engine::Init(window, passes, customPasses, customPassInfo);
+    vke_common::EventSystem::Init();
+    vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
+    vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
 
     {
         std::shared_ptr<vke_render::ComputeShader> shader = vke_common::ResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");
@@ -34,7 +36,7 @@ int main()
         int *oridata = new int[1024];
         memset(oridata, 0, bufferSize);
 
-        VkDevice logicalDevice = vke_render::RenderEnvironment::GetInstance()->logicalDevice;
+        VkDevice logicalDevice = environment->logicalDevice;
 
         vke_render::StagedBuffer buffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
         buffer.ToBuffer(0, oridata, bufferSize);
@@ -49,7 +51,7 @@ int main()
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = vke_render::RenderEnvironment::GetInstance()->commandPool;
+        allocInfo.commandPool = environment->commandPool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
         VkCommandBuffer commandBuffer;

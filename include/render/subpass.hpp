@@ -1,6 +1,8 @@
 #ifndef SUBPASS_H
 #define SUBPASS_H
 
+#include <render/environment.hpp>
+
 namespace vke_render
 {
 

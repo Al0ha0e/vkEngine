@@ -32,21 +32,17 @@ namespace vke_common
         vke_render::DescriptorSetAllocator *allocator;
         vke_render::Renderer *renderer;
 
-        static Engine *Init(GLFWwindow *window,
+        static Engine *Init(vke_render::RenderContext *ctx,
                             std::vector<vke_render::PassType> &passes,
                             std::vector<std::unique_ptr<vke_render::SubpassBase>> &customPasses,
                             std::vector<vke_render::RenderPassInfo> &customPassInfo)
         {
+            vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::GetInstance();
             instance = new Engine();
-            EventSystem::Init();
-            instance->environment = vke_render::RenderEnvironment::Init(window);
+            instance->environment = environment;
             instance->resourceManager = vke_common::ResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
-            instance->renderer = vke_render::Renderer::Init(
-                vke_render::RendererCreateInfo{instance->environment->swapChainExtent.width,
-                                               instance->environment->swapChainExtent.height,
-                                               &(instance->environment->imageViews)},
-                passes, customPasses, customPassInfo);
+            instance->renderer = vke_render::Renderer::Init(ctx, passes, customPasses, customPassInfo);
             SceneManager::Init();
             return instance;
         }

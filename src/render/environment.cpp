@@ -386,6 +386,7 @@ namespace vke_render
         {
             imageCnt = swapChainSupport.capabilities.maxImageCount;
         }
+        imageCnt = imageCnt > MAX_FRAMES_IN_FLIGHT ? MAX_FRAMES_IN_FLIGHT : imageCnt;
 
         VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -444,7 +445,6 @@ namespace vke_render
 
     void RenderEnvironment::cleanupSwapChain()
     {
-
         for (auto imageView : instance->swapChainImageViews)
             vkDestroyImageView(logicalDevice, imageView, nullptr);
 
@@ -466,8 +466,10 @@ namespace vke_render
         cleanupSwapChain();
         createSwapChain();
         createImageViews();
-        RendererCreateInfo info = {swapChainExtent.width, swapChainExtent.height, &imageViews};
-        resizeEventHub.DispatchEvent(&info);
+        rootRenderContext.width = swapChainExtent.width;
+        rootRenderContext.height = swapChainExtent.height;
+        rootRenderContext.imageViews = &imageViews;
+        resizeEventHub.DispatchEvent(&rootRenderContext);
     }
 
     void RenderEnvironment::createImageViews()

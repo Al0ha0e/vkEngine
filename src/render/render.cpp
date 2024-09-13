@@ -9,36 +9,34 @@ namespace vke_render
     void Renderer::cleanup()
     {
         for (auto framebuffer : frameBuffers)
-            vkDestroyFramebuffer(environment->logicalDevice, framebuffer, nullptr);
+            vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
     }
 
-    void Renderer::recreate(RendererCreateInfo *info)
+    void Renderer::recreate(RenderContext *ctx)
     {
         cleanup();
-        width = info->width;
-        height = info->height;
-        imageViews = info->imageViews;
+        context = *ctx;
         createFramebuffers();
     }
 
     void Renderer::createRenderPass(std::vector<RenderPassInfo> &passInfo)
     {
         VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = environment->swapChainImageFormat;
+        colorAttachment.format = context.colorFormat;
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        colorAttachment.finalLayout = context.outColorLayout;
 
         VkAttachmentReference colorAttachmentRef{};
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = environment->depthFormat;
+        depthAttachment.format = context.depthFormat;
         depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -95,7 +93,7 @@ namespace vke_render
         renderPassInfo.dependencyCount = passcnt;
         renderPassInfo.pDependencies = dependencies.data();
 
-        if (vkCreateRenderPass(environment->logicalDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+        if (vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create render pass!");
         }
@@ -103,21 +101,21 @@ namespace vke_render
 
     void Renderer::createFramebuffers()
     {
-        frameBuffers.resize(imageCnt);
-        for (size_t i = 0; i < imageCnt; i++)
+        frameBuffers.resize(context.imageCnt);
+        for (size_t i = 0; i < context.imageCnt; i++)
         {
-            std::vector<VkImageView> &attachments = (*imageViews)[i];
+            std::vector<VkImageView> &attachments = (*(context.imageViews))[i];
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = renderPass;
             framebufferInfo.attachmentCount = attachments.size();
             framebufferInfo.pAttachments = attachments.data();
-            framebufferInfo.width = environment->swapChainExtent.width;
-            framebufferInfo.height = environment->swapChainExtent.height;
+            framebufferInfo.width = context.width;
+            framebufferInfo.height = context.height;
             framebufferInfo.layers = 1;
 
-            if (vkCreateFramebuffer(environment->logicalDevice, &framebufferInfo, nullptr, &frameBuffers[i]) != VK_SUCCESS)
+            if (vkCreateFramebuffer(logicalDevice, &framebufferInfo, nullptr, &frameBuffers[i]) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create framebuffer!");
             }
@@ -126,9 +124,9 @@ namespace vke_render
 
     void Renderer::render()
     {
-        uint32_t imageIndex = RenderEnvironment::AcquireNextImage(currentFrame);
+        uint32_t imageIndex = context.AcquireNextImage(currentFrame);
 
-        VkCommandBuffer commandBuffer = environment->commandBuffers[currentFrame];
+        VkCommandBuffer commandBuffer = (*context.commandBuffers)[currentFrame];
         vkResetCommandBuffer(commandBuffer, 0);
 
         VkCommandBufferBeginInfo beginInfo{};
@@ -146,7 +144,7 @@ namespace vke_render
         renderPassInfo.renderPass = renderPass;
         renderPassInfo.framebuffer = frameBuffers[imageIndex];
         renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = environment->swapChainExtent;
+        renderPassInfo.renderArea.extent = VkExtent2D{context.width, context.height};
         VkClearValue clearValues[2];
         clearValues[0].color = {{1.0f, 0.5f, 0.3f, 1.0f}};
         clearValues[1].depthStencil = {1.0f, 0};
@@ -168,12 +166,14 @@ namespace vke_render
             throw std::runtime_error("failed to record command buffer!");
         }
 
-        RenderEnvironment::Present(currentFrame, imageIndex);
+        std::vector<VkSemaphore> presentWaitSemaphores;
+        std::vector<VkPipelineStageFlags> presentWaitStages;
+        context.Present(currentFrame, imageIndex, presentWaitSemaphores, presentWaitStages);
     }
 
     void Renderer::Update()
     {
         render();
-        currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        currentFrame = (currentFrame + 1) % context.imageCnt;
     }
 }

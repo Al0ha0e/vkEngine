@@ -32,11 +32,19 @@ namespace vke_render
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-    struct RendererCreateInfo
+    struct RenderContext
     {
         uint32_t width;
         uint32_t height;
+        uint32_t imageCnt;
+        VkFormat colorFormat;
+        VkFormat depthFormat;
+        VkImageLayout outColorLayout;
         std::vector<std::vector<VkImageView>> *imageViews;
+        std::vector<VkCommandBuffer> *commandBuffers;
+        vke_common::EventHub<RenderContext> *resizeEventHub;
+        std::function<uint32_t(uint32_t)> AcquireNextImage;
+        std::function<void(uint32_t, uint32_t, std::vector<VkSemaphore> &, std::vector<VkPipelineStageFlags> &)> Present;
     };
 
     class RenderEnvironment
@@ -81,6 +89,18 @@ namespace vke_render
             instance->createSwapChain();
             instance->createImageViews();
             vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, instance, vke_common::EventCallback(OnWindowResize));
+            instance->rootRenderContext = RenderContext{
+                instance->swapChainExtent.width,
+                instance->swapChainExtent.height,
+                instance->imageCnt,
+                instance->swapChainImageFormat,
+                instance->depthFormat,
+                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                &(instance->imageViews),
+                &(instance->commandBuffers),
+                &(instance->resizeEventHub),
+                AcquireNextImage,
+                Present};
             return instance;
         }
 
@@ -373,16 +393,19 @@ namespace vke_render
             return imageIndex;
         }
 
-        static void Present(uint32_t currentFrame, uint32_t imageIndex)
+        static void Present(uint32_t currentFrame,
+                            uint32_t imageIndex,
+                            std::vector<VkSemaphore> &waitSemaphores,
+                            std::vector<VkPipelineStageFlags> &waitStages)
         {
             VkSubmitInfo submitInfo{};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-            VkSemaphore waitSemaphores[] = {instance->imageAvailableSemaphores[currentFrame]};
-            VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = waitSemaphores;
-            submitInfo.pWaitDstStageMask = waitStages;
+            waitSemaphores.push_back(instance->imageAvailableSemaphores[currentFrame]);
+            waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+            submitInfo.waitSemaphoreCount = waitSemaphores.size();
+            submitInfo.pWaitSemaphores = waitSemaphores.data();
+            submitInfo.pWaitDstStageMask = waitStages.data();
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = &instance->commandBuffers[currentFrame];
             VkSemaphore signalSemaphores[] = {instance->renderFinishedSemaphores[currentFrame]};
@@ -418,7 +441,7 @@ namespace vke_render
         }
 
         uint32_t imageCnt;
-        vke_common::EventHub<RendererCreateInfo> resizeEventHub;
+        vke_common::EventHub<RenderContext> resizeEventHub;
         GLFWwindow *window;
         VkInstance vkinstance;
         VkSurfaceKHR surface;
@@ -442,6 +465,7 @@ namespace vke_render
         std::vector<VkDeviceMemory> depthImageMemories;
         std::vector<VkImageView> depthImageViews;
         std::vector<std::vector<VkImageView>> imageViews;
+        RenderContext rootRenderContext;
 
     private:
         bool windowResized;
