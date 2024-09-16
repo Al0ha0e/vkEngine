@@ -100,6 +100,8 @@ int main()
     // engine->MainLoop();
 
     vke_common::Engine::Dispose();
+    vke_render::RenderEnvironment::Dispose();
+    vke_common::EventSystem::Dispose();
     return 0;
 }
 

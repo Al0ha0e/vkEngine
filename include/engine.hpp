@@ -53,8 +53,6 @@ namespace vke_common
             vke_render::Renderer::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();
             vke_common::ResourceManager::Dispose();
-            instance->environment->Dispose();
-            EventSystem::Dispose();
             delete instance;
         }
 

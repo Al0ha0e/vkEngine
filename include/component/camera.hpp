@@ -68,7 +68,6 @@ namespace vke_component
 
         void UpdateProjection(uint32_t w, uint32_t h)
         {
-            VkExtent2D &ext = vke_render::RenderEnvironment::GetInstance()->swapChainExtent;
             width = w;
             height = h;
             aspect = width / height;
