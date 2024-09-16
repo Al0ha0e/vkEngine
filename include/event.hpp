@@ -9,7 +9,8 @@ namespace vke_common
 {
     enum GlobalEventType
     {
-        EVENT_WINDOW_RESIZE
+        EVENT_WINDOW_RESIZE,
+        EVENT_MOUSE_CLICK,
     };
 
     using EventType = int;

@@ -76,10 +76,10 @@ namespace vke_component
             buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
         }
 
-        static void OnWindowResize(void *listener, std::pair<uint32_t, uint32_t> *info)
+        static void OnWindowResize(void *listener, glm::vec2 *info)
         {
             Camera *cam = (Camera *)listener;
-            cam->UpdateProjection(info->first, info->second);
+            cam->UpdateProjection(info->x, info->y);
         }
 
     private:
@@ -90,7 +90,7 @@ namespace vke_component
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             resizeListenerID = renderer->resizeEventHub.AddEventListener(
                 this,
-                vke_common::EventHub<std::pair<uint32_t, uint32_t>>::callback_t(OnWindowResize));
+                vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
 
             vke_common::TransformParameter &transform = gameObject->transform;
             viewPos = transform.position;

@@ -24,7 +24,7 @@ namespace vke_render
         uint32_t currentFrame;
         uint32_t passcnt;
 
-        vke_common::EventHub<std::pair<uint32_t, uint32_t>> resizeEventHub;
+        vke_common::EventHub<glm::vec2> resizeEventHub;
 
         static Renderer *GetInstance()
         {
@@ -134,7 +134,7 @@ namespace vke_render
         static void OnWindowResize(void *listener, RenderContext *ctx)
         {
             instance->recreate(ctx);
-            std::pair<uint32_t, uint32_t> extent{ctx->width, ctx->height};
+            glm::vec2 extent(ctx->width, ctx->height);
             instance->resizeEventHub.DispatchEvent(&extent);
         }
 

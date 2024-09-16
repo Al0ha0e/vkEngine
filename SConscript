@@ -27,7 +27,8 @@ cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include']
 cppdefines = ['NDEBUG','COMPILE_TO_LIB','REL_DIR='+reldir]
 commonsrc = ["./src/render/environment.cpp", "./src/resource.cpp","./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp",
-                "./src/render/render.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp"]
+                "./src/render/render.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
+                "./src/input.cpp", "./src/time.cpp"]
 
 env.Library("../libs/vkengine",commonsrc,
                         LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines,
