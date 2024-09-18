@@ -91,7 +91,7 @@ namespace vke_render
                 }
                 case BASE_RENDERER:
                 { // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
-                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>();
+                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx);
                     baseRenderer->Init(i, instance->renderPass);
                     instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(baseRenderer));
@@ -99,7 +99,7 @@ namespace vke_render
                 }
                 case OPAQUE_RENDERER:
                 { // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
-                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>();
+                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx);
                     opaqueRenderer->Init(i, instance->renderPass);
                     instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(opaqueRenderer));

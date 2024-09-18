@@ -13,7 +13,7 @@ namespace vke_render
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        OpaqueRenderer() : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(OPAQUE_RENDERER) {}
+        OpaqueRenderer(RenderContext *ctx) : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(OPAQUE_RENDERER, ctx) {}
 
         void Init(int subpassID, VkRenderPass renderPass) override
         {

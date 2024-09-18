@@ -28,9 +28,10 @@ namespace vke_render
     public:
         PassType type;
         int subpassID;
+        RenderContext *context;
         VkRenderPass renderPass;
 
-        SubpassBase(PassType type) : type(type) {}
+        SubpassBase(PassType type, RenderContext *ctx) : type(type), context(ctx) {}
 
         virtual ~SubpassBase() {}
 

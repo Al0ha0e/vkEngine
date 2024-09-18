@@ -169,15 +169,15 @@ namespace vke_render
             VkViewport viewport{};
             viewport.x = 0.0f;
             viewport.y = 0.0f;
-            viewport.width = static_cast<float>(environment->swapChainExtent.width);
-            viewport.height = static_cast<float>(environment->swapChainExtent.height);
+            viewport.width = static_cast<float>(context->width);
+            viewport.height = static_cast<float>(context->height);
             viewport.minDepth = 0.0f;
             viewport.maxDepth = 1.0f;
             vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
-            scissor.extent = environment->swapChainExtent;
+            scissor.extent = {context->width, context->height};
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
             renderInfo->Render(commandBuffer, &globalDescriptorSet);
