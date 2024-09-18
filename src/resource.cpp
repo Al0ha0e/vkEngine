@@ -207,7 +207,7 @@ namespace vke_common
             return it->second;
 
         Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile(pth, aiProcess_Triangulate | aiProcess_GenNormals);
+        const aiScene *scene = importer.ReadFile(pth, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_MakeLeftHanded);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << "\n";

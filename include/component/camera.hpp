@@ -72,6 +72,7 @@ namespace vke_component
             height = h;
             aspect = width / height;
             projection = glm::perspective(fov, aspect, near, far);
+            projection[1][1] *= -1;
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
             buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
         }
@@ -98,6 +99,7 @@ namespace vke_component
             glm::vec3 gup = transform.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
             view = glm::lookAt(viewPos, viewPos + gfront, gup);
             projection = glm::perspective(fov, aspect, near, far);
+            projection[1][1] *= -1;
 
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
             buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));

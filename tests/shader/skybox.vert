@@ -12,6 +12,6 @@ layout(location = 0) out vec3 TexCoords;
 void main()
 {
     vec3 rPos = vec3(aPos.x, -aPos.y, aPos.z);
-    TexCoords = aPos;
-    gl_Position = VPBlock.projection * mat4(mat3(VPBlock.view)) * vec4(aPos, 1.0);
+    TexCoords = rPos;
+    gl_Position = VPBlock.projection * mat4(mat3(VPBlock.view)) * vec4(rPos, 1.0);
 }
