@@ -24,7 +24,7 @@ namespace vke_component
 
         Camera(float fov, float width, float height,
                float near, float far, vke_common::GameObject *obj)
-            : fov(fov), width(width), height(height), aspect(width / height),
+            : fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
               near(near), far(far), Component(obj),
               buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {
@@ -32,7 +32,7 @@ namespace vke_component
         }
 
         Camera(vke_common::GameObject *obj, nlohmann::json &json)
-            : fov(json["fov"]), width(json["width"]), height(json["height"]), aspect(width / height),
+            : fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
               near(json["near"]), far(json["far"]), Component(obj),
               buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         {
@@ -47,7 +47,7 @@ namespace vke_component
         std::string ToJSON()
         {
             std::string ret = "{\n\"type\":\"camera\",\n";
-            ret += "\"fov\": " + std::to_string(fov) + ",\n";
+            ret += "\"fov\": " + std::to_string(glm::degrees(fov)) + ",\n";
             ret += "\"width\": " + std::to_string(width) + ",\n";
             ret += "\"height\": " + std::to_string(height) + ",\n";
             ret += "\"near\": " + std::to_string(near) + ",\n";
