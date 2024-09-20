@@ -15,18 +15,19 @@ namespace vke_common
     class Scene
     {
     public:
+        std::string path;
         std::map<int, std::unique_ptr<GameObject>> objects;
 
         Scene() : idAllocator(1) {}
 
         Scene(nlohmann::json &json) : idAllocator(json["maxid"])
         {
-            auto &objs = json["objects"];
-            for (auto &obj : objs)
-            {
-                std::unique_ptr<GameObject> object = std::make_unique<GameObject>(obj, objects);
-                objects[object->id] = std::move(object);
-            }
+            init(json);
+        }
+
+        Scene(const std::string &pth, nlohmann::json &json) : path(pth), idAllocator(json["maxid"])
+        {
+            init(json);
         }
 
         ~Scene() {}
@@ -62,6 +63,8 @@ namespace vke_common
 
     private:
         vke_ds::NaiveIDAllocator<int> idAllocator;
+
+        void init(nlohmann::json &json);
     };
 
     class SceneManager
@@ -103,7 +106,7 @@ namespace vke_common
         static void LoadScene(const std::string &pth)
         {
             nlohmann::json json(vke_common::ResourceManager::LoadJSON(pth));
-            SetCurrentScene(std::make_unique<Scene>(json));
+            SetCurrentScene(std::make_unique<Scene>(pth, json));
         }
 
         static void SaveScene(const std::string &pth)

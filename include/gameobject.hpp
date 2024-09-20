@@ -79,6 +79,20 @@ namespace vke_common
             calcModelMatrixWithParent(fa.model);
         }
 
+        void SetLocalPosition(glm::vec3 &pos)
+        {
+            localPosition = pos;
+            position = pos;
+            calcModelMatrix();
+        }
+
+        void SetLocalPositionWithParent(const glm::mat4 &fa, glm::vec3 &pos)
+        {
+            localPosition = pos;
+            calcModelMatrixWithParent(fa);
+            position = model[3];
+        }
+
         void TranslateLocal(glm::vec3 &det)
         {
             glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
@@ -109,6 +123,20 @@ namespace vke_common
             calcModelMatrixWithParent(fa);
         }
 
+        void SetLocalRotation(glm::quat &rot)
+        {
+            localRotation = rot;
+            rotation = rot;
+            calcModelMatrix();
+        }
+
+        void SetLocalRotationWithParent(const TransformParameter &fa, glm::quat &rot)
+        {
+            localRotation = rot;
+            rotation = fa.rotation * localRotation;
+            calcModelMatrixWithParent(fa.model);
+        }
+
         void RotateLocal(float det, glm::vec3 &axis)
         {
             localRotation = glm::rotate(localRotation, det, axis);
@@ -136,6 +164,20 @@ namespace vke_common
             glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
             localRotation = glm::rotate(localRotation, det, gaxis);
             rotation = fa.rotation * localRotation;
+            calcModelMatrixWithParent(fa.model);
+        }
+
+        void SetLocalScale(glm::vec3 &scale)
+        {
+            localScale = scale;
+            lossyScale = scale;
+            calcModelMatrix();
+        }
+
+        void SetLocalScaleWithParent(const TransformParameter &fa, glm::vec3 &scale)
+        {
+            localScale = scale;
+            lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
             calcModelMatrixWithParent(fa.model);
         }
 
@@ -235,7 +277,7 @@ namespace vke_common
         TransformParameter transform;
         std::vector<std::unique_ptr<Component>> components;
 
-        GameObject(TransformParameter &tp) : parent(nullptr), transform(tp){};
+        GameObject(TransformParameter &tp) : parent(nullptr), transform(tp) {};
 
         GameObject(nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
             : parent(nullptr), id(json["id"]), transform(json["transform"])
@@ -316,6 +358,24 @@ namespace vke_common
 
             transform.SetParent(fa->transform);
             fa->children[id] = this;
+            updateTransform(true);
+        }
+
+        void SetLocalPosition(glm::vec3 &position)
+        {
+            parent ? transform.SetLocalPositionWithParent(parent->transform.model, position) : transform.SetLocalPosition(position);
+            updateTransform(true);
+        }
+
+        void SetLocalRotation(glm::quat &rotation)
+        {
+            parent ? transform.SetLocalRotationWithParent(parent->transform, rotation) : transform.SetLocalRotation(rotation);
+            updateTransform(true);
+        }
+
+        void SetLocalScale(glm::vec3 &scale)
+        {
+            parent ? transform.SetLocalScaleWithParent(parent->transform, scale) : transform.SetLocalScale(scale);
             updateTransform(true);
         }
 
