@@ -16,9 +16,10 @@ namespace vke_common
     {
     public:
         std::string path;
+        std::vector<std::string> layers;
         std::map<int, std::unique_ptr<GameObject>> objects;
 
-        Scene() : idAllocator(1) {}
+        Scene() : idAllocator(1), layers({"default", "editor"}) {}
 
         Scene(nlohmann::json &json) : idAllocator(json["maxid"])
         {
@@ -36,6 +37,13 @@ namespace vke_common
         {
             std::string ret = "{\n";
             ret += "\"maxid\": " + std::to_string(idAllocator.id) + ",\n";
+
+            ret += "\"layers\": [";
+            for (auto &layer : layers)
+                ret += "\"" + layer + "\",";
+            ret[ret.length() - 1] = ']';
+            ret += ",\n";
+
             ret += "\"objects\": [";
             for (auto &obj : objects)
                 if (obj.second->parent == nullptr)

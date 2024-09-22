@@ -6,6 +6,10 @@ namespace vke_common
 
     void Scene::init(nlohmann::json &json)
     {
+        auto &lrs = json["layers"];
+        for (auto &layer : lrs)
+            layers.push_back(layer);
+
         auto &objs = json["objects"];
         for (auto &obj : objs)
         {

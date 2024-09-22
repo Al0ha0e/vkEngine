@@ -271,44 +271,29 @@ namespace vke_common
     {
     public:
         int id;
+        int layer;
+        bool isStatic;
+        char name[32];
         GameObject *parent;
-        std::map<int, GameObject *> children;
-
         TransformParameter transform;
+        std::map<int, GameObject *> children;
         std::vector<std::unique_ptr<Component>> components;
 
-        GameObject(TransformParameter &tp) : parent(nullptr), transform(tp) {};
+        GameObject(TransformParameter &tp) : parent(nullptr), layer(0), transform(tp), isStatic(false)
+        {
+            memcpy(name, "new object", 13);
+        };
 
         GameObject(nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
-            : parent(nullptr), id(json["id"]), transform(json["transform"])
+            : parent(nullptr), id(json["id"]), isStatic(json["static"]), layer(json["layer"]), transform(json["transform"])
         {
-            auto &comps = json["components"];
-            for (auto &comp : comps)
-                components.push_back(loadComponent(comp));
-
-            auto &chs = json["children"];
-            for (auto &ch : chs)
-            {
-                GameObject *child = new GameObject(this, ch, objects);
-                children[ch["id"]] = child;
-                objects[child->id] = std::unique_ptr<GameObject>(child);
-            }
+            init(json, objects);
         }
 
         GameObject(GameObject *fa, nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
-            : parent(fa), id(json["id"]), transform(fa->transform, json["transform"])
+            : parent(fa), id(json["id"]), isStatic(json["static"]), layer(json["layer"]), transform(fa->transform, json["transform"])
         {
-            auto &comps = json["components"];
-            for (auto &comp : comps)
-                components.push_back(loadComponent(comp));
-
-            auto &chs = json["children"];
-            for (auto &ch : chs)
-            {
-                GameObject *child = new GameObject(this, ch, objects);
-                children[child->id] = child;
-                objects[child->id] = std::unique_ptr<GameObject>(child);
-            }
+            init(json, objects);
         }
 
         ~GameObject() {}
@@ -317,6 +302,9 @@ namespace vke_common
         {
             std::string ret = "{\n";
             ret += "\"id\": " + std::to_string(id) + ",\n";
+            ret += isStatic ? "\"static\": true,\n" : "\"static\": false,\n";
+            ret += "\"name\": \"" + std::string(name) + "\",\n";
+            ret += "\"layer\": " + std::to_string(layer) + ",\n";
             ret += "\"parent\": " + std::to_string(parent ? parent->id : 0) + ",\n";
 
             ret += "\"transform\": " + transform.ToJSON();
@@ -410,6 +398,23 @@ namespace vke_common
         }
 
     private:
+        void init(nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
+        {
+            std::string stdname = json["name"];
+            memcpy(name, stdname.c_str(), stdname.length() + 1);
+            auto &comps = json["components"];
+            for (auto &comp : comps)
+                components.push_back(loadComponent(comp));
+
+            auto &chs = json["children"];
+            for (auto &ch : chs)
+            {
+                GameObject *child = new GameObject(this, ch, objects);
+                children[child->id] = child;
+                objects[child->id] = std::unique_ptr<GameObject>(child);
+            }
+        }
+
         void updateTransform(bool first)
         {
             if (!first)
