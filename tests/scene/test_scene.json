@@ -17,8 +17,8 @@
         {
           "type": "camera",
           "fov": 70.0,
-          "width": 1271.0,
-          "height": 789.0,
+          "width": 1024.0,
+          "height": 768.0,
           "near": 0.01,
           "far": 1000.0
         }

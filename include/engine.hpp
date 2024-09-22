@@ -7,6 +7,7 @@
 #include <render/descriptor.hpp>
 #include <scene.hpp>
 #include <event.hpp>
+#include <physics.hpp>
 
 namespace vke_common
 {
@@ -40,6 +41,7 @@ namespace vke_common
             vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::GetInstance();
             instance = new Engine();
             instance->environment = environment;
+            vke_physics::PhysicsManager::Init();
             instance->resourceManager = vke_common::ResourceManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
             instance->renderer = vke_render::Renderer::Init(ctx, passes, customPasses, customPassInfo);
@@ -49,6 +51,7 @@ namespace vke_common
 
         static void Dispose()
         {
+            vke_physics::PhysicsManager::Dispose();
             SceneManager::Dispose();
             vke_render::Renderer::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();

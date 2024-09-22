@@ -9,6 +9,7 @@ namespace vke_common
 
     void Engine::Update()
     {
+        vke_physics::PhysicsManager::Update();
         renderer->Update();
     }
 

@@ -44,7 +44,7 @@ namespace vke_component
             vke_common::EventSystem::RemoveEventListener(vke_common::EVENT_WINDOW_RESIZE, resizeListenerID);
         }
 
-        std::string ToJSON()
+        std::string ToJSON() override
         {
             std::string ret = "{\n\"type\":\"camera\",\n";
             ret += "\"fov\": " + std::to_string(glm::degrees(fov)) + ",\n";

@@ -217,4 +217,22 @@ namespace vke_common
         cache[key] = ret;
         return ret;
     }
+
+    std::shared_ptr<vke_physics::PhysicsMaterial> ResourceManager::LoadPhysicsMaterial(const std::string &pth)
+    {
+        auto &cache = instance->physxMaterialCache;
+        auto it = cache.find(pth);
+        if (it != cache.end())
+            return it->second;
+
+        nlohmann::json &json(LoadJSON(pth));
+
+        physx::PxMaterial *mat =
+            vke_physics::PhysicsManager::GetInstance()->gPhysics->createMaterial(
+                json["static_friction"], json["dynamic_friction"], json["restitution"]);
+
+        auto ret = std::make_shared<vke_physics::PhysicsMaterial>(pth, mat);
+        cache[pth] = ret;
+        return ret;
+    }
 };

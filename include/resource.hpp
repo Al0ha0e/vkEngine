@@ -7,6 +7,8 @@
 #include <render/texture.hpp>
 #include <nlohmann/json.hpp>
 
+#include <physics.hpp>
+
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -24,7 +26,7 @@ namespace vke_common
     {
     private:
         static ResourceManager *instance;
-        ResourceManager(){};
+        ResourceManager() {};
         ~ResourceManager() {}
         ResourceManager(const ResourceManager &);
         ResourceManager &operator=(const ResourceManager);
@@ -61,11 +63,14 @@ namespace vke_common
             return LoadMesh(pth, pth);
         }
 
+        static std::shared_ptr<vke_physics::PhysicsMaterial> LoadPhysicsMaterial(const std::string &pth);
+
     private:
         std::map<std::string, std::shared_ptr<vke_render::Shader>> shaderCache;
         std::map<std::string, std::shared_ptr<vke_render::Texture2D>> textureCache;
         std::map<std::string, std::shared_ptr<vke_render::Material>> materialCache;
         std::map<std::string, std::shared_ptr<vke_render::Mesh>> meshCache;
+        std::map<std::string, std::shared_ptr<vke_physics::PhysicsMaterial>> physxMaterialCache;
 
         static std::vector<char> readFile(const std::string &filename)
         {

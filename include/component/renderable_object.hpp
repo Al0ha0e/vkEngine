@@ -33,7 +33,7 @@ namespace vke_component
 
         ~RenderableObject() {}
 
-        std::string ToJSON()
+        std::string ToJSON() override
         {
             std::string ret = "{\n\"type\":\"renderableObject\"";
             ret += ",\n\"material\": \"" + material->path + "\"";
