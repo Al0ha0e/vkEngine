@@ -16,7 +16,8 @@ namespace vke_render
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        BaseRenderer(RenderContext *ctx) : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(BASE_RENDERER, ctx) {}
+        BaseRenderer(RenderContext *ctx, VkBuffer camBuffer)
+            : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(BASE_RENDERER, ctx, camBuffer) {}
 
         ~BaseRenderer() {}
 
@@ -25,16 +26,8 @@ namespace vke_render
             SubpassBase::Init(subpassID, renderPass);
             environment = RenderEnvironment::GetInstance();
             createGlobalDescriptorSet();
+            registerCamera();
             createSkyBox();
-        }
-
-        void RegisterCamera(VkBuffer buffer) override
-        {
-            DescriptorInfo &info = globalDescriptorInfos[0];
-            VkDescriptorBufferInfo bufferInfo{};
-            InitDescriptorBufferInfo(bufferInfo, buffer, 0, info.bufferSize);
-            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
-            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
         }
 
         void Render(VkCommandBuffer commandBuffer) override;
@@ -46,6 +39,15 @@ namespace vke_render
         void createGlobalDescriptorSet();
         void createSkyBox();
         void createGraphicsPipeline();
+
+        void registerCamera()
+        {
+            DescriptorInfo &info = globalDescriptorInfos[0];
+            VkDescriptorBufferInfo bufferInfo{};
+            InitDescriptorBufferInfo(bufferInfo, camInfoBuffer, 0, info.bufferSize);
+            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
+            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
+        }
     };
 }
 

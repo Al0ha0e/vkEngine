@@ -11,6 +11,7 @@ namespace vke_component
     class Camera : public vke_common::Component
     {
     public:
+        int id;
         float fov;
         float width;
         float height;
@@ -20,21 +21,21 @@ namespace vke_component
         glm::mat4 view;
         glm::mat4 projection;
         glm::vec3 viewPos;
-        vke_render::HostCoherentBuffer buffer;
+        vke_render::HostCoherentBuffer *buffer;
 
         Camera(float fov, float width, float height,
                float near, float far, vke_common::GameObject *obj)
-            : fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
+            : id(0), fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
               near(near), far(far), Component(obj),
-              buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+              buffer(nullptr)
         {
             init();
         }
 
         Camera(vke_common::GameObject *obj, nlohmann::json &json)
-            : fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
+            : id(json["id"]), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
               near(json["near"]), far(json["far"]), Component(obj),
-              buffer(sizeof(vke_render::CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+              buffer(nullptr)
         {
             init();
         }
@@ -47,6 +48,7 @@ namespace vke_component
         std::string ToJSON() override
         {
             std::string ret = "{\n\"type\":\"camera\",\n";
+            ret += "\"id\": " + std::to_string(id) + ",\n";
             ret += "\"fov\": " + std::to_string(glm::degrees(fov)) + ",\n";
             ret += "\"width\": " + std::to_string(width) + ",\n";
             ret += "\"height\": " + std::to_string(height) + ",\n";
@@ -62,8 +64,8 @@ namespace vke_component
             glm::vec3 gup = param.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
             viewPos = param.position;
             view = glm::lookAt(viewPos, viewPos + gfront, gup);
-            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+            if (vke_render::Renderer::GetInstance()->currentCamera == id)
+                uploadCamInfo();
         }
 
         void UpdateProjection(uint32_t w, uint32_t h)
@@ -73,8 +75,8 @@ namespace vke_component
             aspect = width / height;
             projection = glm::perspective(fov, aspect, near, far);
             projection[1][1] *= -1;
-            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+            if (vke_render::Renderer::GetInstance()->currentCamera == id)
+                uploadCamInfo();
         }
 
         static void OnWindowResize(void *listener, glm::vec2 *info)
@@ -101,9 +103,26 @@ namespace vke_component
             projection = glm::perspective(fov, aspect, near, far);
             projection[1][1] *= -1;
 
+            // vke_render::CameraInfo cameraInfo(view, projection, viewPos);
+            // buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+
+            std::function<void()> callback = std::bind(std::function<void(Camera *)>(onCameraSelected), this);
+
+            if (id)
+                vke_render::Renderer::RegisterCamera(id, &buffer, callback);
+            else
+                id = vke_render::Renderer::RegisterCamera(&buffer, callback);
+        }
+
+        static void onCameraSelected(Camera *camera)
+        {
+            camera->uploadCamInfo();
+        }
+
+        void uploadCamInfo()
+        {
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
-            vke_render::Renderer::RegisterCamera(buffer.buffer);
+            buffer->ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
         }
     };
 }

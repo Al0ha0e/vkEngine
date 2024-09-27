@@ -13,25 +13,18 @@ namespace vke_render
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
 
-        OpaqueRenderer(RenderContext *ctx) : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(OPAQUE_RENDERER, ctx) {}
+        OpaqueRenderer(RenderContext *ctx, VkBuffer camBuffer)
+            : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(OPAQUE_RENDERER, ctx, camBuffer) {}
 
         void Init(int subpassID, VkRenderPass renderPass) override
         {
             SubpassBase::Init(subpassID, renderPass);
             environment = RenderEnvironment::GetInstance();
             createGlobalDescriptorSet();
+            registerCamera();
         }
 
         ~OpaqueRenderer() {}
-
-        void RegisterCamera(VkBuffer buffer) override
-        {
-            DescriptorInfo &info = globalDescriptorInfos[0];
-            VkDescriptorBufferInfo bufferInfo{};
-            InitDescriptorBufferInfo(bufferInfo, buffer, 0, info.bufferSize);
-            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
-            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
-        }
 
         void RegisterMaterial(std::shared_ptr<Material> &material)
         {
@@ -61,6 +54,15 @@ namespace vke_render
 
         void createGlobalDescriptorSet();
         void createGraphicsPipeline(RenderInfo &renderInfo);
+
+        void registerCamera()
+        {
+            DescriptorInfo &info = globalDescriptorInfos[0];
+            VkDescriptorBufferInfo bufferInfo{};
+            InitDescriptorBufferInfo(bufferInfo, camInfoBuffer, 0, info.bufferSize);
+            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
+            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
+        }
     };
 }
 

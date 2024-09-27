@@ -2,6 +2,7 @@
 #define RIGIDBODY_H
 
 #include <physics.hpp>
+#include <resource.hpp>
 #include <gameobject.hpp>
 
 namespace vke_physics

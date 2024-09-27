@@ -16,13 +16,19 @@ namespace vke_render
     {
     private:
         static Renderer *instance;
-        Renderer() = default;
+        Renderer()
+            : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), availableCameraID(1), currentCamera(1) {};
         ~Renderer() {}
 
     public:
         RenderContext context;
         uint32_t currentFrame;
         uint32_t passcnt;
+
+        vke_render::HostCoherentBuffer camInfoBuffer;
+        uint32_t currentCamera;
+        uint32_t availableCameraID;
+        std::unordered_map<uint32_t, std::function<void()>> cameras;
 
         vke_common::EventHub<glm::vec2> resizeEventHub;
 
@@ -74,7 +80,7 @@ namespace vke_render
             }
             instance->createRenderPass(passInfo);
             instance->createFramebuffers();
-
+            VkBuffer cambuf = instance->camInfoBuffer.buffer;
             customPassID = 0;
             for (int i = 0; i < passes.size(); i++)
             {
@@ -91,7 +97,7 @@ namespace vke_render
                 }
                 case BASE_RENDERER:
                 { // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
-                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx);
+                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx, cambuf);
                     baseRenderer->Init(i, instance->renderPass);
                     instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(baseRenderer));
@@ -99,7 +105,7 @@ namespace vke_render
                 }
                 case OPAQUE_RENDERER:
                 { // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
-                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx);
+                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx, cambuf);
                     opaqueRenderer->Init(i, instance->renderPass);
                     instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(opaqueRenderer));
@@ -120,10 +126,36 @@ namespace vke_render
             delete instance;
         }
 
-        static void RegisterCamera(VkBuffer buffer)
+        static uint32_t RegisterCamera(vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
         {
-            for (auto &pass : instance->subPasses)
-                pass->RegisterCamera(buffer);
+            *buffer = &(instance->camInfoBuffer);
+            uint32_t ret = instance->availableCameraID++;
+            instance->cameras[ret] = callback;
+            if (ret == instance->currentCamera)
+                callback();
+            return ret;
+        }
+
+        static void RegisterCamera(uint32_t id, vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
+        {
+            *buffer = &(instance->camInfoBuffer);
+            instance->availableCameraID = std::max(instance->availableCameraID, id + 1);
+            instance->cameras[id] = callback;
+            if (id == instance->currentCamera)
+                callback();
+        }
+
+        static void SetCurrentCamera(uint32_t id)
+        {
+            if (id != instance->currentCamera)
+            {
+                auto it = instance->cameras.find(id);
+                if (it != instance->cameras.end())
+                {
+                    instance->currentCamera = id;
+                    it->second();
+                }
+            }
         }
 
         static OpaqueRenderer *GetOpaqueRenderer()

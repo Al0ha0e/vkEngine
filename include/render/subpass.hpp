@@ -30,12 +30,14 @@ namespace vke_render
         int subpassID;
         RenderContext *context;
         VkRenderPass renderPass;
+        VkBuffer camInfoBuffer;
 
-        SubpassBase(PassType type, RenderContext *ctx) : type(type), context(ctx) {}
+        SubpassBase(PassType type, RenderContext *ctx, VkBuffer camBuffer)
+            : type(type), context(ctx), camInfoBuffer(camBuffer) {}
 
         virtual ~SubpassBase() {}
 
-        virtual void RegisterCamera(VkBuffer buffer) = 0;
+        // virtual void RegisterCamera(VkBuffer buffer) = 0;
         virtual void Render(VkCommandBuffer commandBuffer) = 0;
 
         virtual void Init(int subpassID, VkRenderPass renderPass)
