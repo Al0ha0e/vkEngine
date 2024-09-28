@@ -145,6 +145,13 @@ namespace vke_render
                 callback();
         }
 
+        static void RemoveCamera(uint32_t id)
+        {
+            instance->cameras.erase(id);
+            if (instance->cameras.size() > 0)
+                SetCurrentCamera(0);
+        }
+
         static void SetCurrentCamera(uint32_t id)
         {
             if (id != instance->currentCamera)

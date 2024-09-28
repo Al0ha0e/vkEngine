@@ -190,6 +190,11 @@ namespace vke_render
             return id;
         }
 
+        void RemoveUnit(uint64_t id)
+        {
+            units.erase(id);
+        }
+
         void Render(VkCommandBuffer &commandBuffer, VkDescriptorSet *globalDescriptorSet)
         {
             int setcnt = 0;

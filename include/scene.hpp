@@ -44,9 +44,9 @@ namespace vke_common
             ret[ret.length() - 1] = ']';
             ret += ",\n";
 
-            ret += "\"objects\": [";
+            ret += "\"objects\": [ ";
             for (auto &obj : objects)
-                if (obj.second->parent == nullptr)
+                if (obj.second->parent == nullptr && obj.second->layer != 1)
                     ret += "\n" + obj.second->ToJSON() + ",";
             ret[ret.length() - 1] = ']';
             ret += "\n}";
@@ -59,6 +59,26 @@ namespace vke_common
             int id = idAllocator.Alloc();
             object->id = id;
             objects[id] = std::forward<std::unique_ptr<GameObject>>(object);
+        }
+
+        void RemoveObject(int id)
+        {
+            auto &object = objects[id];
+            if (object->parent != nullptr)
+                object->parent->RemoveChild(id);
+
+            std::vector<int> objsToBeRemoved = {id};
+            int now = 0;
+            while (now < objsToBeRemoved.size())
+            {
+                int oid = objsToBeRemoved[now++];
+                auto &object = objects[oid];
+                for (auto &kv : object->children)
+                    objsToBeRemoved.push_back(kv.first);
+            }
+
+            for (int oid : objsToBeRemoved)
+                objects.erase(oid);
         }
 
         GameObject *GetObject(int id)

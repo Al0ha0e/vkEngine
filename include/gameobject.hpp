@@ -334,7 +334,7 @@ namespace vke_common
                 return;
             if (parent != nullptr)
             {
-                parent->children.erase(id);
+                parent->RemoveChild(id);
                 transform.RemoveParent();
             }
             parent = fa;
@@ -347,6 +347,11 @@ namespace vke_common
             transform.SetParent(fa->transform);
             fa->children[id] = this;
             updateTransform(true);
+        }
+
+        void RemoveChild(int id)
+        {
+            children.erase(id);
         }
 
         void SetLocalPosition(glm::vec3 &position)

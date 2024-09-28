@@ -33,6 +33,8 @@ namespace vke_physics
 
         ~RigidBody()
         {
+            PhysicsManager::GetInstance()->gScene->removeActor(*rigidActor);
+            PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
         }
 
         std::string ToJSON() override
@@ -60,6 +62,8 @@ namespace vke_physics
         }
 
     private:
+        int physicsUpdateListenerID;
+
         void init(bool isStatic)
         {
             shapeFlags = physx::PxShapeFlag::eSCENE_QUERY_SHAPE | physx::PxShapeFlag::eSIMULATION_SHAPE;
@@ -97,7 +101,7 @@ namespace vke_physics
             }
 
             PhysicsManager::GetInstance()->gScene->addActor(*rigidActor);
-            PhysicsManager::RegisterUpdate(this, std::function<void(void *, void *)>(update));
+            physicsUpdateListenerID = PhysicsManager::RegisterUpdateListener(this, std::function<void(void *, void *)>(update));
         }
 
         std::string genGeometryJSON()

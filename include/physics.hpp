@@ -53,9 +53,14 @@ namespace vke_physics
             instance->update();
         }
 
-        static int RegisterUpdate(void *rigidbody, vke_common::EventHub<void>::callback_t &callback)
+        static int RegisterUpdateListener(void *rigidbody, vke_common::EventHub<void>::callback_t &callback)
         {
             return instance->updates.AddEventListener(rigidbody, callback);
+        }
+
+        static void RemoveUpdateListener(int id)
+        {
+            instance->updates.RemoveEventListener(id);
         }
 
     private:

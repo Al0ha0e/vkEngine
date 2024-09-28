@@ -42,7 +42,9 @@ namespace vke_component
 
         ~Camera()
         {
-            vke_common::EventSystem::RemoveEventListener(vke_common::EVENT_WINDOW_RESIZE, resizeListenerID);
+            vke_render::Renderer::RemoveCamera(id);
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            renderer->resizeEventHub.RemoveEventListener(resizeListenerID);
         }
 
         std::string ToJSON() override

@@ -31,7 +31,11 @@ namespace vke_component
             init();
         }
 
-        ~RenderableObject() {}
+        ~RenderableObject()
+        {
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            renderer->GetOpaqueRenderer()->RemoveUnit(material.get(), renderID);
+        }
 
         std::string ToJSON() override
         {
