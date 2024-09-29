@@ -86,7 +86,7 @@ namespace vke_render
     public:
         std::shared_ptr<ComputeShader> shader;
         std::vector<DescriptorInfo> descriptorInfos;
-        std::map<uint64_t, std::unique_ptr<ComputeTaskInstance>> instances;
+        std::map<vke_ds::id64_t, std::unique_ptr<ComputeTaskInstance>> instances;
 
         ComputeTask() = default;
 
@@ -106,12 +106,12 @@ namespace vke_render
             vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
-        uint64_t AddInstance(std::vector<VkBuffer> &&buffers,
-                             std::vector<VkSemaphore> &&waitSemaphores,
-                             std::vector<VkPipelineStageFlags> &&waitStages,
-                             std::vector<VkSemaphore> &&signalSemaphores)
+        vke_ds::id64_t AddInstance(std::vector<VkBuffer> &&buffers,
+                                   std::vector<VkSemaphore> &&waitSemaphores,
+                                   std::vector<VkPipelineStageFlags> &&waitStages,
+                                   std::vector<VkSemaphore> &&signalSemaphores)
         {
-            uint64_t id = allocator.Alloc();
+            vke_ds::id64_t id = allocator.Alloc();
             ComputeTaskInstance *instance = new ComputeTaskInstance(std::forward<std::vector<VkBuffer>>(buffers),
                                                                     std::forward<std::vector<VkSemaphore>>(waitSemaphores),
                                                                     std::forward<std::vector<VkPipelineStageFlags>>(waitStages),
@@ -121,7 +121,7 @@ namespace vke_render
             return id;
         }
 
-        void Dispatch(uint64_t id, VkCommandBuffer commandBuffer, glm::ivec3 dim3, VkFence fence)
+        void Dispatch(vke_ds::id64_t id, VkCommandBuffer commandBuffer, glm::ivec3 dim3, VkFence fence)
         {
             instances[id]->Dispatch(commandBuffer, dim3, pipelineLayout, pipeline, fence);
         }
@@ -130,7 +130,7 @@ namespace vke_render
         DescriptorSetInfo descriptorSetInfo;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
-        vke_ds::NaiveIDAllocator<uint64_t> allocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id64_t> allocator;
 
         void initDescriptorSetLayout()
         {

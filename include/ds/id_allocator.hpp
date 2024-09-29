@@ -6,6 +6,9 @@
 
 namespace vke_ds
 {
+    using id32_t = uint32_t;
+    using id64_t = uint64_t;
+
     template <typename T>
     class NaiveIDAllocator
     {
@@ -17,6 +20,11 @@ namespace vke_ds
         T Alloc()
         {
             return id++;
+        }
+
+        void SetIDMonoInc(T x)
+        {
+            id = std::max(id, x);
         }
     };
 

@@ -43,7 +43,7 @@ int main()
 
         vke_render::ComputeTask task(shader, std::move(descriptorInfos));
 
-        uint64_t id = task.AddInstance(
+        vke_ds::id64_t id = task.AddInstance(
             std::move(std::vector<VkBuffer>{buffer.buffer}),
             std::move(std::vector<VkSemaphore>{}),
             std::move(std::vector<VkPipelineStageFlags>{}),

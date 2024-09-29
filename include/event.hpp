@@ -5,6 +5,8 @@
 #include <functional>
 #include <map>
 
+#include <ds/id_allocator.hpp>
+
 namespace vke_common
 {
     enum GlobalEventType
@@ -21,34 +23,32 @@ namespace vke_common
     {
     private:
         using innerCallback_t = std::function<void(MT *)>;
-        using callbackTable_t = std::map<int, innerCallback_t>;
+        using callbackTable_t = std::map<vke_ds::id32_t, innerCallback_t>;
 
     public:
         using callback_t = std::function<void(void *, MT *)>;
 
-        EventHub() : id(0)
-        {
-        }
+        EventHub() : idAllocator(0) {}
         ~EventHub() {}
         EventHub(const EventHub<MT> &) = delete;
         EventHub &operator=(const EventHub<MT> &) = delete;
-        EventHub(const EventHub<MT> &&ano) : id(ano.id), callbackTable(std::forward<callbackTable_t>(ano.callbackTable)) {}
+        EventHub(const EventHub<MT> &&ano) : idAllocator(ano.idAllocator), callbackTable(std::forward<callbackTable_t>(ano.callbackTable)) {}
         EventHub &operator=(EventHub<MT> &&ano)
         {
-            id = ano.id;
+            idAllocator = ano.idAllocator;
             callbackTable = std::forward<callbackTable_t>(ano.callbackTable);
             return *this;
         }
 
-        int AddEventListener(void *listener, callback_t &callback)
+        vke_ds::id32_t AddEventListener(void *listener, callback_t &callback)
         {
             // TODO check type
-            int ret = ++id;
+            vke_ds::id32_t ret = idAllocator.Alloc();
             callbackTable[ret] = std::bind(callback, listener, std::placeholders::_1);
             return ret;
         }
 
-        void RemoveEventListener(int id)
+        void RemoveEventListener(vke_ds::id32_t id)
         {
             callbackTable.erase(id);
         }
@@ -61,7 +61,7 @@ namespace vke_common
 
     private:
         callbackTable_t callbackTable;
-        int id;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> idAllocator;
     };
 
     class EventSystem
@@ -95,13 +95,13 @@ namespace vke_common
             delete instance;
         }
 
-        static int AddEventListener(GlobalEventType type, void *listener, EventCallback &callback)
+        static vke_ds::id32_t AddEventListener(GlobalEventType type, void *listener, EventCallback &callback)
         {
             // TODO check type
             return instance->eventHubs[type].AddEventListener(listener, callback);
         }
 
-        static void RemoveEventListener(GlobalEventType type, int id)
+        static void RemoveEventListener(GlobalEventType type, vke_ds::id32_t id)
         {
             instance->eventHubs[type].RemoveEventListener(id);
         }

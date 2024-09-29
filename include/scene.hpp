@@ -17,7 +17,7 @@ namespace vke_common
     public:
         std::string path;
         std::vector<std::string> layers;
-        std::map<int, std::unique_ptr<GameObject>> objects;
+        std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> objects;
 
         Scene() : idAllocator(1), layers({"default", "editor"}) {}
 
@@ -56,32 +56,32 @@ namespace vke_common
 
         void AddObject(std::unique_ptr<GameObject> &&object)
         {
-            int id = idAllocator.Alloc();
+            vke_ds::id64_t id = idAllocator.Alloc();
             object->id = id;
             objects[id] = std::forward<std::unique_ptr<GameObject>>(object);
         }
 
-        void RemoveObject(int id)
+        void RemoveObject(vke_ds::id64_t id)
         {
             auto &object = objects[id];
             if (object->parent != nullptr)
                 object->parent->RemoveChild(id);
 
-            std::vector<int> objsToBeRemoved = {id};
+            std::vector<vke_ds::id64_t> objsToBeRemoved = {id};
             int now = 0;
             while (now < objsToBeRemoved.size())
             {
-                int oid = objsToBeRemoved[now++];
+                vke_ds::id64_t oid = objsToBeRemoved[now++];
                 auto &object = objects[oid];
                 for (auto &kv : object->children)
                     objsToBeRemoved.push_back(kv.first);
             }
 
-            for (int oid : objsToBeRemoved)
+            for (vke_ds::id64_t oid : objsToBeRemoved)
                 objects.erase(oid);
         }
 
-        GameObject *GetObject(int id)
+        GameObject *GetObject(vke_ds::id64_t id)
         {
             auto it = objects.find(id);
             if (it == objects.end())
@@ -90,7 +90,7 @@ namespace vke_common
         }
 
     private:
-        vke_ds::NaiveIDAllocator<int> idAllocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id64_t> idAllocator;
 
         void init(nlohmann::json &json);
     };

@@ -46,7 +46,7 @@ namespace vke_render
             return renderInfoMap[material.get()]->AddUnit(mesh, buffers);
         }
 
-        void RemoveUnit(Material *material, uint64_t id)
+        void RemoveUnit(Material *material, vke_ds::id64_t id)
         {
             renderInfoMap[material]->RemoveUnit(id);
             // TODO renderInfoMap[material].size() == 0

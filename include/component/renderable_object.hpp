@@ -52,7 +52,7 @@ namespace vke_component
         }
 
     private:
-        uint64_t renderID;
+        vke_ds::id64_t renderID;
 
         void init()
         {

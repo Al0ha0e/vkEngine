@@ -76,7 +76,7 @@ namespace vke_render
         DescriptorSetInfo perUnitDescriptorSetInfo;
         bool hasCommonDescriptorSet;
         bool hasPerUnitDescriptorSet;
-        std::map<uint64_t, RenderUnit> units;
+        std::map<vke_ds::id64_t, RenderUnit> units;
 
         RenderInfo(std::shared_ptr<Material> &mat)
             : material(mat),
@@ -181,16 +181,15 @@ namespace vke_render
                 globalDescriptorSetLayouts.push_back(perUnitDescriptorSetInfo.layout);
         }
 
-        uint64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
-        // uint64_t AddUnit(Mesh *mesh, std::vector<VkBuffer> &buffers)
+        vke_ds::id64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
         {
-            uint64_t id = allocator.Alloc();
+            vke_ds::id64_t id = allocator.Alloc();
             units[id] = hasPerUnitDescriptorSet ? RenderUnit(mesh, perUnitDescriptorSetInfo, material->perUnitDescriptorInfos, buffers)
                                                 : RenderUnit(mesh);
             return id;
         }
 
-        void RemoveUnit(uint64_t id)
+        void RemoveUnit(vke_ds::id64_t id)
         {
             units.erase(id);
         }
@@ -222,7 +221,7 @@ namespace vke_render
         }
 
     private:
-        vke_ds::NaiveIDAllocator<uint64_t> allocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id64_t> allocator;
     };
 }
 

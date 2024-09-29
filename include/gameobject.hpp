@@ -8,6 +8,7 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <ds/id_allocator.hpp>
 
 namespace vke_common
 {
@@ -270,13 +271,13 @@ namespace vke_common
     class GameObject
     {
     public:
-        int id;
+        vke_ds::id64_t id;
         int layer;
         bool isStatic;
         char name[32];
         GameObject *parent;
         TransformParameter transform;
-        std::map<int, GameObject *> children;
+        std::map<vke_ds::id64_t, GameObject *> children;
         std::vector<std::unique_ptr<Component>> components;
 
         GameObject(TransformParameter &tp) : parent(nullptr), layer(0), transform(tp), isStatic(false)
@@ -284,13 +285,13 @@ namespace vke_common
             memcpy(name, "new object", 13);
         };
 
-        GameObject(nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
+        GameObject(nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
             : parent(nullptr), id(json["id"]), isStatic(json["static"]), layer(json["layer"]), transform(json["transform"])
         {
             init(json, objects);
         }
 
-        GameObject(GameObject *fa, nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
+        GameObject(GameObject *fa, nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
             : parent(fa), id(json["id"]), isStatic(json["static"]), layer(json["layer"]), transform(fa->transform, json["transform"])
         {
             init(json, objects);
@@ -349,7 +350,7 @@ namespace vke_common
             updateTransform(true);
         }
 
-        void RemoveChild(int id)
+        void RemoveChild(vke_ds::id64_t id)
         {
             children.erase(id);
         }
@@ -403,7 +404,7 @@ namespace vke_common
         }
 
     private:
-        void init(nlohmann::json &json, std::map<int, std::unique_ptr<GameObject>> &objects)
+        void init(nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
         {
             std::string stdname = json["name"];
             memcpy(name, stdname.c_str(), stdname.length() + 1);

@@ -11,7 +11,7 @@ namespace vke_component
     class Camera : public vke_common::Component
     {
     public:
-        int id;
+        vke_ds::id32_t id;
         float fov;
         float width;
         float height;
@@ -33,7 +33,7 @@ namespace vke_component
         }
 
         Camera(vke_common::GameObject *obj, nlohmann::json &json)
-            : id(json["id"]), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
+            : id(0), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
               near(json["near"]), far(json["far"]), Component(obj),
               buffer(nullptr)
         {
@@ -50,7 +50,6 @@ namespace vke_component
         std::string ToJSON() override
         {
             std::string ret = "{\n\"type\":\"camera\",\n";
-            ret += "\"id\": " + std::to_string(id) + ",\n";
             ret += "\"fov\": " + std::to_string(glm::degrees(fov)) + ",\n";
             ret += "\"width\": " + std::to_string(width) + ",\n";
             ret += "\"height\": " + std::to_string(height) + ",\n";
@@ -88,7 +87,7 @@ namespace vke_component
         }
 
     private:
-        int resizeListenerID;
+        vke_ds::id32_t resizeListenerID;
 
         void init()
         {
@@ -105,15 +104,8 @@ namespace vke_component
             projection = glm::perspective(fov, aspect, near, far);
             projection[1][1] *= -1;
 
-            // vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            // buffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
-
             std::function<void()> callback = std::bind(std::function<void(Camera *)>(onCameraSelected), this);
-
-            if (id)
-                vke_render::Renderer::RegisterCamera(id, &buffer, callback);
-            else
-                id = vke_render::Renderer::RegisterCamera(&buffer, callback);
+            id = vke_render::Renderer::RegisterCamera(&buffer, callback);
         }
 
         static void onCameraSelected(Camera *camera)

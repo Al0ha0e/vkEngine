@@ -62,7 +62,7 @@ namespace vke_physics
         }
 
     private:
-        int physicsUpdateListenerID;
+        vke_ds::id32_t physicsUpdateListenerID;
 
         void init(bool isStatic)
         {

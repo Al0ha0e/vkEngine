@@ -17,7 +17,7 @@ namespace vke_render
     private:
         static Renderer *instance;
         Renderer()
-            : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), availableCameraID(1), currentCamera(1) {};
+            : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT), cameraIDAllocator(1), currentCamera(1) {};
         ~Renderer() {}
 
     public:
@@ -26,9 +26,9 @@ namespace vke_render
         uint32_t passcnt;
 
         vke_render::HostCoherentBuffer camInfoBuffer;
-        uint32_t currentCamera;
-        uint32_t availableCameraID;
-        std::unordered_map<uint32_t, std::function<void()>> cameras;
+        vke_ds::id32_t currentCamera;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> cameraIDAllocator;
+        std::unordered_map<vke_ds::id32_t, std::function<void()>> cameras;
 
         vke_common::EventHub<glm::vec2> resizeEventHub;
 
@@ -126,33 +126,24 @@ namespace vke_render
             delete instance;
         }
 
-        static uint32_t RegisterCamera(vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
+        static vke_ds::id32_t RegisterCamera(vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
         {
             *buffer = &(instance->camInfoBuffer);
-            uint32_t ret = instance->availableCameraID++;
+            vke_ds::id32_t ret = instance->cameraIDAllocator.Alloc();
             instance->cameras[ret] = callback;
             if (ret == instance->currentCamera)
                 callback();
             return ret;
         }
 
-        static void RegisterCamera(uint32_t id, vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
-        {
-            *buffer = &(instance->camInfoBuffer);
-            instance->availableCameraID = std::max(instance->availableCameraID, id + 1);
-            instance->cameras[id] = callback;
-            if (id == instance->currentCamera)
-                callback();
-        }
-
-        static void RemoveCamera(uint32_t id)
+        static void RemoveCamera(vke_ds::id32_t id)
         {
             instance->cameras.erase(id);
             if (instance->cameras.size() > 0)
                 SetCurrentCamera(0);
         }
 
-        static void SetCurrentCamera(uint32_t id)
+        static void SetCurrentCamera(vke_ds::id32_t id)
         {
             if (id != instance->currentCamera)
             {
