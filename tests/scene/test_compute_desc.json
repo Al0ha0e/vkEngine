@@ -1,0 +1,8 @@
+[
+    {
+        "type":3,
+        "id": 1024,
+        "name":"test_compute_shader",
+        "path": "./tests/shader/test_compute.spv"
+    }
+]

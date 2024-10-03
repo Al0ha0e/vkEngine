@@ -3,7 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/opaque_render.hpp>
-#include <resource.hpp>
+#include <asset.hpp>
 #include <render/descriptor.hpp>
 #include <scene.hpp>
 #include <event.hpp>
@@ -29,7 +29,7 @@ namespace vke_common
         }
 
         vke_render::RenderEnvironment *environment;
-        vke_common::ResourceManager *resourceManager;
+        vke_common::AssetManager *assetManager;
         vke_render::DescriptorSetAllocator *allocator;
         vke_render::Renderer *renderer;
 
@@ -42,7 +42,7 @@ namespace vke_common
             instance = new Engine();
             instance->environment = environment;
             vke_physics::PhysicsManager::Init();
-            instance->resourceManager = vke_common::ResourceManager::Init();
+            instance->assetManager = vke_common::AssetManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
             instance->renderer = vke_render::Renderer::Init(ctx, passes, customPasses, customPassInfo);
             SceneManager::Init();
@@ -55,7 +55,7 @@ namespace vke_common
             SceneManager::Dispose();
             vke_render::Renderer::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();
-            vke_common::ResourceManager::Dispose();
+            vke_common::AssetManager::Dispose();
             delete instance;
         }
 

@@ -1,5 +1,0 @@
-{
-  "vert": "./tests/shader/vert.spv",
-  "frag": "./tests/shader/frag.spv",
-  "textures": ["./tests/texture/texture.jpg"]
-}

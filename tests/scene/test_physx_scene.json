@@ -40,13 +40,13 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": "./tests/material/mat1.json",
-          "mesh": "@p"
+          "material": 1024,
+          "mesh": 1
         },
         {
           "type": "rigidbody",
           "static": true,
-          "material": "./tests/material/physx_mat1.json",
+          "material": 1024,
           "shape": { "type": 1 }
         }
       ],
@@ -66,13 +66,13 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": "./tests/material/mat1.json",
-          "mesh": "@s"
+          "material": 1024,
+          "mesh": 3
         },
         {
           "type": "rigidbody",
           "static": false,
-          "material": "./tests/material/physx_mat1.json",
+          "material": 1024,
           "shape": { "type": 0, "r": 1.0 }
         }
       ],

@@ -6,4 +6,4 @@ PhysXGpu_64.dll
 .vscode
 assets
 out
-!builtin_resources/**/*.obj
+!builtin_assets/**/*.obj

@@ -2,7 +2,7 @@
 #define SCENE_H
 
 #include <ds/id_allocator.hpp>
-#include <resource.hpp>
+#include <asset.hpp>
 #include <gameobject.hpp>
 
 #include <memory>
@@ -133,7 +133,7 @@ namespace vke_common
 
         static void LoadScene(const std::string &pth)
         {
-            nlohmann::json json(vke_common::ResourceManager::LoadJSON(pth));
+            nlohmann::json json(vke_common::AssetManager::LoadJSON(pth));
             SetCurrentScene(std::make_unique<Scene>(pth, json));
         }
 

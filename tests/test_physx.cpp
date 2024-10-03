@@ -43,14 +43,14 @@ int main()
     vke_common::TimeManager::Init();
     vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
     engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
-
+    vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_physx_desc.json");
     vke_common::SceneManager::LoadScene("./tests/scene/test_physx_scene.json");
     camp = vke_common::SceneManager::GetInstance()->currentScene->objects[1].get();
     planep = vke_common::SceneManager::GetInstance()->currentScene->objects[2].get();
     spherep = vke_common::SceneManager::GetInstance()->currentScene->objects[3].get();
 
     // {
-    //     auto pmat = vke_common::ResourceManager::LoadPhysicsMaterial("./tests/material/physx_mat1.json");
+    //     auto pmat = vke_common::AssetManager::LoadPhysicsMaterial("./tests/material/physx_mat1.json");
     //     auto staticRigid = std::make_unique<vke_physics::RigidBody>(std::make_unique<physx::PxPlaneGeometry>(), pmat, planep);
     //     planep->AddComponent(std::move(staticRigid));
 

@@ -29,7 +29,7 @@ libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include']
 cppdefines = ['NDEBUG']
-commonsrc = ["./src/render/environment.cpp", "./src/resource.cpp","./src/builtin.cpp",
+commonsrc = ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp",
                 "./src/render/render.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/physics.cpp"]
@@ -51,39 +51,3 @@ for info in targetinfo:
 env.Library("out/vkengine",commonsrc,
                         LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines,
                         SCONS_CXX_STANDARD="c++17")
-
-# Program("test",
-#         ["./src/stb_image.cpp",
-#          "./src/events/event.cpp",
-#          "./src/render/renderer.cpp",
-#          "./src/render/render_queue.cpp",
-#          "./src/render/skybox.cpp",
-#          "./src/render/light.cpp",
-#          "./src/common/common.cpp",
-#          "./src/common/game_object.cpp",
-#          "./src/glad.c",
-#          "./src/test.cpp", 
-#          "./src/resource/resource.cpp", ],
-#         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32', 'opengl32', 'glfw3'], LIBPATH=['./libs'], CPPPATH=['./include'])
-
-# Program("gen_six",
-#         ["./tools/irr_gen/gen_six.cpp",
-#          "./src/common/common.cpp",
-#          "./src/stb_image.cpp",
-#          "./src/glad.c", ],
-#         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32', 'opengl32', 'glfw3'], LIBPATH=['./libs'], CPPPATH=['./include'])
-
-# Program("gen_one",
-#         ["./tools/irr_gen/gen_one.cpp",
-#          "./src/common/common.cpp",
-#          "./src/stb_image.cpp",
-#          "./src/glad.c", ],
-#         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32', 'opengl32', 'glfw3'], LIBPATH=['./libs'], CPPPATH=['./include'])
-
-
-# Program("texture_conv",
-#         ["./tools/texture_conv/texture_conv.cpp",
-#          "./src/common/common.cpp",
-#          "./src/stb_image.cpp",
-#          "./src/glad.c", ],
-#         LIBS=['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32', 'opengl32', 'glfw3'], LIBPATH=['./libs'], CPPPATH=['./include'])

@@ -40,8 +40,8 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": "./tests/material/mat1.json",
-          "mesh": "@m"
+          "material": 1024,
+          "mesh": 5
         }
       ],
       "children": [
@@ -59,8 +59,8 @@
           "components": [
             {
               "type": "renderableObject",
-              "material": "./tests/material/mat1.json",
-              "mesh": "@s"
+              "material": 1024,
+              "mesh": 3
             }
           ],
           "children": []
@@ -81,8 +81,8 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": "./tests/material/mat1.json",
-          "mesh": "@m"
+          "material": 1024,
+          "mesh": 5
         }
       ],
       "children": []
@@ -101,8 +101,8 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": "./tests/material/mat1.json",
-          "mesh": "@cy"
+          "material": 1024,
+          "mesh": 4
         }
       ],
       "children": []

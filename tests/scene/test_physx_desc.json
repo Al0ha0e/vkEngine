@@ -1,0 +1,29 @@
+[
+    {
+        "type":0,
+        "id": 1024,
+        "name":"test_texture",
+        "path": "./tests/texture/texture.jpg"
+    },
+    {
+        "type":2,
+        "id":1024,
+        "name":"test_shader",
+        "path":"./tests/shader/vert.spv",
+        "fragPath":"./tests/shader/frag.spv"
+    },
+    {
+        "type":4,
+        "id":1024,
+        "name":"test_mat",
+        "path":"",
+        "shader":1024,
+        "textures":[1024]
+    },
+    {
+        "type":5,
+        "id":1024,
+        "name":"test_physics_mat",
+        "path": "./tests/material/physx_mat1.json"
+    }
+]

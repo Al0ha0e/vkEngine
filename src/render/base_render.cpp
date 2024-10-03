@@ -1,6 +1,6 @@
 #include <render/render.hpp>
 #include <render/base_render.hpp>
-#include <resource.hpp>
+#include <asset.hpp>
 
 namespace vke_render
 {
@@ -223,9 +223,9 @@ namespace vke_render
 
         std::shared_ptr<Material> skyboxMaterial(new Material);
 
-        std::shared_ptr<Texture2D> texture = vke_common::ResourceManager::LoadTexture2D("./tests/texture/skybox.png");
+        std::shared_ptr<Texture2D> texture = vke_common::AssetManager::LoadTexture2D(vke_common::BUILTIN_TEXTURE_SKYBOX_ID);
         skyboxMaterial->textures.push_back(texture);
-        skyboxMaterial->shader = vke_common::ResourceManager::LoadVertFragShader("./tests/shader/skyvert.spv", "./tests/shader/skyfrag.spv");
+        skyboxMaterial->shader = vke_common::AssetManager::LoadVertFragShader(vke_common::BUILTIN_VFSHADER_SKYBOX_ID);
         skyboxMaterial->bindingDescriptions = bindingDescriptions;
         skyboxMaterial->attributeDescriptions = attributeDescriptions;
 

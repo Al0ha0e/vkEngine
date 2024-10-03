@@ -41,6 +41,7 @@ int main()
     vke_common::EventSystem::Init();
     vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
     engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
+    vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_desc.json");
 
     // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
     // vke_common::TransformParameter targetParam2(glm::vec3(-10.0f, 1.0f, 0.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
@@ -53,7 +54,7 @@ int main()
     // camp = cameraGameObj.get();
     // cameraGameObj->AddComponent(std::make_unique<vke_component::Camera>(105, WIDTH, HEIGHT, 0.01, 1000, camp));
 
-    // vke_common::ResourceManager *manager = vke_common::ResourceManager::GetInstance();
+    // vke_common::AssetManager *manager = vke_common::AssetManager::GetInstance();
 
     // {
     //     std::shared_ptr<vke_render::Material> material = manager->LoadMaterial("./tests/material/mat1.json");

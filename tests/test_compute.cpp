@@ -1,5 +1,5 @@
 #include <render/compute.hpp>
-#include <resource.hpp>
+#include <asset.hpp>
 #include <render/descriptor.hpp>
 #include <render/buffer.hpp>
 #include <engine.hpp>
@@ -23,9 +23,9 @@ int main()
     vke_common::EventSystem::Init();
     vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
     vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
-
+    vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_compute_desc.json");
     {
-        std::shared_ptr<vke_render::ComputeShader> shader = vke_common::ResourceManager::LoadComputeShader("./tests/shader/test_compute.spv");
+        std::shared_ptr<vke_render::ComputeShader> shader = vke_common::AssetManager::LoadComputeShader(1024);
         std::vector<vke_render::DescriptorInfo> descriptorInfos;
         VkDescriptorSetLayoutBinding binding{};
         vke_render::InitDescriptorSetLayoutBinding(binding, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);

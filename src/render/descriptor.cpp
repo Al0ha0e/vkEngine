@@ -1,7 +1,7 @@
 #include <render/render.hpp>
 #include <iostream>
 #include <fstream>
-#include <resource.hpp>
+#include <asset.hpp>
 
 namespace vke_render
 {

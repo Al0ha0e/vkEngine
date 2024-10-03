@@ -2,7 +2,7 @@
 #define RIGIDBODY_H
 
 #include <physics.hpp>
-#include <resource.hpp>
+#include <asset.hpp>
 #include <gameobject.hpp>
 
 namespace vke_physics
@@ -26,7 +26,7 @@ namespace vke_physics
         RigidBody(vke_common::GameObject *obj, nlohmann::json &json) : Component(obj)
         {
             parseGeometryJSON(json["shape"]);
-            material = vke_common::ResourceManager::LoadPhysicsMaterial(json["material"]);
+            material = vke_common::AssetManager::LoadPhysicsMaterial(json["material"]);
             bool isStatic = json["static"];
             init(isStatic);
         }

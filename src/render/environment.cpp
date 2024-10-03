@@ -149,7 +149,7 @@ namespace vke_render
                supportedFeatures11.storageBuffer16BitAccess &&
                supportedFeatures11.uniformAndStorageBuffer16BitAccess &&
                supportedFeatures12.shaderBufferInt64Atomics &&
-               supportedFeatures12.shaderSharedInt64Atomics &&
+               // supportedFeatures12.shaderSharedInt64Atomics &&
                supportedFeatures12.shaderFloat16 &&
                supportedFeatures12.shaderInt8 &&
                supportedFeatures12.uniformAndStorageBuffer8BitAccess;
@@ -211,7 +211,7 @@ namespace vke_render
         VkPhysicalDeviceVulkan12Features deviceFeatures12 = {};
         deviceFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         deviceFeatures12.shaderBufferInt64Atomics = VK_TRUE;
-        deviceFeatures12.shaderSharedInt64Atomics = VK_TRUE;
+        // deviceFeatures12.shaderSharedInt64Atomics = VK_TRUE;
         deviceFeatures12.shaderFloat16 = VK_TRUE;
         deviceFeatures12.shaderInt8 = VK_TRUE;
         deviceFeatures12.uniformAndStorageBuffer8BitAccess = VK_TRUE;

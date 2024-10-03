@@ -3,7 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/buffer.hpp>
-#include <resource.hpp>
+#include <asset.hpp>
 #include <gameobject.hpp>
 
 namespace vke_component
@@ -26,8 +26,8 @@ namespace vke_component
 
         RenderableObject(vke_common::GameObject *obj, nlohmann::json &json) : Component(obj)
         {
-            material = vke_common::ResourceManager::LoadMaterial(json["material"]);
-            mesh = vke_common::ResourceManager::LoadMesh(json["mesh"]);
+            material = vke_common::AssetManager::LoadMaterial(json["material"]);
+            mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
             init();
         }
 
