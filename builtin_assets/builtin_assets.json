@@ -1,0 +1,60 @@
+[
+  {
+    "type": 0,
+    "id": 1,
+    "name": "DefaultTex",
+    "path": "/builtin_assets/texture/default.png"
+  },
+  {
+    "type": 0,
+    "id": 2,
+    "name": "SkyboxTex",
+    "path": "/builtin_assets/texture/skybox.png"
+  },
+  {
+    "type": 1,
+    "id": 2,
+    "name": "Cube",
+    "path": "/builtin_assets/mesh/cube.obj"
+  },
+  {
+    "type": 1,
+    "id": 3,
+    "name": "Sphere",
+    "path": "/builtin_assets/mesh/sphere.obj"
+  },
+  {
+    "type": 1,
+    "id": 4,
+    "name": "Cylinder",
+    "path": "/builtin_assets/mesh/cylinder.obj"
+  },
+  {
+    "type": 1,
+    "id": 5,
+    "name": "Monkey",
+    "path": "/builtin_assets/mesh/monkey.obj"
+  },
+  {
+    "type": 2,
+    "id": 1,
+    "name": "DefaultShader",
+    "path": "/builtin_assets/shader/default_vert.spv",
+    "fragPath": "/builtin_assets/shader/default_frag.spv"
+  },
+  {
+    "type": 2,
+    "id": 2,
+    "name": "SkyboxShader",
+    "path": "/builtin_assets/shader/skyvert.spv",
+    "fragPath": "/builtin_assets/shader/skyfrag.spv"
+  },
+  {
+    "type": 4,
+    "id": 1,
+    "name": "DefaultMaterial",
+    "path": "",
+    "shader": 1,
+    "textures": [1]
+  }
+]

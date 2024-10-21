@@ -16,8 +16,19 @@ namespace vke_common
         instance = new AssetManager();
         for (int i = 0; i < ASSET_CNT_FLAG; i++)
             instance->ids[i] = CUSTOM_ASSET_ID_ST;
+        instance->ids[ASSET_SCENE] = 1;
         instance->loadBuiltinAssets();
         return instance;
+    }
+
+    AssetHandle AssetManager::AllocateAssetID(AssetType type)
+    {
+        return instance->ids[type]++;
+    }
+
+    void AssetManager::clearAssetLUT()
+    {
+        // TODO
     }
 
 #define LOAD_LUT_CASE(tpid, tp, assets)          \
@@ -48,26 +59,57 @@ namespace vke_common
         }
     }
 
+#define ASSET_TO_JSON(cache)                \
+    for (auto &kv : cache)                  \
+        if (kv.first >= CUSTOM_ASSET_ID_ST) \
+            ret += "\n" + kv.second.ToJSON() + ",";
+
+    void AssetManager::saveAssetLUT(const std::string &pth)
+    {
+        std::string ret = "[ ";
+
+        ASSET_TO_JSON(textureCache)
+        ASSET_TO_JSON(meshCache)
+        ASSET_TO_JSON(vfShaderCache)
+        ASSET_TO_JSON(computeShaderCache)
+        ASSET_TO_JSON(materialCache)
+        ASSET_TO_JSON(physicsMaterialCache)
+        ASSET_TO_JSON(sceneCache)
+
+        ret[ret.length() - 1] = ' ';
+        ret += "]";
+
+        std::ofstream ofs(pth);
+        ofs << ret;
+        ofs.close();
+    }
+
     extern const std::vector<vke_render::Vertex> planeVertices;
     extern const std::vector<uint32_t> planeIndices;
 
+#define LOAD_BUILTIN_ASSET(cache, load)                         \
+    for (auto &kv : cache)                                      \
+    {                                                           \
+        kv.second.path = std::string(REL_DIR) + kv.second.path; \
+        load(kv.first);                                         \
+    }
+
     void AssetManager::loadBuiltinAssets()
     {
-        textureCache[BUILTIN_TEXTURE_SKYBOX_ID] = TextureAsset(BUILTIN_TEXTURE_SKYBOX_ID, "SkyboxTex", BuiltinSkyboxTexPath);
+        loadAssetLUT(BuiltinAssetLUTPath);
+
+        LOAD_BUILTIN_ASSET(textureCache, LoadTexture2D)
+        LOAD_BUILTIN_ASSET(meshCache, LoadMesh)
+        for (auto &kv : vfShaderCache)
+        {
+            kv.second.path = std::string(REL_DIR) + kv.second.path;
+            kv.second.fragPath = std::string(REL_DIR) + kv.second.fragPath;
+            LoadVertFragShader(kv.first);
+        }
+        LOAD_BUILTIN_ASSET(materialCache, LoadMaterial)
+
         auto &plane = MeshAsset(BUILTIN_MESH_PLANE_ID, "Plane", "");
         plane.val = std::make_shared<vke_render::Mesh>("", planeVertices, planeIndices);
         meshCache[BUILTIN_MESH_PLANE_ID] = plane;
-        meshCache[BUILTIN_MESH_CUBE_ID] = MeshAsset(BUILTIN_MESH_CUBE_ID, "Cube", BuiltinCubePath);
-        meshCache[BUILTIN_MESH_SPHERE_ID] = MeshAsset(BUILTIN_MESH_SPHERE_ID, "Sphere", BuiltinSpherePath);
-        meshCache[BUILTIN_MESH_CYLINDER_ID] = MeshAsset(BUILTIN_MESH_CYLINDER_ID, "Cylinder", BuiltinCylinderPath);
-        meshCache[BUILTIN_MESH_MONKEY_ID] = MeshAsset(BUILTIN_MESH_MONKEY_ID, "Monkey", BuiltinMonkeyPath);
-        vfShaderCache[BUILTIN_VFSHADER_SKYBOX_ID] = VFShaderAsset(BUILTIN_VFSHADER_SKYBOX_ID, "SkyboxShader",
-                                                                  BuiltinSkyVertShaderPath,
-                                                                  BuiltinSkyFragShaderPath);
-
-        LoadTexture2D(BUILTIN_TEXTURE_SKYBOX_ID);
-        for (int i = 2; i < 6; i++)
-            LoadMesh(i);
-        LoadVertFragShader(BUILTIN_VFSHADER_SKYBOX_ID);
     }
 };
