@@ -9,12 +9,13 @@ namespace vke_render
     class Texture2D
     {
     public:
+        vke_common::AssetHandle handle;
         VkImage textureImage;
         VkDeviceMemory textureImageMemory;
         VkImageView textureImageView;
         VkSampler textureSampler;
 
-        Texture2D(void *pixels, int texWidth, int texHeight)
+        Texture2D(const vke_common::AssetHandle hdl, void *pixels, int texWidth, int texHeight) : handle(hdl)
         {
             VkDeviceSize imageSize = texWidth * texHeight * 4;
             VkBuffer stagingBuffer;

@@ -23,4 +23,9 @@ const bool DEBUG_MODE = false;
 #define REL_DIR "."
 #endif
 
+namespace vke_common
+{
+    using AssetHandle = uint64_t;
+}
+
 #endif

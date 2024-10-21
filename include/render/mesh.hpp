@@ -20,18 +20,18 @@ namespace vke_render
     class Mesh
     {
     public:
-        std::string path;
+        vke_common::AssetHandle handle;
         std::unique_ptr<DeviceBuffer> vertexBuffer;
         std::unique_ptr<DeviceBuffer> indexBuffer;
         size_t indexCnt;
         std::vector<std::shared_ptr<Mesh>> subMeshes;
 
-        Mesh() : indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
+        Mesh() : handle(0), indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
 
-        Mesh(const std::string &path) : path(path), indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
+        Mesh(const vke_common::AssetHandle hdl) : handle(hdl), indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
 
-        Mesh(const std::string &path, const std::vector<Vertex> &vertices, const std::vector<uint32_t> &index)
-            : path(path),
+        Mesh(const vke_common::AssetHandle hdl, const std::vector<Vertex> &vertices, const std::vector<uint32_t> &index)
+            : handle(hdl),
               indexCnt(index.size()),
               vertexBuffer(std::make_unique<DeviceBuffer>(vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)),
               indexBuffer(std::make_unique<DeviceBuffer>(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT))
@@ -40,8 +40,8 @@ namespace vke_render
             indexBuffer->ToBuffer(0, index.data(), index.size() * sizeof(uint32_t));
         }
 
-        Mesh(const std::string &path, size_t vertSize, const void *vertData, const std::vector<uint32_t> &index)
-            : path(path),
+        Mesh(const vke_common::AssetHandle hdl, size_t vertSize, const void *vertData, const std::vector<uint32_t> &index)
+            : handle(hdl),
               indexCnt(index.size()),
               vertexBuffer(std::make_unique<DeviceBuffer>(vertSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)),
               indexBuffer(std::make_unique<DeviceBuffer>(index.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT))

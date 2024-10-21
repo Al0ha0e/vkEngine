@@ -12,9 +12,11 @@ namespace vke_render
     public:
         Material() = default;
 
+        Material(vke_common::AssetHandle hdl) : handle(hdl) {}
+
         ~Material() {}
 
-        std::string path;
+        vke_common::AssetHandle handle;
         std::shared_ptr<VertFragShader> shader;
         std::vector<std::shared_ptr<Texture2D>> textures;
         std::vector<VkVertexInputBindingDescription> bindingDescriptions;

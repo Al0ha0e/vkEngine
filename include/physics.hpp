@@ -1,6 +1,7 @@
 #ifndef PHYSICS_H
 #define PHYSICS_H
 
+#include <common.hpp>
 #include <event.hpp>
 #include <physx/PxPhysicsAPI.h>
 #include <vector>
@@ -10,12 +11,12 @@ namespace vke_physics
 {
     struct PhysicsMaterial
     {
-        std::string path;
+        vke_common::AssetHandle handle;
         physx::PxMaterial *material;
 
         PhysicsMaterial() = default;
-        PhysicsMaterial(const std::string &pth, physx::PxMaterial *mat)
-            : path(pth), material(mat) {}
+        PhysicsMaterial(const vke_common::AssetHandle hdl, physx::PxMaterial *mat)
+            : handle(hdl), material(mat) {}
     };
 
     class PhysicsManager

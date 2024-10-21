@@ -10,7 +10,9 @@ namespace vke_render
     class Shader
     {
     public:
+        vke_common::AssetHandle handle;
         Shader() = default;
+        Shader(const vke_common::AssetHandle hdl) : handle(hdl) {}
         virtual ~Shader() {}
 
     protected:
@@ -37,7 +39,7 @@ namespace vke_render
         std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
         VertFragShader() = default;
-        VertFragShader(const std::vector<char> &vcode, const std::vector<char> &fcode) : Shader()
+        VertFragShader(const vke_common::AssetHandle hdl, const std::vector<char> &vcode, const std::vector<char> &fcode) : Shader(hdl)
         {
             vertShaderModule = createShaderModule(vcode);
             fragShaderModule = createShaderModule(fcode);
@@ -75,7 +77,7 @@ namespace vke_render
         VkPipelineShaderStageCreateInfo shaderStageInfo;
 
         ComputeShader() = default;
-        ComputeShader(const std::vector<char> &code) : Shader()
+        ComputeShader(const vke_common::AssetHandle hdl, const std::vector<char> &code) : Shader(hdl)
         {
             shaderModule = createShaderModule(code);
 

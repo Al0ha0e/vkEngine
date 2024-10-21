@@ -74,7 +74,8 @@ namespace vke_common
         ASSET_TO_JSON(computeShaderCache)
         ASSET_TO_JSON(materialCache)
         ASSET_TO_JSON(physicsMaterialCache)
-        ASSET_TO_JSON(sceneCache)
+        for (auto &kv : sceneCache)
+            ret += "\n" + kv.second.ToJSON() + ",";
 
         ret[ret.length() - 1] = ' ';
         ret += "]";
@@ -109,7 +110,7 @@ namespace vke_common
         LOAD_BUILTIN_ASSET(materialCache, LoadMaterial)
 
         auto &plane = MeshAsset(BUILTIN_MESH_PLANE_ID, "Plane", "");
-        plane.val = std::make_shared<vke_render::Mesh>("", planeVertices, planeIndices);
+        plane.val = std::make_shared<vke_render::Mesh>(BUILTIN_MESH_PLANE_ID, planeVertices, planeIndices);
         meshCache[BUILTIN_MESH_PLANE_ID] = plane;
     }
 };

@@ -41,7 +41,7 @@ namespace vke_physics
         {
             std::string ret = "{\n\"type\":\"rigidbody\",\n";
             ret += "\"static\": " + std::string((rigidActor->getType() == physx::PxActorType::eRIGID_STATIC) ? "true" : "false") + ",\n";
-            ret += "\"material\": \"" + material->path + "\",\n";
+            ret += "\"material\": " + std::to_string(material->handle) + ",\n";
             ret += "\"shape\": " + genGeometryJSON();
             ret += "\n}";
             return ret;

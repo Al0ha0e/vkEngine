@@ -15,6 +15,7 @@ namespace vke_common
     class Scene
     {
     public:
+        vke_common::AssetHandle handle;
         std::string path;
         std::vector<std::string> layers;
         std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> objects;

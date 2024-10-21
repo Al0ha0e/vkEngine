@@ -18,8 +18,6 @@ namespace vke_common
 {
     extern const std::string BuiltinAssetLUTPath;
 
-    using AssetHandle = uint64_t;
-
     const AssetHandle CUSTOM_ASSET_ID_ST = 1024;
 
     const AssetHandle BUILTIN_TEXTURE_DEFAULT_ID = 1;

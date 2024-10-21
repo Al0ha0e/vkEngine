@@ -40,8 +40,8 @@ namespace vke_component
         std::string ToJSON() override
         {
             std::string ret = "{\n\"type\":\"renderableObject\"";
-            ret += ",\n\"material\": \"" + material->path + "\"";
-            ret += ",\n\"mesh\": \"" + mesh->path + "\"";
+            ret += ",\n\"material\": " + std::to_string(material->handle);
+            ret += ",\n\"mesh\": " + std::to_string(mesh->handle);
             ret += "\n}";
             return ret;
         }

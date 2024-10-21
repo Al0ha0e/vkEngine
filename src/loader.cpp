@@ -65,7 +65,7 @@ namespace vke_common
         return ret;
     }
 
-    static inline std::shared_ptr<vke_render::Texture2D> loadTexture2D(const std::string &pth)
+    static inline std::shared_ptr<vke_render::Texture2D> loadTexture2D(const AssetHandle hdl, const std::string &pth)
     {
         int texWidth, texHeight, texChannels;
         stbi_uc *pixels = stbi_load(pth.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
@@ -75,20 +75,20 @@ namespace vke_common
             throw std::runtime_error("failed to load texture image!");
         }
 
-        return std::make_shared<vke_render::Texture2D>(pixels, texWidth, texHeight);
+        return std::make_shared<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight);
     }
 
     std::shared_ptr<vke_render::Texture2D> AssetManager::LoadTexture2D(const AssetHandle hdl)
     {
-        std::function<std::shared_ptr<vke_render::Texture2D>(TextureAsset &)> op = [](TextureAsset &asset)
-        { return loadTexture2D(asset.path); };
+        std::function<std::shared_ptr<vke_render::Texture2D>(TextureAsset &)> op = [hdl](TextureAsset &asset)
+        { return loadTexture2D(hdl, asset.path); };
 
         return loadFromCacheOrUpdate<vke_render::Texture2D>(instance->textureCache, hdl, op);
     }
 
-    static std::shared_ptr<vke_render::Mesh> processNode(const std::string &pth, aiNode *node, const aiScene *scene);
+    static std::shared_ptr<vke_render::Mesh> processNode(const AssetHandle hdl, aiNode *node, const aiScene *scene);
 
-    static inline std::shared_ptr<vke_render::Mesh> loadMesh(const std::string &pth)
+    static inline std::shared_ptr<vke_render::Mesh> loadMesh(const AssetHandle hdl, const std::string &pth)
     {
         Assimp::Importer importer;
         const aiScene *scene = importer.ReadFile(pth, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_MakeLeftHanded);
@@ -97,44 +97,44 @@ namespace vke_common
             std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << "\n";
             return nullptr;
         }
-        return processNode(pth, scene->mRootNode, scene);
+        return processNode(hdl, scene->mRootNode, scene);
     }
 
     std::shared_ptr<vke_render::Mesh> AssetManager::LoadMesh(const AssetHandle hdl)
     {
-        std::function<std::shared_ptr<vke_render::Mesh>(MeshAsset &)> op = [](MeshAsset &asset)
-        { return loadMesh(asset.path); };
+        std::function<std::shared_ptr<vke_render::Mesh>(MeshAsset &)> op = [hdl](MeshAsset &asset)
+        { return loadMesh(hdl, asset.path); };
 
         return loadFromCacheOrUpdate<vke_render::Mesh>(instance->meshCache, hdl, op);
     }
 
-    static inline std::shared_ptr<vke_render::VertFragShader> loadVertFragShader(const std::string &vpth, const std::string &fpth)
+    static inline std::shared_ptr<vke_render::VertFragShader> loadVertFragShader(const AssetHandle hdl, const std::string &vpth, const std::string &fpth)
     {
         std::vector<char> vcode, fcode;
         readFile(vpth, vcode);
         readFile(fpth, fcode);
-        return std::make_shared<vke_render::VertFragShader>(vcode, fcode);
+        return std::make_shared<vke_render::VertFragShader>(hdl, vcode, fcode);
     }
 
     std::shared_ptr<vke_render::VertFragShader> AssetManager::LoadVertFragShader(const AssetHandle hdl)
     {
-        std::function<std::shared_ptr<vke_render::VertFragShader>(VFShaderAsset &)> op = [](VFShaderAsset &asset)
-        { return loadVertFragShader(asset.path, asset.fragPath); };
+        std::function<std::shared_ptr<vke_render::VertFragShader>(VFShaderAsset &)> op = [hdl](VFShaderAsset &asset)
+        { return loadVertFragShader(hdl, asset.path, asset.fragPath); };
 
         return loadFromCacheOrUpdate<vke_render::VertFragShader>(instance->vfShaderCache, hdl, op);
     }
 
-    static inline std::shared_ptr<vke_render::ComputeShader> loadComputeShader(const std::string &pth)
+    static inline std::shared_ptr<vke_render::ComputeShader> loadComputeShader(const AssetHandle hdl, const std::string &pth)
     {
         std::vector<char> code;
         readFile(pth, code);
-        return std::make_shared<vke_render::ComputeShader>(code);
+        return std::make_shared<vke_render::ComputeShader>(hdl, code);
     }
 
     std::shared_ptr<vke_render::ComputeShader> AssetManager::LoadComputeShader(const AssetHandle hdl)
     {
-        std::function<std::shared_ptr<vke_render::ComputeShader>(ComputeShaderAsset &)> op = [](ComputeShaderAsset &asset)
-        { return loadComputeShader(asset.path); };
+        std::function<std::shared_ptr<vke_render::ComputeShader>(ComputeShaderAsset &)> op = [hdl](ComputeShaderAsset &asset)
+        { return loadComputeShader(hdl, asset.path); };
 
         return loadFromCacheOrUpdate<vke_render::ComputeShader>(instance->computeShaderCache, hdl, op);
     }
@@ -163,8 +163,7 @@ namespace vke_common
         attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
         attributeDescriptions[2].offset = offsetof(vke_render::Vertex, texCoord);
 
-        vke_render::Material *mat = new vke_render::Material;
-        // mat->path = pth;
+        vke_render::Material *mat = new vke_render::Material(asset.id);
         mat->bindingDescriptions = bindingDescriptions;
         mat->attributeDescriptions = attributeDescriptions;
 
@@ -199,25 +198,25 @@ namespace vke_common
         return loadFromCacheOrUpdate<vke_render::Material>(instance->materialCache, hdl, op);
     }
 
-    static inline std::shared_ptr<vke_physics::PhysicsMaterial> loadPhysicsMaterial(const std::string &pth)
+    static inline std::shared_ptr<vke_physics::PhysicsMaterial> loadPhysicsMaterial(const AssetHandle hdl, const std::string &pth)
     {
         nlohmann::json &json(loadJSON(pth));
 
         physx::PxMaterial *mat = vke_physics::PhysicsManager::GetInstance()->gPhysics->createMaterial(
             json["static_friction"], json["dynamic_friction"], json["restitution"]);
 
-        return std::make_shared<vke_physics::PhysicsMaterial>(pth, mat);
+        return std::make_shared<vke_physics::PhysicsMaterial>(hdl, mat);
     }
 
     std::shared_ptr<vke_physics::PhysicsMaterial> AssetManager::LoadPhysicsMaterial(const AssetHandle hdl)
     {
-        std::function<std::shared_ptr<vke_physics::PhysicsMaterial>(PhysicsMaterialAsset &)> op = [](PhysicsMaterialAsset &asset)
-        { return loadPhysicsMaterial(asset.path); };
+        std::function<std::shared_ptr<vke_physics::PhysicsMaterial>(PhysicsMaterialAsset &)> op = [hdl](PhysicsMaterialAsset &asset)
+        { return loadPhysicsMaterial(hdl, asset.path); };
 
         return loadFromCacheOrUpdate<vke_physics::PhysicsMaterial>(instance->physicsMaterialCache, hdl, op);
     }
 
-    static std::shared_ptr<vke_render::Mesh> processMesh(const std::string &pth, aiMesh *mesh, const aiScene *scene)
+    static std::shared_ptr<vke_render::Mesh> processMesh(const AssetHandle hdl, aiMesh *mesh, const aiScene *scene)
     {
         std::vector<vke_render::Vertex> vertices;
         std::vector<unsigned int> indices;
@@ -238,20 +237,20 @@ namespace vke_common
             for (unsigned int j = 0; j < face.mNumIndices; j++)
                 indices.push_back(face.mIndices[j]);
         }
-        return std::make_shared<vke_render::Mesh>(pth, vertices, indices);
+        return std::make_shared<vke_render::Mesh>(hdl, vertices, indices);
     }
 
-    static std::shared_ptr<vke_render::Mesh> processNode(const std::string &pth, aiNode *node, const aiScene *scene)
+    static std::shared_ptr<vke_render::Mesh> processNode(const AssetHandle hdl, aiNode *node, const aiScene *scene)
     {
         std::shared_ptr<vke_render::Mesh> ret = nullptr;
         if (node->mNumMeshes == 0)
         {
-            ret = std::make_shared<vke_render::Mesh>(pth);
+            ret = std::make_shared<vke_render::Mesh>(hdl);
         }
         else if (node->mNumMeshes == 1)
         {
             aiMesh *mesh = scene->mMeshes[node->mMeshes[0]];
-            ret = processMesh(pth, mesh, scene);
+            ret = processMesh(hdl, mesh, scene);
         }
         else
         {
@@ -259,13 +258,13 @@ namespace vke_common
             for (unsigned int i = 0; i < node->mNumMeshes; i++)
             {
                 aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-                ret->subMeshes.push_back(processMesh(pth, mesh, scene));
+                ret->subMeshes.push_back(processMesh(hdl, mesh, scene));
             }
         }
 
         for (unsigned int i = 0; i < node->mNumChildren; i++)
         {
-            auto submesh = processNode(pth, node->mChildren[i], scene);
+            auto submesh = processNode(hdl, node->mChildren[i], scene);
             if (submesh != nullptr)
                 ret->subMeshes.push_back(submesh);
         }

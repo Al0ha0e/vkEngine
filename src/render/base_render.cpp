@@ -244,7 +244,7 @@ namespace vke_render
         std::vector<uint32_t> indices;
         for (int i = 0; i < skyboxVertices.size(); i++)
             indices.push_back(i);
-        std::shared_ptr<Mesh> skyboxMesh = std::make_shared<Mesh>("", skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
+        std::shared_ptr<Mesh> skyboxMesh = std::make_shared<Mesh>(0, skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
 
         std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> buffers;
         renderInfo->AddUnit(skyboxMesh, buffers);
