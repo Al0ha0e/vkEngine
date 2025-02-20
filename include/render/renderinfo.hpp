@@ -97,7 +97,7 @@ namespace vke_render
                 std::vector<VkDescriptorSetLayoutBinding> commonBindings;
                 for (auto &dInfo : commonDescriptorInfos)
                 {
-                    commonDescriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
+                    commonDescriptorSetInfo.AddCnt(dInfo.bindingInfo);
                     commonBindings.push_back(dInfo.bindingInfo);
                 }
 
@@ -144,7 +144,7 @@ namespace vke_render
                 std::vector<VkDescriptorSetLayoutBinding> perUnitBindings;
                 for (auto &dInfo : mat->perUnitDescriptorInfos)
                 {
-                    perUnitDescriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
+                    perUnitDescriptorSetInfo.AddCnt(dInfo.bindingInfo);
                     perUnitBindings.push_back(dInfo.bindingInfo);
                 }
 

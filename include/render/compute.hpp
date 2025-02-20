@@ -26,6 +26,14 @@ namespace vke_render
                                                                            waitStages(waitStages),
                                                                            signalSemaphores(signalSemaphores) {}
 
+        ComputeTaskInstance(VkDescriptorSet dSet,
+                            std::vector<VkSemaphore> &&waitSemaphores,
+                            std::vector<VkPipelineStageFlags> &&waitStages,
+                            std::vector<VkSemaphore> &&signalSemaphores) : descriptorSet(dSet),
+                                                                           waitSemaphores(waitSemaphores),
+                                                                           waitStages(waitStages),
+                                                                           signalSemaphores(signalSemaphores) {}
+
         void Dispatch(
             VkCommandBuffer commandBuffer,
             glm::ivec3 dim3,
@@ -99,6 +107,13 @@ namespace vke_render
             createGraphicsPipeline();
         }
 
+        ComputeTask(std::shared_ptr<ComputeShader> &shader, VkDescriptorSetLayout layout)
+            : shader(shader),
+              descriptorSetInfo(layout, 0, 0, 0)
+        {
+            createGraphicsPipeline();
+        }
+
         ~ComputeTask()
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
@@ -121,6 +136,20 @@ namespace vke_render
             return id;
         }
 
+        vke_ds::id64_t AddInstance(VkDescriptorSet descSet,
+                                   std::vector<VkSemaphore> &&waitSemaphores,
+                                   std::vector<VkPipelineStageFlags> &&waitStages,
+                                   std::vector<VkSemaphore> &&signalSemaphores)
+        {
+            vke_ds::id64_t id = allocator.Alloc();
+            ComputeTaskInstance *instance = new ComputeTaskInstance(descSet,
+                                                                    std::forward<std::vector<VkSemaphore>>(waitSemaphores),
+                                                                    std::forward<std::vector<VkPipelineStageFlags>>(waitStages),
+                                                                    std::forward<std::vector<VkSemaphore>>(signalSemaphores));
+            instances[id] = std::move(std::unique_ptr<ComputeTaskInstance>(instance));
+            return id;
+        }
+
         void Dispatch(vke_ds::id64_t id, VkCommandBuffer commandBuffer, glm::ivec3 dim3, VkFence fence)
         {
             instances[id]->Dispatch(commandBuffer, dim3, pipelineLayout, pipeline, fence);
@@ -137,7 +166,7 @@ namespace vke_render
             std::vector<VkDescriptorSetLayoutBinding> bindings;
             for (auto &dInfo : descriptorInfos)
             {
-                descriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
+                descriptorSetInfo.AddCnt(dInfo.bindingInfo);
                 bindings.push_back(dInfo.bindingInfo);
             }
 

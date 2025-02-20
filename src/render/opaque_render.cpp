@@ -18,7 +18,7 @@ namespace vke_render
         std::vector<VkDescriptorSetLayoutBinding> globalBindings;
         for (auto &dInfo : globalDescriptorInfos)
         {
-            globalDescriptorSetInfo.AddCnt(dInfo.bindingInfo.descriptorType);
+            globalDescriptorSetInfo.AddCnt(dInfo.bindingInfo);
             globalBindings.push_back(dInfo.bindingInfo);
         }
 

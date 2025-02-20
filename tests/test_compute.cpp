@@ -33,7 +33,7 @@ int main()
         VkDeviceSize bufferSize = 1024 * sizeof(int);
         descriptorInfos.push_back(vke_render::DescriptorInfo(binding, bufferSize));
 
-        int *oridata = new int[1024];
+        float *oridata = new float[1024];
         memset(oridata, 0, bufferSize);
 
         VkDevice logicalDevice = environment->logicalDevice;
@@ -67,7 +67,7 @@ int main()
         VkFence fence;
         vkCreateFence(logicalDevice, &fenceInfo, nullptr, &fence);
 
-        task.Dispatch(id, commandBuffer, glm::ivec3(1, 1, 1), fence);
+        task.Dispatch(id, commandBuffer, glm::ivec3(10, 1, 1), fence);
 
         buffer.FromBuffer(0, oridata, bufferSize);
 

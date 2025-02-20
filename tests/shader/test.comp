@@ -1,14 +1,30 @@
 #version 450
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
 
 layout (std430, binding = 0) buffer ParameterSSBO {
-    int data[];
+    float data[];
 } ;
 
+shared float mins[8];
 
-layout (local_size_x = 1024, local_size_y = 1, local_size_z = 1) in;
-
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 void main() 
 {
-    int index = int(gl_LocalInvocationID.x);  
-    data[index] = 114514 + index;
+    float val = gl_LocalInvocationID.x + gl_WorkGroupID.x + 114.514f;  
+
+    val = subgroupMin(val);
+
+    if(gl_SubgroupInvocationID == 0){
+        mins[gl_SubgroupID] = val;
+    }
+    barrier();
+
+    if(gl_SubgroupID == 0){
+        val = gl_SubgroupInvocationID < gl_NumSubgroups ? mins[gl_SubgroupInvocationID] : 3.402823466e+38;
+        val = subgroupMin(val);
+        data[gl_WorkGroupID.x] = val;
+    }
+
+    // data[gl_WorkGroupID.x] = gl_NumSubgroups;
 }

@@ -30,33 +30,51 @@ namespace vke_render
         bufferInfo.range = range;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo)
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorBufferInfo *bufferInfo)
     {
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrite.dstSet = descriptorSet;
         descriptorWrite.dstBinding = descriptorInfo.bindingInfo.binding;
-        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.dstArrayElement = st;
         descriptorWrite.descriptorType = descriptorInfo.bindingInfo.descriptorType;
-        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.descriptorCount = cnt;
         descriptorWrite.pBufferInfo = bufferInfo;
         descriptorWrite.pImageInfo = nullptr;       // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
         return descriptorWrite;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo)
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorImageInfo *imageInfo)
     {
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrite.dstSet = descriptorSet;
         descriptorWrite.dstBinding = descriptorInfo.bindingInfo.binding;
-        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.dstArrayElement = st;
         descriptorWrite.descriptorType = descriptorInfo.bindingInfo.descriptorType;
-        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.descriptorCount = cnt;
         descriptorWrite.pBufferInfo = nullptr;
         descriptorWrite.pImageInfo = imageInfo;     // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
         return descriptorWrite;
+    }
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo)
+    {
+        return ConstructDescriptorSetWrite(descriptorSet, descriptorInfo, 0, 1, bufferInfo);
+    }
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo)
+    {
+        return ConstructDescriptorSetWrite(descriptorSet, descriptorInfo, 0, 1, imageInfo);
     }
 }

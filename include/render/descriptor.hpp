@@ -49,6 +49,8 @@ namespace vke_render
         int combinedImageSamplerCnt;
         int storageDescriptorCnt;
 
+        DescriptorSetInfo() : layout(nullptr), uniformDescriptorCnt(0), combinedImageSamplerCnt(0), storageDescriptorCnt(0) {}
+
         DescriptorSetInfo(VkDescriptorSetLayout layout, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
             : layout(layout),
               uniformDescriptorCnt(uniformDescriptorCnt),
@@ -64,20 +66,25 @@ namespace vke_render
             }
         }
 
-        void AddCnt(VkDescriptorType type)
+        void AddCnt(VkDescriptorType type, int cnt)
         {
             switch (type)
             {
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                uniformDescriptorCnt++;
+                uniformDescriptorCnt += cnt;
                 break;
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                combinedImageSamplerCnt++;
+                combinedImageSamplerCnt += cnt;
                 break;
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                storageDescriptorCnt++;
+                storageDescriptorCnt += cnt;
                 break;
             }
+        }
+
+        void AddCnt(VkDescriptorSetLayoutBinding info)
+        {
+            AddCnt(info.descriptorType, info.descriptorCount);
         }
     };
 
@@ -225,6 +232,16 @@ namespace vke_render
         }
     };
 
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorBufferInfo *bufferInfo);
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorImageInfo *imageInfo);
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo);
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo);
 }
