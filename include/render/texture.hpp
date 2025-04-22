@@ -127,10 +127,8 @@ namespace vke_render
             samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
             samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-            VkPhysicalDeviceProperties properties{};
-            vkGetPhysicalDeviceProperties(RenderEnvironment::GetInstance()->physicalDevice, &properties);
             samplerInfo.anisotropyEnable = VK_TRUE;
-            samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+            samplerInfo.maxAnisotropy = RenderEnvironment::GetInstance()->physicalDeviceProperties.limits.maxSamplerAnisotropy;
             samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
             samplerInfo.unnormalizedCoordinates = VK_FALSE;
             samplerInfo.compareEnable = VK_FALSE;

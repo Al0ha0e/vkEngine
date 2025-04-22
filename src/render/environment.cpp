@@ -152,7 +152,28 @@ namespace vke_render
                // supportedFeatures12.shaderSharedInt64Atomics &&
                supportedFeatures12.shaderFloat16 &&
                supportedFeatures12.shaderInt8 &&
-               supportedFeatures12.uniformAndStorageBuffer8BitAccess;
+               supportedFeatures12.uniformAndStorageBuffer8BitAccess &&
+               supportedFeatures12.descriptorIndexing &&
+               //    supportedFeatures12.shaderInputAttachmentArrayDynamicIndexing &&
+               //    supportedFeatures12.shaderUniformTexelBufferArrayDynamicIndexing &&
+               //    supportedFeatures12.shaderStorageTexelBufferArrayDynamicIndexing &&
+               supportedFeatures12.shaderUniformBufferArrayNonUniformIndexing &&
+               supportedFeatures12.shaderSampledImageArrayNonUniformIndexing &&
+               supportedFeatures12.shaderStorageBufferArrayNonUniformIndexing &&
+               //    supportedFeatures12.shaderStorageImageArrayNonUniformIndexing &&
+               // supportedFeatures12.shaderInputAttachmentArrayNonUniformIndexing &&
+               // supportedFeatures12.shaderUniformTexelBufferArrayNonUniformIndexing &&
+               // supportedFeatures12.shaderStorageTexelBufferArrayNonUniformIndexing &&
+               supportedFeatures12.descriptorBindingUniformBufferUpdateAfterBind &&
+               supportedFeatures12.descriptorBindingSampledImageUpdateAfterBind &&
+               // supportedFeatures12.descriptorBindingStorageImageUpdateAfterBind &&
+               supportedFeatures12.descriptorBindingStorageBufferUpdateAfterBind &&
+               // supportedFeatures12.descriptorBindingUniformTexelBufferUpdateAfterBind &&
+               // supportedFeatures12.descriptorBindingStorageTexelBufferUpdateAfterBind &&
+               supportedFeatures12.descriptorBindingUpdateUnusedWhilePending &&
+               supportedFeatures12.descriptorBindingPartiallyBound &&
+               supportedFeatures12.descriptorBindingVariableDescriptorCount &&
+               supportedFeatures12.runtimeDescriptorArray;
     }
 
     void RenderEnvironment::pickPhysicalDevice()
@@ -174,6 +195,7 @@ namespace vke_render
         {
             std::cout << "FIND " << candidates.size() << " DEVICES\n";
             physicalDevice = candidates[0];
+            vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
         }
         else
         {
@@ -215,6 +237,27 @@ namespace vke_render
         deviceFeatures12.shaderFloat16 = VK_TRUE;
         deviceFeatures12.shaderInt8 = VK_TRUE;
         deviceFeatures12.uniformAndStorageBuffer8BitAccess = VK_TRUE;
+        deviceFeatures12.descriptorIndexing = VK_TRUE;
+        // deviceFeatures12.shaderInputAttachmentArrayDynamicIndexing = VK_TRUE;
+        // deviceFeatures12.shaderUniformTexelBufferArrayDynamicIndexing = VK_TRUE;
+        // deviceFeatures12.shaderStorageTexelBufferArrayDynamicIndexing = VK_TRUE;
+        deviceFeatures12.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
+        deviceFeatures12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+        deviceFeatures12.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+        // deviceFeatures12.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+        // deviceFeatures12.shaderInputAttachmentArrayNonUniformIndexing = VK_TRUE;
+        // deviceFeatures12.shaderUniformTexelBufferArrayNonUniformIndexing = VK_TRUE;
+        // deviceFeatures12.shaderStorageTexelBufferArrayNonUniformIndexing = VK_TRUE;
+        deviceFeatures12.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+        deviceFeatures12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+        // deviceFeatures12.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+        deviceFeatures12.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+        // deviceFeatures12.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_TRUE;
+        // deviceFeatures12.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE;
+        deviceFeatures12.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
+        deviceFeatures12.descriptorBindingPartiallyBound = VK_TRUE;
+        deviceFeatures12.descriptorBindingVariableDescriptorCount = VK_TRUE;
+        deviceFeatures12.runtimeDescriptorArray = VK_TRUE;
         deviceFeatures2.pNext = &deviceFeatures12;
 
         VkPhysicalDeviceVulkan11Features deviceFeatures11 = {};

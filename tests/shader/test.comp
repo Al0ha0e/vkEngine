@@ -1,10 +1,11 @@
 #version 450
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
+#extension GL_EXT_nonuniform_qualifier : require
 
 layout (std430, binding = 0) buffer ParameterSSBO {
     float data[];
-} ;
+}DATAS[];
 
 shared float mins[8];
 
@@ -23,7 +24,7 @@ void main()
     if(gl_SubgroupID == 0){
         val = gl_SubgroupInvocationID < gl_NumSubgroups ? mins[gl_SubgroupInvocationID] : 3.402823466e+38;
         val = subgroupMin(val);
-        data[gl_WorkGroupID.x] = val;
+        DATAS[nonuniformEXT(0)].data[gl_WorkGroupID.x] = val; //.
     }
 
     // data[gl_WorkGroupID.x] = gl_NumSubgroups;

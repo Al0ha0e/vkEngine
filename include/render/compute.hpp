@@ -12,27 +12,27 @@ namespace vke_render
     class ComputeTaskInstance
     {
     public:
-        std::vector<VkBuffer> buffers;
         std::vector<VkSemaphore> waitSemaphores;
         std::vector<VkPipelineStageFlags> waitStages;
         std::vector<VkSemaphore> signalSemaphores;
-        VkDescriptorSet descriptorSet;
+        std::vector<VkDescriptorSet> descriptorSets;
 
-        ComputeTaskInstance(std::vector<VkBuffer> &&buffers,
-                            std::vector<VkSemaphore> &&waitSemaphores,
+        ComputeTaskInstance(std::vector<VkSemaphore> &&waitSemaphores,
                             std::vector<VkPipelineStageFlags> &&waitStages,
-                            std::vector<VkSemaphore> &&signalSemaphores) : buffers(buffers),
-                                                                           waitSemaphores(waitSemaphores),
+                            std::vector<VkSemaphore> &&signalSemaphores) : waitSemaphores(waitSemaphores),
                                                                            waitStages(waitStages),
                                                                            signalSemaphores(signalSemaphores) {}
+        ~ComputeTaskInstance()
+        {
+            // TODO Free descriptor set
+        }
 
-        ComputeTaskInstance(VkDescriptorSet dSet,
-                            std::vector<VkSemaphore> &&waitSemaphores,
-                            std::vector<VkPipelineStageFlags> &&waitStages,
-                            std::vector<VkSemaphore> &&signalSemaphores) : descriptorSet(dSet),
-                                                                           waitSemaphores(waitSemaphores),
-                                                                           waitStages(waitStages),
-                                                                           signalSemaphores(signalSemaphores) {}
+        void UpdateBindings(std::vector<VkWriteDescriptorSet> &descriptorWrites)
+        {
+            for (auto &descriptorWrite : descriptorWrites)
+                descriptorWrite.dstSet = descriptorSets[(int)descriptorWrite.dstSet];
+            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        }
 
         void Dispatch(
             VkCommandBuffer commandBuffer,
@@ -52,7 +52,7 @@ namespace vke_render
             }
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, 0);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, 0);
 
             vkCmdDispatch(commandBuffer, dim3.x, dim3.y, dim3.z);
 
@@ -93,25 +93,13 @@ namespace vke_render
     {
     public:
         std::shared_ptr<ComputeShader> shader;
-        std::vector<DescriptorInfo> descriptorInfos;
         std::map<vke_ds::id64_t, std::unique_ptr<ComputeTaskInstance>> instances;
 
         ComputeTask() = default;
 
-        ComputeTask(std::shared_ptr<ComputeShader> &shader, std::vector<DescriptorInfo> &&descriptorInfos)
-            : shader(shader),
-              descriptorInfos(std::forward<std::vector<DescriptorInfo>>(descriptorInfos)),
-              descriptorSetInfo(nullptr, 0, 0, 0)
+        ComputeTask(std::shared_ptr<ComputeShader> &shader) : shader(shader)
         {
-            initDescriptorSetLayout();
-            createGraphicsPipeline();
-        }
-
-        ComputeTask(std::shared_ptr<ComputeShader> &shader, VkDescriptorSetLayout layout)
-            : shader(shader),
-              descriptorSetInfo(layout, 0, 0, 0)
-        {
-            createGraphicsPipeline();
+            shader->CreatePipeline(pipelineLayout, pipeline);
         }
 
         ~ComputeTask()
@@ -121,33 +109,21 @@ namespace vke_render
             vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
-        vke_ds::id64_t AddInstance(std::vector<VkBuffer> &&buffers,
-                                   std::vector<VkSemaphore> &&waitSemaphores,
+        vke_ds::id64_t AddInstance(std::vector<VkSemaphore> &&waitSemaphores,
                                    std::vector<VkPipelineStageFlags> &&waitStages,
                                    std::vector<VkSemaphore> &&signalSemaphores)
         {
             vke_ds::id64_t id = allocator.Alloc();
-            ComputeTaskInstance *instance = new ComputeTaskInstance(std::forward<std::vector<VkBuffer>>(buffers),
-                                                                    std::forward<std::vector<VkSemaphore>>(waitSemaphores),
-                                                                    std::forward<std::vector<VkPipelineStageFlags>>(waitStages),
-                                                                    std::forward<std::vector<VkSemaphore>>(signalSemaphores));
+            ComputeTaskInstance *instance = new ComputeTaskInstance(std::move(waitSemaphores),
+                                                                    std::move(waitStages),
+                                                                    std::move(signalSemaphores));
             createDescriptorSet(*instance);
             instances[id] = std::move(std::unique_ptr<ComputeTaskInstance>(instance));
             return id;
         }
-
-        vke_ds::id64_t AddInstance(VkDescriptorSet descSet,
-                                   std::vector<VkSemaphore> &&waitSemaphores,
-                                   std::vector<VkPipelineStageFlags> &&waitStages,
-                                   std::vector<VkSemaphore> &&signalSemaphores)
+        void UpdateBindings(vke_ds::id64_t id, std::vector<VkWriteDescriptorSet> &descriptorWrites)
         {
-            vke_ds::id64_t id = allocator.Alloc();
-            ComputeTaskInstance *instance = new ComputeTaskInstance(descSet,
-                                                                    std::forward<std::vector<VkSemaphore>>(waitSemaphores),
-                                                                    std::forward<std::vector<VkPipelineStageFlags>>(waitStages),
-                                                                    std::forward<std::vector<VkSemaphore>>(signalSemaphores));
-            instances[id] = std::move(std::unique_ptr<ComputeTaskInstance>(instance));
-            return id;
+            instances[id]->UpdateBindings(descriptorWrites);
         }
 
         void Dispatch(vke_ds::id64_t id, VkCommandBuffer commandBuffer, glm::ivec3 dim3, VkFence fence)
@@ -156,86 +132,16 @@ namespace vke_render
         }
 
     private:
-        DescriptorSetInfo descriptorSetInfo;
         VkPipelineLayout pipelineLayout;
         VkPipeline pipeline;
         vke_ds::NaiveIDAllocator<vke_ds::id64_t> allocator;
 
-        void initDescriptorSetLayout()
-        {
-            std::vector<VkDescriptorSetLayoutBinding> bindings;
-            for (auto &dInfo : descriptorInfos)
-            {
-                descriptorSetInfo.AddCnt(dInfo.bindingInfo);
-                bindings.push_back(dInfo.bindingInfo);
-            }
-
-            VkDescriptorSetLayoutCreateInfo layoutInfo{};
-            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = bindings.size();
-            layoutInfo.pBindings = bindings.data();
-
-            if (vkCreateDescriptorSetLayout(RenderEnvironment::GetInstance()->logicalDevice,
-                                            &layoutInfo,
-                                            nullptr,
-                                            &(descriptorSetInfo.layout)) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create descriptor set layout!");
-            }
-        }
-
-        void createGraphicsPipeline()
-        {
-            VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-            pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = 1;
-            pipelineLayoutInfo.pSetLayouts = &(descriptorSetInfo.layout);
-
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-
-            if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create compute pipeline layout!");
-            }
-
-            VkComputePipelineCreateInfo pipelineInfo{};
-            pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-            pipelineInfo.layout = pipelineLayout;
-            pipelineInfo.stage = shader->shaderStageInfo;
-
-            if (vkCreateComputePipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create compute pipeline!");
-            }
-        }
-
         void createDescriptorSet(ComputeTaskInstance &instance)
         {
-            instance.descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
+            ShaderModuleSet &shaderModule = *(shader->shaderModule);
 
-            int descriptorCnt = descriptorInfos.size();
-            std::vector<VkDescriptorBufferInfo> bufferInfos(descriptorCnt);
-            std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorCnt);
-            for (int i = 0; i < descriptorCnt; i++)
-            {
-                DescriptorInfo &info = descriptorInfos[i];
-
-                if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-                    info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-                {
-                    InitDescriptorBufferInfo(bufferInfos[i], instance.buffers[i], 0, info.bufferSize);
-                    descriptorWrites[i] = ConstructDescriptorSetWrite(instance.descriptorSet, info, bufferInfos.data() + i);
-                }
-                else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                {
-                    VkDescriptorImageInfo imageInfo{};
-                    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    imageInfo.imageView = info.imageView;
-                    imageInfo.sampler = info.imageSampler;
-                    descriptorWrites[i] = ConstructDescriptorSetWrite(instance.descriptorSet, info, &imageInfo);
-                }
-            }
-            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
+            for (auto &kv : shaderModule.descriptorSetInfoMap)
+                instance.descriptorSets.push_back(vke_render::DescriptorSetAllocator::AllocateDescriptorSet(kv.second));
         }
     };
 }

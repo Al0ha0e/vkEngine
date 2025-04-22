@@ -17,7 +17,7 @@ namespace vke_render
         VkDescriptorSet globalDescriptorSet;
 
         BaseRenderer(RenderContext *ctx, VkBuffer camBuffer)
-            : globalDescriptorSetInfo(nullptr, 0, 0, 0), SubpassBase(BASE_RENDERER, ctx, camBuffer) {}
+            : globalDescriptorSetInfo(nullptr, 0, 0, 0, 0), SubpassBase(BASE_RENDERER, ctx, camBuffer) {}
 
         ~BaseRenderer() {}
 
@@ -45,7 +45,8 @@ namespace vke_render
             DescriptorInfo &info = globalDescriptorInfos[0];
             VkDescriptorBufferInfo bufferInfo{};
             InitDescriptorBufferInfo(bufferInfo, camInfoBuffer, 0, info.bufferSize);
-            VkWriteDescriptorSet descriptorWrite = ConstructDescriptorSetWrite(globalDescriptorSet, info, &bufferInfo);
+            VkWriteDescriptorSet descriptorWrite{};
+            ConstructDescriptorSetWrite(descriptorWrite, globalDescriptorSet, info, &bufferInfo);
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
         }
     };

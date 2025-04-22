@@ -30,51 +30,103 @@ namespace vke_render
         bufferInfo.range = range;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
-                                                     DescriptorInfo &descriptorInfo,
+#define COMMON_DS_WRITE_CONSTRUCT(binding, type)                    \
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; \
+    descriptorWrite.pNext = nullptr;                                \
+    descriptorWrite.dstSet = descriptorSet;                         \
+    descriptorWrite.dstBinding = binding;                           \
+    descriptorWrite.dstArrayElement = st;                           \
+    descriptorWrite.descriptorType = type;                          \
+    descriptorWrite.descriptorCount = cnt;
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
                                                      int st,
                                                      int cnt,
                                                      VkDescriptorBufferInfo *bufferInfo)
     {
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = descriptorSet;
-        descriptorWrite.dstBinding = descriptorInfo.bindingInfo.binding;
-        descriptorWrite.dstArrayElement = st;
-        descriptorWrite.descriptorType = descriptorInfo.bindingInfo.descriptorType;
-        descriptorWrite.descriptorCount = cnt;
+        COMMON_DS_WRITE_CONSTRUCT(binding, descriptorType)
         descriptorWrite.pBufferInfo = bufferInfo;
         descriptorWrite.pImageInfo = nullptr;       // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
         return descriptorWrite;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
-                                                     DescriptorInfo &descriptorInfo,
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
                                                      int st,
                                                      int cnt,
                                                      VkDescriptorImageInfo *imageInfo)
     {
-        VkWriteDescriptorSet descriptorWrite{};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = descriptorSet;
-        descriptorWrite.dstBinding = descriptorInfo.bindingInfo.binding;
-        descriptorWrite.dstArrayElement = st;
-        descriptorWrite.descriptorType = descriptorInfo.bindingInfo.descriptorType;
-        descriptorWrite.descriptorCount = cnt;
+        COMMON_DS_WRITE_CONSTRUCT(binding, descriptorType)
         descriptorWrite.pBufferInfo = nullptr;
         descriptorWrite.pImageInfo = imageInfo;     // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
         return descriptorWrite;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo)
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorBufferInfo *bufferInfo)
     {
-        return ConstructDescriptorSetWrite(descriptorSet, descriptorInfo, 0, 1, bufferInfo);
+        COMMON_DS_WRITE_CONSTRUCT(descriptorInfo.bindingInfo.binding, descriptorInfo.bindingInfo.descriptorType)
+        descriptorWrite.pBufferInfo = bufferInfo;
+        descriptorWrite.pImageInfo = nullptr;       // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+        return descriptorWrite;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo)
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorImageInfo *imageInfo)
     {
-        return ConstructDescriptorSetWrite(descriptorSet, descriptorInfo, 0, 1, imageInfo);
+        COMMON_DS_WRITE_CONSTRUCT(descriptorInfo.bindingInfo.binding, descriptorInfo.bindingInfo.descriptorType)
+        descriptorWrite.pBufferInfo = nullptr;
+        descriptorWrite.pImageInfo = imageInfo;     // Optional
+        descriptorWrite.pTexelBufferView = nullptr; // Optional
+        return descriptorWrite;
+    }
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
+                                                     VkDescriptorBufferInfo *bufferInfo)
+    {
+        return ConstructDescriptorSetWrite(descriptorWrite, descriptorSet, binding, descriptorType, 0, 1, bufferInfo);
+    }
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
+                                                     VkDescriptorImageInfo *imageInfo)
+    {
+        return ConstructDescriptorSetWrite(descriptorWrite, descriptorSet, binding, descriptorType, 0, 1, imageInfo);
+    }
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     VkDescriptorBufferInfo *bufferInfo)
+    {
+        return ConstructDescriptorSetWrite(descriptorWrite, descriptorSet, descriptorInfo, 0, 1, bufferInfo);
+    }
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     VkDescriptorImageInfo *imageInfo)
+    {
+        return ConstructDescriptorSetWrite(descriptorWrite, descriptorSet, descriptorInfo, 0, 1, imageInfo);
     }
 }

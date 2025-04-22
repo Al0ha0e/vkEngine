@@ -44,7 +44,7 @@ namespace vke_render
             {
                 DescriptorInfo &info = descriptorInfos[i];
                 InitDescriptorBufferInfo(bufferInfos[i], buffers[i]->buffer, 0, info.bufferSize);
-                descriptorWrites[i] = ConstructDescriptorSetWrite(descriptorSet, info, bufferInfos.data() + i);
+                ConstructDescriptorSetWrite(descriptorWrites[i], descriptorSet, info, bufferInfos.data() + i);
             }
             vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);
         }
@@ -81,8 +81,8 @@ namespace vke_render
         RenderInfo(std::shared_ptr<Material> &mat)
             : material(mat),
               commonDescriptorSet(nullptr),
-              commonDescriptorSetInfo(nullptr, 0, 0, 0),
-              perUnitDescriptorSetInfo(nullptr, 0, 0, 0)
+              commonDescriptorSetInfo(nullptr, 0, 0, 0, 0),
+              perUnitDescriptorSetInfo(nullptr, 0, 0, 0, 0)
         {
             hasCommonDescriptorSet = mat->commonDescriptorInfos.size() > 0;
             hasPerUnitDescriptorSet = mat->perUnitDescriptorInfos.size() > 0;
@@ -124,7 +124,7 @@ namespace vke_render
                     if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
                     {
                         InitDescriptorBufferInfo(bufferInfos[i], material->commonBuffers[i], 0, info.bufferSize);
-                        descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, bufferInfos.data() + i);
+                        ConstructDescriptorSetWrite(descriptorWrites[i], commonDescriptorSet, info, bufferInfos.data() + i);
                     }
                     else if (info.bindingInfo.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
                     {
@@ -132,7 +132,7 @@ namespace vke_render
                         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                         imageInfo.imageView = info.imageView;
                         imageInfo.sampler = info.imageSampler;
-                        descriptorWrites[i] = ConstructDescriptorSetWrite(commonDescriptorSet, info, &imageInfo);
+                        ConstructDescriptorSetWrite(descriptorWrites[i], commonDescriptorSet, info, &imageInfo);
                     }
                 }
                 vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorCnt, descriptorWrites.data(), 0, nullptr);

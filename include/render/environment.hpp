@@ -446,6 +446,7 @@ namespace vke_render
         VkInstance vkinstance;
         VkSurfaceKHR surface;
         VkPhysicalDevice physicalDevice;
+        VkPhysicalDeviceProperties physicalDeviceProperties;
         VkDevice logicalDevice;
         VkQueue graphicsQueue;
         VkQueue computeQueue;

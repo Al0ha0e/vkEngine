@@ -26,12 +26,10 @@ int main()
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_compute_desc.json");
     {
         std::shared_ptr<vke_render::ComputeShader> shader = vke_common::AssetManager::LoadComputeShader(1024);
-        std::vector<vke_render::DescriptorInfo> descriptorInfos;
         VkDescriptorSetLayoutBinding binding{};
         vke_render::InitDescriptorSetLayoutBinding(binding, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
 
         VkDeviceSize bufferSize = 1024 * sizeof(int);
-        descriptorInfos.push_back(vke_render::DescriptorInfo(binding, bufferSize));
 
         float *oridata = new float[1024];
         memset(oridata, 0, bufferSize);
@@ -41,13 +39,20 @@ int main()
         vke_render::StagedBuffer buffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
         buffer.ToBuffer(0, oridata, bufferSize);
 
-        vke_render::ComputeTask task(shader, std::move(descriptorInfos));
+        vke_render::ComputeTask task(shader);
 
         vke_ds::id64_t id = task.AddInstance(
-            std::move(std::vector<VkBuffer>{buffer.buffer}),
             std::move(std::vector<VkSemaphore>{}),
             std::move(std::vector<VkPipelineStageFlags>{}),
             std::move(std::vector<VkSemaphore>{}));
+
+        std::vector<VkWriteDescriptorSet> descriptorWrites(1);
+
+        VkDescriptorBufferInfo bufferInfo{};
+        vke_render::InitDescriptorBufferInfo(bufferInfo, buffer.buffer, 0, buffer.bufferSize);
+        vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], 0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
+
+        task.UpdateBindings(id, descriptorWrites);
 
         VkCommandBufferAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;

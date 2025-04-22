@@ -6,6 +6,8 @@
 namespace vke_render
 {
 
+    const uint32_t DEFAULT_BINDLESS_CNT = 1024;
+
     void InitDescriptorSetLayoutBinding(VkDescriptorSetLayoutBinding &dst,
                                         uint32_t binding,
                                         VkDescriptorType descriptorType,
@@ -45,14 +47,17 @@ namespace vke_render
     struct DescriptorSetInfo
     {
         VkDescriptorSetLayout layout;
+        uint32_t variableDescriptorCnt;
         int uniformDescriptorCnt;
         int combinedImageSamplerCnt;
         int storageDescriptorCnt;
 
-        DescriptorSetInfo() : layout(nullptr), uniformDescriptorCnt(0), combinedImageSamplerCnt(0), storageDescriptorCnt(0) {}
+        DescriptorSetInfo()
+            : layout(nullptr), variableDescriptorCnt(0), uniformDescriptorCnt(0), combinedImageSamplerCnt(0), storageDescriptorCnt(0) {}
 
-        DescriptorSetInfo(VkDescriptorSetLayout layout, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
+        DescriptorSetInfo(VkDescriptorSetLayout layout, uint32_t variableDescriptorCnt, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
             : layout(layout),
+              variableDescriptorCnt(variableDescriptorCnt),
               uniformDescriptorCnt(uniformDescriptorCnt),
               combinedImageSamplerCnt(combinedImageSamplerCnt),
               storageDescriptorCnt(storageDescriptorCnt) {}
@@ -101,6 +106,49 @@ namespace vke_render
               uniformDescriptorCnt(uniformDescriptorCnt),
               combinedImageSamplerCnt(combinedImageSamplerCnt),
               storageDescriptorCnt(storageDescriptorCnt) {}
+
+        bool SuitableToAllocate(DescriptorSetInfo &info)
+        {
+            return setCnt > 0 &&
+                   uniformDescriptorCnt >= info.uniformDescriptorCnt &&
+                   combinedImageSamplerCnt >= info.combinedImageSamplerCnt &&
+                   storageDescriptorCnt >= info.storageDescriptorCnt;
+        }
+
+        void UpdateForAllocate(DescriptorSetInfo &info)
+        {
+            setCnt--;
+            uniformDescriptorCnt -= info.uniformDescriptorCnt;
+            combinedImageSamplerCnt -= info.combinedImageSamplerCnt;
+            storageDescriptorCnt -= info.storageDescriptorCnt;
+        }
+
+        void ConstructPoolSizes(std::vector<VkDescriptorPoolSize> &poolSizes)
+        {
+            if (uniformDescriptorCnt > 0)
+            {
+                VkDescriptorPoolSize uniformPoolSize{};
+                uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                uniformPoolSize.descriptorCount = uniformDescriptorCnt;
+                poolSizes.push_back(uniformPoolSize);
+            }
+
+            if (combinedImageSamplerCnt > 0)
+            {
+                VkDescriptorPoolSize combinedImageSamplerPoolSize{};
+                combinedImageSamplerPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                combinedImageSamplerPoolSize.descriptorCount = combinedImageSamplerCnt;
+                poolSizes.push_back(combinedImageSamplerPoolSize);
+            }
+
+            if (storageDescriptorCnt > 0)
+            {
+                VkDescriptorPoolSize storagePoolSize{};
+                storagePoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                storagePoolSize.descriptorCount = storageDescriptorCnt;
+                poolSizes.push_back(storagePoolSize);
+            }
+        }
     };
 
     class DescriptorSetAllocator
@@ -162,14 +210,10 @@ namespace vke_render
             for (auto &pool : instance->descriptorSetPools)
             {
                 DescriptorSetPoolInfo &poolInfo = pool.second;
-                if (poolInfo.setCnt > 0 &&
-                    poolInfo.uniformDescriptorCnt >= info.uniformDescriptorCnt &&
-                    poolInfo.combinedImageSamplerCnt >= info.combinedImageSamplerCnt)
+                if (poolInfo.SuitableToAllocate(info))
                 {
-                    poolInfo.setCnt--;
-                    poolInfo.uniformDescriptorCnt -= info.uniformDescriptorCnt;
-                    poolInfo.combinedImageSamplerCnt -= info.combinedImageSamplerCnt;
-                    return instance->allocateDescriptorSet(pool.first, &(info.layout));
+                    poolInfo.UpdateForAllocate(info);
+                    return instance->allocateDescriptorSet(pool.first, &(info.layout), info.variableDescriptorCnt);
                 }
             }
 
@@ -180,28 +224,24 @@ namespace vke_render
                 info.storageDescriptorCnt * 2);
             VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
             instance->descriptorSetPools[pool] = poolInfo;
-            return instance->allocateDescriptorSet(pool, &(info.layout));
+            return instance->allocateDescriptorSet(pool, &(info.layout), info.variableDescriptorCnt);
         }
+
+        // TODO Free Descriptor Set
 
     private:
         std::map<VkDescriptorPool, DescriptorSetPoolInfo> descriptorSetPools;
 
         VkDescriptorPool createDescriptorPool(DescriptorSetPoolInfo &info)
         {
-            VkDescriptorPoolSize uniformPoolSize{};
-            uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            uniformPoolSize.descriptorCount = info.uniformDescriptorCnt;
-
-            VkDescriptorPoolSize combinedImageSamplerPoolSize{};
-            combinedImageSamplerPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            combinedImageSamplerPoolSize.descriptorCount = info.combinedImageSamplerCnt;
-
-            std::vector<VkDescriptorPoolSize> poolSizes = {uniformPoolSize, combinedImageSamplerPoolSize};
+            std::vector<VkDescriptorPoolSize> poolSizes;
+            info.ConstructPoolSizes(poolSizes);
 
             VkDescriptorPoolCreateInfo poolInfo{};
             poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             poolInfo.poolSizeCount = poolSizes.size();
             poolInfo.pPoolSizes = poolSizes.data();
+            poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
             poolInfo.maxSets = info.setCnt;
 
             VkDescriptorPool ret;
@@ -212,13 +252,24 @@ namespace vke_render
             return ret;
         }
 
-        VkDescriptorSet allocateDescriptorSet(const VkDescriptorPool &pool, const VkDescriptorSetLayout *layout)
+        VkDescriptorSet allocateDescriptorSet(const VkDescriptorPool &pool,
+                                              const VkDescriptorSetLayout *layout,
+                                              const uint32_t variableDescriptorCnt)
         {
             VkDescriptorSetAllocateInfo allocInfo{};
             allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.pNext = nullptr;
             allocInfo.descriptorPool = pool;
             allocInfo.descriptorSetCount = 1;
             allocInfo.pSetLayouts = layout;
+            VkDescriptorSetVariableDescriptorCountAllocateInfo countAllocateInfo{};
+            if (variableDescriptorCnt > 0) // bindless
+            {
+                countAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+                countAllocateInfo.descriptorSetCount = 1;
+                countAllocateInfo.pDescriptorCounts = &variableDescriptorCnt;
+                allocInfo.pNext = &countAllocateInfo;
+            }
 
             VkDescriptorSet ret;
             if (vkAllocateDescriptorSets(
@@ -231,19 +282,57 @@ namespace vke_render
             return ret;
         }
     };
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorBufferInfo *bufferInfo);
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
+                                                     int st,
+                                                     int cnt,
+                                                     VkDescriptorImageInfo *imageInfo);
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
                                                      DescriptorInfo &descriptorInfo,
                                                      int st,
                                                      int cnt,
                                                      VkDescriptorBufferInfo *bufferInfo);
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet,
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
                                                      DescriptorInfo &descriptorInfo,
                                                      int st,
                                                      int cnt,
                                                      VkDescriptorImageInfo *imageInfo);
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorBufferInfo *bufferInfo);
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkDescriptorSet descriptorSet, DescriptorInfo &descriptorInfo, VkDescriptorImageInfo *imageInfo);
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
+                                                     VkDescriptorBufferInfo *bufferInfo);
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     uint32_t binding,
+                                                     VkDescriptorType descriptorType,
+                                                     VkDescriptorImageInfo *imageInfo);
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     VkDescriptorBufferInfo *bufferInfo);
+
+    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                                     VkDescriptorSet descriptorSet,
+                                                     DescriptorInfo &descriptorInfo,
+                                                     VkDescriptorImageInfo *imageInfo);
 }
 
 #endif
