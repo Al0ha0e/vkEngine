@@ -95,7 +95,8 @@ namespace vke_render
     const std::vector<const char *> deviceExtensions =
         {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
          VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
-         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME};
+         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+         VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
     static bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice)
     {
@@ -265,6 +266,11 @@ namespace vke_render
         deviceFeatures11.storageBuffer16BitAccess = VK_TRUE;
         deviceFeatures11.uniformAndStorageBuffer16BitAccess = VK_TRUE;
         deviceFeatures12.pNext = &deviceFeatures11;
+
+        VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
+        dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+        dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+        deviceFeatures11.pNext = &dynamicRenderingFeatures;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -511,7 +517,10 @@ namespace vke_render
         createImageViews();
         rootRenderContext.width = swapChainExtent.width;
         rootRenderContext.height = swapChainExtent.height;
-        rootRenderContext.imageViews = &imageViews;
+        rootRenderContext.colorImages = &swapChainImages;
+        rootRenderContext.colorImageViews = &swapChainImageViews;
+        rootRenderContext.depthImages = &depthImages;
+        rootRenderContext.depthImageViews = &depthImageViews;
         resizeEventHub.DispatchEvent(&rootRenderContext);
     }
 
@@ -519,13 +528,11 @@ namespace vke_render
     {
         swapChainImageViews.resize(imageCnt);
         depthImageViews.resize(imageCnt);
-        imageViews.resize(imageCnt);
 
         for (size_t i = 0; i < imageCnt; i++)
         {
             swapChainImageViews[i] = RenderEnvironment::CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
             depthImageViews[i] = RenderEnvironment::CreateImageView(depthImages[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-            imageViews[i] = {swapChainImageViews[i], depthImageViews[i]};
         }
     }
 };

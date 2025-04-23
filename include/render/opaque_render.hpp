@@ -6,7 +6,7 @@
 
 namespace vke_render
 {
-    class OpaqueRenderer : public SubpassBase
+    class OpaqueRenderer : public RenderPassBase
     {
     public:
         std::vector<DescriptorInfo> globalDescriptorInfos;
@@ -14,11 +14,11 @@ namespace vke_render
         VkDescriptorSet globalDescriptorSet;
 
         OpaqueRenderer(RenderContext *ctx, VkBuffer camBuffer)
-            : globalDescriptorSetInfo(nullptr, 0, 0, 0, 0), SubpassBase(OPAQUE_RENDERER, ctx, camBuffer) {}
+            : globalDescriptorSetInfo(nullptr, 0, 0, 0, 0), RenderPassBase(OPAQUE_RENDERER, ctx, camBuffer) {}
 
-        void Init(int subpassID, VkRenderPass renderPass) override
+        void Init(int subpassID) override
         {
-            SubpassBase::Init(subpassID, renderPass);
+            RenderPassBase::Init(subpassID);
             environment = RenderEnvironment::GetInstance();
             createGlobalDescriptorSet();
             registerCamera();
@@ -52,7 +52,7 @@ namespace vke_render
             // TODO renderInfoMap[material].size() == 0
         }
 
-        void Render(VkCommandBuffer commandBuffer) override;
+        void Render(VkCommandBuffer commandBuffer, uint32_t currentFrame) override;
 
     private:
         RenderEnvironment *environment;

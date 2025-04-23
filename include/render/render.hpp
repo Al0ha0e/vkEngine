@@ -41,7 +41,7 @@ namespace vke_render
 
         static Renderer *Init(RenderContext *ctx,
                               std::vector<PassType> &passes,
-                              std::vector<std::unique_ptr<SubpassBase>> &customPasses,
+                              std::vector<std::unique_ptr<RenderPassBase>> &customPasses,
                               std::vector<RenderPassInfo> &customPassInfo)
         {
             instance = new Renderer();
@@ -78,27 +78,25 @@ namespace vke_render
                     break;
                 }
             }
-            instance->createRenderPass(passInfo);
-            instance->createFramebuffers();
             VkBuffer cambuf = instance->camInfoBuffer.buffer;
             customPassID = 0;
             for (int i = 0; i < passes.size(); i++)
             {
                 PassType pass = passes[i];
-                // SubpassBase *customPass;
+                // RenderPassBase *customPass;
                 switch (pass)
                 {
                 case CUSTOM_RENDERER:
                 {
-                    std::unique_ptr<SubpassBase> &customPass = customPasses[customPassID++];
-                    customPass->Init(i, instance->renderPass);
+                    std::unique_ptr<RenderPassBase> &customPass = customPasses[customPassID++];
+                    customPass->Init(i);
                     instance->subPasses.push_back(std::move(customPass));
                     break;
                 }
                 case BASE_RENDERER:
                 { // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
                     std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx, cambuf);
-                    baseRenderer->Init(i, instance->renderPass);
+                    baseRenderer->Init(i);
                     instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(baseRenderer));
                     break;
@@ -106,7 +104,7 @@ namespace vke_render
                 case OPAQUE_RENDERER:
                 { // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
                     std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx, cambuf);
-                    opaqueRenderer->Init(i, instance->renderPass);
+                    opaqueRenderer->Init(i);
                     instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(opaqueRenderer));
                     break;
@@ -121,7 +119,6 @@ namespace vke_render
 
         static void Dispose()
         {
-            vkDestroyRenderPass(instance->logicalDevice, instance->renderPass, nullptr);
             instance->cleanup();
             delete instance;
         }
@@ -172,15 +169,11 @@ namespace vke_render
 
     private:
         VkDevice logicalDevice;
-        VkRenderPass renderPass;
-        std::vector<VkFramebuffer> frameBuffers;
-        std::vector<std::unique_ptr<SubpassBase>> subPasses;
+        std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
 
         void cleanup();
         void recreate(RenderContext *ctx);
-        void createRenderPass(std::vector<RenderPassInfo> &passInfo);
-        void createFramebuffers();
         void render();
     };
 }

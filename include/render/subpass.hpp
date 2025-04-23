@@ -23,27 +23,25 @@ namespace vke_render
             : stageMask(stageMask), accessMask(accessMask) {}
     };
 
-    class SubpassBase
+    class RenderPassBase
     {
     public:
         PassType type;
         int subpassID;
         RenderContext *context;
-        VkRenderPass renderPass;
         VkBuffer camInfoBuffer;
 
-        SubpassBase(PassType type, RenderContext *ctx, VkBuffer camBuffer)
+        RenderPassBase(PassType type, RenderContext *ctx, VkBuffer camBuffer)
             : type(type), context(ctx), camInfoBuffer(camBuffer) {}
 
-        virtual ~SubpassBase() {}
+        virtual ~RenderPassBase() {}
 
         // virtual void RegisterCamera(VkBuffer buffer) = 0;
-        virtual void Render(VkCommandBuffer commandBuffer) = 0;
+        virtual void Render(VkCommandBuffer commandBuffer, uint32_t currentFrame) = 0;
 
-        virtual void Init(int subpassID, VkRenderPass renderPass)
+        virtual void Init(int subpassID)
         {
             this->subpassID = subpassID;
-            this->renderPass = renderPass;
         }
     };
 }

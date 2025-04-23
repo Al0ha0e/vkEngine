@@ -35,7 +35,7 @@ int main()
     std::vector<vke_render::PassType> passes = {
         vke_render::BASE_RENDERER,
         vke_render::OPAQUE_RENDERER};
-    std::vector<std::unique_ptr<vke_render::SubpassBase>> customPasses;
+    std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
     std::vector<vke_render::RenderPassInfo> customPassInfo;
     GLFWwindow *window = initWindow(WIDTH, HEIGHT);
     vke_common::EventSystem::Init();

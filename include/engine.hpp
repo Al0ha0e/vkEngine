@@ -35,7 +35,7 @@ namespace vke_common
 
         static Engine *Init(vke_render::RenderContext *ctx,
                             std::vector<vke_render::PassType> &passes,
-                            std::vector<std::unique_ptr<vke_render::SubpassBase>> &customPasses,
+                            std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses,
                             std::vector<vke_render::RenderPassInfo> &customPassInfo)
         {
             vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::GetInstance();

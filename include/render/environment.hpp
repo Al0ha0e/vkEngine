@@ -40,7 +40,10 @@ namespace vke_render
         VkFormat colorFormat;
         VkFormat depthFormat;
         VkImageLayout outColorLayout;
-        std::vector<std::vector<VkImageView>> *imageViews;
+        std::vector<VkImage> *colorImages;
+        std::vector<VkImageView> *colorImageViews;
+        std::vector<VkImage> *depthImages;
+        std::vector<VkImageView> *depthImageViews;
         std::vector<VkCommandBuffer> *commandBuffers;
         vke_common::EventHub<RenderContext> *resizeEventHub;
         std::function<uint32_t(uint32_t)> AcquireNextImage;
@@ -96,7 +99,10 @@ namespace vke_render
                 instance->swapChainImageFormat,
                 instance->depthFormat,
                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                &(instance->imageViews),
+                &(instance->swapChainImages),
+                &(instance->swapChainImageViews),
+                &(instance->depthImages),
+                &(instance->depthImageViews),
                 &(instance->commandBuffers),
                 &(instance->resizeEventHub),
                 AcquireNextImage,
@@ -236,6 +242,41 @@ namespace vke_render
             }
 
             return imageView;
+        }
+
+        static void MakeLayoutTransition(VkCommandBuffer commandBuffer,
+                                         VkAccessFlags srcAccessMask,
+                                         VkAccessFlags dstAccessMask,
+                                         VkImageLayout oldLayout,
+                                         VkImageLayout newLayout,
+                                         VkImage image,
+                                         VkImageAspectFlags aspectMask,
+                                         VkPipelineStageFlags sourceStage,
+                                         VkPipelineStageFlags destinationStage)
+        {
+            VkImageMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.srcAccessMask = srcAccessMask;
+            barrier.dstAccessMask = dstAccessMask;
+            barrier.oldLayout = oldLayout;
+            barrier.newLayout = newLayout;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.image = image;
+            barrier.subresourceRange.aspectMask = aspectMask;
+            barrier.subresourceRange.baseMipLevel = 0;
+            barrier.subresourceRange.levelCount = 1;
+            barrier.subresourceRange.baseArrayLayer = 0;
+            barrier.subresourceRange.layerCount = 1;
+
+            vkCmdPipelineBarrier(
+                commandBuffer,
+                sourceStage,
+                destinationStage,
+                0,
+                0, nullptr,
+                0, nullptr,
+                1, &barrier);
         }
 
         static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
@@ -465,7 +506,6 @@ namespace vke_render
         std::vector<VkImage> depthImages;
         std::vector<VkDeviceMemory> depthImageMemories;
         std::vector<VkImageView> depthImageViews;
-        std::vector<std::vector<VkImageView>> imageViews;
         RenderContext rootRenderContext;
 
     private:

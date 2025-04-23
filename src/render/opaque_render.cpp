@@ -135,8 +135,16 @@ namespace vke_render
             throw std::runtime_error("failed to create pipeline layout!");
         }
 
+        VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
+        pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+        pipelineRenderingCreateInfo.pNext = nullptr;
+        pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+        pipelineRenderingCreateInfo.pColorAttachmentFormats = &(context->colorFormat);
+        pipelineRenderingCreateInfo.depthAttachmentFormat = context->depthFormat;
+
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.pNext = &pipelineRenderingCreateInfo;
         pipelineInfo.stageCount = 2;
         pipelineInfo.pStages = stages;
 
@@ -149,7 +157,7 @@ namespace vke_render
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = renderInfo.pipelineLayout;
-        pipelineInfo.renderPass = renderPass;
+        pipelineInfo.renderPass = nullptr;
         pipelineInfo.subpass = subpassID;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipelineInfo.basePipelineIndex = -1;              // Optional
@@ -160,8 +168,37 @@ namespace vke_render
         }
     }
 
-    void OpaqueRenderer::Render(VkCommandBuffer commandBuffer)
+    void OpaqueRenderer::Render(VkCommandBuffer commandBuffer, uint32_t currentFrame)
     {
+        VkRenderingAttachmentInfo colorAttachmentInfo{};
+        colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        colorAttachmentInfo.pNext = nullptr;
+        colorAttachmentInfo.imageView = (*context->colorImageViews)[currentFrame];
+        colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentInfo.resolveMode = VK_RESOLVE_MODE_NONE;
+
+        VkRenderingAttachmentInfo depthAttachmentInfo{};
+        depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachmentInfo.pNext = nullptr;
+        depthAttachmentInfo.imageView = (*context->depthImageViews)[currentFrame];
+        depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        depthAttachmentInfo.resolveMode = VK_RESOLVE_MODE_NONE;
+
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.pNext = nullptr;
+        renderingInfo.renderArea = {{0, 0}, {context->width, context->height}};
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments = &colorAttachmentInfo;
+        renderingInfo.pDepthAttachment = &depthAttachmentInfo;
+
+        vkCmdBeginRendering(commandBuffer, &renderingInfo);
+
         for (auto &kv : renderInfoMap)
         {
             std::unique_ptr<RenderInfo> &renderInfo = kv.second;
@@ -182,5 +219,7 @@ namespace vke_render
 
             renderInfo->Render(commandBuffer, &globalDescriptorSet);
         }
+
+        vkCmdEndRendering(commandBuffer);
     }
 }
