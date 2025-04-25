@@ -58,6 +58,14 @@ void PrintModuleInfo(std::ostream &os, const SpvReflectShaderModule &obj, const 
             break;
         }
     }
+
+    for (int i = 0; i < obj.input_variable_count; i++)
+    {
+        SpvReflectInterfaceVariable &input = *obj.input_variables[i];
+        os << "\n------------------"
+           << input.location << " " << input.name << " " << input.component << " "
+           << input.member_count << " " << input.word_offset.location << "\n";
+    }
 }
 
 void PrintDescriptorSet(std::ostream &os, const SpvReflectDescriptorSet &obj, const char *indent)
@@ -159,7 +167,7 @@ void PrintDescriptorBinding(std::ostream &os, const SpvReflectDescriptorBinding 
 int main()
 {
     std::vector<char> buffer;
-    readFile("./tests/shader/test_compute.spv", buffer);
+    readFile("./builtin_assets/shader/default_vert.spv", buffer);
     std::cout << "READ OK " << buffer.size() << "\n";
     SpvReflectShaderModule module;
     SpvReflectResult result = spvReflectCreateShaderModule(buffer.size(), buffer.data(), &module);

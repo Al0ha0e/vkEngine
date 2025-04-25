@@ -30,7 +30,7 @@ libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include','./third_party/spirv_reflect']
 cppdefines = ['NDEBUG']
 commonsrc = ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
-                "./src/render/descriptor.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp",
+                "./src/render/descriptor.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp", "./src/render/shader.cpp",
                 "./src/render/render.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/physics.cpp","./third_party/spirv_reflect/spirv_reflect.cpp"]
 

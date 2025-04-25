@@ -169,16 +169,9 @@ namespace vke_render
             vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
-        void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
-                             VkPipelineShaderStageCreateInfo *&stages,
-                             std::vector<VkDescriptorSetLayout> &globalDescriptorSetLayouts)
+        void CreatePipeline(VkGraphicsPipelineCreateInfo &pipelineInfo)
         {
-            material->ApplyToPipeline(vertexInputInfo, stages);
-
-            if (hasCommonDescriptorSet)
-                globalDescriptorSetLayouts.push_back(commonDescriptorSetInfo.layout);
-            if (hasPerUnitDescriptorSet)
-                globalDescriptorSetLayouts.push_back(perUnitDescriptorSetInfo.layout);
+            material->CreatePipeline(pipelineLayout, pipelineInfo, pipeline);
         }
 
         vke_ds::id64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)

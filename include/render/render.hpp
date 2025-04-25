@@ -54,32 +54,8 @@ namespace vke_render
             ctx->resizeEventHub->AddEventListener(instance,
                                                   vke_common::EventHub<RenderContext>::callback_t(OnWindowResize));
 
-            std::vector<RenderPassInfo> passInfo;
             int customPassID = 0;
-            for (int i = 0; i < passes.size(); i++)
-            {
-                PassType pass = passes[i];
-                switch (pass)
-                {
-                case CUSTOM_RENDERER:
-                    passInfo.push_back(customPassInfo[customPassID++]);
-                    break;
-                case BASE_RENDERER:
-                    passInfo.push_back(RenderPassInfo(
-                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT));
-                    break;
-                case OPAQUE_RENDERER:
-                    passInfo.push_back(RenderPassInfo(
-                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT));
-                    break;
-                default:
-                    break;
-                }
-            }
             VkBuffer cambuf = instance->camInfoBuffer.buffer;
-            customPassID = 0;
             for (int i = 0; i < passes.size(); i++)
             {
                 PassType pass = passes[i];

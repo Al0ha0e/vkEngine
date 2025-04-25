@@ -141,34 +141,11 @@ namespace vke_common
 
     std::shared_ptr<vke_render::Material> loadMaterial(MaterialAsset &asset)
     {
-        // TODO
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(vke_render::Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-        std::vector<VkVertexInputBindingDescription> bindingDescriptions;
-        bindingDescriptions.push_back(bindingDescription);
-
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions(3);
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(vke_render::Vertex, pos);
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(vke_render::Vertex, normal);
-        attributeDescriptions[2].binding = 0;
-        attributeDescriptions[2].location = 2;
-        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[2].offset = offsetof(vke_render::Vertex, texCoord);
 
         vke_render::Material *mat = new vke_render::Material(asset.id);
-        mat->bindingDescriptions = bindingDescriptions;
-        mat->attributeDescriptions = attributeDescriptions;
 
         mat->shader = AssetManager::LoadVertFragShader(asset.shader);
-
+        mat->vertexAttributeSizes = {sizeof(vke_render::Vertex::pos), sizeof(vke_render::Vertex::normal), sizeof(vke_render::Vertex::texCoord)};
         int bindingID = 0;
         for (auto tex : asset.textures)
         {
@@ -184,7 +161,7 @@ namespace vke_common
 
         VkDescriptorSetLayoutBinding modelLayoutBinding{};
         vke_render::InitDescriptorSetLayoutBinding(modelLayoutBinding, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-                                                   VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, nullptr);
+                                                   VK_SHADER_STAGE_VERTEX_BIT, nullptr);
 
         vke_render::DescriptorInfo descriptorInfo(modelLayoutBinding, sizeof(glm::mat4));
         mat->perUnitDescriptorInfos.push_back(std::move(descriptorInfo));

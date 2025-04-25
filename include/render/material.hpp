@@ -18,21 +18,17 @@ namespace vke_render
 
         vke_common::AssetHandle handle;
         std::shared_ptr<VertFragShader> shader;
+        std::vector<uint32_t> vertexAttributeSizes;
         std::vector<std::shared_ptr<Texture2D>> textures;
-        std::vector<VkVertexInputBindingDescription> bindingDescriptions;
-        std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
         std::vector<DescriptorInfo> commonDescriptorInfos;
         std::vector<DescriptorInfo> perUnitDescriptorInfos;
         std::vector<VkBuffer> commonBuffers;
 
-        void ApplyToPipeline(VkPipelineVertexInputStateCreateInfo &vertexInputInfo,
-                             VkPipelineShaderStageCreateInfo *&stages) const
+        void CreatePipeline(VkPipelineLayout &pipelineLayout,
+                            VkGraphicsPipelineCreateInfo &pipelineInfo,
+                            VkPipeline &pipeline)
         {
-            vertexInputInfo.vertexBindingDescriptionCount = bindingDescriptions.size();
-            vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
-            vertexInputInfo.vertexAttributeDescriptionCount = attributeDescriptions.size();
-            vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-            stages = shader->shaderStages.data();
+            shader->CreatePipeline(vertexAttributeSizes, pipelineLayout, pipelineInfo, pipeline);
         }
 
     private:
