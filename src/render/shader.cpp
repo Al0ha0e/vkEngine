@@ -35,7 +35,6 @@ namespace vke_render
                     desCnt,
                     (VkShaderStageFlagBits)reflectInfo.shader_stage,
                     nullptr};
-                bindings.push_back(binding);
                 if (desCnt == 0) // bindless
                 {
                     binding.descriptorCount = DEFAULT_BINDLESS_CNT;
@@ -44,6 +43,7 @@ namespace vke_render
                 }
                 else
                     descriptorSetInfo.AddCnt(binding.descriptorType, binding.descriptorCount);
+                bindings.push_back(binding);
             }
 
             descriptorSetInfoMap[setID] = descriptorSetInfo;

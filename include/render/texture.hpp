@@ -67,7 +67,8 @@ namespace vke_render
     private:
         void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
         {
-            VkCommandBuffer commandBuffer = RenderEnvironment::BeginSingleTimeCommands();
+            RenderEnvironment *instance = RenderEnvironment::GetInstance();
+            VkCommandBuffer commandBuffer = RenderEnvironment::BeginSingleTimeCommands(instance->commandPool);
 
             if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
                 RenderEnvironment::MakeLayoutTransition(commandBuffer, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -82,7 +83,7 @@ namespace vke_render
             else
                 throw std::invalid_argument("unsupported layout transition!");
 
-            RenderEnvironment::EndSingleTimeCommands(commandBuffer);
+            RenderEnvironment::EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
         }
 
         void createTextureSampler()

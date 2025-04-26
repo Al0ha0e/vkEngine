@@ -92,6 +92,43 @@ namespace vke_render
         }
     }
 
+    void RenderEnvironment::findQueueFamilies(VkPhysicalDevice pdevice)
+    {
+        queueFamilyIndices.clear();
+        // Assign index to queue families that could be found
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
+        queueFamilyProperties.resize(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilyProperties.data());
+
+        std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
+
+        int i = 0;
+        for (const auto &queueFamily : queueFamilyProperties)
+        {
+            std::cout << "Queue Family Flags " << queueFamily.queueFlags << " Cnt " << queueFamily.queueCount << "\n";
+            if (!queueFamilyIndices.graphicsAndComputeFamily.has_value() &&
+                (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                queueFamilyIndices.graphicsAndComputeFamily = i;
+            else if (queueFamily.queueFlags == VK_QUEUE_GRAPHICS_BIT)
+                queueFamilyIndices.graphicsOnlyFamily.push_back(i);
+            else if (queueFamily.queueFlags == VK_QUEUE_COMPUTE_BIT)
+                queueFamilyIndices.computeOnlyFamily.push_back(i);
+            else if (queueFamily.queueFlags == VK_QUEUE_TRANSFER_BIT)
+                queueFamilyIndices.transferOnlyFamily.push_back(i);
+
+            if (!queueFamilyIndices.presentFamily.has_value() && (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+            {
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, instance->surface, &presentSupport);
+                if (presentSupport)
+                    queueFamilyIndices.presentFamily = i;
+            }
+            i++;
+        }
+    }
+
     const std::vector<const char *> deviceExtensions =
         {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
          VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
@@ -118,7 +155,7 @@ namespace vke_render
 
     bool RenderEnvironment::isDeviceSuitable(VkPhysicalDevice pdevice)
     {
-        QueueFamilyIndices indices = FindQueueFamilies(pdevice);
+        findQueueFamilies(pdevice);
         bool extensionsSupported = checkDeviceExtensionSupport(pdevice);
 
         bool swapChainAdequate = false;
@@ -139,7 +176,7 @@ namespace vke_render
         vkGetPhysicalDeviceFeatures2(pdevice, &supportedFeatures2);
         VkPhysicalDeviceFeatures &supportedFeatures = supportedFeatures2.features;
 
-        return indices.isComplete() &&
+        return queueFamilyIndices.isComplete() &&
                extensionsSupported &&
                swapChainAdequate &&
                supportedFeatures.samplerAnisotropy &&
@@ -206,17 +243,20 @@ namespace vke_render
 
     void RenderEnvironment::createLogicalDevice()
     {
-        QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
-
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsAndComputeFamily.value(), indices.presentFamily.value()};
+        std::set<uint32_t> uniqueQueueFamilies = {queueFamilyIndices.graphicsAndComputeFamily.value(),
+                                                  queueFamilyIndices.presentFamily.value()};
+        if (queueFamilyIndices.computeOnlyFamily.size() > 0)
+            uniqueQueueFamilies.insert(queueFamilyIndices.computeOnlyFamily[0]);
+        if (queueFamilyIndices.transferOnlyFamily.size() > 0)
+            uniqueQueueFamilies.insert(queueFamilyIndices.transferOnlyFamily[0]);
 
         float queuePriority = 1.0f;
-        for (uint32_t queueFamily : uniqueQueueFamilies)
+        for (uint32_t queueFamilyIndex : uniqueQueueFamilies)
         {
             VkDeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
             queueCreateInfo.queueCount = 1;
             queueCreateInfo.pQueuePriorities = &queuePriority;
             queueCreateInfos.push_back(queueCreateInfo);
@@ -274,7 +314,7 @@ namespace vke_render
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        createInfo.queueCreateInfoCount = 1;
+        createInfo.queueCreateInfoCount = queueCreateInfos.size();
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         // createInfo.pEnabledFeatures = &deviceFeatures;
         createInfo.pEnabledFeatures = nullptr;
@@ -288,22 +328,48 @@ namespace vke_render
         {
             throw std::runtime_error("failed to create logical device!");
         }
-        vkGetDeviceQueue(logicalDevice, indices.graphicsAndComputeFamily.value(), 0, &graphicsQueue);
-        vkGetDeviceQueue(logicalDevice, indices.graphicsAndComputeFamily.value(), 0, &computeQueue);
-        vkGetDeviceQueue(logicalDevice, indices.presentFamily.value(), 0, &presentQueue);
+
+        vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &graphicsQueue);
+
+        if (queueFamilyIndices.computeOnlyFamily.size() > 0)
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.computeOnlyFamily[0], 0, &computeQueue);
+        else
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &computeQueue);
+
+        if (queueFamilyIndices.transferOnlyFamily.size() > 0)
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.transferOnlyFamily[0], 0, &transferQueue);
+        else
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &transferQueue);
+
+        vkGetDeviceQueue(logicalDevice, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
     }
 
     void RenderEnvironment::createCommandPool()
     {
-        QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice);
-
         VkCommandPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
-        if (vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+        vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS;
+
+        if (queueFamilyIndices.computeOnlyFamily.size() > 0)
         {
-            throw std::runtime_error("failed to create command pool!");
+            poolInfo.queueFamilyIndex = queueFamilyIndices.computeOnlyFamily[0];
+            vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &computeCommandPool);
+        }
+        else
+        {
+            computeCommandPool = commandPool;
+        }
+
+        if (queueFamilyIndices.transferOnlyFamily.size() > 0)
+        {
+            poolInfo.queueFamilyIndex = queueFamilyIndices.transferOnlyFamily[0];
+            vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &transferCommandPool);
+        }
+        else
+        {
+            transferCommandPool = commandPool;
         }
     }
 
@@ -448,14 +514,12 @@ namespace vke_render
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
-        uint32_t queueFamilyIndices[] = {indices.graphicsAndComputeFamily.value(), indices.presentFamily.value()};
-
-        if (indices.graphicsAndComputeFamily != indices.presentFamily)
+        if (queueFamilyIndices.graphicsAndComputeFamily != queueFamilyIndices.presentFamily)
         {
+            uint32_t qfIndices[] = {queueFamilyIndices.graphicsAndComputeFamily.value(), queueFamilyIndices.presentFamily.value()};
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
-            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+            createInfo.pQueueFamilyIndices = qfIndices;
         }
         else
         {

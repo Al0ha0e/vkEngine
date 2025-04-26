@@ -112,7 +112,6 @@ namespace vke_render
 
     void BaseRenderer::createSkyBox()
     {
-
         std::shared_ptr<Material> skyboxMaterial(new Material);
 
         std::shared_ptr<Texture2D> texture = vke_common::AssetManager::LoadTexture2D(vke_common::BUILTIN_TEXTURE_SKYBOX_ID);

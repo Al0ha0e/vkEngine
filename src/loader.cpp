@@ -141,7 +141,6 @@ namespace vke_common
 
     std::shared_ptr<vke_render::Material> loadMaterial(MaterialAsset &asset)
     {
-
         vke_render::Material *mat = new vke_render::Material(asset.id);
 
         mat->shader = AssetManager::LoadVertFragShader(asset.shader);

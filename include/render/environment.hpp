@@ -19,6 +19,19 @@ namespace vke_render
     {
         std::optional<uint32_t> graphicsAndComputeFamily;
         std::optional<uint32_t> presentFamily;
+        std::vector<uint32_t> graphicsOnlyFamily;
+        std::vector<uint32_t> computeOnlyFamily;
+        std::vector<uint32_t> transferOnlyFamily;
+
+        void clear()
+        {
+            graphicsAndComputeFamily.reset();
+            presentFamily.reset();
+            graphicsOnlyFamily.clear();
+            computeOnlyFamily.clear();
+            transferOnlyFamily.clear();
+        }
+
         bool isComplete()
         {
             return graphicsAndComputeFamily.has_value() && presentFamily.has_value();
@@ -121,6 +134,11 @@ namespace vke_render
                 vkDestroySemaphore(logicalDevice, instance->imageAvailableSemaphores[i], nullptr);
                 vkDestroyFence(logicalDevice, instance->inFlightFences[i], nullptr);
             }
+
+            if (instance->computeCommandPool != instance->commandPool)
+                vkDestroyCommandPool(logicalDevice, instance->computeCommandPool, nullptr);
+            if (instance->transferCommandPool != instance->commandPool)
+                vkDestroyCommandPool(logicalDevice, instance->transferCommandPool, nullptr);
             vkDestroyCommandPool(logicalDevice, instance->commandPool, nullptr);
 
             vkDestroyDevice(logicalDevice, nullptr);
@@ -173,7 +191,7 @@ namespace vke_render
 
         static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
         {
-            VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
 
             VkBufferCopy copyRegion{};
             copyRegion.srcOffset = 0; // Optional
@@ -181,7 +199,7 @@ namespace vke_render
             copyRegion.size = size;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-            EndSingleTimeCommands(commandBuffer);
+            EndSingleTimeCommands(instance->transferQueue, instance->transferCommandPool, commandBuffer);
         }
 
         static void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory)
@@ -281,7 +299,7 @@ namespace vke_render
 
         static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
         {
-            VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
 
             VkBufferImageCopy region{};
             region.bufferOffset = 0;
@@ -307,15 +325,15 @@ namespace vke_render
                 1,
                 &region);
 
-            EndSingleTimeCommands(commandBuffer);
+            EndSingleTimeCommands(instance->transferQueue, instance->transferCommandPool, commandBuffer);
         }
 
-        static VkCommandBuffer BeginSingleTimeCommands()
+        static VkCommandBuffer BeginSingleTimeCommands(VkCommandPool commandPool)
         {
             VkCommandBufferAllocateInfo allocInfo{};
             allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            allocInfo.commandPool = instance->commandPool;
+            allocInfo.commandPool = commandPool;
             allocInfo.commandBufferCount = 1;
 
             VkCommandBuffer commandBuffer;
@@ -330,7 +348,7 @@ namespace vke_render
             return commandBuffer;
         }
 
-        static void EndSingleTimeCommands(VkCommandBuffer commandBuffer)
+        static void EndSingleTimeCommands(VkQueue queue, VkCommandPool commandPool, VkCommandBuffer commandBuffer)
         {
             vkEndCommandBuffer(commandBuffer);
 
@@ -339,10 +357,10 @@ namespace vke_render
             submitInfo.commandBufferCount = 1;
             submitInfo.pCommandBuffers = &commandBuffer;
 
-            vkQueueSubmit(instance->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(instance->graphicsQueue);
+            vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+            vkQueueWaitIdle(queue);
 
-            vkFreeCommandBuffers(instance->logicalDevice, instance->commandPool, 1, &commandBuffer);
+            vkFreeCommandBuffers(instance->logicalDevice, commandPool, 1, &commandBuffer);
         }
 
         static SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice pdevice)
@@ -375,39 +393,6 @@ namespace vke_render
         static void OnWindowResize(void *listener, void *info)
         {
             instance->windowResized = true;
-        }
-
-        static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice pdevice)
-        {
-            QueueFamilyIndices indices;
-            // Assign index to queue families that could be found
-            uint32_t queueFamilyCount = 0;
-            vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
-            std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-            vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilies.data());
-
-            std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
-
-            int i = 0;
-            for (const auto &queueFamily : queueFamilies)
-            {
-                if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-                    (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
-                    indices.graphicsAndComputeFamily = i;
-
-                VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, instance->surface, &presentSupport);
-
-                if (presentSupport)
-                    indices.presentFamily = i;
-
-                if (indices.isComplete())
-                    break;
-
-                i++;
-            }
-
-            return indices;
         }
 
         static uint32_t AcquireNextImage(uint32_t currentFrame)
@@ -486,16 +471,21 @@ namespace vke_render
         GLFWwindow *window;
         VkInstance vkinstance;
         VkSurfaceKHR surface;
+        QueueFamilyIndices queueFamilyIndices;
         VkPhysicalDevice physicalDevice;
         VkPhysicalDeviceProperties physicalDeviceProperties;
         VkDevice logicalDevice;
         VkQueue graphicsQueue;
         VkQueue computeQueue;
+        VkQueue transferQueue;
         VkQueue presentQueue;
         VkFormat swapChainImageFormat;
         VkExtent2D swapChainExtent;
         VkFormat depthFormat;
         VkCommandPool commandPool;
+        VkCommandPool computeCommandPool;
+        VkCommandPool transferCommandPool;
+        std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         std::vector<VkCommandBuffer> commandBuffers;
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -513,6 +503,7 @@ namespace vke_render
 
         void createInstance();
         void createSurface();
+        void findQueueFamilies(VkPhysicalDevice pdevice);
         bool isDeviceSuitable(VkPhysicalDevice pdevice);
         void pickPhysicalDevice();
         void createLogicalDevice();
