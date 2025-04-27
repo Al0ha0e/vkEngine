@@ -27,12 +27,12 @@ env = Environment(CC = 'cl',
 
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
-cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include','./third_party/spirv_reflect']
+cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/vma']
 cppdefines = ['NDEBUG']
 commonsrc = ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp", "./src/render/shader.cpp",
                 "./src/render/render.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
-                "./src/input.cpp", "./src/time.cpp", "./src/physics.cpp","./third_party/spirv_reflect/spirv_reflect.cpp"]
+                "./src/input.cpp", "./src/time.cpp", "./src/physics.cpp","./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp"]
 
 targetinfo = [
     ["out/test", ["./tests/test.cpp" ]],

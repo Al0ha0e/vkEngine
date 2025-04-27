@@ -11,36 +11,41 @@ namespace vke_render
         size_t bufferSize;
         VkBufferUsageFlags usage;
         VkMemoryPropertyFlags properties;
+        VmaAllocationCreateFlags vmaFlags;
+        VmaMemoryUsage vmaUsage;
         VkBuffer buffer;
-        VkDeviceMemory bufferMemory;
+        VmaAllocation vmaAllocation;
+        VmaAllocationInfo vmaAllocationInfo;
 
-        Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
-            : bufferSize(size), usage(usage), properties(properties)
+        Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+               VmaAllocationCreateFlags vmaFlags, VmaMemoryUsage vmaUsage)
+            : bufferSize(size), usage(usage), properties(properties),
+              vmaFlags(vmaFlags), vmaUsage(vmaUsage), buffer(nullptr), vmaAllocation(nullptr), vmaAllocationInfo{}
         {
             vke_render::RenderEnvironment::CreateBuffer(
                 size, usage, properties,
-                buffer, bufferMemory);
+                vmaFlags, vmaUsage,
+                &buffer, &vmaAllocation, &vmaAllocationInfo);
         }
 
         Buffer(Buffer &&ori)
             : bufferSize(ori.bufferSize),
               usage(ori.usage),
               properties(ori.properties),
+              vmaFlags(ori.vmaFlags),
+              vmaUsage(ori.vmaUsage),
               buffer(ori.buffer),
-              bufferMemory(ori.bufferMemory)
+              vmaAllocation(ori.vmaAllocation),
+              vmaAllocationInfo(ori.vmaAllocationInfo)
         {
             ori.buffer = nullptr;
-            ori.bufferMemory = nullptr;
+            ori.vmaAllocation = nullptr;
         }
 
         ~Buffer()
         {
             if (buffer)
-            {
-                VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-                vkDestroyBuffer(logicalDevice, buffer, nullptr);
-                vkFreeMemory(logicalDevice, bufferMemory, nullptr);
-            }
+                vmaDestroyBuffer(RenderEnvironment::GetInstance()->vmaAllocator, buffer, vmaAllocation);
         }
     };
 
@@ -50,24 +55,16 @@ namespace vke_render
         void *data;
 
         HostCoherentBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
-            : Buffer(size, usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
+            : Buffer(size, usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+                     VMA_MEMORY_USAGE_AUTO_PREFER_HOST)
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkMapMemory(logicalDevice, bufferMemory, 0, size, 0, &data);
+            data = vmaAllocationInfo.pMappedData;
         }
 
         HostCoherentBuffer(HostCoherentBuffer &&ori)
             : data(ori.data), Buffer(std::forward<HostCoherentBuffer>(ori)) {}
-
-        ~HostCoherentBuffer()
-        {
-
-            if (bufferMemory)
-            {
-                VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-                vkUnmapMemory(logicalDevice, bufferMemory);
-            }
-        }
 
         void ToBuffer(size_t dstOffset, const void *src, size_t size)
         {
@@ -84,9 +81,8 @@ namespace vke_render
     {
     public:
         DeviceBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
-            : Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        {
-        }
+            : Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     0, VMA_MEMORY_USAGE_GPU_ONLY) {}
 
         DeviceBuffer(DeviceBuffer &&ori) : Buffer(std::forward<DeviceBuffer>(ori)) {}
 
@@ -94,28 +90,16 @@ namespace vke_render
 
         void ToBuffer(size_t dstOffset, const void *src, size_t size)
         {
-            Buffer stagingBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            void *data;
-            vkMapMemory(logicalDevice, stagingBuffer.bufferMemory, 0, bufferSize, 0, &data);
-            memcpy((char *)data + dstOffset, src, size);
-            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, bufferSize);
-            vkUnmapMemory(logicalDevice, stagingBuffer.bufferMemory);
-            // vkDestroyBuffer(logicalDevice, stagingBuffer.buffer, nullptr);
-            // vkFreeMemory(logicalDevice, stagingBuffer.bufferMemory, nullptr);
+            HostCoherentBuffer stagingBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            memcpy((char *)stagingBuffer.data, src, size);
+            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, size, 0, dstOffset);
         }
 
         void FromBuffer(size_t srcOffset, void *dst, size_t size)
         {
-            Buffer stagingBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            RenderEnvironment::CopyBuffer(buffer, stagingBuffer.buffer, bufferSize);
-            void *data;
-            vkMapMemory(logicalDevice, stagingBuffer.bufferMemory, 0, bufferSize, 0, &data);
-            memcpy(dst, (char *)data + srcOffset, size);
-            vkUnmapMemory(logicalDevice, stagingBuffer.bufferMemory);
-            // vkDestroyBuffer(logicalDevice, stagingBuffer.buffer, nullptr);
-            // vkFreeMemory(logicalDevice, stagingBuffer.bufferMemory, nullptr);
+            HostCoherentBuffer stagingBuffer(size, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+            RenderEnvironment::CopyBuffer(buffer, stagingBuffer.buffer, size, srcOffset, 0);
+            memcpy(dst, (char *)stagingBuffer.data, size);
         }
     };
 
@@ -123,37 +107,29 @@ namespace vke_render
     {
     public:
         void *data;
-        Buffer stagingBuffer;
+        HostCoherentBuffer stagingBuffer;
 
         StagedBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
-            : stagingBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
-              Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+            : stagingBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT),
+              Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     0, VMA_MEMORY_USAGE_GPU_ONLY)
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkMapMemory(logicalDevice, stagingBuffer.bufferMemory, 0, size, 0, &data);
+            data = stagingBuffer.data;
         }
 
         StagedBuffer(StagedBuffer &&ori)
             : data(ori.data), stagingBuffer(std::move(ori.stagingBuffer)), Buffer(std::forward<StagedBuffer>(ori)) {}
 
-        ~StagedBuffer()
-        {
-            if (stagingBuffer.bufferMemory)
-            {
-                VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-                vkUnmapMemory(logicalDevice, stagingBuffer.bufferMemory);
-            }
-        }
-
         void ToBuffer(size_t dstOffset, const void *src, size_t size)
         {
             memcpy((char *)data + dstOffset, src, size);
-            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, bufferSize);
+            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, size, dstOffset, dstOffset);
         }
 
         void FromBuffer(size_t srcOffset, void *dst, size_t size)
         {
-            RenderEnvironment::CopyBuffer(buffer, stagingBuffer.buffer, bufferSize);
+            RenderEnvironment::CopyBuffer(buffer, stagingBuffer.buffer, size, srcOffset, srcOffset);
             memcpy(dst, (char *)data + srcOffset, size);
         }
     };

@@ -344,6 +344,20 @@ namespace vke_render
         vkGetDeviceQueue(logicalDevice, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
     }
 
+    void RenderEnvironment::createVulkanMemoryAllocator()
+    {
+        VmaAllocatorCreateInfo allocatorCreateInfo = {};
+        allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+        allocatorCreateInfo.physicalDevice = physicalDevice;
+        allocatorCreateInfo.device = logicalDevice;
+        allocatorCreateInfo.instance = vkinstance;
+
+        if (vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create VMA allocator!");
+        }
+    }
+
     void RenderEnvironment::createCommandPool()
     {
         VkCommandPoolCreateInfo poolInfo{};
@@ -550,10 +564,12 @@ namespace vke_render
 
         depthFormat = findDepthFormat();
         depthImages.resize(imageCnt);
-        depthImageMemories.resize(imageCnt);
+        depthImageVmaAllocations.resize(imageCnt);
 
         for (int i = 0; i < imageCnt; i++)
-            CreateImage(extent.width, extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImages[i], depthImageMemories[i]);
+            CreateImage(extent.width, extent.height, depthFormat,
+                        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        &depthImages[i], &depthImageVmaAllocations[i], nullptr);
     }
 
     void RenderEnvironment::cleanupSwapChain()
@@ -564,11 +580,8 @@ namespace vke_render
         for (auto imageView : instance->depthImageViews)
             vkDestroyImageView(logicalDevice, imageView, nullptr);
 
-        for (auto image : instance->depthImages)
-            vkDestroyImage(logicalDevice, image, nullptr);
-
-        for (auto imageMemory : instance->depthImageMemories)
-            vkFreeMemory(logicalDevice, imageMemory, nullptr);
+        for (int i = 0; i < instance->depthImages.size(); i++)
+            vmaDestroyImage(instance->vmaAllocator, instance->depthImages[i], instance->depthImageVmaAllocations[i]);
 
         vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
     }

@@ -2,7 +2,7 @@
 #define TEXTURE_H
 
 #include <common.hpp>
-#include <render/environment.hpp>
+#include <render/buffer.hpp>
 
 namespace vke_render
 {
@@ -11,29 +11,12 @@ namespace vke_render
     public:
         vke_common::AssetHandle handle;
         VkImage textureImage;
-        VkDeviceMemory textureImageMemory;
+        VmaAllocation textureImageAllocation;
         VkImageView textureImageView;
         VkSampler textureSampler;
 
         Texture2D(const vke_common::AssetHandle hdl, void *pixels, int texWidth, int texHeight) : handle(hdl)
         {
-            VkDeviceSize imageSize = texWidth * texHeight * 4;
-            VkBuffer stagingBuffer;
-            VkDeviceMemory stagingBufferMemory;
-
-            RenderEnvironment::CreateBuffer(
-                imageSize,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                stagingBuffer, stagingBufferMemory);
-
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-
-            void *data;
-            vkMapMemory(logicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
-            memcpy(data, pixels, static_cast<size_t>(imageSize));
-            vkUnmapMemory(logicalDevice, stagingBufferMemory);
-
             RenderEnvironment::CreateImage(
                 texWidth,
                 texHeight,
@@ -41,15 +24,17 @@ namespace vke_render
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                textureImage,
-                textureImageMemory);
+                &textureImage,
+                &textureImageAllocation,
+                nullptr);
+
+            size_t imageSize = texWidth * texHeight * 4;
+            HostCoherentBuffer stagingBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+            stagingBuffer.ToBuffer(0, pixels, imageSize);
 
             transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            RenderEnvironment::CopyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+            RenderEnvironment::CopyBufferToImage(stagingBuffer.buffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
             transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-            vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
-            vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
 
             textureImageView = RenderEnvironment::CreateImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
             createTextureSampler();
@@ -60,8 +45,7 @@ namespace vke_render
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
             vkDestroySampler(logicalDevice, textureSampler, nullptr);
             vkDestroyImageView(logicalDevice, textureImageView, nullptr);
-            vkDestroyImage(logicalDevice, textureImage, nullptr);
-            vkFreeMemory(logicalDevice, textureImageMemory, nullptr);
+            vmaDestroyImage(RenderEnvironment::GetInstance()->vmaAllocator, textureImage, textureImageAllocation);
         }
 
     private:

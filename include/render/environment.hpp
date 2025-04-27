@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <event.hpp>
+#include <vk_mem_alloc.h>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
@@ -99,6 +100,7 @@ namespace vke_render
             instance->createSurface();
             instance->pickPhysicalDevice();
             instance->createLogicalDevice();
+            instance->createVulkanMemoryAllocator();
             instance->createCommandPool();
             instance->createCommandBuffers();
             instance->createSyncObjects();
@@ -140,7 +142,7 @@ namespace vke_render
             if (instance->transferCommandPool != instance->commandPool)
                 vkDestroyCommandPool(logicalDevice, instance->transferCommandPool, nullptr);
             vkDestroyCommandPool(logicalDevice, instance->commandPool, nullptr);
-
+            vmaDestroyAllocator(instance->vmaAllocator);
             vkDestroyDevice(logicalDevice, nullptr);
             vkDestroySurfaceKHR(instance->vkinstance, instance->surface, nullptr);
             vkDestroyInstance(instance->vkinstance, nullptr);
@@ -158,7 +160,9 @@ namespace vke_render
             throw std::runtime_error("failed to find suitable memory type!");
         }
 
-        static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory)
+        static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+                                 VmaAllocationCreateFlags vmaFlags, VmaMemoryUsage vmaUsage,
+                                 VkBuffer *buffer, VmaAllocation *vmaAllocation, VmaAllocationInfo *vmaAllocationInfo)
         {
             VkBufferCreateInfo bufferInfo{};
             bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -166,43 +170,30 @@ namespace vke_render
             bufferInfo.usage = usage;
             bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-            VkDevice logicalDevice = instance->logicalDevice;
+            VmaAllocationCreateInfo allocationCreateInfo = {};
+            allocationCreateInfo.flags = vmaFlags;
+            allocationCreateInfo.usage = vmaUsage;
 
-            if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create buffer!");
-            }
-
-            VkMemoryRequirements memRequirements;
-            vkGetBufferMemoryRequirements(logicalDevice, buffer, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-            if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to allocate buffer memory!");
-            }
-
-            vkBindBufferMemory(logicalDevice, buffer, bufferMemory, 0);
+            vmaCreateBuffer(instance->vmaAllocator, &bufferInfo, &allocationCreateInfo,
+                            buffer, vmaAllocation, vmaAllocationInfo);
         }
 
-        static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+        static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0)
         {
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
 
             VkBufferCopy copyRegion{};
-            copyRegion.srcOffset = 0; // Optional
-            copyRegion.dstOffset = 0; // Optional
+            copyRegion.srcOffset = srcOffset;
+            copyRegion.dstOffset = dstOffset;
             copyRegion.size = size;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
             EndSingleTimeCommands(instance->transferQueue, instance->transferCommandPool, commandBuffer);
         }
 
-        static void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage &image, VkDeviceMemory &imageMemory)
+        static void CreateImage(uint32_t width, uint32_t height, VkFormat format,
+                                VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+                                VkImage *image, VmaAllocation *vmaAllocation, VmaAllocationInfo *vmaAllocationInfo)
         {
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -219,25 +210,10 @@ namespace vke_render
             imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-            if (vkCreateImage(instance->logicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create image!");
-            }
-
-            VkMemoryRequirements memRequirements;
-            vkGetImageMemoryRequirements(instance->logicalDevice, image, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
-
-            if (vkAllocateMemory(instance->logicalDevice, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to allocate image memory!");
-            }
-
-            vkBindImageMemory(instance->logicalDevice, image, imageMemory, 0);
+            VmaAllocationCreateInfo alloationCreateInfo = {};
+            alloationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+            alloationCreateInfo.preferredFlags = properties;
+            vmaCreateImage(instance->vmaAllocator, &imageInfo, &alloationCreateInfo, image, vmaAllocation, vmaAllocationInfo);
         }
 
         static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
@@ -485,6 +461,7 @@ namespace vke_render
         VkCommandPool commandPool;
         VkCommandPool computeCommandPool;
         VkCommandPool transferCommandPool;
+        VmaAllocator vmaAllocator;
         std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         std::vector<VkCommandBuffer> commandBuffers;
         std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -494,7 +471,7 @@ namespace vke_render
         std::vector<VkImage> swapChainImages;
         std::vector<VkImageView> swapChainImageViews;
         std::vector<VkImage> depthImages;
-        std::vector<VkDeviceMemory> depthImageMemories;
+        std::vector<VmaAllocation> depthImageVmaAllocations;
         std::vector<VkImageView> depthImageViews;
         RenderContext rootRenderContext;
 
@@ -507,6 +484,7 @@ namespace vke_render
         bool isDeviceSuitable(VkPhysicalDevice pdevice);
         void pickPhysicalDevice();
         void createLogicalDevice();
+        void createVulkanMemoryAllocator();
         void createCommandPool();
         void createCommandBuffers();
         void createSyncObjects();
