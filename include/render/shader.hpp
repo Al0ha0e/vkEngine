@@ -160,9 +160,10 @@ namespace vke_render
         ~VertFragShader() {}
 
         void CreatePipeline(std::vector<uint32_t> &vertexAttributeSizes,
+                            VkVertexInputRate vertexInputRate,
                             VkPipelineLayout &pipelineLayout,
                             VkGraphicsPipelineCreateInfo &pipelineInfo,
-                            VkPipeline &pipeline);
+                            VkPipeline &pipeline) const;
     };
 
     class ComputeShader : public Shader

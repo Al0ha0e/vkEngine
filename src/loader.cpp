@@ -144,7 +144,6 @@ namespace vke_common
         vke_render::Material *mat = new vke_render::Material(asset.id);
 
         mat->shader = AssetManager::LoadVertFragShader(asset.shader);
-        mat->vertexAttributeSizes = {sizeof(vke_render::Vertex::pos), sizeof(vke_render::Vertex::normal), sizeof(vke_render::Vertex::texCoord)};
         int bindingID = 0;
         for (auto tex : asset.textures)
         {

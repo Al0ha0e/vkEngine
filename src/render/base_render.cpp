@@ -63,7 +63,8 @@ namespace vke_render
         pipelineInfo.pNext = &pipelineRenderingCreateInfo;
         pipelineInfo.pDepthStencilState = &depthStencil;
 
-        renderInfo->CreatePipeline(pipelineInfo);
+        std::vector<uint32_t> vertexAttributeSizes = {sizeof(glm::vec3)};
+        renderInfo->CreatePipeline(vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
     }
 
     const std::vector<glm::vec3> skyboxVertices = {
@@ -117,7 +118,6 @@ namespace vke_render
         std::shared_ptr<Texture2D> texture = vke_common::AssetManager::LoadTexture2D(vke_common::BUILTIN_TEXTURE_SKYBOX_ID);
         skyboxMaterial->textures.push_back(texture);
         skyboxMaterial->shader = vke_common::AssetManager::LoadVertFragShader(vke_common::BUILTIN_VFSHADER_SKYBOX_ID);
-        skyboxMaterial->vertexAttributeSizes = {sizeof(glm::vec3)};
 
         VkDescriptorSetLayoutBinding textureLayoutBinding{};
         textureLayoutBinding.binding = 0;

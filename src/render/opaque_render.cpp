@@ -62,7 +62,8 @@ namespace vke_render
         pipelineInfo.pNext = &pipelineRenderingCreateInfo;
         pipelineInfo.pDepthStencilState = &depthStencil;
 
-        renderInfo.CreatePipeline(pipelineInfo);
+        std::vector<uint32_t> vertexAttributeSizes = {sizeof(vke_render::Vertex::pos), sizeof(vke_render::Vertex::normal), sizeof(vke_render::Vertex::texCoord)};
+        renderInfo.CreatePipeline(vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
     }
 
     void OpaqueRenderer::Render(VkCommandBuffer commandBuffer, uint32_t currentFrame)

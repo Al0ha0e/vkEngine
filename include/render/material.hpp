@@ -18,18 +18,10 @@ namespace vke_render
 
         vke_common::AssetHandle handle;
         std::shared_ptr<VertFragShader> shader;
-        std::vector<uint32_t> vertexAttributeSizes;
         std::vector<std::shared_ptr<Texture2D>> textures;
         std::vector<DescriptorInfo> commonDescriptorInfos;
         std::vector<DescriptorInfo> perUnitDescriptorInfos;
         std::vector<VkBuffer> commonBuffers;
-
-        void CreatePipeline(VkPipelineLayout &pipelineLayout,
-                            VkGraphicsPipelineCreateInfo &pipelineInfo,
-                            VkPipeline &pipeline)
-        {
-            shader->CreatePipeline(vertexAttributeSizes, pipelineLayout, pipelineInfo, pipeline);
-        }
 
     private:
         void init()

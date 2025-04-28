@@ -117,9 +117,10 @@ namespace vke_render
     }
 
     void VertFragShader::CreatePipeline(std::vector<uint32_t> &vertexAttributeSizes,
+                                        VkVertexInputRate vertexInputRate,
                                         VkPipelineLayout &pipelineLayout,
                                         VkGraphicsPipelineCreateInfo &pipelineInfo,
-                                        VkPipeline &pipeline)
+                                        VkPipeline &pipeline) const
     {
         std::vector<VkDynamicState> dynamicStates = {
             VK_DYNAMIC_STATE_VIEWPORT,
@@ -146,7 +147,7 @@ namespace vke_render
         VkVertexInputBindingDescription vertexBindingDescription{};
         vertexBindingDescription.binding = 0;
         vertexBindingDescription.stride = vertexAttributeOffset;
-        vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        vertexBindingDescription.inputRate = vertexInputRate;
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

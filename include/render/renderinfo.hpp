@@ -169,9 +169,11 @@ namespace vke_render
             vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
-        void CreatePipeline(VkGraphicsPipelineCreateInfo &pipelineInfo)
+        void CreatePipeline(std::vector<uint32_t> &vertexAttributeSizes,
+                            VkVertexInputRate vertexInputRate,
+                            VkGraphicsPipelineCreateInfo &pipelineInfo)
         {
-            material->CreatePipeline(pipelineLayout, pipelineInfo, pipeline);
+            material->shader->CreatePipeline(vertexAttributeSizes, vertexInputRate, pipelineLayout, pipelineInfo, pipeline);
         }
 
         vke_ds::id64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> &buffers)
