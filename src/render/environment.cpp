@@ -75,13 +75,18 @@ namespace vke_render
         {
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
+
+            const VkBool32 verbose_value = true;
+            const VkLayerSettingEXT layer_setting = {"VK_LAYER_KHRONOS_validation", "validate_sync", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &verbose_value};
+            VkLayerSettingsCreateInfoEXT layer_settings_create_info = {VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, nullptr, 1, &layer_setting};
+            createInfo.pNext = &layer_settings_create_info;
+            VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
         }
         else
         {
             createInfo.enabledLayerCount = 0;
+            VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
         }
-
-        VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
     }
 
     void RenderEnvironment::createSurface()
@@ -211,7 +216,8 @@ namespace vke_render
                supportedFeatures12.descriptorBindingUpdateUnusedWhilePending &&
                supportedFeatures12.descriptorBindingPartiallyBound &&
                supportedFeatures12.descriptorBindingVariableDescriptorCount &&
-               supportedFeatures12.runtimeDescriptorArray;
+               supportedFeatures12.runtimeDescriptorArray &&
+               supportedFeatures12.timelineSemaphore;
     }
 
     void RenderEnvironment::pickPhysicalDevice()
@@ -299,6 +305,7 @@ namespace vke_render
         deviceFeatures12.descriptorBindingPartiallyBound = VK_TRUE;
         deviceFeatures12.descriptorBindingVariableDescriptorCount = VK_TRUE;
         deviceFeatures12.runtimeDescriptorArray = VK_TRUE;
+        deviceFeatures12.timelineSemaphore = VK_TRUE;
         deviceFeatures2.pNext = &deviceFeatures12;
 
         VkPhysicalDeviceVulkan11Features deviceFeatures11 = {};
@@ -364,7 +371,7 @@ namespace vke_render
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
-        vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS;
+        vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool);
 
         if (queueFamilyIndices.computeOnlyFamily.size() > 0)
         {
@@ -384,21 +391,6 @@ namespace vke_render
         else
         {
             transferCommandPool = commandPool;
-        }
-    }
-
-    void RenderEnvironment::createCommandBuffers()
-    {
-        commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = commandPool;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
-
-        if (vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to allocate command buffers!");
         }
     }
 
@@ -425,6 +417,13 @@ namespace vke_render
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
             }
         }
+
+        VkSemaphoreTypeCreateInfo timelineInfo{};
+        timelineInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+        timelineInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+        timelineInfo.initialValue = 0;
+        semaphoreInfo.pNext = &timelineInfo;
+        vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &globalTimelineSemaphore);
     }
 
     static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
@@ -528,9 +527,9 @@ namespace vke_render
         createInfo.imageArrayLayers = 1;
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
+        uint32_t qfIndices[] = {queueFamilyIndices.graphicsAndComputeFamily.value(), queueFamilyIndices.presentFamily.value()};
         if (queueFamilyIndices.graphicsAndComputeFamily != queueFamilyIndices.presentFamily)
         {
-            uint32_t qfIndices[] = {queueFamilyIndices.graphicsAndComputeFamily.value(), queueFamilyIndices.presentFamily.value()};
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
             createInfo.pQueueFamilyIndices = qfIndices;
@@ -563,13 +562,14 @@ namespace vke_render
         swapChainExtent = extent;
 
         depthFormat = findDepthFormat();
-        depthImages.resize(imageCnt);
-        depthImageVmaAllocations.resize(imageCnt);
-
-        for (int i = 0; i < imageCnt; i++)
-            CreateImage(extent.width, extent.height, depthFormat,
-                        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        &depthImages[i], &depthImageVmaAllocations[i], nullptr);
+        CreateImage(extent.width, extent.height, depthFormat,
+                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    &depthImage, &depthImageVmaAllocation, nullptr);
+        VkCommandBuffer tmpCmdBuffer = BeginSingleTimeCommands(commandPool);
+        MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT,
+                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
+        EndSingleTimeCommands(graphicsQueue, commandPool, tmpCmdBuffer);
     }
 
     void RenderEnvironment::cleanupSwapChain()
@@ -577,11 +577,8 @@ namespace vke_render
         for (auto imageView : instance->swapChainImageViews)
             vkDestroyImageView(logicalDevice, imageView, nullptr);
 
-        for (auto imageView : instance->depthImageViews)
-            vkDestroyImageView(logicalDevice, imageView, nullptr);
-
-        for (int i = 0; i < instance->depthImages.size(); i++)
-            vmaDestroyImage(instance->vmaAllocator, instance->depthImages[i], instance->depthImageVmaAllocations[i]);
+        vkDestroyImageView(logicalDevice, instance->depthImageView, nullptr);
+        vmaDestroyImage(instance->vmaAllocator, instance->depthImage, instance->depthImageVmaAllocation);
 
         vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
     }
@@ -596,20 +593,17 @@ namespace vke_render
         rootRenderContext.height = swapChainExtent.height;
         rootRenderContext.colorImages = &swapChainImages;
         rootRenderContext.colorImageViews = &swapChainImageViews;
-        rootRenderContext.depthImages = &depthImages;
-        rootRenderContext.depthImageViews = &depthImageViews;
+        rootRenderContext.depthImage = depthImage;
+        rootRenderContext.depthImageView = depthImageView;
         resizeEventHub.DispatchEvent(&rootRenderContext);
     }
 
     void RenderEnvironment::createImageViews()
     {
         swapChainImageViews.resize(imageCnt);
-        depthImageViews.resize(imageCnt);
 
         for (size_t i = 0; i < imageCnt; i++)
-        {
             swapChainImageViews[i] = RenderEnvironment::CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-            depthImageViews[i] = RenderEnvironment::CreateImageView(depthImages[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-        }
+        depthImageView = RenderEnvironment::CreateImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
 };

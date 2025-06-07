@@ -54,21 +54,20 @@ namespace vke_render
         VkFormat colorFormat;
         VkFormat depthFormat;
         VkImageLayout outColorLayout;
+        VkImage depthImage;
+        VkImageView depthImageView;
         std::vector<VkImage> *colorImages;
         std::vector<VkImageView> *colorImageViews;
-        std::vector<VkImage> *depthImages;
-        std::vector<VkImageView> *depthImageViews;
-        std::vector<VkCommandBuffer> *commandBuffers;
         vke_common::EventHub<RenderContext> *resizeEventHub;
         std::function<uint32_t(uint32_t)> AcquireNextImage;
-        std::function<void(uint32_t, uint32_t, std::vector<VkSemaphore> &, std::vector<VkPipelineStageFlags> &)> Present;
+        std::function<void(uint32_t, uint32_t)> Present;
     };
 
     class RenderEnvironment
     {
     private:
         static RenderEnvironment *instance;
-        RenderEnvironment() : windowResized(false) {}
+        RenderEnvironment() : windowResized(false), globalFrameCounter(0) {}
         ~RenderEnvironment() {}
         RenderEnvironment(const RenderEnvironment &);
         RenderEnvironment &operator=(const RenderEnvironment);
@@ -102,7 +101,6 @@ namespace vke_render
             instance->createLogicalDevice();
             instance->createVulkanMemoryAllocator();
             instance->createCommandPool();
-            instance->createCommandBuffers();
             instance->createSyncObjects();
             instance->createSwapChain();
             instance->createImageViews();
@@ -114,11 +112,10 @@ namespace vke_render
                 instance->swapChainImageFormat,
                 instance->depthFormat,
                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                instance->depthImage,
+                instance->depthImageView,
                 &(instance->swapChainImages),
                 &(instance->swapChainImageViews),
-                &(instance->depthImages),
-                &(instance->depthImageViews),
-                &(instance->commandBuffers),
                 &(instance->resizeEventHub),
                 AcquireNextImage,
                 Present};
@@ -136,6 +133,7 @@ namespace vke_render
                 vkDestroySemaphore(logicalDevice, instance->imageAvailableSemaphores[i], nullptr);
                 vkDestroyFence(logicalDevice, instance->inFlightFences[i], nullptr);
             }
+            vkDestroySemaphore(logicalDevice, instance->globalTimelineSemaphore, nullptr);
 
             if (instance->computeCommandPool != instance->commandPool)
                 vkDestroyCommandPool(logicalDevice, instance->computeCommandPool, nullptr);
@@ -392,27 +390,54 @@ namespace vke_render
                 throw std::runtime_error("failed to acquire swap chain image!");
             }
             vkResetFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame]);
+
+            VkPipelineStageFlags waitDstStageMasks[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT};
+            VkSemaphore waitSemaphores[2] = {instance->imageAvailableSemaphores[currentFrame], instance->globalTimelineSemaphore};
+            uint64_t waitValues[2] = {1, instance->globalFrameCounter};
+
+            VkSubmitInfo submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+            submitInfo.waitSemaphoreCount = 2;
+            submitInfo.pWaitSemaphores = waitSemaphores;
+            submitInfo.pWaitDstStageMask = waitDstStageMasks;
+            submitInfo.commandBufferCount = 0;
+            submitInfo.signalSemaphoreCount = 0;
+
+            VkTimelineSemaphoreSubmitInfo tlsSubmitInfo{};
+            tlsSubmitInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+            tlsSubmitInfo.waitSemaphoreValueCount = 2;
+            tlsSubmitInfo.pWaitSemaphoreValues = waitValues;
+            tlsSubmitInfo.signalSemaphoreValueCount = 0;
+            submitInfo.pNext = &tlsSubmitInfo;
+
+            if (vkQueueSubmit(RenderEnvironment::GetInstance()->graphicsQueue, 1, &submitInfo, nullptr) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to submit draw command buffer!");
+            }
+
             return imageIndex;
         }
 
-        static void Present(uint32_t currentFrame,
-                            uint32_t imageIndex,
-                            std::vector<VkSemaphore> &waitSemaphores,
-                            std::vector<VkPipelineStageFlags> &waitStages)
+        static void Present(uint32_t currentFrame, uint32_t imageIndex)
         {
+            ++instance->globalFrameCounter;
+
+            VkSemaphore signalSemaphores[2] = {instance->renderFinishedSemaphores[currentFrame], instance->globalTimelineSemaphore};
+            uint64_t signalValues[2] = {1, instance->globalFrameCounter};
+
             VkSubmitInfo submitInfo{};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-            waitSemaphores.push_back(instance->imageAvailableSemaphores[currentFrame]);
-            waitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-            submitInfo.waitSemaphoreCount = waitSemaphores.size();
-            submitInfo.pWaitSemaphores = waitSemaphores.data();
-            submitInfo.pWaitDstStageMask = waitStages.data();
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &instance->commandBuffers[currentFrame];
-            VkSemaphore signalSemaphores[] = {instance->renderFinishedSemaphores[currentFrame]};
-            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.waitSemaphoreCount = 0;
+            submitInfo.commandBufferCount = 0;
+            submitInfo.signalSemaphoreCount = 2;
             submitInfo.pSignalSemaphores = signalSemaphores;
+
+            VkTimelineSemaphoreSubmitInfo tlsSubmitInfo{};
+            tlsSubmitInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+            tlsSubmitInfo.waitSemaphoreValueCount = 0;
+            tlsSubmitInfo.signalSemaphoreValueCount = 2;
+            tlsSubmitInfo.pSignalSemaphoreValues = signalValues;
+            submitInfo.pNext = &tlsSubmitInfo;
 
             if (vkQueueSubmit(instance->graphicsQueue, 1, &submitInfo, instance->inFlightFences[currentFrame]) != VK_SUCCESS)
             {
@@ -423,7 +448,7 @@ namespace vke_render
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
             presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = signalSemaphores;
+            presentInfo.pWaitSemaphores = &(instance->renderFinishedSemaphores[currentFrame]);
 
             VkSwapchainKHR swapChains[] = {instance->swapChain};
             presentInfo.swapchainCount = 1;
@@ -443,6 +468,7 @@ namespace vke_render
         }
 
         uint32_t imageCnt;
+        uint64_t globalFrameCounter;
         vke_common::EventHub<RenderContext> resizeEventHub;
         GLFWwindow *window;
         VkInstance vkinstance;
@@ -463,16 +489,16 @@ namespace vke_render
         VkCommandPool transferCommandPool;
         VmaAllocator vmaAllocator;
         std::vector<VkQueueFamilyProperties> queueFamilyProperties;
-        std::vector<VkCommandBuffer> commandBuffers;
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
+        VkSemaphore globalTimelineSemaphore;
         std::vector<VkFence> inFlightFences;
         VkSwapchainKHR swapChain;
         std::vector<VkImage> swapChainImages;
         std::vector<VkImageView> swapChainImageViews;
-        std::vector<VkImage> depthImages;
-        std::vector<VmaAllocation> depthImageVmaAllocations;
-        std::vector<VkImageView> depthImageViews;
+        VkImage depthImage;
+        VmaAllocation depthImageVmaAllocation;
+        VkImageView depthImageView;
         RenderContext rootRenderContext;
 
     private:
@@ -486,7 +512,6 @@ namespace vke_render
         void createLogicalDevice();
         void createVulkanMemoryAllocator();
         void createCommandPool();
-        void createCommandBuffers();
         void createSyncObjects();
         void createSwapChain();
         void cleanupSwapChain();

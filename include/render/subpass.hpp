@@ -2,6 +2,7 @@
 #define SUBPASS_H
 
 #include <render/environment.hpp>
+#include <render/frame_graph.hpp>
 
 namespace vke_render
 {
@@ -37,7 +38,7 @@ namespace vke_render
         virtual ~RenderPassBase() {}
 
         // virtual void RegisterCamera(VkBuffer buffer) = 0;
-        virtual void Render(VkCommandBuffer commandBuffer, uint32_t currentFrame) = 0;
+        virtual void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) = 0;
 
         virtual void Init(int subpassID)
         {

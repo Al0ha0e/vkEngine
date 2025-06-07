@@ -5,6 +5,7 @@
 #include <render/environment.hpp>
 #include <render/base_render.hpp>
 #include <render/opaque_render.hpp>
+#include <render/frame_graph.hpp>
 #include <event.hpp>
 #include <vector>
 #include <map>
@@ -90,6 +91,8 @@ namespace vke_render
                 }
             }
 
+            instance->initFrameGraph();
+
             return instance;
         }
 
@@ -144,10 +147,13 @@ namespace vke_render
         void Update();
 
     private:
+        vke_ds::id32_t colorAttachmentResourceID;
         VkDevice logicalDevice;
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
+        std::unique_ptr<FrameGraph> frameGraph;
 
+        void initFrameGraph();
         void cleanup();
         void recreate(RenderContext *ctx);
         void render();

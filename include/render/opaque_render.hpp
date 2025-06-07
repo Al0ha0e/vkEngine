@@ -52,7 +52,7 @@ namespace vke_render
             // TODO renderInfoMap[material].size() == 0
         }
 
-        void Render(VkCommandBuffer commandBuffer, uint32_t currentFrame) override;
+        void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
 
     private:
         RenderEnvironment *environment;
