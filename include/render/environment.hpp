@@ -67,7 +67,7 @@ namespace vke_render
     {
     private:
         static RenderEnvironment *instance;
-        RenderEnvironment() : windowResized(false), globalFrameCounter(0) {}
+        RenderEnvironment() : windowResized(false) {}
         ~RenderEnvironment() {}
         RenderEnvironment(const RenderEnvironment &);
         RenderEnvironment &operator=(const RenderEnvironment);
@@ -133,7 +133,6 @@ namespace vke_render
                 vkDestroySemaphore(logicalDevice, instance->imageAvailableSemaphores[i], nullptr);
                 vkDestroyFence(logicalDevice, instance->inFlightFences[i], nullptr);
             }
-            vkDestroySemaphore(logicalDevice, instance->globalTimelineSemaphore, nullptr);
 
             if (instance->computeCommandPool != instance->commandPool)
                 vkDestroyCommandPool(logicalDevice, instance->computeCommandPool, nullptr);
@@ -391,24 +390,14 @@ namespace vke_render
             }
             vkResetFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame]);
 
-            VkPipelineStageFlags waitDstStageMasks[2] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT};
-            VkSemaphore waitSemaphores[2] = {instance->imageAvailableSemaphores[currentFrame], instance->globalTimelineSemaphore};
-            uint64_t waitValues[2] = {1, instance->globalFrameCounter};
-
+            VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             VkSubmitInfo submitInfo{};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.waitSemaphoreCount = 2;
-            submitInfo.pWaitSemaphores = waitSemaphores;
-            submitInfo.pWaitDstStageMask = waitDstStageMasks;
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &(instance->imageAvailableSemaphores[currentFrame]);
+            submitInfo.pWaitDstStageMask = &waitDstStageMask;
             submitInfo.commandBufferCount = 0;
             submitInfo.signalSemaphoreCount = 0;
-
-            VkTimelineSemaphoreSubmitInfo tlsSubmitInfo{};
-            tlsSubmitInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-            tlsSubmitInfo.waitSemaphoreValueCount = 2;
-            tlsSubmitInfo.pWaitSemaphoreValues = waitValues;
-            tlsSubmitInfo.signalSemaphoreValueCount = 0;
-            submitInfo.pNext = &tlsSubmitInfo;
 
             if (vkQueueSubmit(RenderEnvironment::GetInstance()->graphicsQueue, 1, &submitInfo, nullptr) != VK_SUCCESS)
             {
@@ -420,24 +409,12 @@ namespace vke_render
 
         static void Present(uint32_t currentFrame, uint32_t imageIndex)
         {
-            ++instance->globalFrameCounter;
-
-            VkSemaphore signalSemaphores[2] = {instance->renderFinishedSemaphores[currentFrame], instance->globalTimelineSemaphore};
-            uint64_t signalValues[2] = {1, instance->globalFrameCounter};
-
             VkSubmitInfo submitInfo{};
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.waitSemaphoreCount = 0;
             submitInfo.commandBufferCount = 0;
-            submitInfo.signalSemaphoreCount = 2;
-            submitInfo.pSignalSemaphores = signalSemaphores;
-
-            VkTimelineSemaphoreSubmitInfo tlsSubmitInfo{};
-            tlsSubmitInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-            tlsSubmitInfo.waitSemaphoreValueCount = 0;
-            tlsSubmitInfo.signalSemaphoreValueCount = 2;
-            tlsSubmitInfo.pSignalSemaphoreValues = signalValues;
-            submitInfo.pNext = &tlsSubmitInfo;
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &(instance->renderFinishedSemaphores[currentFrame]);
 
             if (vkQueueSubmit(instance->graphicsQueue, 1, &submitInfo, instance->inFlightFences[currentFrame]) != VK_SUCCESS)
             {
@@ -468,7 +445,6 @@ namespace vke_render
         }
 
         uint32_t imageCnt;
-        uint64_t globalFrameCounter;
         vke_common::EventHub<RenderContext> resizeEventHub;
         GLFWwindow *window;
         VkInstance vkinstance;
@@ -491,7 +467,6 @@ namespace vke_render
         std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
-        VkSemaphore globalTimelineSemaphore;
         std::vector<VkFence> inFlightFences;
         VkSwapchainKHR swapChain;
         std::vector<VkImage> swapChainImages;

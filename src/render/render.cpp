@@ -17,10 +17,19 @@ namespace vke_render
         info.imageView = context.depthImageView;
         vke_ds::id32_t depthAttachmentResourceID = frameGraph->AddPermanentImageResource(context.depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, info,
                                                                                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
-        std::cout << "resource ids " << colorAttachmentResourceID << " " << depthAttachmentResourceID << "\n";
+
+        VkDescriptorBufferInfo binfo{};
+        binfo.buffer = camInfoBuffer2.buffer;
+        binfo.offset = 0;
+        binfo.range = camInfoBuffer2.bufferSize;
+        vke_ds::id32_t cameraResourceID = frameGraph->AddPermanentBufferResource(binfo, VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+        std::cout << "resource ids " << colorAttachmentResourceID << " " << depthAttachmentResourceID << " " << cameraResourceID << "\n";
 
         frameGraph->AddTargetResource(colorAttachmentResourceID);
         frameGraph->AddTargetResource(depthAttachmentResourceID);
+
+        vke_ds::id32_t copyOutCameraResourceNodeID = frameGraph->AllocResourceNode(false, cameraResourceID);
 
         vke_ds::id32_t baseInColorResourceNodeID = frameGraph->AllocResourceNode(false, colorAttachmentResourceID);
         vke_ds::id32_t baseOutColorResourceNodeID = frameGraph->AllocResourceNode(false, colorAttachmentResourceID);
@@ -29,6 +38,10 @@ namespace vke_render
         vke_ds::id32_t opaqueInDepthResourceNodeID = frameGraph->AllocResourceNode(false, depthAttachmentResourceID);
         vke_ds::id32_t opaqueOutDepthResourceNodeID = frameGraph->AllocResourceNode(false, depthAttachmentResourceID);
 
+        vke_ds::id32_t copyTaskNodeID = frameGraph->AllocTaskNode(TRANSFER_TASK,
+                                                                  std::bind(&Renderer::copyToCamBuffer, this,
+                                                                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+
         vke_ds::id32_t baseTaskNodeID = frameGraph->AllocTaskNode(RENDER_TASK,
                                                                   std::bind(&BaseRenderer::Render, static_cast<BaseRenderer *>(subPasses[subPassMap[BASE_RENDERER]].get()),
                                                                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
@@ -36,12 +49,31 @@ namespace vke_render
                                                                     std::bind(&OpaqueRenderer::Render, static_cast<OpaqueRenderer *>(subPasses[subPassMap[OPAQUE_RENDERER]].get()),
                                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
+        // copy
+        frameGraph->AddTaskNodeResourceRef(copyTaskNodeID, false, 0, copyOutCameraResourceNodeID,
+                                           VK_ACCESS_TRANSFER_WRITE_BIT,
+                                           VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                           VK_IMAGE_LAYOUT_UNDEFINED,
+                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
+
+        // base
+        frameGraph->AddTaskNodeResourceRef(baseTaskNodeID, false, copyOutCameraResourceNodeID, 0,
+                                           VK_ACCESS_SHADER_READ_BIT,
+                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                                           VK_IMAGE_LAYOUT_UNDEFINED,
+                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph->AddTaskNodeResourceRef(baseTaskNodeID, false, baseInColorResourceNodeID, baseOutColorResourceNodeID,
                                            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                            VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
 
+        // opaque
+        frameGraph->AddTaskNodeResourceRef(opaqueTaskNodeID, false, copyOutCameraResourceNodeID, 0,
+                                           VK_ACCESS_SHADER_READ_BIT,
+                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                                           VK_IMAGE_LAYOUT_UNDEFINED,
+                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph->AddTaskNodeResourceRef(opaqueTaskNodeID, false, baseOutColorResourceNodeID, opaqueOutColorResourceNodeID,
                                            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -67,6 +99,7 @@ namespace vke_render
     {
         uint32_t imageIndex = context.AcquireNextImage(currentFrame);
         ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->image = (*context.colorImages)[imageIndex];
+
         frameGraph->Execute(currentFrame, imageIndex);
         context.Present(currentFrame, imageIndex);
     }

@@ -42,6 +42,8 @@ namespace vke_render
               srcTaskID(ano.srcTaskID), dstTaskIDs(std::move(ano.dstTaskIDs)) {}
     };
 
+    class TaskNode;
+
     class ResourceRef
     {
     public:
@@ -54,12 +56,14 @@ namespace vke_render
         VkAttachmentLoadOp loadOp;
         VkAttachmentStoreOp storeOp;
         ResourceRef *crossQueueRef; // ref used by the next task in another queue ? ref : nullptr (nothing to do with in/output)
+        TaskNode *crossQueueTask;
 
-        ResourceRef()
-            : isTransient(false), inResourceNodeID(0), outResourceNodeID(0), accessMask(VK_ACCESS_NONE),
-              stageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT), imageLayout(VK_IMAGE_LAYOUT_UNDEFINED),
-              loadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE), storeOp(VK_ATTACHMENT_STORE_OP_DONT_CARE),
-              crossQueueRef(nullptr) {}
+        ResourceRef() : isTransient(false), inResourceNodeID(0), outResourceNodeID(0), accessMask(VK_ACCESS_NONE),
+                        stageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT), imageLayout(VK_IMAGE_LAYOUT_UNDEFINED),
+                        loadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE), storeOp(VK_ATTACHMENT_STORE_OP_DONT_CARE),
+                        crossQueueRef(nullptr), crossQueueTask(nullptr)
+        {
+        }
 
         ResourceRef(bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
                     VkAccessFlags accessMask, VkPipelineStageFlags stageMask,
@@ -68,17 +72,17 @@ namespace vke_render
                     VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
             : isTransient(isTransient), inResourceNodeID(inResourceNodeID), outResourceNodeID(outResourceNodeID),
               accessMask(accessMask), stageMask(stageMask), imageLayout(layout),
-              loadOp(loadOp), storeOp(storeOp), crossQueueRef(nullptr) {}
+              loadOp(loadOp), storeOp(storeOp), crossQueueRef(nullptr), crossQueueTask(nullptr) {}
     };
 
     enum TaskType
     {
         RENDER_TASK,
         COMPUTE_TASK,
+        TRANSFER_TASK,
     };
 
     class FrameGraph;
-    class TaskNode;
 
     using TaskNodeExecuteCallback = std::function<void(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)>;
 
@@ -87,6 +91,7 @@ namespace vke_render
     public:
         vke_ds::id32_t taskID;
         TaskType taskType;
+        TaskType actualTaskType;
         bool valid;
         bool needQueueSubmit;
         uint32_t indeg;
@@ -95,12 +100,17 @@ namespace vke_render
         TaskNodeExecuteCallback executeCallback;
 
         TaskNode() : taskID(0), taskType(RENDER_TASK), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
-        TaskNode(TaskType type) : taskID(0), taskType(type), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
-        TaskNode(vke_ds::id32_t id, TaskType type)
-            : taskID(id), taskType(type), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
-        TaskNode(vke_ds::id32_t id, TaskType type,
-                 TaskNodeExecuteCallback &callback)
-            : taskID(id), taskType(type), valid(false), needQueueSubmit(false), indeg(0), order(0), executeCallback(callback) {}
+
+        TaskNode(TaskType type, TaskType actualTaskType)
+            : taskID(0), taskType(type), actualTaskType(actualTaskType), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
+
+        TaskNode(vke_ds::id32_t id, TaskType type, TaskType actualTaskType)
+            : taskID(id), taskType(type), actualTaskType(actualTaskType), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
+
+        TaskNode(vke_ds::id32_t id, TaskType type, TaskType actualTaskType, TaskNodeExecuteCallback &callback)
+            : taskID(id), taskType(type), actualTaskType(actualTaskType),
+              valid(false), needQueueSubmit(false), indeg(0), order(0), executeCallback(callback) {}
+
         ~TaskNode() {}
         TaskNode &operator=(const TaskNode &) = delete;
         TaskNode(const TaskNode &) = delete;
@@ -192,7 +202,7 @@ namespace vke_render
     {
     public:
         uint64_t timelineSemaphoreBase;
-        bool asyncCompute;
+        bool haveQueue[3];
         std::vector<std::unique_ptr<RenderResource>> permanentResources;
         std::map<vke_ds::id32_t, std::unique_ptr<RenderResource>> transientResources;
         std::vector<PermanentResourceState> permanentResourceStates;
@@ -201,7 +211,7 @@ namespace vke_render
         std::map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
 
         FrameGraph(uint32_t framesInFlight)
-            : framesInFlight(framesInFlight), renderSubmitCnt(0), computeSubmitCnt(0), timelineSemaphoreBase(0), taskIDAllocator(1), resourceIDAllocator(1)
+            : framesInFlight(framesInFlight), timelineSemaphoreBase(0), taskIDAllocator(1), resourceIDAllocator(1)
         {
             init();
         }
@@ -254,7 +264,10 @@ namespace vke_render
         vke_ds::id32_t AllocTaskNode(TaskType taskType, TaskNodeExecuteCallback callback)
         {
             vke_ds::id32_t id = taskIDAllocator.Alloc();
-            taskNodes.emplace(id, std::make_unique<TaskNode>(id, taskType, callback));
+            TaskType actualTaskType = (taskType == COMPUTE_TASK && haveQueue[COMPUTE_TASK])
+                                          ? COMPUTE_TASK
+                                          : ((taskType == TRANSFER_TASK && haveQueue[TRANSFER_TASK]) ? TRANSFER_TASK : RENDER_TASK);
+            taskNodes.emplace(id, std::make_unique<TaskNode>(id, taskType, actualTaskType, callback));
             return id;
         }
 
@@ -285,23 +298,20 @@ namespace vke_render
         void Execute(uint32_t currentFrame, uint32_t imageIndex);
 
     private:
-        uint32_t renderQueueFamily;
-        uint32_t computeQueueFamily;
         uint32_t framesInFlight;
-        uint32_t renderSubmitCnt;
-        uint32_t computeSubmitCnt;
+        uint32_t queueFamilies[3];
+        uint32_t submitCnts[3];
+        uint64_t lastTimelineValues[3];
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;
-        std::vector<std::unique_ptr<CommandPool>> renderCommandPools;
-        std::vector<std::unique_ptr<CommandPool>> computeCommandPools;
+        std::vector<std::unique_ptr<CommandPool>> commandPools[3];
         std::vector<vke_ds::id32_t> orderedTasks;
         VkSemaphore timelineSemaphore;
-        VkQueue graphicsQueue;
-        VkQueue computeQueue;
+        VkQueue gpuQueues[3];
 
         void init();
         void syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode, uint64_t &waitSemaphoreValue, VkPipelineStageFlags &waitDstStageMask);
-        void endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode, bool &willSignal);
+        void endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode);
         void clearLastUsedInfo();
         void checkCrossQueue(ResourceRef &ref, TaskNode &taskNode);
     };

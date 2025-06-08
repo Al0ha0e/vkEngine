@@ -423,7 +423,6 @@ namespace vke_render
         timelineInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
         timelineInfo.initialValue = 0;
         semaphoreInfo.pNext = &timelineInfo;
-        vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &globalTimelineSemaphore);
     }
 
     static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
