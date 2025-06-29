@@ -121,16 +121,64 @@ namespace vke_render
         StagedBuffer(StagedBuffer &&ori)
             : data(ori.data), stagingBuffer(std::move(ori.stagingBuffer)), Buffer(std::forward<StagedBuffer>(ori)) {}
 
-        void ToBuffer(size_t dstOffset, const void *src, size_t size)
+        void ToBuffer(size_t offset, size_t size)
         {
-            memcpy((char *)data + dstOffset, src, size);
-            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, size, dstOffset, dstOffset);
+            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, size, offset, offset);
         }
 
-        void FromBuffer(size_t srcOffset, void *dst, size_t size)
+        void ToBufferAsync(VkCommandBuffer commandBuffer, size_t offset, size_t size)
         {
-            RenderEnvironment::CopyBuffer(buffer, stagingBuffer.buffer, size, srcOffset, srcOffset);
-            memcpy(dst, (char *)data + srcOffset, size);
+            VkBufferMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.buffer = stagingBuffer.buffer;
+            barrier.offset = offset;
+            barrier.size = size;
+
+            vkCmdPipelineBarrier(
+                commandBuffer,
+                VK_PIPELINE_STAGE_HOST_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0,
+                0, nullptr,
+                1, &barrier,
+                0, nullptr);
+
+            VkBufferCopy copyRegion = {offset, offset, size};
+            vkCmdCopyBuffer(commandBuffer, stagingBuffer.buffer, buffer, 1, &copyRegion);
+        }
+
+        void FromBuffer(size_t offset, size_t size)
+        {
+            RenderEnvironment::CopyBuffer(buffer, stagingBuffer.buffer, size, offset, offset);
+        }
+
+        void FromBufferAsync(VkCommandBuffer commandBuffer, size_t offset, size_t size)
+        {
+            VkBufferCopy copyRegion = {offset, offset, size};
+            vkCmdCopyBuffer(commandBuffer, buffer, stagingBuffer.buffer, 1, &copyRegion);
+
+            VkBufferMemoryBarrier barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.buffer = stagingBuffer.buffer;
+            barrier.offset = offset;
+            barrier.size = size;
+
+            vkCmdPipelineBarrier(
+                commandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_HOST_BIT,
+                0,
+                0, nullptr,
+                1, &barrier,
+                0, nullptr);
         }
     };
 }

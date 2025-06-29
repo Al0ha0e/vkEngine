@@ -19,9 +19,9 @@ namespace vke_render
                                                                                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
 
         VkDescriptorBufferInfo binfo{};
-        binfo.buffer = camInfoBuffer2.buffer;
+        binfo.buffer = camInfoBuffer.buffer;
         binfo.offset = 0;
-        binfo.range = camInfoBuffer2.bufferSize;
+        binfo.range = camInfoBuffer.bufferSize;
         vke_ds::id32_t cameraResourceID = frameGraph->AddPermanentBufferResource(binfo, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
         std::cout << "resource ids " << colorAttachmentResourceID << " " << depthAttachmentResourceID << " " << cameraResourceID << "\n";
@@ -38,9 +38,12 @@ namespace vke_render
         vke_ds::id32_t opaqueInDepthResourceNodeID = frameGraph->AllocResourceNode(false, depthAttachmentResourceID);
         vke_ds::id32_t opaqueOutDepthResourceNodeID = frameGraph->AllocResourceNode(false, depthAttachmentResourceID);
 
-        vke_ds::id32_t copyTaskNodeID = frameGraph->AllocTaskNode(TRANSFER_TASK,
-                                                                  std::bind(&Renderer::copyToCamBuffer, this,
-                                                                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        auto copyCallback = [this](TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
+        {
+            camInfoBuffer.ToBufferAsync(commandBuffer, 0, camInfoBuffer.bufferSize);
+        };
+
+        vke_ds::id32_t copyTaskNodeID = frameGraph->AllocTaskNode(TRANSFER_TASK, copyCallback);
 
         vke_ds::id32_t baseTaskNodeID = frameGraph->AllocTaskNode(RENDER_TASK,
                                                                   std::bind(&BaseRenderer::Render, static_cast<BaseRenderer *>(subPasses[subPassMap[BASE_RENDERER]].get()),

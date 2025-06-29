@@ -206,7 +206,6 @@ namespace vke_render
         std::cout << "!!!!!!!!!!!!!!! " << orderedTasks.size() << "\n";
         for (auto taskID : orderedTasks)
             std::cout << "task id " << taskID << "\n";
-        // exit(1);
     }
 
     void FrameGraph::syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
@@ -387,8 +386,6 @@ namespace vke_render
         ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
         std::cout << "----END RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
-        // resource->lastUsedRef = &ref;
-        // resource->lastUsedTask = &taskNode;
         if (ref.crossQueueRef != nullptr)
         {
             std::cout << "  CROSS QUEUE\n";

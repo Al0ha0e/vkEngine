@@ -138,6 +138,7 @@ namespace vke_render
                 stageCreateInfo.pName = module.reflectInfo.entry_point_name;
                 stageCreateInfos.push_back(stageCreateInfo);
                 constructDescriptorSetInfo(module.reflectInfo);
+                constructPushConstant(module.reflectInfo);
             }
             constructDescriptorSetLayout();
         }

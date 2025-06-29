@@ -25,34 +25,26 @@ int main()
     vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_compute_desc.json");
     {
-        std::shared_ptr<vke_render::ComputeShader> shader = vke_common::AssetManager::LoadComputeShader(1024);
-        VkDescriptorSetLayoutBinding binding{};
-        vke_render::InitDescriptorSetLayoutBinding(binding, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr);
+        std::shared_ptr<vke_render::ComputeShader> shader = vke_common::AssetManager::LoadComputeShader(2048);
 
         VkDeviceSize bufferSize = 1024 * sizeof(int);
-
-        float *oridata = new float[1024];
-        memset(oridata, 0, bufferSize);
 
         VkDevice logicalDevice = environment->logicalDevice;
 
         vke_render::StagedBuffer buffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        buffer.ToBuffer(0, oridata, bufferSize);
+        memset(buffer.data, 0, bufferSize);
+        buffer.ToBuffer(0, bufferSize);
 
         vke_render::ComputeTask task(shader);
-
-        vke_ds::id64_t id = task.AddInstance(
-            std::move(std::vector<VkSemaphore>{}),
-            std::move(std::vector<VkPipelineStageFlags>{}),
-            std::move(std::vector<VkSemaphore>{}));
-
+        std::vector<VkDescriptorSet> descriptorSets;
         std::vector<VkWriteDescriptorSet> descriptorWrites(1);
+
+        task.CreateDescriptorSets(descriptorSets);
 
         VkDescriptorBufferInfo bufferInfo{};
         vke_render::InitDescriptorBufferInfo(bufferInfo, buffer.buffer, 0, buffer.bufferSize);
-        vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], 0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
-
-        task.UpdateBindings(id, descriptorWrites);
+        vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], descriptorSets[0], 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
+        vkUpdateDescriptorSets(logicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
         vke_render::CommandPool commandPool(environment->queueFamilyIndices.computeOnlyFamily.size() > 0 ? environment->queueFamilyIndices.computeOnlyFamily[0]
                                                                                                          : environment->queueFamilyIndices.graphicsAndComputeFamily.value(),
@@ -60,20 +52,49 @@ int main()
 
         VkCommandBuffer commandBuffer = commandPool.AllocateCommandBuffer();
 
-        VkFenceCreateInfo fenceInfo{};
-        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceInfo.flags = 0;
-        VkFence fence;
-        vkCreateFence(logicalDevice, &fenceInfo, nullptr, &fence);
+        /////////////////////////////////////////////////////////////////
 
-        task.Dispatch(id, commandBuffer, glm::ivec3(10, 1, 1), fence);
+        vke_render::FrameGraph frameGraph(1);
 
-        buffer.FromBuffer(0, oridata, bufferSize);
+        vke_ds::id32_t resourceID = frameGraph.AddPermanentBufferResource(bufferInfo, VK_PIPELINE_STAGE_NONE);
+        frameGraph.AddTargetResource(resourceID);
+        vke_ds::id32_t computeOutResourceNodeID = frameGraph.AllocResourceNode(false, resourceID);
+        vke_ds::id32_t transferOutResourceNodeID = frameGraph.AllocResourceNode(false, resourceID);
 
+        auto computeCallback = [&task, &descriptorSets](vke_render::TaskNode &node, vke_render::FrameGraph &frameGraph,
+                                                        VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
+        {
+            task.Dispatch(commandBuffer, descriptorSets, glm::ivec3(10, 1, 1));
+        };
+
+        vke_ds::id32_t computeTaskNodeID = frameGraph.AllocTaskNode(vke_render::COMPUTE_TASK, computeCallback);
+
+        auto transferCallback = [&buffer](vke_render::TaskNode &node, vke_render::FrameGraph &frameGraph,
+                                          VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
+        {
+            buffer.FromBufferAsync(commandBuffer, 0, buffer.bufferSize);
+        };
+
+        vke_ds::id32_t transferTaskNodeID = frameGraph.AllocTaskNode(vke_render::TRANSFER_TASK, transferCallback);
+
+        frameGraph.AddTaskNodeResourceRef(computeTaskNodeID, false, 0, computeOutResourceNodeID,
+                                          VK_ACCESS_SHADER_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                          VK_IMAGE_LAYOUT_UNDEFINED,
+                                          VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
+
+        frameGraph.AddTaskNodeResourceRef(transferTaskNodeID, false, computeOutResourceNodeID, transferOutResourceNodeID,
+                                          VK_ACCESS_TRANSFER_READ_BIT,
+                                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                          VK_IMAGE_LAYOUT_UNDEFINED,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+        frameGraph.Compile();
+        frameGraph.Execute(0, 0);
+        /////////////////////////////////////////////////////////////////
+        vkDeviceWaitIdle(logicalDevice);
         for (int i = 0; i < 10; i++)
-            std::cout << oridata[i] << " ";
-
-        vkDestroyFence(logicalDevice, fence, nullptr);
+            std::cout
+                << ((float *)buffer.data)[i] << " ";
     }
 
     vke_common::Engine::Dispose();

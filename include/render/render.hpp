@@ -18,8 +18,7 @@ namespace vke_render
     private:
         static Renderer *instance;
         Renderer()
-            : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-              camInfoBuffer2(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+            : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
               cameraIDAllocator(1), currentCamera(1) {};
         ~Renderer() {}
 
@@ -28,8 +27,7 @@ namespace vke_render
         uint32_t currentFrame;
         uint32_t passcnt;
 
-        vke_render::HostCoherentBuffer camInfoBuffer;
-        vke_render::DeviceBuffer camInfoBuffer2;
+        vke_render::StagedBuffer camInfoBuffer;
         vke_ds::id32_t currentCamera;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> cameraIDAllocator;
         std::unordered_map<vke_ds::id32_t, std::function<void()>> cameras;
@@ -59,7 +57,7 @@ namespace vke_render
                                                   vke_common::EventHub<RenderContext>::callback_t(OnWindowResize));
 
             int customPassID = 0;
-            VkBuffer cambuf = instance->camInfoBuffer2.buffer;
+            VkBuffer cambuf = instance->camInfoBuffer.buffer;
             for (int i = 0; i < passes.size(); i++)
             {
                 PassType pass = passes[i];
@@ -107,7 +105,7 @@ namespace vke_render
 
         static vke_ds::id32_t RegisterCamera(vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
         {
-            *buffer = &(instance->camInfoBuffer);
+            *buffer = &(instance->camInfoBuffer.stagingBuffer);
             vke_ds::id32_t ret = instance->cameraIDAllocator.Alloc();
             instance->cameras[ret] = callback;
             if (ret == instance->currentCamera)
@@ -160,30 +158,6 @@ namespace vke_render
         void cleanup();
         void recreate(RenderContext *ctx);
         void render();
-        void copyToCamBuffer(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
-        {
-            VkBufferMemoryBarrier barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.buffer = camInfoBuffer.buffer;
-            barrier.offset = 0;
-            barrier.size = camInfoBuffer.bufferSize;
-
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_HOST_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                0,
-                0, nullptr,
-                1, &barrier,
-                0, nullptr);
-
-            VkBufferCopy copyRegion = {0, 0, camInfoBuffer.bufferSize};
-            vkCmdCopyBuffer(commandBuffer, camInfoBuffer.buffer, camInfoBuffer2.buffer, 1, &copyRegion);
-        }
     };
 }
 

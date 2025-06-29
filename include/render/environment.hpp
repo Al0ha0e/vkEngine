@@ -177,7 +177,7 @@ namespace vke_render
 
         static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0)
         {
-            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
+            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->commandPool);
 
             VkBufferCopy copyRegion{};
             copyRegion.srcOffset = srcOffset;
@@ -185,7 +185,7 @@ namespace vke_render
             copyRegion.size = size;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-            EndSingleTimeCommands(instance->transferQueue, instance->transferCommandPool, commandBuffer);
+            EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
         }
 
         static void CreateImage(uint32_t width, uint32_t height, VkFormat format,
