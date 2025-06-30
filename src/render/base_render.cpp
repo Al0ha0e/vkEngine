@@ -4,6 +4,31 @@
 
 namespace vke_render
 {
+    void BaseRenderer::constructFrameGraph(FrameGraph &frameGraph,
+                                           std::map<std::string, vke_ds::id32_t> &blackboard,
+                                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+    {
+        vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
+        vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
+
+        vke_ds::id32_t baseOutColorResourceNodeID = frameGraph.AllocResourceNode(false, colorAttachmentResourceID);
+        vke_ds::id32_t baseTaskNodeID = frameGraph.AllocTaskNode(RENDER_TASK,
+                                                                 std::bind(&BaseRenderer::Render, this,
+                                                                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        frameGraph.AddTaskNodeResourceRef(baseTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                                          VK_IMAGE_LAYOUT_UNDEFINED,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+        frameGraph.AddTaskNodeResourceRef(baseTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], baseOutColorResourceNodeID,
+                                          VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
+
+        currentResourceNodeID[colorAttachmentResourceID] = baseOutColorResourceNodeID;
+    }
+
     void BaseRenderer::createGlobalDescriptorSet()
     {
         VkDescriptorSetLayoutBinding vpLayoutBinding{};

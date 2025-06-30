@@ -3,6 +3,39 @@
 
 namespace vke_render
 {
+    void OpaqueRenderer::constructFrameGraph(FrameGraph &frameGraph,
+                                             std::map<std::string, vke_ds::id32_t> &blackboard,
+                                             std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+    {
+        vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
+        vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
+        vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
+
+        vke_ds::id32_t opaqueOutColorResourceNodeID = frameGraph.AllocResourceNode(false, colorAttachmentResourceID);
+        vke_ds::id32_t opaqueOutDepthResourceNodeID = frameGraph.AllocResourceNode(false, depthAttachmentResourceID);
+        vke_ds::id32_t opaqueTaskNodeID = frameGraph.AllocTaskNode(RENDER_TASK,
+                                                                   std::bind(&OpaqueRenderer::Render, this,
+                                                                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+                                          VK_IMAGE_LAYOUT_UNDEFINED,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+        frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], opaqueOutColorResourceNodeID,
+                                          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+        frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[depthAttachmentResourceID], opaqueOutDepthResourceNodeID,
+                                          VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                                          VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
+
+        currentResourceNodeID[colorAttachmentResourceID] = opaqueOutColorResourceNodeID;
+        currentResourceNodeID[depthAttachmentResourceID] = opaqueOutDepthResourceNodeID;
+    }
+
     void OpaqueRenderer::createGlobalDescriptorSet()
     {
         VkDescriptorSetLayoutBinding vpLayoutBinding{};

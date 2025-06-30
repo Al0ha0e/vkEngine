@@ -16,10 +16,14 @@ namespace vke_render
         OpaqueRenderer(RenderContext *ctx, VkBuffer camBuffer)
             : globalDescriptorSetInfo(nullptr, 0, 0, 0, 0), RenderPassBase(OPAQUE_RENDERER, ctx, camBuffer) {}
 
-        void Init(int subpassID) override
+        void Init(int subpassID,
+                  FrameGraph &frameGraph,
+                  std::map<std::string, vke_ds::id32_t> &blackboard,
+                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID) override
         {
-            RenderPassBase::Init(subpassID);
+            RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             environment = RenderEnvironment::GetInstance();
+            constructFrameGraph(frameGraph, blackboard, currentResourceNodeID);
             createGlobalDescriptorSet();
             registerCamera();
         }
@@ -58,6 +62,9 @@ namespace vke_render
         RenderEnvironment *environment;
         std::map<Material *, std::unique_ptr<RenderInfo>> renderInfoMap;
 
+        void constructFrameGraph(FrameGraph &frameGraph,
+                                 std::map<std::string, vke_ds::id32_t> &blackboard,
+                                 std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
         void createGlobalDescriptorSet();
         void createGraphicsPipeline(RenderInfo &renderInfo);
 

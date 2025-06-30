@@ -40,7 +40,10 @@ namespace vke_render
         // virtual void RegisterCamera(VkBuffer buffer) = 0;
         virtual void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) = 0;
 
-        virtual void Init(int subpassID)
+        virtual void Init(int subpassID,
+                          FrameGraph &frameGraph,
+                          std::map<std::string, vke_ds::id32_t> &blackboard,
+                          std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
         {
             this->subpassID = subpassID;
         }

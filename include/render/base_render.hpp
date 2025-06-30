@@ -21,10 +21,14 @@ namespace vke_render
 
         ~BaseRenderer() {}
 
-        void Init(int subpassID) override
+        void Init(int subpassID,
+                  FrameGraph &frameGraph,
+                  std::map<std::string, vke_ds::id32_t> &blackboard,
+                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID) override
         {
-            RenderPassBase::Init(subpassID);
+            RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             environment = RenderEnvironment::GetInstance();
+            constructFrameGraph(frameGraph, blackboard, currentResourceNodeID);
             createGlobalDescriptorSet();
             registerCamera();
             createSkyBox();
@@ -36,6 +40,9 @@ namespace vke_render
         RenderEnvironment *environment;
         std::unique_ptr<RenderInfo> renderInfo;
 
+        void constructFrameGraph(FrameGraph &frameGraph,
+                                 std::map<std::string, vke_ds::id32_t> &blackboard,
+                                 std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
         void createGlobalDescriptorSet();
         void createSkyBox();
         void createGraphicsPipeline();
