@@ -72,6 +72,7 @@ namespace vke_render
 
     void FrameGraph::Compile()
     {
+        std::cout << "-------------------------- BEGIN COMPILE-----------------------\n";
         orderedTasks.clear();
         std::set<vke_ds::id32_t> visited;
         std::queue<vke_ds::id32_t> taskQueue;
@@ -88,9 +89,9 @@ namespace vke_render
             {
                 if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
                 {
-                    ref.crossQueueRef = nullptr;
-                    ref.crossQueueTask = nullptr;
-                    if (targetResources.find(resourceNodes[ref.outResourceNodeID]->resourceID) != targetResources.end())
+                    ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID];
+                    // TODO final op 如何判断是最后一个？尤其是最后一个task是读的情况，此时没有任何对应的resourceNode.dstTaskIDs.size() == 0
+                    if (resourceNode.dstTaskIDs.size() == 0 && targetResources.find(resourceNode.resourceID) != targetResources.end())
                     {
                         taskQueue.push(kv.first);
                         visited.insert(kv.first);
@@ -111,10 +112,10 @@ namespace vke_render
 
             for (auto &ref : node.resourceRefs)
             {
+                ref.crossQueueRef = nullptr;
+                ref.crossQueueTask = nullptr;
                 if (ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                 {
-                    ref.crossQueueRef = nullptr;
-                    ref.crossQueueTask = nullptr;
                     ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID];
                     vke_ds::id32_t srcTaskID = resourceNode.srcTaskID;
                     if (srcTaskID != 0)
@@ -131,9 +132,6 @@ namespace vke_render
         }
 
         // sort tasks
-
-        visited.clear();
-
         for (auto &kv : taskNodes)
         {
             TaskNode &node = *kv.second;
@@ -153,13 +151,12 @@ namespace vke_render
                 if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
                 {
                     vke_ds::id32_t resourceNodeID = ref.outResourceNodeID;
-                    if (visited.find(resourceNodeID) == visited.end())
+                    ResourceNode &resourceNode = *resourceNodes[resourceNodeID];
+                    for (auto dstTaskID : resourceNode.dstTaskIDs)
                     {
-                        visited.insert(resourceNodeID);
-                        ResourceNode &resourceNode = *resourceNodes[resourceNodeID];
-                        for (auto dstTaskID : resourceNode.dstTaskIDs)
+                        TaskNode &dstNode = *taskNodes[dstTaskID];
+                        if (dstNode.valid)
                         {
-                            TaskNode &dstNode = *taskNodes[dstTaskID];
                             dstNode.indeg--;
                             if (dstNode.indeg == 0)
                                 taskQueue.push(dstTaskID);
@@ -203,9 +200,10 @@ namespace vke_render
                 for (int j = 0; j < framesInFlight; j++)
                     commandPools[i][j]->PreAllocateCommandBuffer(submitCnts[i]);
 
-        std::cout << "!!!!!!!!!!!!!!! " << orderedTasks.size() << "\n";
+        std::cout << "orderedTask cnt " << orderedTasks.size() << "\n";
         for (auto taskID : orderedTasks)
             std::cout << "task id " << taskID << "\n";
+        std::cout << "-------------------------- END COMPILE-----------------------\n";
     }
 
     void FrameGraph::syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
@@ -213,7 +211,7 @@ namespace vke_render
     {
         ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
-        std::cout << "----SYNC RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
+        // std::cout << "----SYNC RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
         if (resource->lastUsedRef == nullptr) // first use of resource
         {
             if (!resourceNode.isTransient)
@@ -223,7 +221,7 @@ namespace vke_render
                     state.stImageLayout.has_value() &&
                     state.stImageLayout.value() != ref.imageLayout)
                 {
-                    std::cout << "  FIRST IMAGE USE\n";
+                    //  std::cout << "  FIRST IMAGE USE\n";
                     ImageResource *imageResource = (ImageResource *)resource.get();
                     VkImageMemoryBarrier barrier{};
                     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -255,14 +253,14 @@ namespace vke_render
             ResourceRef &lastUsedRef = *(resource->lastUsedRef);
             if (lastUsedRef.crossQueueRef == &ref) // cross queue
             {
-                std::cout << "  CROSS QUEUE\n";
+                // std::cout << "  CROSS QUEUE\n";
                 waitDstStageMask |= ref.stageMask;
                 waitSemaphoreValue = std::max(waitSemaphoreValue, resource->lastUsedTask->order);
                 if (ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                 {
                     if (resource->resourceType == IMAGE_RESOURCE)
                     {
-                        std::cout << "  CROSS QUEUE IMAGE RECEIVE\n";
+                        //  std::cout << "  CROSS QUEUE IMAGE RECEIVE\n";
                         ImageResource *imageResource = (ImageResource *)resource.get();
                         VkImageMemoryBarrier barrier{};
                         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -291,7 +289,7 @@ namespace vke_render
                     }
                     else
                     {
-                        std::cout << "  CROSS QUEUE BUFFER RECEIVE\n";
+                        //  std::cout << "  CROSS QUEUE BUFFER RECEIVE\n";
                         BufferResource *bufferResource = (BufferResource *)resource.get();
                         VkBufferMemoryBarrier barrier{};
                         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -317,15 +315,15 @@ namespace vke_render
             }
             else
             {
-                std::cout << "  SAME QUEUE\n";
+                //  std::cout << "  SAME QUEUE\n";
                 if ((ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
                     (resource->lastUsedRef->storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
                     ((resource->resourceType == IMAGE_RESOURCE) && resource->lastUsedRef->imageLayout != ref.imageLayout)) // TODO 先读后写不需要barrier，只需要event
                 {
-                    std::cout << "  NEED SYNC\n";
+                    //  std::cout << "  NEED SYNC\n";
                     if (resource->resourceType == IMAGE_RESOURCE)
                     {
-                        std::cout << "  IMAGE SYNC\n";
+                        //  std::cout << "  IMAGE SYNC\n";
                         ImageResource *imageResource = (ImageResource *)resource.get();
                         VkImageMemoryBarrier barrier{};
                         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -353,7 +351,7 @@ namespace vke_render
                     }
                     else
                     {
-                        std::cout << "  BUFFER SYNC\n";
+                        // std::cout << "  BUFFER SYNC\n";
                         BufferResource *bufferResource = (BufferResource *)resource.get();
                         VkBufferMemoryBarrier barrier{};
                         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -385,15 +383,15 @@ namespace vke_render
     {
         ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
-        std::cout << "----END RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
+        //  std::cout << "----END RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
         if (ref.crossQueueRef != nullptr)
         {
-            std::cout << "  CROSS QUEUE\n";
+            // std::cout << "  CROSS QUEUE\n";
             if (ref.crossQueueRef->loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
             {
                 if (resource->resourceType == IMAGE_RESOURCE)
                 {
-                    std::cout << "  CROSS QUEUE IMAGE RELEASE\n";
+                    // std::cout << "  CROSS QUEUE IMAGE RELEASE\n";
                     ImageResource *imageResource = (ImageResource *)resource.get();
                     VkImageMemoryBarrier barrier{};
                     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -422,7 +420,7 @@ namespace vke_render
                 }
                 else
                 {
-                    std::cout << "  CROSS QUEUE BUFFER RELEASE\n";
+                    // std::cout << "  CROSS QUEUE BUFFER RELEASE\n";
                     BufferResource *bufferResource = (BufferResource *)resource.get();
                     VkBufferMemoryBarrier barrier{};
                     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -452,7 +450,7 @@ namespace vke_render
                 state.enImageLayout.has_value() &&
                 state.enImageLayout.value() != ref.imageLayout)
             {
-                std::cout << "  FINAL IMAGE USE\n";
+                // std::cout << "  FINAL IMAGE USE\n";
                 ImageResource *imageResource = (ImageResource *)resource.get();
                 VkImageMemoryBarrier barrier{};
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -501,7 +499,7 @@ namespace vke_render
             }
         }
 
-        std::cout << "---------------------EXE-------------------\n";
+        // std::cout << "---------------------EXE-------------------\n";
         uint32_t currentSubmitCnts[3] = {0, 0, 0};
         uint64_t waitSemaphoreValue = 0;
         VkPipelineStageFlags waitDstStageMask = 0;
@@ -511,7 +509,7 @@ namespace vke_render
             TaskNode &taskNode = *taskNodes[taskID];
             TaskType actualTaskType = taskNode.actualTaskType;
             VkCommandBuffer commandBuffer = commandBuffers[actualTaskType];
-            std::cout << "-----------TASK " << taskID << " TYPE " << taskNode.taskType << " ACTUAL " << actualTaskType << "\n";
+            // std::cout << "-----------TASK " << taskID << " TYPE " << taskNode.taskType << " ACTUAL " << actualTaskType << "\n";
 
             for (auto &ref : taskNode.resourceRefs)
                 syncResources(commandBuffer, ref, taskNode, waitSemaphoreValue, waitDstStageMask);
@@ -551,7 +549,7 @@ namespace vke_render
                     submitInfo.waitSemaphoreCount = 1;
                     submitInfo.pWaitSemaphores = &timelineSemaphore;
                     submitInfo.pWaitDstStageMask = &waitDstStageMask;
-                    std::cout << "------WILL WAIT " << waitSemaphoreValue << "\n";
+                    // std::cout << "------WILL WAIT " << waitSemaphoreValue << "\n";
                 }
                 else
                 {
@@ -566,7 +564,7 @@ namespace vke_render
                 submitInfo.signalSemaphoreCount = 1;
                 submitInfo.pSignalSemaphores = &timelineSemaphore;
 
-                std::cout << "------TASK " << taskID << " SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " SIGNAL " << signalSemaphoreValue << "\n";
+                // std::cout << "------TASK " << taskID << " SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " SIGNAL " << signalSemaphoreValue << "\n";
                 lastTimelineValues[actualTaskType] = signalSemaphoreValue;
                 vkQueueSubmit(gpuQueues[actualTaskType], 1, &submitInfo, nullptr);
 

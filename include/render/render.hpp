@@ -19,7 +19,7 @@ namespace vke_render
         static Renderer *instance;
         Renderer()
             : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-              cameraIDAllocator(1), currentCamera(1) {};
+              cameraIDAllocator(1), currentCamera(1), cameraInfoUpdated(false), frameGraphUpdated(false) {};
         ~Renderer() {}
 
     public:
@@ -133,6 +133,12 @@ namespace vke_render
             }
         }
 
+        static void UpdateCameraInfo(CameraInfo &cameraInfo)
+        {
+            instance->camInfoBuffer.stagingBuffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+            instance->cameraInfoUpdated = true;
+        }
+
         static OpaqueRenderer *GetOpaqueRenderer()
         {
             return static_cast<OpaqueRenderer *>(instance->subPasses[instance->subPassMap[OPAQUE_RENDERER]].get());
@@ -148,7 +154,11 @@ namespace vke_render
         void Update();
 
     private:
+        bool cameraInfoUpdated;
+        bool frameGraphUpdated;
         vke_ds::id32_t colorAttachmentResourceID;
+        vke_ds::id32_t cameraUpdateTaskID;
+        vke_ds::id32_t cameraResourceNodeID;
         VkDevice logicalDevice;
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;

@@ -66,7 +66,7 @@ namespace vke_component
             viewPos = param.position;
             view = glm::lookAt(viewPos, viewPos + gfront, gup);
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
-                uploadCamInfo();
+                updateCameraInfo();
         }
 
         void UpdateProjection(uint32_t w, uint32_t h)
@@ -77,7 +77,7 @@ namespace vke_component
             projection = glm::perspective(fov, aspect, near, far);
             projection[1][1] *= -1;
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
-                uploadCamInfo();
+                updateCameraInfo();
         }
 
         static void OnWindowResize(void *listener, glm::vec2 *info)
@@ -104,19 +104,19 @@ namespace vke_component
             projection = glm::perspective(fov, aspect, near, far);
             projection[1][1] *= -1;
 
-            std::function<void()> callback = std::bind(std::function<void(Camera *)>(onCameraSelected), this);
+            std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
             id = vke_render::Renderer::RegisterCamera(&buffer, callback);
         }
 
-        static void onCameraSelected(Camera *camera)
+        void onCameraSelected()
         {
-            camera->uploadCamInfo();
+            updateCameraInfo();
         }
 
-        void uploadCamInfo()
+        void updateCameraInfo()
         {
             vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            buffer->ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
+            vke_render::Renderer::UpdateCameraInfo(cameraInfo);
         }
     };
 }

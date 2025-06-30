@@ -23,7 +23,17 @@ https://github.com/KhronosGroup/SPIRV-Cross/issues/2171#issuecomment-1607198720
 
 - graphics
 - compute：执行compute shader
-- TODO 传输队列？目前需要在执行FG前完成所有传输
+- transfer 传输队列
+
+#### 编译过程：
+
+- 标记valid：
+  - 找到所有输出为targetResources的Task节点标记为valid
+  - 迭代找到所有valid节点的输入资源的输出节点标记为vaild
+
+- 排序：
+  - 收集第一批入度为0的Task
+  - 迭代把入度为0的Task的所有出边去掉
 
 #### 同步方法
 

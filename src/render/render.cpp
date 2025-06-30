@@ -29,7 +29,7 @@ namespace vke_render
         frameGraph->AddTargetResource(colorAttachmentResourceID);
         frameGraph->AddTargetResource(depthAttachmentResourceID);
 
-        vke_ds::id32_t copyOutCameraResourceNodeID = frameGraph->AllocResourceNode(false, cameraResourceID);
+        cameraResourceNodeID = frameGraph->AllocResourceNode(false, cameraResourceID);
 
         vke_ds::id32_t baseInColorResourceNodeID = frameGraph->AllocResourceNode(false, colorAttachmentResourceID);
         vke_ds::id32_t baseOutColorResourceNodeID = frameGraph->AllocResourceNode(false, colorAttachmentResourceID);
@@ -43,7 +43,7 @@ namespace vke_render
             camInfoBuffer.ToBufferAsync(commandBuffer, 0, camInfoBuffer.bufferSize);
         };
 
-        vke_ds::id32_t copyTaskNodeID = frameGraph->AllocTaskNode(TRANSFER_TASK, copyCallback);
+        cameraUpdateTaskID = frameGraph->AllocTaskNode(TRANSFER_TASK, copyCallback);
 
         vke_ds::id32_t baseTaskNodeID = frameGraph->AllocTaskNode(RENDER_TASK,
                                                                   std::bind(&BaseRenderer::Render, static_cast<BaseRenderer *>(subPasses[subPassMap[BASE_RENDERER]].get()),
@@ -53,14 +53,14 @@ namespace vke_render
                                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
         // copy
-        frameGraph->AddTaskNodeResourceRef(copyTaskNodeID, false, 0, copyOutCameraResourceNodeID,
+        frameGraph->AddTaskNodeResourceRef(cameraUpdateTaskID, false, 0, cameraResourceNodeID,
                                            VK_ACCESS_TRANSFER_WRITE_BIT,
                                            VK_PIPELINE_STAGE_TRANSFER_BIT,
                                            VK_IMAGE_LAYOUT_UNDEFINED,
                                            VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
         // base
-        frameGraph->AddTaskNodeResourceRef(baseTaskNodeID, false, copyOutCameraResourceNodeID, 0,
+        frameGraph->AddTaskNodeResourceRef(baseTaskNodeID, false, cameraResourceNodeID, 0,
                                            VK_ACCESS_SHADER_READ_BIT,
                                            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                                            VK_IMAGE_LAYOUT_UNDEFINED,
@@ -72,7 +72,7 @@ namespace vke_render
                                            VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
 
         // opaque
-        frameGraph->AddTaskNodeResourceRef(opaqueTaskNodeID, false, copyOutCameraResourceNodeID, 0,
+        frameGraph->AddTaskNodeResourceRef(opaqueTaskNodeID, false, cameraResourceNodeID, 0,
                                            VK_ACCESS_SHADER_READ_BIT,
                                            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                                            VK_IMAGE_LAYOUT_UNDEFINED,
@@ -109,6 +109,22 @@ namespace vke_render
 
     void Renderer::Update()
     {
+        if (cameraInfoUpdated)
+        {
+            cameraInfoUpdated = false;
+            std::cout << "Cam updated\n";
+            frameGraph->resourceNodes[cameraResourceNodeID]->srcTaskID = cameraUpdateTaskID;
+            frameGraph->Compile();
+
+            frameGraph->resourceNodes[cameraResourceNodeID]->srcTaskID = 0;
+            frameGraphUpdated = true;
+        }
+        else if (frameGraphUpdated)
+        {
+            frameGraph->Compile();
+            frameGraphUpdated = false;
+        }
+
         render();
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
