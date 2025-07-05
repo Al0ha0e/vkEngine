@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <set>
 #include <memory>
 #include <event.hpp>
 #include <vk_mem_alloc.h>
@@ -20,22 +21,34 @@ namespace vke_render
     {
         std::optional<uint32_t> graphicsAndComputeFamily;
         std::optional<uint32_t> presentFamily;
-        std::vector<uint32_t> graphicsOnlyFamily;
-        std::vector<uint32_t> computeOnlyFamily;
-        std::vector<uint32_t> transferOnlyFamily;
+        std::optional<uint32_t> computeOnlyFamily;
+        std::optional<uint32_t> transferOnlyFamily;
+        std::vector<uint32_t> uniqueQueueFamilies;
 
         void clear()
         {
             graphicsAndComputeFamily.reset();
             presentFamily.reset();
-            graphicsOnlyFamily.clear();
-            computeOnlyFamily.clear();
-            transferOnlyFamily.clear();
+            computeOnlyFamily.reset();
+            transferOnlyFamily.reset();
+            uniqueQueueFamilies.clear();
         }
 
         bool isComplete()
         {
             return graphicsAndComputeFamily.has_value() && presentFamily.has_value();
+        }
+
+        void getUniqueQueueFamilies()
+        {
+            std::set<uint32_t> queueFamilySet = {graphicsAndComputeFamily.value(),
+                                                 presentFamily.value()};
+            if (computeOnlyFamily.has_value())
+                queueFamilySet.insert(computeOnlyFamily.value());
+            if (transferOnlyFamily.has_value())
+                queueFamilySet.insert(transferOnlyFamily.value());
+            for (auto &val : queueFamilySet)
+                uniqueQueueFamilies.push_back(val);
         }
     };
 
@@ -157,7 +170,7 @@ namespace vke_render
             throw std::runtime_error("failed to find suitable memory type!");
         }
 
-        static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+        static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                                  VmaAllocationCreateFlags vmaFlags, VmaMemoryUsage vmaUsage,
                                  VkBuffer *buffer, VmaAllocation *vmaAllocation, VmaAllocationInfo *vmaAllocationInfo)
         {
@@ -165,7 +178,9 @@ namespace vke_render
             bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             bufferInfo.size = size;
             bufferInfo.usage = usage;
-            bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+            bufferInfo.queueFamilyIndexCount = instance->queueFamilyIndices.uniqueQueueFamilies.size();
+            bufferInfo.pQueueFamilyIndices = instance->queueFamilyIndices.uniqueQueueFamilies.data();
 
             VmaAllocationCreateInfo allocationCreateInfo = {};
             allocationCreateInfo.flags = vmaFlags;

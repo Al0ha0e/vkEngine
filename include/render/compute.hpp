@@ -34,6 +34,14 @@ namespace vke_render
             vkCmdDispatch(commandBuffer, dim3.x, dim3.y, dim3.z);
         }
 
+        void Dispatch(VkCommandBuffer commandBuffer, std::vector<VkDescriptorSet> &descriptorSets, void *constants, glm::ivec3 dim3)
+        {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, 0);
+            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, shader->shaderModule->pushConstantRangeMap.begin()->second.size, constants);
+            vkCmdDispatch(commandBuffer, dim3.x, dim3.y, dim3.z);
+        }
+
         void CreateDescriptorSets(std::vector<VkDescriptorSet> &descriptorSets)
         {
             ShaderModuleSet &shaderModule = *(shader->shaderModule);

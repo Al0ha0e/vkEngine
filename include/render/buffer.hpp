@@ -10,28 +10,25 @@ namespace vke_render
     public:
         size_t bufferSize;
         VkBufferUsageFlags usage;
-        VkMemoryPropertyFlags properties;
         VmaAllocationCreateFlags vmaFlags;
         VmaMemoryUsage vmaUsage;
         VkBuffer buffer;
         VmaAllocation vmaAllocation;
         VmaAllocationInfo vmaAllocationInfo;
 
-        Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+        Buffer(VkDeviceSize size, VkBufferUsageFlags usage,
                VmaAllocationCreateFlags vmaFlags, VmaMemoryUsage vmaUsage)
-            : bufferSize(size), usage(usage), properties(properties),
+            : bufferSize(size), usage(usage),
               vmaFlags(vmaFlags), vmaUsage(vmaUsage), buffer(nullptr), vmaAllocation(nullptr), vmaAllocationInfo{}
         {
             vke_render::RenderEnvironment::CreateBuffer(
-                size, usage, properties,
-                vmaFlags, vmaUsage,
+                size, usage, vmaFlags, vmaUsage,
                 &buffer, &vmaAllocation, &vmaAllocationInfo);
         }
 
         Buffer(Buffer &&ori)
             : bufferSize(ori.bufferSize),
               usage(ori.usage),
-              properties(ori.properties),
               vmaFlags(ori.vmaFlags),
               vmaUsage(ori.vmaUsage),
               buffer(ori.buffer),
@@ -55,7 +52,7 @@ namespace vke_render
         void *data;
 
         HostCoherentBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
-            : Buffer(size, usage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            : Buffer(size, usage,
                      VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                      VMA_MEMORY_USAGE_AUTO_PREFER_HOST)
         {
@@ -81,7 +78,7 @@ namespace vke_render
     {
     public:
         DeviceBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
-            : Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            : Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
                      0, VMA_MEMORY_USAGE_GPU_ONLY) {}
 
         DeviceBuffer(DeviceBuffer &&ori) : Buffer(std::forward<DeviceBuffer>(ori)) {}
@@ -111,7 +108,7 @@ namespace vke_render
 
         StagedBuffer(VkDeviceSize size, VkBufferUsageFlags usage)
             : stagingBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT),
-              Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+              Buffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
                      0, VMA_MEMORY_USAGE_GPU_ONLY)
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;

@@ -116,12 +116,10 @@ namespace vke_render
                 (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
                 (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
                 queueFamilyIndices.graphicsAndComputeFamily = i;
-            else if (queueFamily.queueFlags == VK_QUEUE_GRAPHICS_BIT)
-                queueFamilyIndices.graphicsOnlyFamily.push_back(i);
             else if (queueFamily.queueFlags == VK_QUEUE_COMPUTE_BIT)
-                queueFamilyIndices.computeOnlyFamily.push_back(i);
+                queueFamilyIndices.computeOnlyFamily = i;
             else if (queueFamily.queueFlags == VK_QUEUE_TRANSFER_BIT)
-                queueFamilyIndices.transferOnlyFamily.push_back(i);
+                queueFamilyIndices.transferOnlyFamily = i;
 
             if (!queueFamilyIndices.presentFamily.has_value() && (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
             {
@@ -132,6 +130,7 @@ namespace vke_render
             }
             i++;
         }
+        queueFamilyIndices.getUniqueQueueFamilies();
     }
 
     const std::vector<const char *> deviceExtensions =
@@ -172,9 +171,12 @@ namespace vke_render
 
         VkPhysicalDeviceFeatures2 supportedFeatures2 = {};
         supportedFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        VkPhysicalDeviceVulkan13Features supportedFeatures13 = {};
+        supportedFeatures13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        supportedFeatures2.pNext = &supportedFeatures13;
         VkPhysicalDeviceVulkan12Features supportedFeatures12 = {};
         supportedFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-        supportedFeatures2.pNext = &supportedFeatures12;
+        supportedFeatures13.pNext = &supportedFeatures12;
         VkPhysicalDeviceVulkan11Features supportedFeatures11 = {};
         supportedFeatures11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
         supportedFeatures12.pNext = &supportedFeatures11;
@@ -217,7 +219,9 @@ namespace vke_render
                supportedFeatures12.descriptorBindingPartiallyBound &&
                supportedFeatures12.descriptorBindingVariableDescriptorCount &&
                supportedFeatures12.runtimeDescriptorArray &&
-               supportedFeatures12.timelineSemaphore;
+               supportedFeatures12.timelineSemaphore &&
+               supportedFeatures13.synchronization2 &&
+               supportedFeatures13.dynamicRendering;
     }
 
     void RenderEnvironment::pickPhysicalDevice()
@@ -250,15 +254,9 @@ namespace vke_render
     void RenderEnvironment::createLogicalDevice()
     {
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::set<uint32_t> uniqueQueueFamilies = {queueFamilyIndices.graphicsAndComputeFamily.value(),
-                                                  queueFamilyIndices.presentFamily.value()};
-        if (queueFamilyIndices.computeOnlyFamily.size() > 0)
-            uniqueQueueFamilies.insert(queueFamilyIndices.computeOnlyFamily[0]);
-        if (queueFamilyIndices.transferOnlyFamily.size() > 0)
-            uniqueQueueFamilies.insert(queueFamilyIndices.transferOnlyFamily[0]);
 
         float queuePriority = 1.0f;
-        for (uint32_t queueFamilyIndex : uniqueQueueFamilies)
+        for (uint32_t queueFamilyIndex : queueFamilyIndices.uniqueQueueFamilies)
         {
             VkDeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -276,6 +274,12 @@ namespace vke_render
         deviceFeatures.shaderInt64 = VK_TRUE;
         deviceFeatures.shaderInt16 = VK_TRUE;
         deviceFeatures.multiDrawIndirect = VK_TRUE;
+
+        VkPhysicalDeviceVulkan13Features deviceFeatures13 = {};
+        deviceFeatures13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        deviceFeatures13.synchronization2 = VK_TRUE;
+        deviceFeatures13.dynamicRendering = VK_TRUE;
+        deviceFeatures2.pNext = &deviceFeatures13;
 
         VkPhysicalDeviceVulkan12Features deviceFeatures12 = {};
         deviceFeatures12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
@@ -306,18 +310,14 @@ namespace vke_render
         deviceFeatures12.descriptorBindingVariableDescriptorCount = VK_TRUE;
         deviceFeatures12.runtimeDescriptorArray = VK_TRUE;
         deviceFeatures12.timelineSemaphore = VK_TRUE;
-        deviceFeatures2.pNext = &deviceFeatures12;
+        deviceFeatures13.pNext = &deviceFeatures12;
 
         VkPhysicalDeviceVulkan11Features deviceFeatures11 = {};
         deviceFeatures11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        deviceFeatures11.pNext = nullptr;
         deviceFeatures11.storageBuffer16BitAccess = VK_TRUE;
         deviceFeatures11.uniformAndStorageBuffer16BitAccess = VK_TRUE;
         deviceFeatures12.pNext = &deviceFeatures11;
-
-        VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-        dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
-        dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
-        deviceFeatures11.pNext = &dynamicRenderingFeatures;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -338,13 +338,13 @@ namespace vke_render
 
         vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &graphicsQueue);
 
-        if (queueFamilyIndices.computeOnlyFamily.size() > 0)
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.computeOnlyFamily[0], 0, &computeQueue);
+        if (queueFamilyIndices.computeOnlyFamily.has_value())
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.computeOnlyFamily.value(), 0, &computeQueue);
         else
             vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &computeQueue);
 
-        if (queueFamilyIndices.transferOnlyFamily.size() > 0)
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.transferOnlyFamily[0], 0, &transferQueue);
+        if (queueFamilyIndices.transferOnlyFamily.has_value())
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.transferOnlyFamily.value(), 0, &transferQueue);
         else
             vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &transferQueue);
 
@@ -373,9 +373,9 @@ namespace vke_render
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
         vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool);
 
-        if (queueFamilyIndices.computeOnlyFamily.size() > 0)
+        if (queueFamilyIndices.computeOnlyFamily.has_value())
         {
-            poolInfo.queueFamilyIndex = queueFamilyIndices.computeOnlyFamily[0];
+            poolInfo.queueFamilyIndex = queueFamilyIndices.computeOnlyFamily.value();
             vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &computeCommandPool);
         }
         else
@@ -383,9 +383,9 @@ namespace vke_render
             computeCommandPool = commandPool;
         }
 
-        if (queueFamilyIndices.transferOnlyFamily.size() > 0)
+        if (queueFamilyIndices.transferOnlyFamily.has_value())
         {
-            poolInfo.queueFamilyIndex = queueFamilyIndices.transferOnlyFamily[0];
+            poolInfo.queueFamilyIndex = queueFamilyIndices.transferOnlyFamily.value();
             vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &transferCommandPool);
         }
         else

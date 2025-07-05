@@ -10,6 +10,13 @@
 - buffer device address
 - mesh shader?
 
+### 参考资料
+
+https://developer.nvidia.com/blog/vulkan-dos-donts/
+https://docs.vulkan.org/guide/latest/synchronization_examples.html
+https://docs.vulkan.org/spec/latest/chapters/synchronization.html
+https://docs.vulkan.org/guide/latest/extensions/VK_KHR_synchronization2.html
+
 ### 坑
 
 如何区分VARIABLE DESCRIPTOR COUNT
@@ -72,6 +79,5 @@ https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/7193#issuecomment
 
 ### TODO
 
-Transfer支持
 用vkCmdPipelineBarrier2 打包多个barrier（vkCmdPipelineBarrier 不支持每个barrier一个stageMask）
 实现descriptor set回收

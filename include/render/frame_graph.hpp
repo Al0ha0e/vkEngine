@@ -211,7 +211,7 @@ namespace vke_render
         std::map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
 
         FrameGraph(uint32_t framesInFlight)
-            : framesInFlight(framesInFlight), timelineSemaphoreBase(0), taskIDAllocator(1), resourceIDAllocator(1)
+            : framesInFlight(framesInFlight), timelineSemaphoreBase(0), taskIDAllocator(1), resourceIDAllocator(1), lastTimelineValue(0)
         {
             init();
         }
@@ -221,7 +221,12 @@ namespace vke_render
 
         ~FrameGraph()
         {
-            vkDestroySemaphore(RenderEnvironment::GetInstance()->logicalDevice, timelineSemaphore, nullptr);
+            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
+            vkDestroySemaphore(logicalDevice, timelineSemaphore, nullptr);
+            for (int i = 1; i < 3; i++)
+                if (haveQueue[i])
+                    for (int j = 0; j < framesInFlight; j++)
+                        vkDestroyFence(logicalDevice, fences[i - 1][j], nullptr);
         }
 
         vke_ds::id32_t AddPermanentResource(std::unique_ptr<RenderResource> &&resource, PermanentResourceState &resourceState)
@@ -301,17 +306,23 @@ namespace vke_render
         uint32_t framesInFlight;
         uint32_t queueFamilies[3];
         uint32_t submitCnts[3];
-        uint64_t lastTimelineValues[3];
+        uint64_t lastTimelineValue;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;
         std::vector<std::unique_ptr<CommandPool>> commandPools[3];
         std::vector<vke_ds::id32_t> orderedTasks;
         VkSemaphore timelineSemaphore;
         VkQueue gpuQueues[3];
+        VkFence fences[2][MAX_FRAMES_IN_FLIGHT];
 
         void init();
-        void syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode, uint64_t &waitSemaphoreValue, VkPipelineStageFlags &waitDstStageMask);
-        void endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode);
+        void syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
+                           std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
+                           std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
+                           uint64_t &waitSemaphoreValue, VkPipelineStageFlags &waitDstStageMask);
+        void endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
+                             std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
+                             std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers);
         void clearLastUsedInfo();
         void checkCrossQueue(ResourceRef &ref, TaskNode &taskNode);
     };

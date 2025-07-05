@@ -46,8 +46,8 @@ int main()
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], descriptorSets[0], 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
         vkUpdateDescriptorSets(logicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
-        vke_render::CommandPool commandPool(environment->queueFamilyIndices.computeOnlyFamily.size() > 0 ? environment->queueFamilyIndices.computeOnlyFamily[0]
-                                                                                                         : environment->queueFamilyIndices.graphicsAndComputeFamily.value(),
+        vke_render::CommandPool commandPool(environment->queueFamilyIndices.computeOnlyFamily.has_value() ? environment->queueFamilyIndices.computeOnlyFamily.value()
+                                                                                                          : environment->queueFamilyIndices.graphicsAndComputeFamily.value(),
                                             VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
         VkCommandBuffer commandBuffer = commandPool.AllocateCommandBuffer();
