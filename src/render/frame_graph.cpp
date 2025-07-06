@@ -487,6 +487,7 @@ namespace vke_render
         std::cout << "---------------------EXE-------------------\n";
         uint32_t currentSubmitCnts[3] = {0, 0, 0};
         uint64_t waitSemaphoreValue = 0;
+        uint64_t lastRoundSemaphoreValue = lastTimelineValue;
         VkPipelineStageFlags waitDstStageMask = 0;
         std::vector<VkBufferMemoryBarrier2> bufferMemoryBarriers;
         std::vector<VkImageMemoryBarrier2> imageMemoryBarriers;
@@ -560,7 +561,7 @@ namespace vke_render
                     waitSemaphoreValue += timelineSemaphoreBase;
                 else if (currentSubmitCnts[actualTaskType] == 0)
                 {
-                    waitSemaphoreValue = lastTimelineValue;
+                    waitSemaphoreValue = lastRoundSemaphoreValue;
                     waitDstStageMask = actualTaskType == RENDER_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
                                                                      : (actualTaskType == COMPUTE_TASK ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT);
                 }
@@ -570,7 +571,7 @@ namespace vke_render
                     waitSemaphoreInfo.value = waitSemaphoreValue;
                     waitSemaphoreInfo.stageMask = waitDstStageMask;
                     submitInfo.waitSemaphoreInfoCount = 1;
-                    // std::cout << "------WILL WAIT " << waitSemaphoreValue << "\n";
+                    std::cout << "------TASK <" << taskNode.name << "> WAIT FOR " << waitSemaphoreValue << "\n";
                 }
                 else
                 {
