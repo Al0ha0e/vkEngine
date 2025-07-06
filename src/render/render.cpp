@@ -13,16 +13,16 @@ namespace vke_render
         VkDescriptorImageInfo info{};
         info.sampler = nullptr;
         info.imageView = (*context.colorImageViews)[0];
-        colorAttachmentResourceID = frameGraph->AddPermanentImageResource((*context.colorImages)[0], VK_IMAGE_ASPECT_COLOR_BIT, info,
+        colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", (*context.colorImages)[0], VK_IMAGE_ASPECT_COLOR_BIT, info,
                                                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         info.imageView = context.depthImageView;
-        vke_ds::id32_t depthAttachmentResourceID = frameGraph->AddPermanentImageResource(context.depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, info,
+        vke_ds::id32_t depthAttachmentResourceID = frameGraph->AddPermanentImageResource("depthAttachment", context.depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, info,
                                                                                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
         VkDescriptorBufferInfo binfo{};
         binfo.buffer = camInfoBuffer.buffer;
         binfo.offset = 0;
         binfo.range = camInfoBuffer.bufferSize;
-        vke_ds::id32_t cameraResourceID = frameGraph->AddPermanentBufferResource(binfo, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        vke_ds::id32_t cameraResourceID = frameGraph->AddPermanentBufferResource("camInfoBuffer", binfo, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
         std::cout << "resource ids " << colorAttachmentResourceID << " " << depthAttachmentResourceID << " " << cameraResourceID << "\n";
 
@@ -33,9 +33,9 @@ namespace vke_render
         blackboard["depthAttachment"] = depthAttachmentResourceID;
         blackboard["cameraInfo"] = cameraResourceID;
 
-        vke_ds::id32_t oriColorResourceNodeID = frameGraph->AllocResourceNode(false, colorAttachmentResourceID);
-        vke_ds::id32_t oriDepthResourceNodeID = frameGraph->AllocResourceNode(false, depthAttachmentResourceID);
-        cameraResourceNodeID = frameGraph->AllocResourceNode(false, cameraResourceID);
+        vke_ds::id32_t oriColorResourceNodeID = frameGraph->AllocResourceNode("oriColor", false, colorAttachmentResourceID);
+        vke_ds::id32_t oriDepthResourceNodeID = frameGraph->AllocResourceNode("oriDepth", false, depthAttachmentResourceID);
+        cameraResourceNodeID = frameGraph->AllocResourceNode("oriCamera", false, cameraResourceID);
 
         currentResourceNodeID[colorAttachmentResourceID] = oriColorResourceNodeID;
         currentResourceNodeID[depthAttachmentResourceID] = oriDepthResourceNodeID;
@@ -46,7 +46,7 @@ namespace vke_render
             camInfoBuffer.ToBufferAsync(commandBuffer, 0, camInfoBuffer.bufferSize);
         };
 
-        cameraUpdateTaskID = frameGraph->AllocTaskNode(TRANSFER_TASK, copyCallback);
+        cameraUpdateTaskID = frameGraph->AllocTaskNode("camera update", TRANSFER_TASK, copyCallback);
 
         // copy
         frameGraph->AddTaskNodeResourceRef(cameraUpdateTaskID, false, 0, cameraResourceNodeID,

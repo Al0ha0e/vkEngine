@@ -484,7 +484,7 @@ namespace vke_render
             }
         }
 
-        // std::cout << "---------------------EXE-------------------\n";
+        std::cout << "---------------------EXE-------------------\n";
         uint32_t currentSubmitCnts[3] = {0, 0, 0};
         uint64_t waitSemaphoreValue = 0;
         VkPipelineStageFlags waitDstStageMask = 0;
@@ -526,7 +526,7 @@ namespace vke_render
             TaskNode &taskNode = *taskNodes[taskID];
             TaskType actualTaskType = taskNode.actualTaskType;
             VkCommandBuffer commandBuffer = commandBuffers[actualTaskType];
-            // std::cout << "-----------TASK " << taskID << " TYPE " << taskNode.taskType << " ACTUAL " << actualTaskType << "\n";
+            std::cout << "-----------TASK <" << taskNode.name << "> TYPE " << taskNode.taskType << " ACTUAL " << actualTaskType << "\n";
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
@@ -581,7 +581,7 @@ namespace vke_render
 
                 signalSemaphoreInfo.value = signalSemaphoreValue;
 
-                // std::cout << "------TASK " << taskID << " SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " SIGNAL " << signalSemaphoreValue << "\n";
+                std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " SIGNAL " << signalSemaphoreValue << "\n";
                 lastTimelineValue = signalSemaphoreValue;
                 ++currentSubmitCnts[actualTaskType];
 

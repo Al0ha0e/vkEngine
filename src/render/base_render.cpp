@@ -11,8 +11,8 @@ namespace vke_render
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
         vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
 
-        vke_ds::id32_t baseOutColorResourceNodeID = frameGraph.AllocResourceNode(false, colorAttachmentResourceID);
-        vke_ds::id32_t baseTaskNodeID = frameGraph.AllocTaskNode(RENDER_TASK,
+        vke_ds::id32_t baseOutColorResourceNodeID = frameGraph.AllocResourceNode("baseOutColor", false, colorAttachmentResourceID);
+        vke_ds::id32_t baseTaskNodeID = frameGraph.AllocTaskNode("base render", RENDER_TASK,
                                                                  std::bind(&BaseRenderer::Render, this,
                                                                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
         frameGraph.AddTaskNodeResourceRef(baseTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,

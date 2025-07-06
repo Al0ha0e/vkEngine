@@ -11,9 +11,9 @@ namespace vke_render
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
         vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
 
-        vke_ds::id32_t opaqueOutColorResourceNodeID = frameGraph.AllocResourceNode(false, colorAttachmentResourceID);
-        vke_ds::id32_t opaqueOutDepthResourceNodeID = frameGraph.AllocResourceNode(false, depthAttachmentResourceID);
-        vke_ds::id32_t opaqueTaskNodeID = frameGraph.AllocTaskNode(RENDER_TASK,
+        vke_ds::id32_t opaqueOutColorResourceNodeID = frameGraph.AllocResourceNode("opaqueOutColor", false, colorAttachmentResourceID);
+        vke_ds::id32_t opaqueOutDepthResourceNodeID = frameGraph.AllocResourceNode("opaqueOutDepth", false, depthAttachmentResourceID);
+        vke_ds::id32_t opaqueTaskNodeID = frameGraph.AllocTaskNode("opaque render", RENDER_TASK,
                                                                    std::bind(&OpaqueRenderer::Render, this,
                                                                              std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,

@@ -11,6 +11,7 @@ namespace vke_render
     class ResourceNode
     {
     public:
+        std::string name;
         bool isTransient;
         vke_ds::id32_t resourceNodeID;
         vke_ds::id32_t resourceID;
@@ -18,8 +19,8 @@ namespace vke_render
         std::vector<vke_ds::id32_t> dstTaskIDs;
 
         ResourceNode() : isTransient(false), resourceNodeID(0), resourceID(0), srcTaskID(0) {}
-        ResourceNode(bool isTransient, vke_ds::id32_t nodeID, vke_ds::id32_t resourceID)
-            : isTransient(isTransient), resourceNodeID(nodeID), resourceID(resourceID), srcTaskID(0) {}
+        ResourceNode(std::string &&name, bool isTransient, vke_ds::id32_t nodeID, vke_ds::id32_t resourceID)
+            : name(std::move(name)), isTransient(isTransient), resourceNodeID(nodeID), resourceID(resourceID), srcTaskID(0) {}
         ~ResourceNode() {}
         ResourceNode &operator=(const ResourceNode &) = delete;
         ResourceNode(const ResourceNode &) = delete;
@@ -28,6 +29,7 @@ namespace vke_render
         {
             if (this != &ano)
             {
+                name = std::move(ano.name);
                 isTransient = ano.isTransient;
                 resourceNodeID = ano.resourceNodeID;
                 resourceID = ano.resourceID;
@@ -38,7 +40,7 @@ namespace vke_render
         }
 
         ResourceNode(ResourceNode &&ano)
-            : isTransient(ano.isTransient), resourceNodeID(ano.resourceNodeID), resourceID(ano.resourceID),
+            : name(std::move(ano.name)), isTransient(ano.isTransient), resourceNodeID(ano.resourceNodeID), resourceID(ano.resourceID),
               srcTaskID(ano.srcTaskID), dstTaskIDs(std::move(ano.dstTaskIDs)) {}
     };
 
@@ -89,6 +91,7 @@ namespace vke_render
     class TaskNode
     {
     public:
+        std::string name;
         vke_ds::id32_t taskID;
         TaskType taskType;
         TaskType actualTaskType;
@@ -101,14 +104,14 @@ namespace vke_render
 
         TaskNode() : taskID(0), taskType(RENDER_TASK), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
 
-        TaskNode(TaskType type, TaskType actualTaskType)
-            : taskID(0), taskType(type), actualTaskType(actualTaskType), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
+        TaskNode(std::string &&name, TaskType type, TaskType actualTaskType)
+            : name(std::move(name)), taskID(0), taskType(type), actualTaskType(actualTaskType), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
 
-        TaskNode(vke_ds::id32_t id, TaskType type, TaskType actualTaskType)
-            : taskID(id), taskType(type), actualTaskType(actualTaskType), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
+        TaskNode(std::string &&name, vke_ds::id32_t id, TaskType type, TaskType actualTaskType)
+            : name(std::move(name)), taskID(id), taskType(type), actualTaskType(actualTaskType), valid(false), needQueueSubmit(false), indeg(0), order(0) {}
 
-        TaskNode(vke_ds::id32_t id, TaskType type, TaskType actualTaskType, TaskNodeExecuteCallback &callback)
-            : taskID(id), taskType(type), actualTaskType(actualTaskType),
+        TaskNode(std::string &&name, vke_ds::id32_t id, TaskType type, TaskType actualTaskType, TaskNodeExecuteCallback &callback)
+            : name(std::move(name)), taskID(id), taskType(type), actualTaskType(actualTaskType),
               valid(false), needQueueSubmit(false), indeg(0), order(0), executeCallback(callback) {}
 
         ~TaskNode() {}
@@ -119,6 +122,7 @@ namespace vke_render
         {
             if (this != &ano)
             {
+                name = std::move(ano.name);
                 taskID = ano.taskID;
                 taskType = ano.taskType;
                 valid = ano.valid;
@@ -131,7 +135,7 @@ namespace vke_render
         }
 
         TaskNode(TaskNode &&ano)
-            : taskID(ano.taskID), taskType(ano.taskType), valid(ano.valid), indeg(ano.indeg), order(ano.order),
+            : name(std::move(name)), taskID(ano.taskID), taskType(ano.taskType), valid(ano.valid), indeg(ano.indeg), order(ano.order),
               resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)) {}
 
         void AddResourceRef(bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
@@ -154,6 +158,7 @@ namespace vke_render
     class RenderResource
     {
     public:
+        std::string name;
         vke_ds::id32_t resourceID;
         ResourceType resourceType;
         ResourceRef *lastUsedRef;
@@ -161,8 +166,8 @@ namespace vke_render
 
         RenderResource() : resourceID(0), resourceType(IMAGE_RESOURCE), lastUsedRef(nullptr), lastUsedTask(nullptr) {}
         RenderResource(ResourceType type) : resourceID(0), resourceType(type), lastUsedRef(nullptr), lastUsedTask(nullptr) {}
-        RenderResource(vke_ds::id32_t id, ResourceType type)
-            : resourceID(id), resourceType(type), lastUsedRef(nullptr), lastUsedTask(nullptr) {}
+        RenderResource(std::string &&name, vke_ds::id32_t id, ResourceType type)
+            : name(name), resourceID(id), resourceType(type), lastUsedRef(nullptr), lastUsedTask(nullptr) {}
     };
 
     class ImageResource : public RenderResource
@@ -173,8 +178,8 @@ namespace vke_render
         VkDescriptorImageInfo info; // VkSampler sampler; VkImageView imageView; VkImageLayout imageLayout;
         ImageResource()
             : RenderResource(IMAGE_RESOURCE), image(nullptr), aspectMask(VK_IMAGE_ASPECT_NONE) {}
-        ImageResource(vke_ds::id32_t id, VkImage image, VkImageAspectFlags aspect, VkDescriptorImageInfo info)
-            : RenderResource(id, IMAGE_RESOURCE), image(image), aspectMask(aspect), info(info) {}
+        ImageResource(std::string &&name, vke_ds::id32_t id, VkImage image, VkImageAspectFlags aspect, VkDescriptorImageInfo info)
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE), image(image), aspectMask(aspect), info(info) {}
     };
 
     class BufferResource : public RenderResource
@@ -183,8 +188,8 @@ namespace vke_render
         VkDescriptorBufferInfo info; // VkBuffer buffer; VkDeviceSize offset; VkDeviceSize range;
         BufferResource()
             : RenderResource(BUFFER_RESOURCE) {}
-        BufferResource(vke_ds::id32_t id, VkDescriptorBufferInfo info)
-            : RenderResource(id, BUFFER_RESOURCE), info(info) {}
+        BufferResource(std::string &&name, vke_ds::id32_t id, VkDescriptorBufferInfo info)
+            : RenderResource(std::move(name), id, BUFFER_RESOURCE), info(info) {}
     };
 
     struct PermanentResourceState
@@ -238,19 +243,19 @@ namespace vke_render
             return id;
         }
 
-        vke_ds::id32_t AddPermanentImageResource(VkImage image, VkImageAspectFlags aspectMask, VkDescriptorImageInfo info,
+        vke_ds::id32_t AddPermanentImageResource(std::string &&name, VkImage image, VkImageAspectFlags aspectMask, VkDescriptorImageInfo info,
                                                  VkPipelineStageFlags stStage, std::optional<VkImageLayout> stLayout, std::optional<VkImageLayout> enLayout)
         {
             vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<ImageResource>(id, image, aspectMask, info));
+            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, image, aspectMask, info));
             permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
             return id;
         }
 
-        vke_ds::id32_t AddPermanentBufferResource(VkDescriptorBufferInfo info, VkPipelineStageFlags stStage)
+        vke_ds::id32_t AddPermanentBufferResource(std::string &&name, VkDescriptorBufferInfo info, VkPipelineStageFlags stStage)
         {
             vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<BufferResource>(id, info));
+            permanentResources.push_back(std::make_unique<BufferResource>(std::move(name), id, info));
             permanentResourceStates.emplace_back(stStage, std::nullopt, std::nullopt);
             return id;
         }
@@ -259,20 +264,20 @@ namespace vke_render
 
         void RemoveTargetResource(uint32_t resourceID) { targetResources.erase(resourceID); }
 
-        vke_ds::id32_t AllocResourceNode(bool isTransient, vke_ds::id32_t resourceID)
+        vke_ds::id32_t AllocResourceNode(std::string &&name, bool isTransient, vke_ds::id32_t resourceID)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resourceNodes.emplace(id, std::make_unique<ResourceNode>(isTransient, id, resourceID));
+            resourceNodes.emplace(id, std::make_unique<ResourceNode>(std::move(name), isTransient, id, resourceID));
             return id;
         }
 
-        vke_ds::id32_t AllocTaskNode(TaskType taskType, TaskNodeExecuteCallback callback)
+        vke_ds::id32_t AllocTaskNode(std::string &&name, TaskType taskType, TaskNodeExecuteCallback callback)
         {
             vke_ds::id32_t id = taskIDAllocator.Alloc();
             TaskType actualTaskType = (taskType == COMPUTE_TASK && haveQueue[COMPUTE_TASK])
                                           ? COMPUTE_TASK
                                           : ((taskType == TRANSFER_TASK && haveQueue[TRANSFER_TASK]) ? TRANSFER_TASK : RENDER_TASK);
-            taskNodes.emplace(id, std::make_unique<TaskNode>(id, taskType, actualTaskType, callback));
+            taskNodes.emplace(id, std::make_unique<TaskNode>(std::move(name), id, taskType, actualTaskType, callback));
             return id;
         }
 

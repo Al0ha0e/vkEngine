@@ -56,10 +56,10 @@ int main()
 
         vke_render::FrameGraph frameGraph(1);
 
-        vke_ds::id32_t resourceID = frameGraph.AddPermanentBufferResource(bufferInfo, VK_PIPELINE_STAGE_NONE);
+        vke_ds::id32_t resourceID = frameGraph.AddPermanentBufferResource("testbuffer", bufferInfo, VK_PIPELINE_STAGE_NONE);
         frameGraph.AddTargetResource(resourceID);
-        vke_ds::id32_t computeOutResourceNodeID = frameGraph.AllocResourceNode(false, resourceID);
-        vke_ds::id32_t transferOutResourceNodeID = frameGraph.AllocResourceNode(false, resourceID);
+        vke_ds::id32_t computeOutResourceNodeID = frameGraph.AllocResourceNode("computeOut", false, resourceID);
+        vke_ds::id32_t transferOutResourceNodeID = frameGraph.AllocResourceNode("transferOut", false, resourceID);
 
         auto computeCallback = [&task, &descriptorSets](vke_render::TaskNode &node, vke_render::FrameGraph &frameGraph,
                                                         VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
@@ -67,7 +67,7 @@ int main()
             task.Dispatch(commandBuffer, descriptorSets, glm::ivec3(10, 1, 1));
         };
 
-        vke_ds::id32_t computeTaskNodeID = frameGraph.AllocTaskNode(vke_render::COMPUTE_TASK, computeCallback);
+        vke_ds::id32_t computeTaskNodeID = frameGraph.AllocTaskNode("compute task", vke_render::COMPUTE_TASK, computeCallback);
 
         auto transferCallback = [&buffer](vke_render::TaskNode &node, vke_render::FrameGraph &frameGraph,
                                           VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
@@ -75,7 +75,7 @@ int main()
             buffer.FromBufferAsync(commandBuffer, 0, buffer.bufferSize);
         };
 
-        vke_ds::id32_t transferTaskNodeID = frameGraph.AllocTaskNode(vke_render::TRANSFER_TASK, transferCallback);
+        vke_ds::id32_t transferTaskNodeID = frameGraph.AllocTaskNode("transfer task", vke_render::TRANSFER_TASK, transferCallback);
 
         frameGraph.AddTaskNodeResourceRef(computeTaskNodeID, false, 0, computeOutResourceNodeID,
                                           VK_ACCESS_SHADER_WRITE_BIT,
