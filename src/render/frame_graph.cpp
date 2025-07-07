@@ -559,11 +559,13 @@ namespace vke_render
 
                 if (waitSemaphoreValue > 0)
                     waitSemaphoreValue += timelineSemaphoreBase;
-                else if (currentSubmitCnts[actualTaskType] == 0)
+
+                if (currentSubmitCnts[actualTaskType] == 0)
                 {
-                    waitSemaphoreValue = lastRoundSemaphoreValue;
-                    waitDstStageMask = actualTaskType == RENDER_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
-                                                                     : (actualTaskType == COMPUTE_TASK ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_TRANSFER_BIT);
+                    waitSemaphoreValue = std::max(waitSemaphoreValue, lastRoundSemaphoreValue);
+                    waitDstStageMask |= actualTaskType == RENDER_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
+                                                                      : (actualTaskType == COMPUTE_TASK ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
+                                                                                                        : VK_PIPELINE_STAGE_TRANSFER_BIT);
                 }
 
                 if (waitSemaphoreValue > 0)
@@ -582,7 +584,7 @@ namespace vke_render
 
                 signalSemaphoreInfo.value = signalSemaphoreValue;
 
-                std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " SIGNAL " << signalSemaphoreValue << "\n";
+                std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " COMMAND BUFFER " << commandBuffer << " SIGNAL " << signalSemaphoreValue << "\n";
                 lastTimelineValue = signalSemaphoreValue;
                 ++currentSubmitCnts[actualTaskType];
 
