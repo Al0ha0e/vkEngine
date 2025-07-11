@@ -36,40 +36,6 @@ namespace vke_render
         currentResourceNodeID[depthAttachmentResourceID] = opaqueOutDepthResourceNodeID;
     }
 
-    void OpaqueRenderer::createGlobalDescriptorSet()
-    {
-        VkDescriptorSetLayoutBinding vpLayoutBinding{};
-        vpLayoutBinding.binding = 0;
-        vpLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        vpLayoutBinding.descriptorCount = 1;
-        vpLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        vpLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        globalDescriptorInfos.push_back(DescriptorInfo(vpLayoutBinding, sizeof(CameraInfo)));
-
-        globalDescriptorSetInfo.uniformDescriptorCnt = 0;
-        std::vector<VkDescriptorSetLayoutBinding> globalBindings;
-        for (auto &dInfo : globalDescriptorInfos)
-        {
-            globalDescriptorSetInfo.AddCnt(dInfo.bindingInfo);
-            globalBindings.push_back(dInfo.bindingInfo);
-        }
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = globalBindings.size();
-        layoutInfo.pBindings = globalBindings.data();
-
-        if (vkCreateDescriptorSetLayout(environment->logicalDevice,
-                                        &layoutInfo,
-                                        nullptr,
-                                        &(globalDescriptorSetInfo.layout)) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create descriptor set layout!");
-        }
-        globalDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
-    }
-
     void OpaqueRenderer::createGraphicsPipeline(RenderInfo &renderInfo)
     {
         VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
@@ -134,7 +100,7 @@ namespace vke_render
         for (auto &kv : renderInfoMap)
         {
             std::unique_ptr<RenderInfo> &renderInfo = kv.second;
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->pipeline);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->renderPipeline->pipeline);
             VkViewport viewport{};
             viewport.x = 0.0f;
             viewport.y = 0.0f;
@@ -149,7 +115,7 @@ namespace vke_render
             scissor.extent = {context->width, context->height};
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            renderInfo->Render(commandBuffer, &globalDescriptorSet);
+            renderInfo->Render(commandBuffer, globalDescriptorSet);
         }
 
         vkCmdEndRendering(commandBuffer);

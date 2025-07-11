@@ -24,7 +24,7 @@ namespace vke_render
         std::unique_ptr<DeviceBuffer> vertexBuffer;
         std::unique_ptr<DeviceBuffer> indexBuffer;
         size_t indexCnt;
-        std::vector<std::shared_ptr<Mesh>> subMeshes;
+        std::vector<std::unique_ptr<Mesh>> subMeshes;
 
         Mesh() : handle(0), indexCnt(0), vertexBuffer(nullptr), indexBuffer(nullptr) {}
 

@@ -1,4 +1,4 @@
-#include <render/compute.hpp>
+#include <render/pipeline.hpp>
 #include <asset.hpp>
 #include <render/descriptor.hpp>
 #include <render/buffer.hpp>
@@ -25,7 +25,7 @@ int main()
     vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_compute_desc.json");
     {
-        std::shared_ptr<vke_render::ComputeShader> shader = vke_common::AssetManager::LoadComputeShader(2048);
+        std::shared_ptr<vke_render::ShaderModuleSet> shader = vke_common::AssetManager::LoadComputeShader(2048);
 
         VkDeviceSize bufferSize = 1024 * sizeof(int);
 
@@ -35,7 +35,7 @@ int main()
         memset(buffer.data, 0, bufferSize);
         buffer.ToBuffer(0, bufferSize);
 
-        vke_render::ComputeTask task(shader);
+        vke_render::ComputePipeline task(shader);
         std::vector<VkDescriptorSet> descriptorSets;
         std::vector<VkWriteDescriptorSet> descriptorWrites(1);
 

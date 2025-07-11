@@ -56,12 +56,13 @@ namespace vke_render
             ctx->resizeEventHub->AddEventListener(instance,
                                                   vke_common::EventHub<RenderContext>::callback_t(OnWindowResize));
 
+            instance->initDescriptorSet();
+
             std::map<std::string, vke_ds::id32_t> blackboard;
             std::map<vke_ds::id32_t, vke_ds::id32_t> currentResourceNodeID;
             instance->initFrameGraph(blackboard, currentResourceNodeID);
 
             int customPassID = 0;
-            VkBuffer cambuf = instance->camInfoBuffer.buffer;
             for (int i = 0; i < passes.size(); i++)
             {
                 PassType pass = passes[i];
@@ -76,16 +77,16 @@ namespace vke_render
                     break;
                 }
                 case BASE_RENDERER:
-                { // instance->baseRenderer = new BaseRenderer(i, instance->renderPass->renderPass);
-                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx, cambuf);
+                {
+                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx, instance->globalDescriptorSet);
                     baseRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(baseRenderer));
                     break;
                 }
                 case OPAQUE_RENDERER:
-                { // instance->opaqueRenderer = new OpaqueRenderer(i, instance->renderPass->renderPass);
-                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx, cambuf);
+                {
+                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx, instance->globalDescriptorSet);
                     opaqueRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(opaqueRenderer));
@@ -161,11 +162,14 @@ namespace vke_render
         vke_ds::id32_t colorAttachmentResourceID;
         vke_ds::id32_t cameraUpdateTaskID;
         vke_ds::id32_t cameraResourceNodeID;
+        DescriptorSetInfo globalDescriptorSetInfo;
+        VkDescriptorSet globalDescriptorSet;
         VkDevice logicalDevice;
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;
 
+        void initDescriptorSet();
         void initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
                             std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
         void cleanup();

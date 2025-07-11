@@ -30,10 +30,10 @@ namespace vke_render
         PassType type;
         int subpassID;
         RenderContext *context;
-        VkBuffer camInfoBuffer;
+        VkDescriptorSet globalDescriptorSet;
 
-        RenderPassBase(PassType type, RenderContext *ctx, VkBuffer camBuffer)
-            : type(type), context(ctx), camInfoBuffer(camBuffer) {}
+        RenderPassBase(PassType type, RenderContext *ctx, VkDescriptorSet globalDescriptorSet)
+            : type(type), context(ctx), globalDescriptorSet(globalDescriptorSet) {}
 
         virtual ~RenderPassBase() {}
 
@@ -46,7 +46,11 @@ namespace vke_render
                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
         {
             this->subpassID = subpassID;
+            environment = RenderEnvironment::GetInstance();
         }
+
+    private:
+        RenderEnvironment *environment;
     };
 }
 

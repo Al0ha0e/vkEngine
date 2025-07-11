@@ -29,40 +29,6 @@ namespace vke_render
         currentResourceNodeID[colorAttachmentResourceID] = baseOutColorResourceNodeID;
     }
 
-    void BaseRenderer::createGlobalDescriptorSet()
-    {
-        VkDescriptorSetLayoutBinding vpLayoutBinding{};
-        vpLayoutBinding.binding = 0;
-        vpLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        vpLayoutBinding.descriptorCount = 1;
-        vpLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        vpLayoutBinding.pImmutableSamplers = nullptr; // Optional
-
-        globalDescriptorInfos.push_back(DescriptorInfo(vpLayoutBinding, sizeof(CameraInfo)));
-
-        globalDescriptorSetInfo.uniformDescriptorCnt = 0;
-        std::vector<VkDescriptorSetLayoutBinding> globalBindings;
-        for (auto &dInfo : globalDescriptorInfos)
-        {
-            globalDescriptorSetInfo.AddCnt(dInfo.bindingInfo);
-            globalBindings.push_back(dInfo.bindingInfo);
-        }
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = globalBindings.size();
-        layoutInfo.pBindings = globalBindings.data();
-
-        if (vkCreateDescriptorSetLayout(environment->logicalDevice,
-                                        &layoutInfo,
-                                        nullptr,
-                                        &(globalDescriptorSetInfo.layout)) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create descriptor set layout!");
-        }
-        globalDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
-    }
-
     void BaseRenderer::createGraphicsPipeline()
     {
         VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
@@ -89,7 +55,7 @@ namespace vke_render
         pipelineInfo.pDepthStencilState = &depthStencil;
 
         std::vector<uint32_t> vertexAttributeSizes = {sizeof(glm::vec3)};
-        renderInfo->CreatePipeline(vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
+        renderPipeline = std::make_unique<GraphicsPipeline>(skyboxMaterial->shader, vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
     }
 
     const std::vector<glm::vec3> skyboxVertices = {
@@ -138,32 +104,14 @@ namespace vke_render
 
     void BaseRenderer::createSkyBox()
     {
-        std::shared_ptr<Material> skyboxMaterial(new Material);
-
-        std::shared_ptr<Texture2D> texture = vke_common::AssetManager::LoadTexture2D(vke_common::BUILTIN_TEXTURE_SKYBOX_ID);
-        skyboxMaterial->textures.push_back(texture);
-        skyboxMaterial->shader = vke_common::AssetManager::LoadVertFragShader(vke_common::BUILTIN_VFSHADER_SKYBOX_ID);
-
-        VkDescriptorSetLayoutBinding textureLayoutBinding{};
-        textureLayoutBinding.binding = 0;
-        textureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        textureLayoutBinding.descriptorCount = 1;
-        textureLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        textureLayoutBinding.pImmutableSamplers = nullptr; // Optional
-        vke_render::DescriptorInfo textureDescriptorInfo(textureLayoutBinding, texture->textureImageView, texture->textureSampler);
-        skyboxMaterial->commonDescriptorInfos.push_back(std::move(textureDescriptorInfo));
-
-        renderInfo = std::make_unique<RenderInfo>(skyboxMaterial);
-
+        skyboxMaterial = vke_common::AssetManager::LoadMaterialUnique(vke_common::BUILTIN_MATERIAL_SKYBOX_ID);
+        skyBoxDescriptorSet = skyboxMaterial->shader->CreateDescriptorSet(1);
+        skyboxMaterial->UpdateDescriptorSet(skyBoxDescriptorSet);
         // skybox mesh
         std::vector<uint32_t> indices;
         for (int i = 0; i < skyboxVertices.size(); i++)
             indices.push_back(i);
-        std::shared_ptr<Mesh> skyboxMesh = std::make_shared<Mesh>(0, skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
-
-        std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> buffers;
-        renderInfo->AddUnit(skyboxMesh, buffers);
-        createGraphicsPipeline();
+        skyboxMesh = std::make_unique<Mesh>(0, skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
     }
 
     void BaseRenderer::Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
@@ -188,8 +136,8 @@ namespace vke_render
         renderingInfo.pDepthAttachment = nullptr;
 
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
+        renderPipeline->Bind(commandBuffer);
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderInfo->pipeline);
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
@@ -204,7 +152,11 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        renderInfo->Render(commandBuffer, &globalDescriptorSet);
+        VkDescriptorSet descriptorSets[2] = {globalDescriptorSet, skyBoxDescriptorSet};
+
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
+        skyboxMesh->Render(commandBuffer);
 
         vkCmdEndRendering(commandBuffer);
     }

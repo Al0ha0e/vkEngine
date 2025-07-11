@@ -13,7 +13,6 @@ namespace vke_component
     public:
         std::shared_ptr<vke_render::Material> material;
         std::shared_ptr<const vke_render::Mesh> mesh;
-        std::vector<std::unique_ptr<vke_render::HostCoherentBuffer>> buffers;
 
         RenderableObject(
             std::shared_ptr<vke_render::Material> &mat,
@@ -46,24 +45,13 @@ namespace vke_component
             return ret;
         }
 
-        void OnTransformed(vke_common::TransformParameter &param) override
-        {
-            buffers[0]->ToBuffer(0, &param.model, sizeof(glm::mat4));
-        }
-
     private:
         vke_ds::id64_t renderID;
 
         void init()
         {
-            std::unique_ptr<vke_render::HostCoherentBuffer> bufferp = std::make_unique<vke_render::HostCoherentBuffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-
-            bufferp->ToBuffer(0, &gameObject->transform.model, sizeof(glm::mat4));
-            buffers.push_back(std::move(bufferp));
-
-            // renderID = vke_render::Renderer::GetInstance()->opaqueRenderer->AddUnit(material, mesh, buffers);
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, buffers);
+            renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, &gameObject->transform.model, sizeof(glm::mat4));
         }
     };
 }

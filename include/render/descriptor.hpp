@@ -20,30 +20,6 @@ namespace vke_render
                                   VkDeviceSize offset,
                                   VkDeviceSize range);
 
-    struct DescriptorInfo
-    {
-        VkDescriptorSetLayoutBinding bindingInfo;
-        size_t bufferSize;
-        VkImageView imageView;
-        VkSampler imageSampler;
-
-        DescriptorInfo(VkDescriptorSetLayoutBinding bInfo, size_t bSize)
-            : bindingInfo(bInfo), bufferSize(bSize), imageView(nullptr), imageSampler(nullptr) {}
-
-        DescriptorInfo(VkDescriptorSetLayoutBinding bInfo, VkImageView view, VkSampler sampler)
-            : bindingInfo(bInfo), bufferSize(0), imageView(view), imageSampler(sampler) {}
-
-        DescriptorInfo(DescriptorInfo &&ori)
-        {
-            bindingInfo = ori.bindingInfo;
-            bufferSize = ori.bufferSize;
-            imageView = ori.imageView;
-            imageSampler = ori.imageSampler;
-            ori.imageView = nullptr;
-            ori.imageSampler = nullptr;
-        }
-    };
-
     struct DescriptorSetInfo
     {
         VkDescriptorSetLayout layout;
@@ -286,53 +262,17 @@ namespace vke_render
                                                      VkDescriptorSet descriptorSet,
                                                      uint32_t binding,
                                                      VkDescriptorType descriptorType,
-                                                     int st,
-                                                     int cnt,
-                                                     VkDescriptorBufferInfo *bufferInfo);
+                                                     VkDescriptorBufferInfo *bufferInfo,
+                                                     int st = 0,
+                                                     int cnt = 1);
 
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
                                                      VkDescriptorSet descriptorSet,
                                                      uint32_t binding,
                                                      VkDescriptorType descriptorType,
-                                                     int st,
-                                                     int cnt,
-                                                     VkDescriptorImageInfo *imageInfo);
-
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     DescriptorInfo &descriptorInfo,
-                                                     int st,
-                                                     int cnt,
-                                                     VkDescriptorBufferInfo *bufferInfo);
-
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     DescriptorInfo &descriptorInfo,
-                                                     int st,
-                                                     int cnt,
-                                                     VkDescriptorImageInfo *imageInfo);
-
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     uint32_t binding,
-                                                     VkDescriptorType descriptorType,
-                                                     VkDescriptorBufferInfo *bufferInfo);
-
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     uint32_t binding,
-                                                     VkDescriptorType descriptorType,
-                                                     VkDescriptorImageInfo *imageInfo);
-
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     DescriptorInfo &descriptorInfo,
-                                                     VkDescriptorBufferInfo *bufferInfo);
-
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     DescriptorInfo &descriptorInfo,
-                                                     VkDescriptorImageInfo *imageInfo);
+                                                     VkDescriptorImageInfo *imageInfo,
+                                                     int st = 0,
+                                                     int cnt = 1);
 }
 
 #endif

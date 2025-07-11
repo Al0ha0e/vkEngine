@@ -6,6 +6,33 @@ namespace vke_render
 {
     Renderer *Renderer::instance;
 
+    void Renderer::initDescriptorSet()
+    {
+        VkDescriptorSetLayoutBinding camInfoLayoutBinding{};
+        camInfoLayoutBinding.binding = 0;
+        camInfoLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        camInfoLayoutBinding.descriptorCount = 1;
+        camInfoLayoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+        globalDescriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+        layoutInfo.pBindings = &camInfoLayoutBinding;
+
+        vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo,
+                                    nullptr, &globalDescriptorSetInfo.layout);
+        globalDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
+
+        VkDescriptorBufferInfo bufferInfo{};
+        InitDescriptorBufferInfo(bufferInfo, camInfoBuffer.buffer, 0, camInfoBuffer.bufferSize);
+        VkWriteDescriptorSet descriptorWrite{};
+        ConstructDescriptorSetWrite(descriptorWrite, globalDescriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+        vkUpdateDescriptorSets(logicalDevice, 1, &descriptorWrite, 0, nullptr);
+    }
+
     void Renderer::initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
                                   std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {

@@ -56,5 +56,13 @@
     "path": "",
     "shader": 1,
     "textures": [1]
+  },
+  {
+    "type": 4,
+    "id": 2,
+    "name": "SkyboxMaterial",
+    "path": "",
+    "shader": 2,
+    "textures": [2]
   }
 ]

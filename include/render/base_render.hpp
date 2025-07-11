@@ -6,18 +6,15 @@
 #include <render/material.hpp>
 #include <render/mesh.hpp>
 #include <render/subpass.hpp>
+#include <render/pipeline.hpp>
 
 namespace vke_render
 {
     class BaseRenderer : public RenderPassBase
     {
     public:
-        std::vector<DescriptorInfo> globalDescriptorInfos;
-        DescriptorSetInfo globalDescriptorSetInfo;
-        VkDescriptorSet globalDescriptorSet;
-
-        BaseRenderer(RenderContext *ctx, VkBuffer camBuffer)
-            : globalDescriptorSetInfo(nullptr, 0, 0, 0, 0), RenderPassBase(BASE_RENDERER, ctx, camBuffer) {}
+        BaseRenderer(RenderContext *ctx, VkDescriptorSet globalDescriptorSet)
+            : RenderPassBase(BASE_RENDERER, ctx, globalDescriptorSet) {}
 
         ~BaseRenderer() {}
 
@@ -27,35 +24,24 @@ namespace vke_render
                   std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID) override
         {
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
-            environment = RenderEnvironment::GetInstance();
             constructFrameGraph(frameGraph, blackboard, currentResourceNodeID);
-            createGlobalDescriptorSet();
-            registerCamera();
             createSkyBox();
+            createGraphicsPipeline();
         }
 
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
 
     private:
-        RenderEnvironment *environment;
-        std::unique_ptr<RenderInfo> renderInfo;
+        VkDescriptorSet skyBoxDescriptorSet;
+        std::unique_ptr<GraphicsPipeline> renderPipeline;
+        std::unique_ptr<Mesh> skyboxMesh;
+        std::unique_ptr<Material> skyboxMaterial;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
-        void createGlobalDescriptorSet();
         void createSkyBox();
         void createGraphicsPipeline();
-
-        void registerCamera()
-        {
-            DescriptorInfo &info = globalDescriptorInfos[0];
-            VkDescriptorBufferInfo bufferInfo{};
-            InitDescriptorBufferInfo(bufferInfo, camInfoBuffer, 0, info.bufferSize);
-            VkWriteDescriptorSet descriptorWrite{};
-            ConstructDescriptorSetWrite(descriptorWrite, globalDescriptorSet, info, &bufferInfo);
-            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, 1, &descriptorWrite, 0, nullptr);
-        }
     };
 }
 

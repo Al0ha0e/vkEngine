@@ -9,15 +9,6 @@
 
 namespace vke_render
 {
-    class Shader
-    {
-    public:
-        vke_common::AssetHandle handle;
-        Shader() = default;
-        Shader(const vke_common::AssetHandle hdl) : handle(hdl) {}
-        virtual ~Shader() {}
-    };
-
     class ShaderModule
     {
     public:
@@ -143,42 +134,27 @@ namespace vke_render
             constructDescriptorSetLayout();
         }
 
+        VkDescriptorSet CreateDescriptorSet(uint32_t setID)
+        {
+            auto it = descriptorSetInfoMap.find(setID);
+            if (it == descriptorSetInfoMap.end())
+                return nullptr;
+
+            DescriptorSetInfo &setInfo = it->second;
+            VkDescriptorSet descriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(setInfo);
+            return descriptorSet;
+        }
+
+        void CreateDescriptorSets(std::vector<VkDescriptorSet> &descriptorSets)
+        {
+            for (auto &kv : descriptorSetInfoMap)
+                descriptorSets.push_back(vke_render::DescriptorSetAllocator::AllocateDescriptorSet(kv.second));
+        }
+
     private:
         void constructDescriptorSetInfo(SpvReflectShaderModule &reflectInfo);
         void constructPushConstant(SpvReflectShaderModule &reflectInfo);
         void constructDescriptorSetLayout();
-    };
-
-    class VertFragShader : public Shader
-    {
-    public:
-        std::unique_ptr<ShaderModuleSet> shaderModule;
-        VertFragShader() = default;
-        VertFragShader(const vke_common::AssetHandle hdl, const std::vector<char> &vcode, const std::vector<char> &fcode)
-            : Shader(hdl),
-              shaderModule(std::make_unique<ShaderModuleSet>(vcode, fcode)) {}
-
-        ~VertFragShader() {}
-
-        void CreatePipeline(std::vector<uint32_t> &vertexAttributeSizes,
-                            VkVertexInputRate vertexInputRate,
-                            VkPipelineLayout &pipelineLayout,
-                            VkGraphicsPipelineCreateInfo &pipelineInfo,
-                            VkPipeline &pipeline) const;
-    };
-
-    class ComputeShader : public Shader
-    {
-    public:
-        std::unique_ptr<ShaderModuleSet> shaderModule;
-        ComputeShader() = default;
-        ComputeShader(const vke_common::AssetHandle hdl, const std::vector<char> &code)
-            : Shader(hdl),
-              shaderModule(std::make_unique<ShaderModuleSet>(code)) {}
-
-        ~ComputeShader() {}
-
-        void CreatePipeline(VkPipelineLayout &pipelineLayout, VkPipeline &pipeline);
     };
 }
 

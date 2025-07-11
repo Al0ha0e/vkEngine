@@ -24,6 +24,12 @@ https://www.reddit.com/r/vulkan/comments/1jelm0z/spirvreflect_and_bindlessruntim
 https://github.com/KhronosGroup/SPIRV-Cross/issues/2171#issuecomment-1607198720
 
 
+### 资源管理及绑定
+
+- pipeline资源：包括pipeline、pipeline layout和若干descriptor set，对应一个json配置文件，其中指定了对应的shader，管线属性和管线对应的descriptor set，push constant的值、大小和偏移量
+- material：包括若干descriptor set，对应一个json配置文件，其中制定了对应的shader，texture及其对应的descriptor set（可以是material特有的或管线对应的），push constant的值、大小和偏移量
+- mesh: 包括顶点和索引数组，push constant的值、大小和偏移量
+
 ### Frame Graph备忘
 
 两条执行线：

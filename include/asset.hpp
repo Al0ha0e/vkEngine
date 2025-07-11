@@ -33,6 +33,7 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_SKYBOX_ID = 2;
 
     const AssetHandle BUILTIN_MATERIAL_DEFAULT_ID = 1;
+    const AssetHandle BUILTIN_MATERIAL_SKYBOX_ID = 2;
 
     enum AssetType
     {
@@ -104,11 +105,11 @@ namespace vke_common
 
     LEAF_ASSET_TYPE(TextureAsset, ASSET_TEXTURE, vke_render::Texture2D)
     LEAF_ASSET_TYPE(MeshAsset, ASSET_MESH, vke_render::Mesh)
-    LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ComputeShader)
+    LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ShaderModuleSet)
     LEAF_ASSET_TYPE(PhysicsMaterialAsset, ASSET_PHYSICS_MATERIAL, vke_physics::PhysicsMaterial)
     LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, int);
 
-    class VFShaderAsset : public Asset<ASSET_VF_SHADER, VFShaderAsset, vke_render::VertFragShader>
+    class VFShaderAsset : public Asset<ASSET_VF_SHADER, VFShaderAsset, vke_render::ShaderModuleSet>
     {
     public:
         std::string fragPath;
@@ -233,10 +234,17 @@ namespace vke_common
 
         static AssetHandle AllocateAssetID(AssetType type);
 
+        static std::unique_ptr<vke_render::Texture2D> LoadTexture2DUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_render::Mesh> LoadMeshUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_render::ShaderModuleSet> LoadVertFragShaderUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_render::ShaderModuleSet> LoadComputeShaderUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_render::Material> LoadMaterialUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_physics::PhysicsMaterial> LoadPhysicsMaterialUnique(const AssetHandle hdl);
+
         static std::shared_ptr<vke_render::Texture2D> LoadTexture2D(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Mesh> LoadMesh(const AssetHandle hdl);
-        static std::shared_ptr<vke_render::VertFragShader> LoadVertFragShader(const AssetHandle hdl);
-        static std::shared_ptr<vke_render::ComputeShader> LoadComputeShader(const AssetHandle hdl);
+        static std::shared_ptr<vke_render::ShaderModuleSet> LoadVertFragShader(const AssetHandle hdl);
+        static std::shared_ptr<vke_render::ShaderModuleSet> LoadComputeShader(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Material> LoadMaterial(const AssetHandle hdl);
         static std::shared_ptr<vke_physics::PhysicsMaterial> LoadPhysicsMaterial(const AssetHandle hdl);
 
