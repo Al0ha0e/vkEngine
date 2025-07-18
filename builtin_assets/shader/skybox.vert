@@ -6,12 +6,13 @@ layout(set = 0, binding = 0) uniform VPBlockObject {
     vec4 viewPos;
 } VPBlock;
 
-layout(location = 0) in vec3 aPos;
-layout(location = 0) out vec3 TexCoords;
+layout(location = 0) in vec3 Position;
+layout(location=0) out vec3 Dir;
 
 void main()
 {
-    vec3 rPos = vec3(aPos.x, -aPos.y, aPos.z);
-    TexCoords = rPos;
+    vec3 rPos = vec3(Position.x, -Position.y, Position.z);
+    Dir = rPos;
     gl_Position = VPBlock.projection * mat4(mat3(VPBlock.view)) * vec4(rPos, 1.0);
+    gl_Position.z = gl_Position.w;
 }

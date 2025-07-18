@@ -22,10 +22,10 @@ namespace vke_render
                                           VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], opaqueOutColorResourceNodeID,
-                                          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                          VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[depthAttachmentResourceID], opaqueOutDepthResourceNodeID,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
@@ -72,8 +72,9 @@ namespace vke_render
         colorAttachmentInfo.pNext = nullptr;
         colorAttachmentInfo.imageView = (*context->colorImageViews)[imageIndex];
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentInfo.clearValue.color = {{1.0f, 0.5f, 0.3f, 1.0f}};
         colorAttachmentInfo.resolveMode = VK_RESOLVE_MODE_NONE;
 
         VkRenderingAttachmentInfo depthAttachmentInfo{};

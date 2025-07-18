@@ -10,7 +10,7 @@ namespace vke_render
     enum PassType
     {
         CUSTOM_RENDERER,
-        BASE_RENDERER,
+        SKYBOX_RENDERER,
         OPAQUE_RENDERER
     };
 

@@ -3,7 +3,7 @@
 
 #include <common.hpp>
 #include <render/environment.hpp>
-#include <render/base_render.hpp>
+#include <render/skybox_render.hpp>
 #include <render/opaque_render.hpp>
 #include <render/frame_graph.hpp>
 #include <event.hpp>
@@ -76,11 +76,11 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(customPass));
                     break;
                 }
-                case BASE_RENDERER:
+                case SKYBOX_RENDERER:
                 {
                     std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx, instance->globalDescriptorSet);
                     baseRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
-                    instance->subPassMap[BASE_RENDERER] = instance->subPasses.size();
+                    instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(baseRenderer));
                     break;
                 }

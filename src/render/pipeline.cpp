@@ -17,8 +17,9 @@ namespace vke_render
 
         SpvReflectShaderModule &vertReflectInfo = shader->modules[0].reflectInfo;
         uint32_t vertexAttributeOffset = 0;
-        std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions(vertReflectInfo.input_variable_count);
-        for (int i = 0; i < vertReflectInfo.input_variable_count; i++)
+        uint32_t inputVariableCount = std::min(vertReflectInfo.input_variable_count, (uint32_t)vertexAttributeSizes.size());
+        std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions(inputVariableCount);
+        for (int i = 0; i < inputVariableCount; i++)
         {
             SpvReflectInterfaceVariable &variable = *(vertReflectInfo.input_variables[i]);
             vertexAttributeDescriptions[i].binding = 0;
