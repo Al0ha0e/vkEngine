@@ -69,29 +69,31 @@ namespace vke_common
         return asset.val;
     }
 
-    static inline std::unique_ptr<vke_render::Texture2D> loadTexture2D(const AssetHandle hdl, const std::string &pth)
+    static inline std::unique_ptr<vke_render::Texture2D> loadTexture2D(const AssetHandle hdl, const TextureAsset &asset)
     {
         int texWidth, texHeight, texChannels;
-        stbi_uc *pixels = stbi_load(pth.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-
+        stbi_uc *pixels = stbi_load(asset.path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         if (!pixels)
         {
             throw std::runtime_error("failed to load texture image!");
         }
 
-        return std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight);
+        return std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight,
+                                                       asset.format, asset.usage, asset.layout,
+                                                       asset.minFilter, asset.magFilter, asset.addressMode,
+                                                       asset.anisotropyEnable);
     }
 
     std::unique_ptr<vke_render::Texture2D> AssetManager::LoadTexture2DUnique(const AssetHandle hdl)
     {
         auto &asset = tryGetAsset(instance->textureCache, hdl);
-        return loadTexture2D(hdl, asset.path);
+        return loadTexture2D(hdl, asset);
     }
 
     std::shared_ptr<vke_render::Texture2D> AssetManager::LoadTexture2D(const AssetHandle hdl)
     {
         std::function<std::unique_ptr<vke_render::Texture2D>(TextureAsset &)> op = [hdl](TextureAsset &asset)
-        { return loadTexture2D(hdl, asset.path); };
+        { return loadTexture2D(hdl, asset); };
 
         return loadFromCacheOrUpdate<vke_render::Texture2D>(instance->textureCache, hdl, op);
     }

@@ -564,7 +564,7 @@ namespace vke_render
                 {
                     waitSemaphoreValue = std::max(waitSemaphoreValue, lastRoundSemaphoreValue);
                     waitDstStageMask |= actualTaskType == RENDER_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
-                                                                      : (actualTaskType == COMPUTE_TASK ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
+                                                                      : (actualTaskType == COMPUTE_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
                                                                                                         : VK_PIPELINE_STAGE_TRANSFER_BIT);
                 }
 

@@ -78,10 +78,10 @@ namespace vke_render
                 }
                 case SKYBOX_RENDERER:
                 {
-                    std::unique_ptr<BaseRenderer> baseRenderer = std::make_unique<BaseRenderer>(ctx, instance->globalDescriptorSet);
-                    baseRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSet);
+                    skyboxRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
-                    instance->subPasses.push_back(std::move(baseRenderer));
+                    instance->subPasses.push_back(std::move(skyboxRenderer));
                     break;
                 }
                 case OPAQUE_RENDERER:

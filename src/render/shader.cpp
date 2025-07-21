@@ -14,7 +14,7 @@ namespace vke_render
             if (it != bindingInfoMap.end())
                 continue;
 
-            DescriptorSetInfo descriptorSetInfo(nullptr, 0, 0, 0, 0);
+            DescriptorSetInfo descriptorSetInfo;
             std::vector<VkDescriptorSetLayoutBinding> bindings;
             int bindingCnt = ds.binding_count;
             for (int j = 0; j < bindingCnt; j++)
@@ -41,7 +41,7 @@ namespace vke_render
                 bindings.push_back(binding);
             }
 
-            descriptorSetInfoMap[setID] = descriptorSetInfo;
+            descriptorSetInfoMap[setID] = std::move(descriptorSetInfo);
             bindingInfoMap[setID] = std::move(bindings);
         }
     }

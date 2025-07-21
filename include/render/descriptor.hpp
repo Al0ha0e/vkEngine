@@ -24,19 +24,30 @@ namespace vke_render
     {
         VkDescriptorSetLayout layout;
         uint32_t variableDescriptorCnt;
-        int uniformDescriptorCnt;
-        int combinedImageSamplerCnt;
-        int storageDescriptorCnt;
+        std::map<VkDescriptorType, uint32_t> descriptorCntMap;
 
-        DescriptorSetInfo()
-            : layout(nullptr), variableDescriptorCnt(0), uniformDescriptorCnt(0), combinedImageSamplerCnt(0), storageDescriptorCnt(0) {}
+        DescriptorSetInfo() : layout(nullptr), variableDescriptorCnt(0) {}
 
-        DescriptorSetInfo(VkDescriptorSetLayout layout, uint32_t variableDescriptorCnt, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
+        DescriptorSetInfo(VkDescriptorSetLayout layout, uint32_t variableDescriptorCnt)
             : layout(layout),
-              variableDescriptorCnt(variableDescriptorCnt),
-              uniformDescriptorCnt(uniformDescriptorCnt),
-              combinedImageSamplerCnt(combinedImageSamplerCnt),
-              storageDescriptorCnt(storageDescriptorCnt) {}
+              variableDescriptorCnt(variableDescriptorCnt) {}
+
+        DescriptorSetInfo(const DescriptorSetInfo &) = delete;
+        DescriptorSetInfo &operator=(const DescriptorSetInfo &) = delete;
+
+        DescriptorSetInfo &operator=(DescriptorSetInfo &&ano)
+        {
+            if (this != &ano)
+            {
+                layout = ano.layout;
+                variableDescriptorCnt = ano.variableDescriptorCnt;
+                descriptorCntMap = std::move(ano.descriptorCntMap);
+            }
+            return *this;
+        }
+
+        DescriptorSetInfo(DescriptorSetInfo &&ano)
+            : layout(ano.layout), variableDescriptorCnt(ano.variableDescriptorCnt), descriptorCntMap(std::move(ano.descriptorCntMap)) {}
 
         ~DescriptorSetInfo()
         {
@@ -49,18 +60,13 @@ namespace vke_render
 
         void AddCnt(VkDescriptorType type, int cnt)
         {
-            switch (type)
+            auto &it = descriptorCntMap.find(type);
+            if (it == descriptorCntMap.end())
             {
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                uniformDescriptorCnt += cnt;
-                break;
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-                combinedImageSamplerCnt += cnt;
-                break;
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                storageDescriptorCnt += cnt;
-                break;
+                descriptorCntMap[type] = cnt;
+                return;
             }
+            it->second += cnt;
         }
 
         void AddCnt(VkDescriptorSetLayoutBinding info)
@@ -71,58 +77,57 @@ namespace vke_render
 
     struct DescriptorSetPoolInfo
     {
-        int setCnt;
-        int uniformDescriptorCnt;
-        int combinedImageSamplerCnt;
-        int storageDescriptorCnt;
+        uint32_t setCnt;
+        std::map<VkDescriptorType, uint32_t> descriptorCntMap;
 
-        DescriptorSetPoolInfo() = default;
-        DescriptorSetPoolInfo(int setCnt, int uniformDescriptorCnt, int combinedImageSamplerCnt, int storageDescriptorCnt)
-            : setCnt(setCnt),
-              uniformDescriptorCnt(uniformDescriptorCnt),
-              combinedImageSamplerCnt(combinedImageSamplerCnt),
-              storageDescriptorCnt(storageDescriptorCnt) {}
+        DescriptorSetPoolInfo() : setCnt(0) {}
+        DescriptorSetPoolInfo(uint32_t setCnt, std::map<VkDescriptorType, uint32_t> &&descriptorCntMap)
+            : setCnt(setCnt), descriptorCntMap(std::move(descriptorCntMap)) {}
+
+        DescriptorSetPoolInfo(const DescriptorSetPoolInfo &) = delete;
+        DescriptorSetPoolInfo &operator=(const DescriptorSetPoolInfo &) = delete;
+
+        DescriptorSetPoolInfo &operator=(DescriptorSetPoolInfo &&ano)
+        {
+            if (this != &ano)
+            {
+                setCnt = ano.setCnt;
+                descriptorCntMap = std::move(ano.descriptorCntMap);
+            }
+            return *this;
+        }
+
+        DescriptorSetPoolInfo(DescriptorSetPoolInfo &&ano)
+            : setCnt(ano.setCnt), descriptorCntMap(std::move(ano.descriptorCntMap)) {}
 
         bool SuitableToAllocate(DescriptorSetInfo &info)
         {
-            return setCnt > 0 &&
-                   uniformDescriptorCnt >= info.uniformDescriptorCnt &&
-                   combinedImageSamplerCnt >= info.combinedImageSamplerCnt &&
-                   storageDescriptorCnt >= info.storageDescriptorCnt;
+            if (setCnt == 0)
+                return false;
+            for (auto &kv : info.descriptorCntMap)
+            {
+                auto &it = descriptorCntMap.find(kv.first);
+                if (it == descriptorCntMap.end() || it->second < kv.second)
+                    return false;
+            }
+            return true;
         }
 
         void UpdateForAllocate(DescriptorSetInfo &info)
         {
             setCnt--;
-            uniformDescriptorCnt -= info.uniformDescriptorCnt;
-            combinedImageSamplerCnt -= info.combinedImageSamplerCnt;
-            storageDescriptorCnt -= info.storageDescriptorCnt;
+            for (auto &kv : info.descriptorCntMap)
+                descriptorCntMap[kv.first] -= kv.second;
         }
 
         void ConstructPoolSizes(std::vector<VkDescriptorPoolSize> &poolSizes)
         {
-            if (uniformDescriptorCnt > 0)
+            for (auto &kv : descriptorCntMap)
             {
                 VkDescriptorPoolSize uniformPoolSize{};
-                uniformPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                uniformPoolSize.descriptorCount = uniformDescriptorCnt;
+                uniformPoolSize.type = kv.first;
+                uniformPoolSize.descriptorCount = kv.second;
                 poolSizes.push_back(uniformPoolSize);
-            }
-
-            if (combinedImageSamplerCnt > 0)
-            {
-                VkDescriptorPoolSize combinedImageSamplerPoolSize{};
-                combinedImageSamplerPoolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                combinedImageSamplerPoolSize.descriptorCount = combinedImageSamplerCnt;
-                poolSizes.push_back(combinedImageSamplerPoolSize);
-            }
-
-            if (storageDescriptorCnt > 0)
-            {
-                VkDescriptorPoolSize storagePoolSize{};
-                storagePoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                storagePoolSize.descriptorCount = storageDescriptorCnt;
-                poolSizes.push_back(storagePoolSize);
             }
         }
     };
@@ -132,15 +137,20 @@ namespace vke_render
     private:
         static DescriptorSetAllocator *instance;
         static const int MAX_SET_CNT = 10;
-        static const int MAX_UNIFORM_DESC_CNT = 10;
         static const int MAX_COMBINED_IMAGE_SAMPLER_DESC_CNT = 20;
+        static const int MAX_STORAGE_IMAGE_DESC_CNT = 10;
+        static const int MAX_UNIFORM_DESC_CNT = 10;
         static const int MAX_STORAGE_DESC_CNT = 10;
 
         DescriptorSetAllocator()
         {
-            DescriptorSetPoolInfo info(MAX_SET_CNT, MAX_UNIFORM_DESC_CNT, MAX_COMBINED_IMAGE_SAMPLER_DESC_CNT, MAX_STORAGE_DESC_CNT);
+            DescriptorSetPoolInfo info(MAX_SET_CNT,
+                                       {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_COMBINED_IMAGE_SAMPLER_DESC_CNT},
+                                        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, MAX_STORAGE_IMAGE_DESC_CNT},
+                                        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, MAX_UNIFORM_DESC_CNT},
+                                        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, MAX_STORAGE_DESC_CNT}});
             VkDescriptorPool pool = createDescriptorPool(info);
-            descriptorSetPools[pool] = info;
+            descriptorSetPools[pool] = std::move(info);
         }
 
         ~DescriptorSetAllocator() {}
@@ -162,21 +172,10 @@ namespace vke_render
             return instance;
         }
 
-        static DescriptorSetAllocator *Init(int poolCnt, DescriptorSetPoolInfo info)
-        {
-            instance = new DescriptorSetAllocator();
-            for (int i = 0; i < poolCnt; i++)
-            {
-                VkDescriptorPool pool = instance->createDescriptorPool(info);
-                instance->descriptorSetPools[pool] = info;
-            }
-            return instance;
-        }
-
         static void Dispose()
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            for (auto kv : instance->descriptorSetPools)
+            for (auto &kv : instance->descriptorSetPools)
                 vkDestroyDescriptorPool(logicalDevice, kv.first, nullptr);
             delete DescriptorSetAllocator::instance;
         }
@@ -193,13 +192,13 @@ namespace vke_render
                 }
             }
 
-            DescriptorSetPoolInfo poolInfo(
-                MAX_SET_CNT,
-                info.uniformDescriptorCnt * 2,
-                info.combinedImageSamplerCnt * 2,
-                info.storageDescriptorCnt * 2);
+            std::map<VkDescriptorType, uint32_t> descriptorCntMap;
+            for (auto &kv : info.descriptorCntMap)
+                descriptorCntMap[kv.first] = 2 * kv.second;
+
+            DescriptorSetPoolInfo poolInfo(MAX_SET_CNT, std::move(descriptorCntMap));
             VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
-            instance->descriptorSetPools[pool] = poolInfo;
+            instance->descriptorSetPools[pool] = std::move(poolInfo);
             return instance->allocateDescriptorSet(pool, &(info.layout), info.variableDescriptorCnt);
         }
 
@@ -258,6 +257,7 @@ namespace vke_render
             return ret;
         }
     };
+
     VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
                                                      VkDescriptorSet descriptorSet,
                                                      uint32_t binding,

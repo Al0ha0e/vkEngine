@@ -1,0 +1,17 @@
+{
+  "SeaLevel": 0.0,
+  "PlanetRadius": 6360000.0,
+  "AtmosphereHeight": 60000.0,
+  "SunLightIntensity": 7.4,
+  "SunLightColor": [1.0, 1.0, 1.0],
+  "SunDiskAngle": 4.0,
+  "RayleighScatteringScale": 1.0,
+  "RayleighScatteringScalarHeight": 8000.0,
+  "MieScatteringScale": 1.0,
+  "MieAnisotropy": 0.8,
+  "MieScatteringScalarHeight": 1200.0,
+  "OzoneAbsorptionScale": 1.0,
+  "OzoneLevelCenterHeight": 25000.0,
+  "OzoneLevelWidth": 15000.0,
+  "AerialPerspectiveDistance": 32000.0
+}

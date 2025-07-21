@@ -8,8 +8,18 @@
   {
     "type": 0,
     "id": 2,
-    "name": "SkyboxTex",
-    "path": "/builtin_assets/texture/skybox.png"
+    "name": "TransmitanceLUT",
+    "path": "/builtin_assets/texture/transmitance_lut.png",
+    "addressMode": 2,
+    "anisotropy": false
+  },
+  {
+    "type": 0,
+    "id": 3,
+    "name": "ScatteringLUT",
+    "path": "/builtin_assets/texture/scattering_lut.png",
+    "addressMode": 2,
+    "anisotropy": false
   },
   {
     "type": 1,
@@ -50,6 +60,12 @@
     "fragPath": "/builtin_assets/shader/skyfrag.spv"
   },
   {
+    "type": 3,
+    "id": 1,
+    "name": "SkyLUTGenerator",
+    "path": "./builtin_assets/shader/sky_lut.spv"
+  },
+  {
     "type": 4,
     "id": 1,
     "name": "DefaultMaterial",
@@ -63,6 +79,6 @@
     "name": "SkyboxMaterial",
     "path": "",
     "shader": 2,
-    "textures": [2]
+    "textures": [2, 3]
   }
 ]

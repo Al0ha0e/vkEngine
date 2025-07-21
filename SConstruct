@@ -63,9 +63,16 @@ shaders = [
     ['default.vert','default_vert.spv'],
     ['skybox.frag','skyfrag.spv'],
     ['skybox.vert','skyvert.spv'],
+    ['sky_lut.comp','sky_lut.spv']
 ]
 
-
 for s in shaders:
-    print(glslc + f" {sprefix+s[0]} -o {sprefix+s[1]}")
-    os.system(glslc + f" {sprefix+s[0]} -o {sprefix+s[1]}")
+    print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
+    os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
+
+
+
+cmds = ["python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"]
+for cmd in cmds:
+    print(cmd)
+    # os.system(cmd)

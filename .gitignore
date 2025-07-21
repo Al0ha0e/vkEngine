@@ -6,4 +6,6 @@ PhysXGpu_64.dll
 .vscode
 assets
 out
+builtin_assets/texture/scattering_lut.png
+builtin_assets/texture/transmitance_lut.png
 !builtin_assets/**/*.obj

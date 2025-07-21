@@ -15,14 +15,21 @@ namespace vke_render
         VkImageView textureImageView;
         VkSampler textureSampler;
 
-        Texture2D(const vke_common::AssetHandle hdl, void *pixels, int texWidth, int texHeight) : handle(hdl)
+        Texture2D(const vke_common::AssetHandle hdl, void *pixels, int texWidth, int texHeight,
+                  VkFormat format = VK_FORMAT_R8G8B8A8_SRGB,
+                  VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT,
+                  VkImageLayout layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                  VkFilter minFilter = VK_FILTER_LINEAR,
+                  VkFilter magFilter = VK_FILTER_LINEAR,
+                  VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                  bool anisotropyEnable = VK_TRUE) : handle(hdl)
         {
             RenderEnvironment::CreateImage(
                 texWidth,
                 texHeight,
-                VK_FORMAT_R8G8B8A8_SRGB,
+                format,
                 VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | usage,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 &textureImage,
                 &textureImageAllocation,
@@ -32,12 +39,42 @@ namespace vke_render
             HostCoherentBuffer stagingBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
             stagingBuffer.ToBuffer(0, pixels, imageSize);
 
-            transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            transitionImageLayout(textureImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
             RenderEnvironment::CopyBufferToImage(stagingBuffer.buffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-            transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            transitionImageLayout(textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout);
 
-            textureImageView = RenderEnvironment::CreateImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
-            createTextureSampler();
+            textureImageView = RenderEnvironment::CreateImageView(textureImage, format, VK_IMAGE_ASPECT_COLOR_BIT);
+            createTextureSampler(minFilter, magFilter, addressMode, anisotropyEnable);
+        }
+
+        Texture2D(int texWidth, int texHeight,
+                  VkFormat format = VK_FORMAT_R8G8B8A8_SRGB,
+                  VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT,
+                  VkImageLayout initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                  VkFilter minFilter = VK_FILTER_LINEAR,
+                  VkFilter magFilter = VK_FILTER_LINEAR,
+                  VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                  bool anisotropyEnable = VK_TRUE) : handle(0)
+        {
+            RenderEnvironment::CreateImage(
+                texWidth,
+                texHeight,
+                format,
+                VK_IMAGE_TILING_OPTIMAL,
+                usage,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                &textureImage,
+                &textureImageAllocation,
+                nullptr);
+            RenderEnvironment *instance = RenderEnvironment::GetInstance();
+            VkCommandBuffer commandBuffer = RenderEnvironment::BeginSingleTimeCommands(instance->commandPool);
+            RenderEnvironment::MakeLayoutTransition(commandBuffer, VK_ACCESS_NONE, VK_ACCESS_NONE,
+                                                    VK_IMAGE_LAYOUT_UNDEFINED, initialLayout,
+                                                    textureImage, VK_IMAGE_ASPECT_COLOR_BIT,
+                                                    VK_PIPELINE_STAGE_NONE, VK_PIPELINE_STAGE_NONE);
+            RenderEnvironment::EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
+            textureImageView = RenderEnvironment::CreateImageView(textureImage, format, VK_IMAGE_ASPECT_COLOR_BIT);
+            createTextureSampler(minFilter, magFilter, addressMode, anisotropyEnable);
         }
 
         ~Texture2D()
@@ -49,7 +86,7 @@ namespace vke_render
         }
 
     private:
-        void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+        void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
         {
             RenderEnvironment *instance = RenderEnvironment::GetInstance();
             VkCommandBuffer commandBuffer = RenderEnvironment::BeginSingleTimeCommands(instance->commandPool);
@@ -70,17 +107,19 @@ namespace vke_render
             RenderEnvironment::EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
         }
 
-        void createTextureSampler()
+        void createTextureSampler(VkFilter minFilter = VK_FILTER_LINEAR, VkFilter magFilter = VK_FILTER_LINEAR,
+                                  VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                  bool anisotropyEnable = VK_TRUE)
         {
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-            samplerInfo.magFilter = VK_FILTER_LINEAR;
-            samplerInfo.minFilter = VK_FILTER_LINEAR;
-            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.magFilter = magFilter;
+            samplerInfo.minFilter = minFilter;
+            samplerInfo.addressModeU = addressMode;
+            samplerInfo.addressModeV = addressMode;
+            samplerInfo.addressModeW = addressMode;
 
-            samplerInfo.anisotropyEnable = VK_TRUE;
+            samplerInfo.anisotropyEnable = anisotropyEnable;
             samplerInfo.maxAnisotropy = RenderEnvironment::GetInstance()->physicalDeviceProperties.limits.maxSamplerAnisotropy;
             samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
             samplerInfo.unnormalizedCoordinates = VK_FALSE;

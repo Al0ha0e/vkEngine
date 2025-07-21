@@ -21,7 +21,8 @@ namespace vke_common
     const AssetHandle CUSTOM_ASSET_ID_ST = 1024;
 
     const AssetHandle BUILTIN_TEXTURE_DEFAULT_ID = 1;
-    const AssetHandle BUILTIN_TEXTURE_SKYBOX_ID = 2;
+    const AssetHandle BUILTIN_TEXTURE_TLUT_ID = 2;
+    const AssetHandle BUILTIN_TEXTURE_SLUT_ID = 3;
 
     const AssetHandle BUILTIN_MESH_PLANE_ID = 1;
     const AssetHandle BUILTIN_MESH_CUBE_ID = 2;
@@ -31,6 +32,8 @@ namespace vke_common
 
     const AssetHandle BUILTIN_VFSHADER_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_VFSHADER_SKYBOX_ID = 2;
+
+    const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
 
     const AssetHandle BUILTIN_MATERIAL_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_MATERIAL_SKYBOX_ID = 2;
@@ -103,11 +106,52 @@ namespace vke_common
         DEFAULT_CONSTRUCTOR2(type)                   \
     };
 
-    LEAF_ASSET_TYPE(TextureAsset, ASSET_TEXTURE, vke_render::Texture2D)
     LEAF_ASSET_TYPE(MeshAsset, ASSET_MESH, vke_render::Mesh)
     LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ShaderModuleSet)
     LEAF_ASSET_TYPE(PhysicsMaterialAsset, ASSET_PHYSICS_MATERIAL, vke_physics::PhysicsMaterial)
     LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, int);
+
+    class TextureAsset : public Asset<ASSET_TEXTURE, TextureAsset, vke_render::Texture2D>
+    {
+    public:
+        VkFormat format;
+        VkImageUsageFlags usage;
+        VkImageLayout layout;
+        VkFilter minFilter;
+        VkFilter magFilter;
+        VkSamplerAddressMode addressMode;
+        bool anisotropyEnable;
+
+        TextureAsset() {}
+
+        TextureAsset(AssetHandle id, nlohmann::json &json) : Asset(id, json)
+        {
+            format = json.contains("format") ? json["format"] : VK_FORMAT_R8G8B8A8_SRGB;
+            usage = json.contains("usage") ? json["usage"] : VK_IMAGE_USAGE_SAMPLED_BIT;
+            layout = json.contains("layout") ? json["layout"] : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            minFilter = json.contains("minFilter") ? json["minFilter"] : VK_FILTER_LINEAR;
+            magFilter = json.contains("magFilter") ? json["magFilter"] : VK_FILTER_LINEAR;
+            addressMode = json.contains("addressMode") ? json["addressMode"] : VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            anisotropyEnable = json.contains("anisotropy") ? json["anisotropy"] : true;
+        }
+
+        TextureAsset(AssetHandle id, const std::string &nm, const std::string &pth)
+            : Asset(id, nm, pth),
+              format(VK_FORMAT_R8G8B8A8_SRGB), usage(VK_IMAGE_USAGE_SAMPLED_BIT), layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
+              minFilter(VK_FILTER_LINEAR), magFilter(VK_FILTER_LINEAR), addressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT), anisotropyEnable(VK_TRUE) {}
+
+        std::string toJSON()
+        {
+            std::string ret = ", \"format\": " + std::to_string(format) +
+                              ", \"usage\": " + std::to_string(usage) +
+                              ", \"layout\": " + std::to_string(layout) +
+                              ", \"minFilter\": " + std::to_string(minFilter) +
+                              ", \"magFilter\": " + std::to_string(magFilter) +
+                              ", \"addressMode\": " + std::to_string(addressMode) +
+                              ", \"anisotropy\": " + std::to_string(anisotropyEnable);
+            return ret;
+        }
+    };
 
     class VFShaderAsset : public Asset<ASSET_VF_SHADER, VFShaderAsset, vke_render::ShaderModuleSet>
     {
