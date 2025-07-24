@@ -22,14 +22,73 @@ selflibs = GetFileWithExt("./libs",".lib")
 print(dlls)
 print(selflibs)
 
+######################### JOLT #########################
+USE_AVX512 = False
+USE_AVX2 = True
+USE_AVX = True
+USE_FMADD = False
+CROSS_PLATFORM_DETERMINISTIC = True
+OBJECT_LAYER_BITS = 0
+DEBUG = False
+
+jolt_ccflags = ["/std:c++17","/EHsc","/O2"]
+
+jolt_cppdefines = [
+    # "JPH_DISABLE_CUSTOM_ALLOCATOR",
+    # "JPH_ENABLE_ASSERTS",
+    "JPH_DOUBLE_PRECISION",
+    # "JPH_USE_STD_VECTOR",
+    # "JPH_TRACK_BROADPHASE_STATS",
+    # "JPH_TRACK_NARROWPHASE_STATS",
+    "JPH_OBJECT_STREAM",
+    "JPH_USE_SSE4_1",
+    "JPH_USE_SSE4_2",
+    "JPH_USE_LZCNT",
+    "JPH_USE_TZCNT",
+    "JPH_USE_F16C"
+]
+
+if DEBUG:
+    jolt_cppdefines.append("_DEBUG")
+else:
+    jolt_cppdefines.append("NDEBUG")
+
+if OBJECT_LAYER_BITS > 0:
+    jolt_cppdefines.append(f"JPH_OBJECT_LAYER_BITS={OBJECT_LAYER_BITS}")
+
+if CROSS_PLATFORM_DETERMINISTIC:
+    jolt_cppdefines.append("JPH_CROSS_PLATFORM_DETERMINISTIC")
+elif USE_FMADD:
+    jolt_cppdefines.append("JPH_USE_FMADD")
+
+
+if USE_AVX512:
+    jolt_ccflags.append("/arch:AVX512")
+elif USE_AVX2:
+    jolt_ccflags.append("/arch:AVX2")
+elif USE_AVX:
+    jolt_ccflags.append("/arch:AVX")
+
+if USE_AVX512:
+    jolt_cppdefines.append("JPH_USE_AVX512")
+if USE_AVX2:
+    jolt_cppdefines.append("JPH_USE_AVX2")
+if USE_AVX:
+    jolt_cppdefines.append("JPH_USE_AVX")
+
+#########################
+
 env = Environment(CC = 'cl',
-                   CCFLAGS = ['/std:c++17','/EHsc','/O2'])
+                   CCFLAGS = ['/std:c++17','/EHsc','/O2'] + jolt_ccflags)
+
+joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppdefines'])
+
 
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
-cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/vma']
-cppdefines = ['NDEBUG']
-commonsrc = ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
+cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/vma','./third_party/']
+cppdefines = [] # ['NDEBUG']
+commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/opaque_render.cpp", "./src/render/shader.cpp", "./src/render/pipeline.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/physics.cpp","./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp"]
@@ -38,6 +97,7 @@ targetinfo = [
     ["out/test", ["./tests/test.cpp" ]],
     ["out/test_env",["./tests/test_env.cpp"]],
     ["out/test_physx",["./tests/test_physx.cpp"]],
+    ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],
     ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]]
 ]
@@ -45,12 +105,12 @@ targetinfo = [
 for info in targetinfo:
     env.Program(info[0],
         info[1]+commonsrc,
-        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines,
+        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines,
         SCONS_CXX_STANDARD="c++17")
 
 
 env.Library("out/vkengine",commonsrc,
-                        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines,
+                        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines,
                         SCONS_CXX_STANDARD="c++17")
 
 ### shader

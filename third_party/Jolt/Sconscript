@@ -1,0 +1,17 @@
+import os, fnmatch
+
+Import("env", "jolt_cppdefines")
+
+def glob_cpp(root="."):
+    matches = []
+    for base, dirs, files in os.walk(root):
+        matches += [os.path.join(base, f) for f in fnmatch.filter(files, "*.cpp")]
+    return matches
+
+
+objs = env.Object(glob_cpp(),
+    CPPPATH="../", 
+    SCONS_CXX_STANDARD="c++17",
+    CPPDEFINES=jolt_cppdefines)
+
+Return("objs")
