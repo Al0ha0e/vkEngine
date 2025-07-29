@@ -86,17 +86,16 @@ joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppd
 
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
-cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/vma','./third_party/']
+cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/vma','./third_party/']
 cppdefines = [] # ['NDEBUG']
 commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/opaque_render.cpp", "./src/render/shader.cpp", "./src/render/pipeline.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
-                "./src/input.cpp", "./src/time.cpp", "./src/physics.cpp","./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp"]
+                "./src/input.cpp", "./src/time.cpp", "./src/physics/physics.cpp","./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp"]
 
 targetinfo = [
     ["out/test", ["./tests/test.cpp" ]],
     ["out/test_env",["./tests/test_env.cpp"]],
-    ["out/test_physx",["./tests/test_physx.cpp"]],
     ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],
     ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]]

@@ -1,8 +1,0 @@
-[
-  {
-    "type": 5,
-    "id": 1024,
-    "name": "test_physics_mat",
-    "path": "./tests/material/physx_mat1.json"
-  }
-]

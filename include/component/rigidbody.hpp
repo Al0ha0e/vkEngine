@@ -1,7 +1,8 @@
 #ifndef RIGIDBODY_H
 #define RIGIDBODY_H
 
-#include <physics.hpp>
+#include <physics/physics.hpp>
+#include <physics/shape.hpp>
 #include <asset.hpp>
 #include <gameobject.hpp>
 
@@ -10,39 +11,42 @@ namespace vke_physics
     class RigidBody : public vke_common::Component
     {
     public:
-        physx::PxRigidActor *rigidActor;
-        std::unique_ptr<physx::PxGeometry> geometry;
-        std::shared_ptr<PhysicsMaterial> material;
-        physx::PxShapeFlags shapeFlags;
+        JPH::BodyID bodyID;
+        std::shared_ptr<PhyscisShape> shape;
 
-        RigidBody(std::unique_ptr<physx::PxGeometry> &&geom,
-                  std::shared_ptr<PhysicsMaterial> &mat,
+        RigidBody(JPH::EMotionType motionType,
+                  JPH::ObjectLayer layer,
+                  float friction, float restitution,
+                  std::shared_ptr<PhyscisShape> &shape,
                   vke_common::GameObject *obj)
-            : geometry(std::forward<std::unique_ptr<physx::PxGeometry> &&>(geom)), material(mat), Component(obj)
+            : shape(shape), Component(obj)
         {
-            init(obj->isStatic);
+            init(motionType, layer, friction, restitution);
         }
 
-        RigidBody(vke_common::GameObject *obj, nlohmann::json &json) : Component(obj)
+        RigidBody(vke_common::GameObject *obj, nlohmann::json &json)
+            : Component(obj), shape(new PhyscisShape(json["shape"]))
         {
-            parseGeometryJSON(json["shape"]);
-            material = vke_common::AssetManager::LoadPhysicsMaterial(json["material"]);
-            bool isStatic = json["static"];
-            init(isStatic);
+            init(json["motionType"], json["layer"], json["friction"], json["restitution"]);
         }
 
         ~RigidBody()
         {
-            PhysicsManager::GetInstance()->gScene->removeActor(*rigidActor);
             PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
+            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
+            interface.RemoveBody(bodyID);
+            interface.DestroyBody(bodyID);
         }
 
         std::string ToJSON() override
         {
+            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
             std::string ret = "{\n\"type\":\"rigidbody\",\n";
-            ret += "\"static\": " + std::string((rigidActor->getType() == physx::PxActorType::eRIGID_STATIC) ? "true" : "false") + ",\n";
-            ret += "\"material\": " + std::to_string(material->handle) + ",\n";
-            ret += "\"shape\": " + genGeometryJSON();
+            ret += "\"motionType\": " + std::to_string((int)interface.GetMotionType(bodyID)) + ",\n";
+            ret += "\"layer\": " + std::to_string((int)interface.GetObjectLayer(bodyID)) + ",\n";
+            ret += "\"friction\": " + std::to_string(interface.GetFriction(bodyID)) + ",\n";
+            ret += "\"restitution\": " + std::to_string(interface.GetRestitution(bodyID)) + ",\n";
+            ret += "\"shape\": " + shape->ToJSON();
             ret += "\n}";
             return ret;
         }
@@ -55,111 +59,34 @@ namespace vke_physics
         static void update(void *self, void *info)
         {
             RigidBody *rigidbody = (RigidBody *)self;
-            physx::PxTransform transform = rigidbody->rigidActor->getGlobalPose();
-            rigidbody->gameObject->SetLocalPosition(glm::vec3(transform.p.x, transform.p.y, transform.p.z));
-            rigidbody->gameObject->SetLocalRotation(glm::quat(transform.q.w, transform.q.x, transform.q.y, transform.q.z));
+
+            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
+            JPH::RVec3 position;
+            JPH::Quat rotation;
+            interface.GetPositionAndRotation(rigidbody->bodyID, position, rotation);
+            JPH::RVec3 cpos;
+            cpos = interface.GetCenterOfMassPosition(rigidbody->bodyID);
+
+            rigidbody->gameObject->SetLocalPosition(glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
+            rigidbody->gameObject->SetLocalRotation(glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
             // TODO Set Global
         }
 
     private:
         vke_ds::id32_t physicsUpdateListenerID;
 
-        void init(bool isStatic)
+        void init(JPH::EMotionType motionType, JPH::ObjectLayer layer, float friction, float restitution)
         {
-            shapeFlags = physx::PxShapeFlag::eSCENE_QUERY_SHAPE | physx::PxShapeFlag::eSIMULATION_SHAPE;
-            physx::PxPhysics *gPhysics = PhysicsManager::GetInstance()->gPhysics;
             vke_common::TransformParameter &param = gameObject->transform;
-
-            physx::PxTransform transform(param.position.x, param.position.y, param.position.z,
-                                         physx::PxQuat(param.rotation.x, param.rotation.y, param.rotation.z, param.rotation.w));
-            physx::PxShape *shape;
-
-            if (isStatic)
-            {
-                rigidActor = gPhysics->createRigidStatic(transform);
-                shape = physx::PxRigidActorExt::createExclusiveShape(*rigidActor, *geometry, *(material->material), shapeFlags);
-                if (geometry->getType() == physx::PxGeometryType::Enum::eCAPSULE ||
-                    geometry->getType() == physx::PxGeometryType::Enum::ePLANE)
-                {
-                    physx::PxTransform relativePose(physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
-                    shape->setLocalPose(relativePose);
-                }
-            }
-            else
-            {
-                physx::PxRigidDynamic *rigidDynamic = gPhysics->createRigidDynamic(transform);
-                shape = physx::PxRigidActorExt::createExclusiveShape(*rigidDynamic, *geometry, *material->material, shapeFlags);
-
-                if (geometry->getType() == physx::PxGeometryType::Enum::eCAPSULE)
-                {
-                    physx::PxTransform relativePose(physx::PxQuat(physx::PxHalfPi, physx::PxVec3(0, 0, 1)));
-                    shape->setLocalPose(relativePose);
-                    physx::PxRigidBodyExt::updateMassAndInertia(*rigidDynamic, 1.0f);
-                }
-
-                rigidActor = rigidDynamic;
-            }
-
-            PhysicsManager::GetInstance()->gScene->addActor(*rigidActor);
+            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
+            JPH::BodyCreationSettings settings(shape->shapeRef,
+                                               JPH::RVec3(param.position.x, param.position.y, param.position.z),
+                                               JPH::Quat(param.rotation.x, param.rotation.y, param.rotation.z, param.rotation.w),
+                                               motionType, layer);
+            bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+            interface.SetFriction(bodyID, friction);
+            interface.SetRestitution(bodyID, restitution);
             physicsUpdateListenerID = PhysicsManager::RegisterUpdateListener(this, std::function<void(void *, void *)>(update));
-        }
-
-        std::string genGeometryJSON()
-        {
-            auto type = geometry->getType();
-            std::string ret = "{ \"type\": " + std::to_string((int)type);
-            switch (type)
-            {
-            case physx::PxGeometryType::eSPHERE:
-            {
-                float r = ((physx::PxSphereGeometry *)(geometry.get()))->radius;
-                ret += ", \"r\": " + std::to_string(r);
-            }
-            break;
-            case physx::PxGeometryType::eCAPSULE:
-            {
-                physx::PxCapsuleGeometry *capsule = (physx::PxCapsuleGeometry *)(geometry.get());
-                ret += ", \"r\": " + std::to_string(capsule->radius) + ", \"h\": " + std::to_string(capsule->halfHeight); // TODO Direction
-            }
-            break;
-            case physx::PxGeometryType::eBOX:
-            {
-                physx::PxBoxGeometry *box = (physx::PxBoxGeometry *)(geometry.get());
-                ret += ", \"e\": [" + std::to_string(box->halfExtents.x) + ", " + std::to_string(box->halfExtents.y) + ", " + std::to_string(box->halfExtents.z) + "]";
-            }
-            break;
-            case physx::PxGeometryType::ePLANE:
-                break;
-            default:
-                break;
-            }
-            ret += " }";
-            return ret;
-        }
-
-        void parseGeometryJSON(nlohmann::json &json)
-        {
-            physx::PxGeometryType::Enum type = json["type"];
-            switch (type)
-            {
-            case physx::PxGeometryType::eSPHERE:
-                geometry = std::make_unique<physx::PxSphereGeometry>((float)json["r"]);
-                break;
-            case physx::PxGeometryType::eCAPSULE:
-                geometry = std::make_unique<physx::PxCapsuleGeometry>((float)json["r"], (float)json["h"]);
-                break;
-            case physx::PxGeometryType::eBOX:
-            {
-                auto &extent = json["e"];
-                geometry = std::make_unique<physx::PxBoxGeometry>(extent[0], extent[1], extent[2]);
-            }
-            break;
-            case physx::PxGeometryType::ePLANE:
-                geometry = std::make_unique<physx::PxPlaneGeometry>();
-                break;
-            default:
-                break;
-            }
         }
     };
 }

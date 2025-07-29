@@ -1,0 +1,114 @@
+{
+  "maxid": 5,
+  "layers": ["default", "editor", "test"],
+  "objects": [
+    {
+      "id": 1,
+      "static": true,
+      "name": "scene_cam",
+      "layer": 1,
+      "parent": 0,
+      "transform": {
+        "pos": [-5.791734, 0.468531, 13.128233],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.090626, -0.067783, -0.006184, 0.993539]
+      },
+      "components": [
+        {
+          "type": "camera",
+          "id": 1,
+          "fov": 70.0,
+          "width": 1024.0,
+          "height": 768.0,
+          "near": 0.01,
+          "far": 1000.0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 2,
+      "static": true,
+      "name": "plane",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, -2.0, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 1
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 0,
+          "layer": 0,
+          "friction": 0.1,
+          "restitution": 0.1,
+          "shape": { "type": 1, "halfExtent": [10.0, 0.2, 10.0] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 3,
+      "static": false,
+      "name": "sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 2, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.1,
+          "restitution": 0.1,
+          "shape": { "type": 0, "radius": 1.0 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 4,
+      "static": false,
+      "name": "sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.2, 5, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.1,
+          "restitution": 0.1,
+          "shape": { "type": 0, "radius": 1.0 }
+        }
+      ],
+      "children": []
+    }
+  ]
+}

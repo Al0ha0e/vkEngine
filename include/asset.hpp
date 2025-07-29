@@ -7,7 +7,7 @@
 #include <render/texture.hpp>
 #include <nlohmann/json.hpp>
 
-#include <physics.hpp>
+#include <physics/physics.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -45,7 +45,6 @@ namespace vke_common
         ASSET_VF_SHADER,
         ASSET_COMPUTE_SHADER,
         ASSET_MATERIAL,
-        ASSET_PHYSICS_MATERIAL,
         ASSET_SCENE,
         ASSET_CNT_FLAG
     };
@@ -108,7 +107,6 @@ namespace vke_common
 
     LEAF_ASSET_TYPE(MeshAsset, ASSET_MESH, vke_render::Mesh)
     LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ShaderModuleSet)
-    LEAF_ASSET_TYPE(PhysicsMaterialAsset, ASSET_PHYSICS_MATERIAL, vke_physics::PhysicsMaterial)
     LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, int);
 
     class TextureAsset : public Asset<ASSET_TEXTURE, TextureAsset, vke_render::Texture2D>
@@ -249,7 +247,6 @@ namespace vke_common
         std::map<AssetHandle, VFShaderAsset> vfShaderCache;
         std::map<AssetHandle, ComputeShaderAsset> computeShaderCache;
         std::map<AssetHandle, MaterialAsset> materialCache;
-        std::map<AssetHandle, PhysicsMaterialAsset> physicsMaterialCache;
         std::map<AssetHandle, SceneAsset> sceneCache;
 
         static AssetManager *GetInstance()
@@ -283,21 +280,18 @@ namespace vke_common
         static std::unique_ptr<vke_render::ShaderModuleSet> LoadVertFragShaderUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_render::ShaderModuleSet> LoadComputeShaderUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_render::Material> LoadMaterialUnique(const AssetHandle hdl);
-        static std::unique_ptr<vke_physics::PhysicsMaterial> LoadPhysicsMaterialUnique(const AssetHandle hdl);
 
         static std::shared_ptr<vke_render::Texture2D> LoadTexture2D(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Mesh> LoadMesh(const AssetHandle hdl);
         static std::shared_ptr<vke_render::ShaderModuleSet> LoadVertFragShader(const AssetHandle hdl);
         static std::shared_ptr<vke_render::ShaderModuleSet> LoadComputeShader(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Material> LoadMaterial(const AssetHandle hdl);
-        static std::shared_ptr<vke_physics::PhysicsMaterial> LoadPhysicsMaterial(const AssetHandle hdl);
 
         ASSET_OP_FUNCS(TextureAsset, textureCache)
         ASSET_OP_FUNCS(MeshAsset, meshCache)
         ASSET_OP_FUNCS(VFShaderAsset, vfShaderCache)
         ASSET_OP_FUNCS(ComputeShaderAsset, computeShaderCache)
         ASSET_OP_FUNCS(MaterialAsset, materialCache)
-        ASSET_OP_FUNCS(PhysicsMaterialAsset, physicsMaterialCache)
         ASSET_OP_FUNCS(SceneAsset, sceneCache)
 
     private:

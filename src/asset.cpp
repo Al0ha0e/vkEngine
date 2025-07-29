@@ -51,7 +51,6 @@ namespace vke_common
                 LOAD_LUT_CASE(ASSET_VF_SHADER, VFShaderAsset, vfShaderCache)
                 LOAD_LUT_CASE(ASSET_COMPUTE_SHADER, ComputeShaderAsset, computeShaderCache)
                 LOAD_LUT_CASE(ASSET_MATERIAL, MaterialAsset, materialCache)
-                LOAD_LUT_CASE(ASSET_PHYSICS_MATERIAL, PhysicsMaterialAsset, physicsMaterialCache)
                 LOAD_LUT_CASE(ASSET_SCENE, SceneAsset, sceneCache)
             default:
                 break;
@@ -73,7 +72,6 @@ namespace vke_common
         ASSET_TO_JSON(vfShaderCache)
         ASSET_TO_JSON(computeShaderCache)
         ASSET_TO_JSON(materialCache)
-        ASSET_TO_JSON(physicsMaterialCache)
         for (auto &kv : sceneCache)
             ret += "\n" + kv.second.ToJSON() + ",";
 

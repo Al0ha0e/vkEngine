@@ -7,7 +7,7 @@
 #include <render/descriptor.hpp>
 #include <scene.hpp>
 #include <event.hpp>
-#include <physics.hpp>
+#include <physics/physics.hpp>
 
 namespace vke_common
 {

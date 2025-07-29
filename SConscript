@@ -23,7 +23,7 @@ print(selflibs)
 
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
-cpppath = ['./include',"./include/physx/",'D:/VulkanSDK/Include']
+cpppath = ['./include', 'D:/VulkanSDK/Include']
 cppdefines = ['NDEBUG','COMPILE_TO_LIB','REL_DIR='+reldir]
 commonsrc = ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/base_render.cpp","./src/render/opaque_render.cpp",

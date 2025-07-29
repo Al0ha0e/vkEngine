@@ -193,30 +193,6 @@ namespace vke_common
         return loadFromCacheOrUpdate<vke_render::Material>(instance->materialCache, hdl, op);
     }
 
-    static inline std::unique_ptr<vke_physics::PhysicsMaterial> loadPhysicsMaterial(const AssetHandle hdl, const std::string &pth)
-    {
-        nlohmann::json &json(loadJSON(pth));
-
-        physx::PxMaterial *mat = vke_physics::PhysicsManager::GetInstance()->gPhysics->createMaterial(
-            json["static_friction"], json["dynamic_friction"], json["restitution"]);
-
-        return std::make_unique<vke_physics::PhysicsMaterial>(hdl, mat);
-    }
-
-    std::unique_ptr<vke_physics::PhysicsMaterial> AssetManager::LoadPhysicsMaterialUnique(const AssetHandle hdl)
-    {
-        auto &asset = tryGetAsset(instance->physicsMaterialCache, hdl);
-        return loadPhysicsMaterial(hdl, asset.path);
-    }
-
-    std::shared_ptr<vke_physics::PhysicsMaterial> AssetManager::LoadPhysicsMaterial(const AssetHandle hdl)
-    {
-        std::function<std::unique_ptr<vke_physics::PhysicsMaterial>(PhysicsMaterialAsset &)> op = [hdl](PhysicsMaterialAsset &asset)
-        { return loadPhysicsMaterial(hdl, asset.path); };
-
-        return loadFromCacheOrUpdate<vke_physics::PhysicsMaterial>(instance->physicsMaterialCache, hdl, op);
-    }
-
     static std::unique_ptr<vke_render::Mesh> processMesh(const AssetHandle hdl, aiMesh *mesh, const aiScene *scene)
     {
         std::vector<vke_render::Vertex> vertices;
