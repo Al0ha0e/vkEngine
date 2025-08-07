@@ -9,7 +9,7 @@
 #include <set>
 #include <memory>
 #include <event.hpp>
-#include <vk_mem_alloc.h>
+#include <vma/vk_mem_alloc.h>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
