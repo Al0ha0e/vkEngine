@@ -73,7 +73,7 @@ namespace vke_render
             camInfoBuffer.ToBufferAsync(commandBuffer, 0, camInfoBuffer.bufferSize);
         };
 
-        cameraUpdateTaskID = frameGraph->AllocTaskNode("camera update", RENDER_TASK, copyCallback);
+        cameraUpdateTaskID = frameGraph->AllocTaskNode("camera update", TRANSFER_TASK, copyCallback);
 
         // copy
         frameGraph->AddTaskNodeResourceRef(cameraUpdateTaskID, false, 0, cameraResourceNodeID,

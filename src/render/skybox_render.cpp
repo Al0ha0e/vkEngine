@@ -15,7 +15,7 @@ namespace vke_render
         VkDescriptorImageInfo info{};
         info.imageView = skyLUT->textureImageView;
         vke_ds::id32_t lutResourceID = frameGraph.AddPermanentImageResource("skyLUT", skyLUT->textureImage, VK_IMAGE_ASPECT_COLOR_BIT, info,
-                                                                            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
+                                                                            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
         vke_ds::id32_t lutOutResourceNodeID = frameGraph.AllocResourceNode("outSkyLUT", false, lutResourceID);
 
         frameGraph.AddTaskNodeResourceRef(lutTaskID, false, 0, lutOutResourceNodeID,

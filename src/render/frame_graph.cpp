@@ -44,36 +44,21 @@ namespace vke_render
                 }
     }
 
-    void FrameGraph::clearLastUsedInfo()
-    {
-        for (auto &resource : permanentResources)
-        {
-            resource->lastUsedTask = nullptr;
-            resource->lastUsedRef = nullptr;
-        }
-
-        for (auto &kv : transientResources)
-        {
-            kv.second->lastUsedTask = nullptr;
-            kv.second->lastUsedRef = nullptr;
-        }
-    }
-
     void FrameGraph::checkCrossQueue(ResourceRef &ref, TaskNode &taskNode)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
 
-        if (resource->lastUsedTask != nullptr && resource->lastUsedTask->actualTaskType != taskNode.actualTaskType)
+        if (resource->tmpPrevUsedTask != nullptr && resource->tmpPrevUsedTask->actualTaskType != taskNode.actualTaskType)
         {
-            resource->lastUsedTask->needQueueSubmit = true;
+            resource->tmpPrevUsedTask->needQueueSubmit = true;
             taskNode.needQueueSubmit = true;
-            resource->lastUsedRef->crossQueueRef = &ref;
-            resource->lastUsedRef->crossQueueTask = &taskNode;
+            resource->tmpPrevUsedRef->crossQueueRef = &ref;
+            resource->tmpPrevUsedRef->crossQueueTask = &taskNode;
         }
 
-        resource->lastUsedTask = &taskNode;
-        resource->lastUsedRef = &ref;
+        resource->tmpPrevUsedTask = &taskNode;
+        resource->tmpPrevUsedRef = &ref;
     }
 
     void FrameGraph::Compile()
@@ -90,7 +75,7 @@ namespace vke_render
         for (auto &kv : taskNodes)
         {
             TaskNode &node = *kv.second;
-            node.valid = false;
+            node.Reset();
             for (auto &ref : node.resourceRefs)
             {
                 if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
@@ -113,8 +98,6 @@ namespace vke_render
             TaskNode &node = *taskNodes[taskQueue.front()];
             taskQueue.pop();
             node.valid = true;
-            node.indeg = 0;
-            node.needQueueSubmit = false;
 
             for (auto &ref : node.resourceRefs)
             {
@@ -174,8 +157,13 @@ namespace vke_render
 
         // TODO handle transient resources
 
-        clearLastUsedInfo();
-        submitCnts[0] = submitCnts[1] = submitCnts[2] = 0;
+        for (auto &resource : permanentResources)
+            resource->ResetTmpValues();
+
+        for (auto &kv : transientResources)
+            kv.second->ResetTmpValues();
+
+        submitCntEstimates[0] = submitCntEstimates[1] = submitCntEstimates[2] = 0;
 
         if (haveQueue[COMPUTE_TASK] || haveQueue[TRANSFER_TASK])
         {
@@ -185,26 +173,42 @@ namespace vke_render
                 for (auto &ref : taskNode.resourceRefs)
                     checkCrossQueue(ref, taskNode);
             }
-            clearLastUsedInfo();
         }
 
+        // construct first access
+        for (auto taskID : orderedTasks)
+        {
+            TaskNode &taskNode = *taskNodes[taskID];
+            for (auto &ref : taskNode.resourceRefs)
+            {
+                ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
+                auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+                if (resource->firstAccessTaskID == 0)
+                    resource->firstAccessTaskID = taskID;
+            }
+        }
+        // construct last access
         for (int i = orderedTasks.size() - 1; i >= 0; --i)
         {
-            TaskNode &taskNode = *taskNodes[orderedTasks[i]];
-            uint32_t &cnt = submitCnts[taskNode.actualTaskType];
+            vke_ds::id32_t taskID = orderedTasks[i];
+            TaskNode &taskNode = *taskNodes[taskID];
+            for (auto &ref : taskNode.resourceRefs)
+            {
+                ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
+                auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+                if (resource->lastAccessTaskID == 0)
+                    resource->lastAccessTaskID = taskID;
+            }
+
+            uint32_t &cnt = submitCntEstimates[taskNode.actualTaskType];
             if (cnt == 0)
             {
-                taskNode.needQueueSubmit = true;
+                taskNode.isFinalTask = true;
                 ++cnt;
             }
             else if (taskNode.needQueueSubmit)
                 ++cnt;
         }
-
-        for (int i = 0; i < 3; i++)
-            if (haveQueue[i])
-                for (int j = 0; j < framesInFlight; j++)
-                    commandPools[i][j]->PreAllocateCommandBuffer(submitCnts[i]);
 
         std::cout << "orderedTask cnt " << orderedTasks.size() << "\n";
         for (auto taskID : orderedTasks)
@@ -213,36 +217,82 @@ namespace vke_render
     }
 
     void FrameGraph::syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
+                                   bool &needQueueSubmit,
                                    std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                                    std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
                                    uint64_t &waitSemaphoreValue, VkPipelineStageFlags &waitDstStageMask)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
-        // std::cout << "----SYNC RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
-        if (resource->lastUsedRef == nullptr) // first use of resource
+        // std::cout << "----SYNC RESOURCE " << "TASK " << taskNode.name << " RESOURCE_NODE " << resourceNode.name << " RESOURCE " << resource->name << "\n";
+        // std::cout << "resource prevUsedTask " << resource->prevUsedTask << " " << resource->prevUsedRef << "\n";
+        if (!resourceNode.isTransient && resource->firstAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE &&
+            permanentResourceStates[resourceNode.resourceID].stImageLayout.has_value()) // first use of resource
         {
-            if (!resourceNode.isTransient)
+            PermanentResourceState &state = permanentResourceStates[resourceNode.resourceID];
+            if (state.stImageLayout.has_value() &&
+                state.stImageLayout.value() != ref.imageLayout)
             {
-                PermanentResourceState &state = permanentResourceStates[resourceNode.resourceID];
+                // std::cout << "  FIRST IMAGE USE\n";
+                ImageResource *imageResource = (ImageResource *)resource.get();
+                imageMemoryBarriers.emplace_back();
+                VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+                barrier.pNext = nullptr;
+                barrier.srcStageMask = state.stStage;
+                barrier.srcAccessMask = VK_ACCESS_NONE;
+                barrier.dstStageMask = ref.stageMask;
+                barrier.dstAccessMask = ref.accessMask;
+                barrier.oldLayout = state.stImageLayout.value();
+                barrier.newLayout = ref.imageLayout;
+                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.image = imageResource->image;
+                barrier.subresourceRange.aspectMask = imageResource->aspectMask;
+                barrier.subresourceRange.baseMipLevel = 0;
+                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount = 1;
+            }
+        }
+        else if (resource->prevUsedTask != nullptr)
+        {
+            ResourceRef &prevUsedRef = *(resource->prevUsedRef);
+            TaskNode &prevUsedTask = *(resource->prevUsedTask);
+            // std::cout << "PREVUSED TASK " << prevUsedTask.name << "\n";
+            if (prevUsedTask.actualTaskType != taskNode.actualTaskType) // cross queue
+            {
+                // std::cout << "  CROSS QUEUE " << prevUsedRef.imageLayout << " " << ref.imageLayout << "\n";
+                needQueueSubmit = true;
+                waitDstStageMask |= ref.stageMask;
+                waitSemaphoreValue = std::max(waitSemaphoreValue, prevUsedTask.lastSemaphoreValue);
+
                 if (resource->resourceType == IMAGE_RESOURCE &&
-                    state.stImageLayout.has_value() &&
-                    state.stImageLayout.value() != ref.imageLayout)
+                    ((prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) ||
+                     (prevUsedRef.imageLayout != ref.imageLayout)))
                 {
-                    //  std::cout << "  FIRST IMAGE USE\n";
+                    // std::cout << "  CROSS QUEUE IMAGE RECEIVE\n";
                     ImageResource *imageResource = (ImageResource *)resource.get();
                     imageMemoryBarriers.emplace_back();
                     VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                     barrier.pNext = nullptr;
-                    barrier.srcStageMask = state.stStage;
+                    barrier.srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
                     barrier.srcAccessMask = VK_ACCESS_NONE;
                     barrier.dstStageMask = ref.stageMask;
                     barrier.dstAccessMask = ref.accessMask;
-                    barrier.oldLayout = state.stImageLayout.value();
+                    barrier.oldLayout = prevUsedRef.imageLayout;
                     barrier.newLayout = ref.imageLayout;
-                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    if (prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+                    {
+                        barrier.srcQueueFamilyIndex = queueFamilies[resource->prevUsedTask->actualTaskType];
+                        barrier.dstQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
+                    }
+                    else
+                    {
+                        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    }
                     barrier.image = imageResource->image;
                     barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                     barrier.subresourceRange.baseMipLevel = 0;
@@ -251,87 +301,31 @@ namespace vke_render
                     barrier.subresourceRange.layerCount = 1;
                 }
             }
-        }
-        else if (resource->lastUsedTask != &taskNode)
-        {
-            ResourceRef &lastUsedRef = *(resource->lastUsedRef);
-            if (lastUsedRef.crossQueueRef == &ref) // cross queue
-            {
-                // std::cout << "  CROSS QUEUE\n";
-                waitDstStageMask |= ref.stageMask;
-                waitSemaphoreValue = std::max(waitSemaphoreValue, resource->lastUsedTask->order);
-                if (ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
-                {
-                    if (resource->resourceType == IMAGE_RESOURCE)
-                    {
-                        //  std::cout << "  CROSS QUEUE IMAGE RECEIVE\n";
-                        ImageResource *imageResource = (ImageResource *)resource.get();
-                        imageMemoryBarriers.emplace_back();
-                        VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
-                        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-                        barrier.pNext = nullptr;
-                        barrier.srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                        barrier.srcAccessMask = VK_ACCESS_NONE;
-                        barrier.dstStageMask = ref.stageMask;
-                        barrier.dstAccessMask = ref.accessMask;
-                        barrier.oldLayout = lastUsedRef.imageLayout;
-                        barrier.newLayout = ref.imageLayout;
-                        barrier.srcQueueFamilyIndex = queueFamilies[resource->lastUsedTask->actualTaskType];
-                        barrier.dstQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
-                        barrier.image = imageResource->image;
-                        barrier.subresourceRange.aspectMask = imageResource->aspectMask;
-                        barrier.subresourceRange.baseMipLevel = 0;
-                        barrier.subresourceRange.levelCount = 1;
-                        barrier.subresourceRange.baseArrayLayer = 0;
-                        barrier.subresourceRange.layerCount = 1;
-                    }
-                    // else
-                    // {
-                    //     //  std::cout << "  CROSS QUEUE BUFFER RECEIVE\n";
-                    //     BufferResource *bufferResource = (BufferResource *)resource.get();
-                    //     VkBufferMemoryBarrier barrier{};
-                    //     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-                    //     barrier.srcAccessMask = VK_ACCESS_NONE;
-                    //     barrier.dstAccessMask = ref.accessMask;
-                    //     barrier.srcQueueFamilyIndex = queueFamilies[resource->lastUsedTask->actualTaskType];
-                    //     barrier.dstQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
-                    //     barrier.buffer = bufferResource->info.buffer;
-                    //     barrier.offset = bufferResource->info.offset;
-                    //     barrier.size = bufferResource->info.range;
-
-                    //     vkCmdPipelineBarrier(
-                    //         commandBuffer,
-                    //         // lastUsedRef.stageMask,
-                    //         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                    //         ref.stageMask,
-                    //         0,
-                    //         0, nullptr,
-                    //         1, &barrier,
-                    //         0, nullptr);
-                    // }
-                }
-            }
             else
             {
-                //  std::cout << "  SAME QUEUE\n";
+                // std::cout << "  SAME QUEUE\n";
                 if ((ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
-                    (resource->lastUsedRef->storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
-                    ((resource->resourceType == IMAGE_RESOURCE) && resource->lastUsedRef->imageLayout != ref.imageLayout)) // TODO 先读后写不需要barrier，只需要event
+                    (prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
+                    ((resource->resourceType == IMAGE_RESOURCE) && prevUsedRef.imageLayout != ref.imageLayout))
                 {
-                    //  std::cout << "  NEED SYNC\n";
+                    bool war = (prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_NONE &&
+                                prevUsedRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD &&
+                                ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE);
+                    // std::cout << "  NEED SYNC\n";
                     if (resource->resourceType == IMAGE_RESOURCE)
                     {
-                        //  std::cout << "  IMAGE SYNC\n";
+                        war = war && prevUsedRef.imageLayout == ref.imageLayout;
+                        // std::cout << "  IMAGE SYNC\n";
                         ImageResource *imageResource = (ImageResource *)resource.get();
                         imageMemoryBarriers.emplace_back();
                         VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
                         barrier.pNext = nullptr;
-                        barrier.srcStageMask = lastUsedRef.stageMask;
-                        barrier.srcAccessMask = lastUsedRef.accessMask;
+                        barrier.srcStageMask = prevUsedRef.stageMask;
+                        barrier.srcAccessMask = war ? VK_ACCESS_NONE : prevUsedRef.accessMask;
                         barrier.dstStageMask = ref.stageMask;
-                        barrier.dstAccessMask = ref.accessMask;
-                        barrier.oldLayout = lastUsedRef.imageLayout;
+                        barrier.dstAccessMask = war ? VK_ACCESS_NONE : ref.accessMask;
+                        barrier.oldLayout = prevUsedRef.imageLayout;
                         barrier.newLayout = ref.imageLayout;
                         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -350,10 +344,10 @@ namespace vke_render
                         VkBufferMemoryBarrier2 &barrier = bufferMemoryBarriers.back();
                         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
                         barrier.pNext = nullptr;
-                        barrier.srcStageMask = lastUsedRef.stageMask;
-                        barrier.srcAccessMask = lastUsedRef.accessMask;
+                        barrier.srcStageMask = prevUsedRef.stageMask;
+                        barrier.srcAccessMask = war ? VK_ACCESS_NONE : prevUsedRef.accessMask;
                         barrier.dstStageMask = ref.stageMask;
-                        barrier.dstAccessMask = ref.accessMask;
+                        barrier.dstAccessMask = war ? VK_ACCESS_NONE : ref.accessMask;
                         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.buffer = bufferResource->info.buffer;
@@ -363,75 +357,63 @@ namespace vke_render
                 }
             }
         }
-        resource->lastUsedRef = &ref;
-        resource->lastUsedTask = &taskNode;
+        resource->prevUsedRef = &ref;
+        resource->prevUsedTask = &taskNode;
     }
 
     void FrameGraph::endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
+                                     bool &needQueueSubmit,
                                      std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                                      std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
-        //  std::cout << "----END RESOURCE " << "TASKID " << taskNode.taskID << " RESOURCE_NODE_ID " << resourceNode.resourceNodeID << " RESOURCEID " << resourceNode.resourceID << "\n";
+        // std::cout << "----END RESOURCE " << "TASK " << taskNode.name << " RESOURCE_NODE " << resourceNode.name << " RESOURCE " << resourceNode.name << "\n";
         if (ref.crossQueueRef != nullptr)
         {
             // std::cout << "  CROSS QUEUE\n";
-            if (ref.crossQueueRef->loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+            ResourceRef &crossQueueRef = *(ref.crossQueueRef);
+            needQueueSubmit = true;
+            if (resource->resourceType == IMAGE_RESOURCE &&
+                ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE &&
+                crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
             {
-                if (resource->resourceType == IMAGE_RESOURCE)
+                // std::cout << "  CROSS QUEUE IMAGE RELEASE\n";
+                ImageResource *imageResource = (ImageResource *)resource.get();
+                imageMemoryBarriers.emplace_back();
+                VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
+                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+                barrier.pNext = nullptr;
+                barrier.srcStageMask = ref.stageMask;
+                barrier.srcAccessMask = ref.accessMask;
+                barrier.dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                barrier.dstAccessMask = VK_ACCESS_NONE;
+                barrier.oldLayout = ref.imageLayout;
+                barrier.newLayout = crossQueueRef.imageLayout;
+                if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE &&
+                    crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                 {
-                    // std::cout << "  CROSS QUEUE IMAGE RELEASE\n";
-                    ImageResource *imageResource = (ImageResource *)resource.get();
-                    imageMemoryBarriers.emplace_back();
-                    VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
-                    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-                    barrier.pNext = nullptr;
-                    barrier.srcStageMask = ref.stageMask;
-                    barrier.srcAccessMask = ref.accessMask;
-                    barrier.dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-                    barrier.dstAccessMask = VK_ACCESS_NONE;
-                    barrier.oldLayout = ref.imageLayout;
-                    barrier.newLayout = ref.imageLayout;
                     barrier.srcQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
                     barrier.dstQueueFamilyIndex = queueFamilies[ref.crossQueueTask->actualTaskType];
-                    barrier.image = imageResource->image;
-                    barrier.subresourceRange.aspectMask = imageResource->aspectMask;
-                    barrier.subresourceRange.baseMipLevel = 0;
-                    barrier.subresourceRange.levelCount = 1;
-                    barrier.subresourceRange.baseArrayLayer = 0;
-                    barrier.subresourceRange.layerCount = 1;
                 }
-                // else
-                // {
-                //     // std::cout << "  CROSS QUEUE BUFFER RELEASE\n";
-                //     BufferResource *bufferResource = (BufferResource *)resource.get();
-                //     VkBufferMemoryBarrier barrier{};
-                //     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-                //     barrier.srcAccessMask = ref.accessMask;
-                //     barrier.dstAccessMask = VK_ACCESS_NONE;
-                //     barrier.srcQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
-                //     barrier.dstQueueFamilyIndex = queueFamilies[ref.crossQueueTask->actualTaskType];
-                //     barrier.buffer = bufferResource->info.buffer;
-                //     barrier.offset = bufferResource->info.offset;
-                //     barrier.size = bufferResource->info.range;
-                //     vkCmdPipelineBarrier(
-                //         commandBuffer,
-                //         ref.stageMask,
-                //         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                //         // ref.crossQueueRef->stageMask,
-                //         0,
-                //         0, nullptr,
-                //         1, &barrier,
-                //         0, nullptr);
-                // }
+                else
+                {
+                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                }
+
+                barrier.image = imageResource->image;
+                barrier.subresourceRange.aspectMask = imageResource->aspectMask;
+                barrier.subresourceRange.baseMipLevel = 0;
+                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.baseArrayLayer = 0;
+                barrier.subresourceRange.layerCount = 1;
             }
         }
-        else if (!resourceNode.isTransient && resourceNode.dstTaskIDs.size() == 0) // TODO final op 如何判断是最后一个？尤其是最后一个task是读的情况，此时没有任何对应的resourceNode.dstTaskIDs.size() == 0
+        else if (!resourceNode.isTransient && resource->lastAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE) // TODO final op 如何判断是最后一个？尤其是最后一个task是读的情况，此时没有任何对应的resourceNode.dstTaskIDs.size() == 0
         {
             PermanentResourceState &state = permanentResourceStates[resourceNode.resourceID];
-            if (resource->resourceType == IMAGE_RESOURCE &&
-                state.enImageLayout.has_value() &&
+            if (state.enImageLayout.has_value() &&
                 state.enImageLayout.value() != ref.imageLayout)
             {
                 // std::cout << "  FINAL IMAGE USE\n";
@@ -469,15 +451,16 @@ namespace vke_render
         beginInfo.pInheritanceInfo = nullptr; // Optional
         for (int i = 0; i < 3; i++)
         {
-            if (haveQueue[i] && (submitCnts[i] > 0))
+            if (i > 0 && haveQueue[i] && vkGetFenceStatus(logicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
+                vkWaitForFences(logicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
+            if (haveQueue[i] && (submitCntEstimates[i] > 0))
             {
                 if (i > 0)
                 {
-                    vkWaitForFences(logicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
-                    vkResetFences(logicalDevice, 1, &(fences[i - 1][currentFrame]));
                 }
                 CommandPool *commandPool = commandPools[i][currentFrame].get();
                 commandPool->Reset();
+                commandPool->PreAllocateCommandBuffer(submitCntEstimates[i]);
                 VkCommandBuffer commandBuffer = commandPool->AllocateCommandBuffer();
                 commandBuffers[i] = commandBuffer;
                 vkBeginCommandBuffer(commandBuffer, &beginInfo);
@@ -485,9 +468,8 @@ namespace vke_render
         }
 
         std::cout << "---------------------EXE-------------------\n";
-        uint32_t currentSubmitCnts[3] = {0, 0, 0};
+        uint32_t actualSubmitCnts[3] = {0, 0, 0};
         uint64_t waitSemaphoreValue = 0;
-        uint64_t lastRoundSemaphoreValue = lastTimelineValue;
         VkPipelineStageFlags waitDstStageMask = 0;
         std::vector<VkBufferMemoryBarrier2> bufferMemoryBarriers;
         std::vector<VkImageMemoryBarrier2> imageMemoryBarriers;
@@ -526,12 +508,13 @@ namespace vke_render
         {
             TaskNode &taskNode = *taskNodes[taskID];
             TaskType actualTaskType = taskNode.actualTaskType;
+            bool needQueueSubmit = taskNode.isFinalTask;
             VkCommandBuffer commandBuffer = commandBuffers[actualTaskType];
             std::cout << "-----------TASK <" << taskNode.name << "> TYPE " << taskNode.taskType << " ACTUAL " << actualTaskType << "\n";
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
-                syncResources(commandBuffer, ref, taskNode, bufferMemoryBarriers, imageMemoryBarriers,
+                syncResources(commandBuffer, ref, taskNode, needQueueSubmit, bufferMemoryBarriers, imageMemoryBarriers,
                               waitSemaphoreValue, waitDstStageMask);
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
@@ -544,29 +527,18 @@ namespace vke_render
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
-                endResourcesUse(commandBuffer, ref, taskNode, bufferMemoryBarriers, imageMemoryBarriers);
+                endResourcesUse(commandBuffer, ref, taskNode, needQueueSubmit, bufferMemoryBarriers, imageMemoryBarriers);
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
             dependencyInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
             dependencyInfo.pImageMemoryBarriers = imageMemoryBarriers.data();
             vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
 
-            if (taskNode.needQueueSubmit)
+            if (needQueueSubmit)
             {
                 vkEndCommandBuffer(commandBuffer);
 
                 commandBufferSubmitInfo.commandBuffer = commandBuffer;
-
-                if (waitSemaphoreValue > 0)
-                    waitSemaphoreValue += timelineSemaphoreBase;
-
-                if (currentSubmitCnts[actualTaskType] == 0)
-                {
-                    waitSemaphoreValue = std::max(waitSemaphoreValue, lastRoundSemaphoreValue);
-                    waitDstStageMask |= actualTaskType == RENDER_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
-                                                                      : (actualTaskType == COMPUTE_TASK ? VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT
-                                                                                                        : VK_PIPELINE_STAGE_TRANSFER_BIT);
-                }
 
                 if (waitSemaphoreValue > 0)
                 {
@@ -581,20 +553,24 @@ namespace vke_render
                 }
 
                 uint64_t signalSemaphoreValue = taskNode.order + timelineSemaphoreBase;
-
                 signalSemaphoreInfo.value = signalSemaphoreValue;
 
                 std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " COMMAND BUFFER " << commandBuffer << " SIGNAL " << signalSemaphoreValue << "\n";
-                lastTimelineValue = signalSemaphoreValue;
-                ++currentSubmitCnts[actualTaskType];
+                ++actualSubmitCnts[actualTaskType];
 
-                VkFence fence = (actualTaskType != RENDER_TASK && currentSubmitCnts[actualTaskType] == submitCnts[actualTaskType])
-                                    ? fences[actualTaskType - 1][currentFrame]
-                                    : VK_NULL_HANDLE;
-                vkQueueSubmit2(gpuQueues[actualTaskType], 1, &submitInfo, fence);
-
-                if (currentSubmitCnts[actualTaskType] < submitCnts[actualTaskType])
+                if (taskNode.isFinalTask)
                 {
+                    VkFence fence = nullptr;
+                    if (actualTaskType != RENDER_TASK)
+                    {
+                        fence = fences[actualTaskType - 1][currentFrame];
+                        vkResetFences(logicalDevice, 1, &fence);
+                    }
+                    vkQueueSubmit2(gpuQueues[actualTaskType], 1, &submitInfo, fence);
+                }
+                else
+                {
+                    vkQueueSubmit2(gpuQueues[actualTaskType], 1, &submitInfo, VK_NULL_HANDLE);
                     commandBuffers[actualTaskType] = commandPools[actualTaskType][currentFrame]->AllocateCommandBuffer();
                     vkBeginCommandBuffer(commandBuffers[actualTaskType], &beginInfo);
                 }
@@ -602,8 +578,10 @@ namespace vke_render
                 waitSemaphoreValue = 0;
                 waitDstStageMask = 0;
             }
+            taskNode.lastSemaphoreValue = taskNode.order + timelineSemaphoreBase;
         }
+        for (int i = 0; i < 3; i++)
+            submitCntEstimates[i] = actualSubmitCnts[i];
         timelineSemaphoreBase += orderedTasks.size();
-        clearLastUsedInfo();
     }
 }
