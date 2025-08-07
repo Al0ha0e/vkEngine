@@ -9,7 +9,7 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-#include <stb_image.h>
+#include <stb/stb_image.h>
 
 #define VKE_DEBUG
 
