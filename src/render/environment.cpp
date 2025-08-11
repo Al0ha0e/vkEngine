@@ -1,9 +1,9 @@
 #include <render/environment.hpp>
+#include <render/descriptor.hpp>
 #include <iostream>
 #include <set>
 #include <string>
 #include <algorithm>
-#include <render/descriptor.hpp>
 
 namespace vke_render
 {
@@ -336,17 +336,25 @@ namespace vke_render
             throw std::runtime_error("failed to create logical device!");
         }
 
-        vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &graphicsQueue);
+        VkQueue queue;
+        vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &queue);
+        commandQueues[GRAPHICS_QUEUE] = std::make_unique<GPUCommandQueue>(queue);
 
         if (queueFamilyIndices.computeOnlyFamily.has_value())
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.computeOnlyFamily.value(), 0, &computeQueue);
+        {
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.computeOnlyFamily.value(), 0, &queue);
+            commandQueues[COMPUTE_QUEUE] = std::make_unique<GPUCommandQueue>(queue);
+        }
         else
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &computeQueue);
+            commandQueues[COMPUTE_QUEUE] = nullptr;
 
         if (queueFamilyIndices.transferOnlyFamily.has_value())
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.transferOnlyFamily.value(), 0, &transferQueue);
+        {
+            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.transferOnlyFamily.value(), 0, &queue);
+            commandQueues[TRANSFER_QUEUE] = std::make_unique<GPUCommandQueue>(queue);
+        }
         else
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &transferQueue);
+            commandQueues[TRANSFER_QUEUE] = nullptr;
 
         vkGetDeviceQueue(logicalDevice, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
     }
@@ -568,7 +576,7 @@ namespace vke_render
         MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                              VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT,
                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
-        EndSingleTimeCommands(graphicsQueue, commandPool, tmpCmdBuffer);
+        EndSingleTimeCommands(GetGraphicsQueue(), commandPool, tmpCmdBuffer);
     }
 
     void RenderEnvironment::cleanupSwapChain()

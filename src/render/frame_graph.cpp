@@ -19,23 +19,16 @@ namespace vke_render
         VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
         vkCreateSemaphore(logicalDevice, &createInfo, nullptr, &timelineSemaphore);
 
-        gpuQueues[COMPUTE_TASK] = RenderEnvironment::GetInstance()->computeQueue;
-        gpuQueues[RENDER_TASK] = RenderEnvironment::GetInstance()->graphicsQueue;
-        gpuQueues[TRANSFER_TASK] = RenderEnvironment::GetInstance()->transferQueue;
         queueFamilies[RENDER_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.graphicsAndComputeFamily.value();
         queueFamilies[COMPUTE_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.computeOnlyFamily.value();
         queueFamilies[TRANSFER_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.transferOnlyFamily.value();
-
-        haveQueue[RENDER_TASK] = true;
-        haveQueue[COMPUTE_TASK] = gpuQueues[COMPUTE_TASK] != gpuQueues[RENDER_TASK];
-        haveQueue[TRANSFER_TASK] = gpuQueues[TRANSFER_TASK] != gpuQueues[RENDER_TASK];
 
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         for (int i = 0; i < 3; i++)
-            if (haveQueue[i])
+            if (RenderEnvironment::HasQueue(QueueType(i)))
                 for (int j = 0; j < framesInFlight; j++)
                 {
                     commandPools[i].push_back(std::make_unique<CommandPool>(queueFamilies[i], VK_COMMAND_POOL_CREATE_TRANSIENT_BIT));
@@ -165,7 +158,7 @@ namespace vke_render
 
         submitCntEstimates[0] = submitCntEstimates[1] = submitCntEstimates[2] = 0;
 
-        if (haveQueue[COMPUTE_TASK] || haveQueue[TRANSFER_TASK])
+        if (RenderEnvironment::HasQueue(COMPUTE_QUEUE) || RenderEnvironment::HasQueue(TRANSFER_QUEUE))
         {
             for (auto taskID : orderedTasks)
             {
@@ -220,7 +213,7 @@ namespace vke_render
                                    bool &needQueueSubmit,
                                    std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                                    std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
-                                   uint64_t &waitSemaphoreValue, VkPipelineStageFlags &waitDstStageMask)
+                                   uint64_t &waitSemaphoreValue, VkPipelineStageFlags2 &waitDstStageMask)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
@@ -451,9 +444,9 @@ namespace vke_render
         beginInfo.pInheritanceInfo = nullptr; // Optional
         for (int i = 0; i < 3; i++)
         {
-            if (i > 0 && haveQueue[i] && vkGetFenceStatus(logicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
+            if (i > 0 && RenderEnvironment::HasQueue(QueueType(i)) && vkGetFenceStatus(logicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
                 vkWaitForFences(logicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
-            if (haveQueue[i] && (submitCntEstimates[i] > 0))
+            if (RenderEnvironment::HasQueue(QueueType(i)) && (submitCntEstimates[i] > 0))
             {
                 if (i > 0)
                 {
@@ -470,7 +463,7 @@ namespace vke_render
         std::cout << "---------------------EXE-------------------\n";
         uint32_t actualSubmitCnts[3] = {0, 0, 0};
         uint64_t waitSemaphoreValue = 0;
-        VkPipelineStageFlags waitDstStageMask = 0;
+        VkPipelineStageFlags2 waitDstStageMask = 0;
         std::vector<VkBufferMemoryBarrier2> bufferMemoryBarriers;
         std::vector<VkImageMemoryBarrier2> imageMemoryBarriers;
         VkDependencyInfo dependencyInfo{};
@@ -555,7 +548,9 @@ namespace vke_render
                 uint64_t signalSemaphoreValue = taskNode.order + timelineSemaphoreBase;
                 signalSemaphoreInfo.value = signalSemaphoreValue;
 
-                std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << gpuQueues[actualTaskType] << " COMMAND BUFFER " << commandBuffer << " SIGNAL " << signalSemaphoreValue << "\n";
+                CommandQueue *queue = RenderEnvironment::GetQueue(QueueType(actualTaskType));
+
+                std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << queue << " COMMAND BUFFER " << commandBuffer << " SIGNAL " << signalSemaphoreValue << "\n";
                 ++actualSubmitCnts[actualTaskType];
 
                 if (taskNode.isFinalTask)
@@ -566,11 +561,11 @@ namespace vke_render
                         fence = fences[actualTaskType - 1][currentFrame];
                         vkResetFences(logicalDevice, 1, &fence);
                     }
-                    vkQueueSubmit2(gpuQueues[actualTaskType], 1, &submitInfo, fence);
+                    queue->Submit(1, &submitInfo, fence);
                 }
                 else
                 {
-                    vkQueueSubmit2(gpuQueues[actualTaskType], 1, &submitInfo, VK_NULL_HANDLE);
+                    queue->Submit(1, &submitInfo, VK_NULL_HANDLE);
                     commandBuffers[actualTaskType] = commandPools[actualTaskType][currentFrame]->AllocateCommandBuffer();
                     vkBeginCommandBuffer(commandBuffers[actualTaskType], &beginInfo);
                 }

@@ -18,11 +18,10 @@ int main()
         vke_render::OPAQUE_RENDERER,
         vke_render::SKYBOX_RENDERER};
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
-    std::vector<vke_render::RenderPassInfo> customPassInfo;
     GLFWwindow *window = initWindow(800, 600);
     vke_common::EventSystem::Init();
     vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
-    vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses, customPassInfo);
+    vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses);
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_compute_desc.json");
     {
         std::shared_ptr<vke_render::ShaderModuleSet> shader = vke_common::AssetManager::LoadComputeShader(2048);

@@ -2,6 +2,7 @@
 #define ENV_H
 
 #include <common.hpp>
+#include <render/queue.hpp>
 #include <optional>
 #include <vector>
 #include <iostream>
@@ -16,41 +17,6 @@
 namespace vke_render
 {
     const int MAX_FRAMES_IN_FLIGHT = 2;
-
-    struct QueueFamilyIndices
-    {
-        std::optional<uint32_t> graphicsAndComputeFamily;
-        std::optional<uint32_t> presentFamily;
-        std::optional<uint32_t> computeOnlyFamily;
-        std::optional<uint32_t> transferOnlyFamily;
-        std::vector<uint32_t> uniqueQueueFamilies;
-
-        void clear()
-        {
-            graphicsAndComputeFamily.reset();
-            presentFamily.reset();
-            computeOnlyFamily.reset();
-            transferOnlyFamily.reset();
-            uniqueQueueFamilies.clear();
-        }
-
-        bool isComplete()
-        {
-            return graphicsAndComputeFamily.has_value() && presentFamily.has_value();
-        }
-
-        void getUniqueQueueFamilies()
-        {
-            std::set<uint32_t> queueFamilySet = {graphicsAndComputeFamily.value(),
-                                                 presentFamily.value()};
-            if (computeOnlyFamily.has_value())
-                queueFamilySet.insert(computeOnlyFamily.value());
-            if (transferOnlyFamily.has_value())
-                queueFamilySet.insert(transferOnlyFamily.value());
-            for (auto &val : queueFamilySet)
-                uniqueQueueFamilies.push_back(val);
-        }
-    };
 
     struct SwapChainSupportDetails
     {
@@ -170,6 +136,27 @@ namespace vke_render
             throw std::runtime_error("failed to find suitable memory type!");
         }
 
+        static bool HasQueue(QueueType type)
+        {
+            return instance->commandQueues[type] != nullptr;
+        }
+
+        static GPUCommandQueue *GetGraphicsQueue()
+        {
+            return (GPUCommandQueue *)(instance->commandQueues[GRAPHICS_QUEUE].get());
+        }
+
+        static CommandQueue *GetQueue(QueueType type)
+        {
+            return instance->commandQueues[type].get();
+        }
+
+        static CommandQueue *GetQueueNotNull(QueueType type)
+        {
+            CommandQueue *ret = instance->commandQueues[type].get();
+            return ret == nullptr ? instance->commandQueues[GRAPHICS_QUEUE].get() : ret;
+        }
+
         static void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
                                  VmaAllocationCreateFlags vmaFlags, VmaMemoryUsage vmaUsage,
                                  VkBuffer *buffer, VmaAllocation *vmaAllocation, VmaAllocationInfo *vmaAllocationInfo)
@@ -200,7 +187,7 @@ namespace vke_render
             copyRegion.size = size;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-            EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
+            EndSingleTimeCommands(GetGraphicsQueue(), instance->commandPool, commandBuffer);
         }
 
         static void CreateImage(uint32_t width, uint32_t height, VkFormat format,
@@ -313,7 +300,7 @@ namespace vke_render
                 1,
                 &region);
 
-            EndSingleTimeCommands(instance->transferQueue, instance->transferCommandPool, commandBuffer);
+            EndSingleTimeCommands((GPUCommandQueue *)GetQueueNotNull(TRANSFER_QUEUE), instance->transferCommandPool, commandBuffer);
         }
 
         static VkCommandBuffer BeginSingleTimeCommands(VkCommandPool commandPool)
@@ -336,17 +323,21 @@ namespace vke_render
             return commandBuffer;
         }
 
-        static void EndSingleTimeCommands(VkQueue queue, VkCommandPool commandPool, VkCommandBuffer commandBuffer)
+        static void EndSingleTimeCommands(GPUCommandQueue *queue, VkCommandPool commandPool, VkCommandBuffer commandBuffer)
         {
             vkEndCommandBuffer(commandBuffer);
 
-            VkSubmitInfo submitInfo{};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &commandBuffer;
+            VkCommandBufferSubmitInfo commandBufferInfo{};
+            commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+            commandBufferInfo.commandBuffer = commandBuffer;
 
-            vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(queue);
+            VkSubmitInfo2 submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+            submitInfo.commandBufferInfoCount = 1;
+            submitInfo.pCommandBufferInfos = &commandBufferInfo;
+
+            queue->Submit(1, &submitInfo, VK_NULL_HANDLE);
+            vkQueueWaitIdle(queue->queue);
 
             vkFreeCommandBuffers(instance->logicalDevice, commandPool, 1, &commandBuffer);
         }
@@ -405,36 +396,36 @@ namespace vke_render
             }
             vkResetFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame]);
 
-            VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            VkSubmitInfo submitInfo{};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &(instance->imageAvailableSemaphores[currentFrame]);
-            submitInfo.pWaitDstStageMask = &waitDstStageMask;
-            submitInfo.commandBufferCount = 0;
-            submitInfo.signalSemaphoreCount = 0;
+            VkPipelineStageFlags2 waitDstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-            if (vkQueueSubmit(RenderEnvironment::GetInstance()->graphicsQueue, 1, &submitInfo, nullptr) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to submit draw command buffer!");
-            }
+            VkSemaphoreSubmitInfo waitSemaphoreInfo{};
+            waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+            waitSemaphoreInfo.semaphore = instance->imageAvailableSemaphores[currentFrame];
+            waitSemaphoreInfo.stageMask = waitDstStageMask;
+
+            VkSubmitInfo2 submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+            submitInfo.waitSemaphoreInfoCount = 1;
+            submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
+
+            GetGraphicsQueue()->Submit(1, &submitInfo, nullptr);
 
             return imageIndex;
         }
 
         static void Present(uint32_t currentFrame, uint32_t imageIndex)
         {
-            VkSubmitInfo submitInfo{};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            submitInfo.waitSemaphoreCount = 0;
-            submitInfo.commandBufferCount = 0;
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &(instance->renderFinishedSemaphores[currentFrame]);
+            VkSemaphoreSubmitInfo signalSemaphoreInfo{};
+            signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+            signalSemaphoreInfo.semaphore = instance->renderFinishedSemaphores[currentFrame];
+            signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
-            if (vkQueueSubmit(instance->graphicsQueue, 1, &submitInfo, instance->inFlightFences[currentFrame]) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to submit draw command buffer!");
-            }
+            VkSubmitInfo2 submitInfo{};
+            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+            submitInfo.signalSemaphoreInfoCount = 1;
+            submitInfo.pSignalSemaphoreInfos = &signalSemaphoreInfo;
+
+            GetGraphicsQueue()->Submit(1, &submitInfo, instance->inFlightFences[currentFrame]);
 
             VkPresentInfoKHR presentInfo{};
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -468,9 +459,7 @@ namespace vke_render
         VkPhysicalDevice physicalDevice;
         VkPhysicalDeviceProperties physicalDeviceProperties;
         VkDevice logicalDevice;
-        VkQueue graphicsQueue;
-        VkQueue computeQueue;
-        VkQueue transferQueue;
+        std::unique_ptr<CommandQueue> commandQueues[3];
         VkQueue presentQueue;
         VkFormat swapChainImageFormat;
         VkExtent2D swapChainExtent;

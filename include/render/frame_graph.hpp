@@ -52,8 +52,8 @@ namespace vke_render
         bool isTransient;
         vke_ds::id32_t inResourceNodeID;
         vke_ds::id32_t outResourceNodeID;
-        VkAccessFlags accessMask;
-        VkPipelineStageFlags stageMask;
+        VkAccessFlags2 accessMask;
+        VkPipelineStageFlags2 stageMask;
         VkImageLayout imageLayout;
         VkAttachmentLoadOp loadOp;
         VkAttachmentStoreOp storeOp;
@@ -68,7 +68,7 @@ namespace vke_render
         }
 
         ResourceRef(bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
-                    VkAccessFlags accessMask, VkPipelineStageFlags stageMask,
+                    VkAccessFlags2 accessMask, VkPipelineStageFlags2 stageMask,
                     VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                     VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                     VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
@@ -79,7 +79,7 @@ namespace vke_render
 
     enum TaskType
     {
-        RENDER_TASK,
+        RENDER_TASK = 0,
         COMPUTE_TASK,
         TRANSFER_TASK,
     };
@@ -153,7 +153,7 @@ namespace vke_render
               resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)) {}
 
         void AddResourceRef(bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
-                            VkAccessFlags accessMask, VkPipelineStageFlags stageMask,
+                            VkAccessFlags2 accessMask, VkPipelineStageFlags2 stageMask,
                             VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                             VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                             VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
@@ -232,12 +232,12 @@ namespace vke_render
 
     struct PermanentResourceState
     {
-        VkPipelineStageFlags stStage;
+        VkPipelineStageFlags2 stStage;
         std::optional<VkImageLayout> stImageLayout;
         std::optional<VkImageLayout> enImageLayout;
 
         PermanentResourceState() {}
-        PermanentResourceState(VkPipelineStageFlags stStage, std::optional<VkImageLayout> stLayout, std::optional<VkImageLayout> enLayout)
+        PermanentResourceState(VkPipelineStageFlags2 stStage, std::optional<VkImageLayout> stLayout, std::optional<VkImageLayout> enLayout)
             : stStage(stStage), stImageLayout(stLayout), enImageLayout(enLayout) {}
     };
 
@@ -245,7 +245,6 @@ namespace vke_render
     {
     public:
         uint64_t timelineSemaphoreBase;
-        bool haveQueue[3];
         std::vector<std::unique_ptr<RenderResource>> permanentResources;
         std::map<vke_ds::id32_t, std::unique_ptr<RenderResource>> transientResources;
         std::vector<PermanentResourceState> permanentResourceStates;
@@ -267,7 +266,7 @@ namespace vke_render
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
             vkDestroySemaphore(logicalDevice, timelineSemaphore, nullptr);
             for (int i = 1; i < 3; i++)
-                if (haveQueue[i])
+                if (RenderEnvironment::HasQueue(QueueType(i)))
                     for (int j = 0; j < framesInFlight; j++)
                         vkDestroyFence(logicalDevice, fences[i - 1][j], nullptr);
         }
@@ -282,7 +281,7 @@ namespace vke_render
         }
 
         vke_ds::id32_t AddPermanentImageResource(std::string &&name, VkImage image, VkImageAspectFlags aspectMask, VkDescriptorImageInfo info,
-                                                 VkPipelineStageFlags stStage, std::optional<VkImageLayout> stLayout, std::optional<VkImageLayout> enLayout)
+                                                 VkPipelineStageFlags2 stStage, std::optional<VkImageLayout> stLayout, std::optional<VkImageLayout> enLayout)
         {
             vke_ds::id32_t id = permanentResources.size();
             permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, image, aspectMask, info));
@@ -290,7 +289,7 @@ namespace vke_render
             return id;
         }
 
-        vke_ds::id32_t AddPermanentBufferResource(std::string &&name, VkDescriptorBufferInfo info, VkPipelineStageFlags stStage)
+        vke_ds::id32_t AddPermanentBufferResource(std::string &&name, VkDescriptorBufferInfo info, VkPipelineStageFlags2 stStage)
         {
             vke_ds::id32_t id = permanentResources.size();
             permanentResources.push_back(std::make_unique<BufferResource>(std::move(name), id, info));
@@ -312,16 +311,16 @@ namespace vke_render
         vke_ds::id32_t AllocTaskNode(std::string &&name, TaskType taskType, TaskNodeExecuteCallback callback)
         {
             vke_ds::id32_t id = taskIDAllocator.Alloc();
-            TaskType actualTaskType = (taskType == COMPUTE_TASK && haveQueue[COMPUTE_TASK])
+            TaskType actualTaskType = (taskType == COMPUTE_TASK && RenderEnvironment::HasQueue(COMPUTE_QUEUE))
                                           ? COMPUTE_TASK
-                                          : ((taskType == TRANSFER_TASK && haveQueue[TRANSFER_TASK]) ? TRANSFER_TASK : RENDER_TASK);
+                                          : ((taskType == TRANSFER_TASK && RenderEnvironment::HasQueue(TRANSFER_QUEUE)) ? TRANSFER_TASK : RENDER_TASK);
             taskNodes.emplace(id, std::make_unique<TaskNode>(std::move(name), id, taskType, actualTaskType, callback));
             return id;
         }
 
         void AddTaskNodeResourceRef(vke_ds::id32_t taskID,
                                     bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
-                                    VkAccessFlags accessMask, VkPipelineStageFlags stageMask,
+                                    VkAccessFlags2 accessMask, VkPipelineStageFlags2 stageMask,
                                     VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                                     VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                                     VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
@@ -354,7 +353,6 @@ namespace vke_render
         std::vector<std::unique_ptr<CommandPool>> commandPools[3];
         std::vector<vke_ds::id32_t> orderedTasks;
         VkSemaphore timelineSemaphore;
-        VkQueue gpuQueues[3];
         VkFence fences[2][MAX_FRAMES_IN_FLIGHT];
 
         void init();
@@ -362,7 +360,7 @@ namespace vke_render
                            bool &needQueueSubmit,
                            std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                            std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
-                           uint64_t &waitSemaphoreValue, VkPipelineStageFlags &waitDstStageMask);
+                           uint64_t &waitSemaphoreValue, VkPipelineStageFlags2 &waitDstStageMask);
         void endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
                              bool &needQueueSubmit,
                              std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,

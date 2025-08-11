@@ -35,8 +35,7 @@ namespace vke_common
 
         static Engine *Init(vke_render::RenderContext *ctx,
                             std::vector<vke_render::PassType> &passes,
-                            std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses,
-                            std::vector<vke_render::RenderPassInfo> &customPassInfo)
+                            std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
         {
             vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::GetInstance();
             instance = new Engine();
@@ -44,7 +43,7 @@ namespace vke_common
             vke_physics::PhysicsManager::Init();
             instance->assetManager = vke_common::AssetManager::Init();
             instance->allocator = vke_render::DescriptorSetAllocator::Init();
-            instance->renderer = vke_render::Renderer::Init(ctx, passes, customPasses, customPassInfo);
+            instance->renderer = vke_render::Renderer::Init(ctx, passes, customPasses);
             SceneManager::Init();
             return instance;
         }

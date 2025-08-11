@@ -43,8 +43,7 @@ namespace vke_render
 
         static Renderer *Init(RenderContext *ctx,
                               std::vector<PassType> &passes,
-                              std::vector<std::unique_ptr<RenderPassBase>> &customPasses,
-                              std::vector<RenderPassInfo> &customPassInfo)
+                              std::vector<std::unique_ptr<RenderPassBase>> &customPasses)
         {
             instance = new Renderer();
 

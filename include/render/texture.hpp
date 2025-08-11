@@ -72,7 +72,7 @@ namespace vke_render
                                                     VK_IMAGE_LAYOUT_UNDEFINED, initialLayout,
                                                     textureImage, VK_IMAGE_ASPECT_COLOR_BIT,
                                                     VK_PIPELINE_STAGE_NONE, VK_PIPELINE_STAGE_NONE);
-            RenderEnvironment::EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
+            RenderEnvironment::EndSingleTimeCommands(RenderEnvironment::GetGraphicsQueue(), instance->commandPool, commandBuffer);
             textureImageView = RenderEnvironment::CreateImageView(textureImage, format, VK_IMAGE_ASPECT_COLOR_BIT);
             createTextureSampler(minFilter, magFilter, addressMode, anisotropyEnable);
         }
@@ -104,7 +104,7 @@ namespace vke_render
             else
                 throw std::invalid_argument("unsupported layout transition!");
 
-            RenderEnvironment::EndSingleTimeCommands(instance->graphicsQueue, instance->commandPool, commandBuffer);
+            RenderEnvironment::EndSingleTimeCommands(RenderEnvironment::GetGraphicsQueue(), instance->commandPool, commandBuffer);
         }
 
         void createTextureSampler(VkFilter minFilter = VK_FILTER_LINEAR, VkFilter magFilter = VK_FILTER_LINEAR,

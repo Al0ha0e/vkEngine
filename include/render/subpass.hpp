@@ -14,16 +14,6 @@ namespace vke_render
         OPAQUE_RENDERER
     };
 
-    struct RenderPassInfo
-    {
-        VkPipelineStageFlags stageMask;
-        VkAccessFlags accessMask;
-
-        RenderPassInfo() {}
-        RenderPassInfo(VkPipelineStageFlags stageMask, VkAccessFlags accessMask)
-            : stageMask(stageMask), accessMask(accessMask) {}
-    };
-
     class RenderPassBase
     {
     public:
