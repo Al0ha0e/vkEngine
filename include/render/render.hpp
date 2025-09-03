@@ -99,6 +99,13 @@ namespace vke_render
             return instance;
         }
 
+        static void WaitIdle()
+        {
+            vkDeviceWaitIdle(RenderEnvironment::GetInstance()->logicalDevice);
+            CPUCommandQueue *cpuQueue = (CPUCommandQueue *)RenderEnvironment::GetInstance()->commandQueues[CPU_QUEUE].get();
+            cpuQueue->WaitIdle();
+        }
+
         static void Dispose()
         {
             instance->cleanup();

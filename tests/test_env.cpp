@@ -95,7 +95,7 @@ int main()
 
         engine->renderer->Update();
     }
-    vkDeviceWaitIdle(engine->environment->logicalDevice);
+    vke_common::Engine::WaitIdle();
 
     // engine->MainLoop();
 

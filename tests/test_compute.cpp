@@ -45,9 +45,9 @@ int main()
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], descriptorSets[0], 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
         vkUpdateDescriptorSets(logicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
-        vke_render::CommandPool commandPool(environment->queueFamilyIndices.computeOnlyFamily.has_value() ? environment->queueFamilyIndices.computeOnlyFamily.value()
-                                                                                                          : environment->queueFamilyIndices.graphicsAndComputeFamily.value(),
-                                            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        vke_render::GPUCommandPool commandPool(environment->queueFamilyIndices.computeOnlyFamily.has_value() ? environment->queueFamilyIndices.computeOnlyFamily.value()
+                                                                                                             : environment->queueFamilyIndices.graphicsAndComputeFamily.value(),
+                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
         VkCommandBuffer commandBuffer = commandPool.AllocateCommandBuffer();
 
@@ -56,9 +56,14 @@ int main()
         vke_render::FrameGraph frameGraph(1);
 
         vke_ds::id32_t resourceID = frameGraph.AddPermanentBufferResource("testbuffer", bufferInfo, VK_PIPELINE_STAGE_NONE);
-        frameGraph.AddTargetResource(resourceID);
+
+        bufferInfo.buffer = buffer.stagingBuffer.buffer;
+        vke_ds::id32_t stagingResourceID = frameGraph.AddPermanentBufferResource("stagingBuffer", bufferInfo, VK_PIPELINE_STAGE_NONE);
+
+        frameGraph.AddTargetResource(stagingResourceID);
         vke_ds::id32_t computeOutResourceNodeID = frameGraph.AllocResourceNode("computeOut", false, resourceID);
-        vke_ds::id32_t transferOutResourceNodeID = frameGraph.AllocResourceNode("transferOut", false, resourceID);
+        vke_ds::id32_t transferOutResourceNodeID = frameGraph.AllocResourceNode("transferOut", false, stagingResourceID);
+        // vke_ds::id32_t cpuOutResourceNodeID = frameGraph.AllocResourceNode("cpuOut", false, stagingResourceID);
 
         auto computeCallback = [&task, &descriptorSets](vke_render::TaskNode &node, vke_render::FrameGraph &frameGraph,
                                                         VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
@@ -76,26 +81,49 @@ int main()
 
         vke_ds::id32_t transferTaskNodeID = frameGraph.AllocTaskNode("transfer task", vke_render::TRANSFER_TASK, transferCallback);
 
+        auto cpuOP = [&buffer]()
+        {
+            for (int i = 0; i < 10; i++)
+                std::cout << ((float *)buffer.data)[i] << " ";
+            std::cout << "\n";
+        };
+
+        auto cpuCallback = [&cpuOP](vke_render::TaskNode &node, vke_render::FrameGraph &frameGraph,
+                                    VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
+        {
+            *(std::function<void()> *)commandBuffer = cpuOP;
+        };
+
+        vke_ds::id32_t cpuTaskNodeID = frameGraph.AllocTaskNode("cpu task", vke_render::CPU_TASK, cpuCallback);
+
         frameGraph.AddTaskNodeResourceRef(computeTaskNodeID, false, 0, computeOutResourceNodeID,
-                                          VK_ACCESS_SHADER_WRITE_BIT,
-                                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                          VK_ACCESS_2_SHADER_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                           VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
-        frameGraph.AddTaskNodeResourceRef(transferTaskNodeID, false, computeOutResourceNodeID, transferOutResourceNodeID,
-                                          VK_ACCESS_TRANSFER_READ_BIT,
-                                          VK_PIPELINE_STAGE_TRANSFER_BIT,
+        frameGraph.AddTaskNodeResourceRef(transferTaskNodeID, false, computeOutResourceNodeID, 0,
+                                          VK_ACCESS_2_TRANSFER_READ_BIT,
+                                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                                           VK_IMAGE_LAYOUT_UNDEFINED,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+
+        frameGraph.AddTaskNodeResourceRef(transferTaskNodeID, false, 0, transferOutResourceNodeID,
+                                          VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                          VK_IMAGE_LAYOUT_UNDEFINED,
+                                          VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
+
+        frameGraph.AddTaskNodeResourceRef(cpuTaskNodeID, false, transferOutResourceNodeID, 0,
+                                          VK_ACCESS_2_HOST_READ_BIT,
+                                          VK_PIPELINE_STAGE_2_HOST_BIT,
+                                          VK_IMAGE_LAYOUT_UNDEFINED,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.Compile();
         frameGraph.Execute(0, 0);
         /////////////////////////////////////////////////////////////////
-        vkDeviceWaitIdle(logicalDevice);
-        for (int i = 0; i < 10; i++)
-            std::cout
-                << ((float *)buffer.data)[i] << " ";
+        vke_common::Engine::WaitIdle();
     }
-
     vke_common::Engine::Dispose();
     vke_render::RenderEnvironment::Dispose();
     vke_common::EventSystem::Dispose();

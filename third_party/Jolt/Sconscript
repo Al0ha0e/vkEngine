@@ -11,7 +11,7 @@ def glob_cpp(root="."):
 
 objs = env.Object(glob_cpp(),
     CPPPATH="../", 
-    SCONS_CXX_STANDARD="c++17",
+    SCONS_CXX_STANDARD="c++20",
     CPPDEFINES=jolt_cppdefines)
 
 Return("objs")

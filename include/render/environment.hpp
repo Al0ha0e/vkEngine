@@ -83,6 +83,8 @@ namespace vke_render
             instance->createSyncObjects();
             instance->createSwapChain();
             instance->createImageViews();
+            instance->createCPUCommandQueue();
+
             vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, instance, vke_common::EventCallback(OnWindowResize));
             instance->rootRenderContext = RenderContext{
                 instance->swapChainExtent.width,
@@ -103,6 +105,7 @@ namespace vke_render
 
         static void Dispose()
         {
+            ((CPUCommandQueue *)(instance->commandQueues[CPU_QUEUE].get()))->Stop();
             instance->cleanupSwapChain();
             VkDevice logicalDevice = instance->logicalDevice;
 
@@ -459,7 +462,7 @@ namespace vke_render
         VkPhysicalDevice physicalDevice;
         VkPhysicalDeviceProperties physicalDeviceProperties;
         VkDevice logicalDevice;
-        std::unique_ptr<CommandQueue> commandQueues[3];
+        std::unique_ptr<CommandQueue> commandQueues[4];
         VkQueue presentQueue;
         VkFormat swapChainImageFormat;
         VkExtent2D swapChainExtent;
@@ -496,6 +499,7 @@ namespace vke_render
         void cleanupSwapChain();
         void recreateSwapChain();
         void createImageViews();
+        void createCPUCommandQueue();
     };
 }
 

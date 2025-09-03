@@ -5,7 +5,14 @@
 #include <optional>
 #include <vector>
 #include <set>
+#include <map>
+#include <queue>
 #include <stdexcept>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <functional>
+#include <iostream>
 
 namespace vke_render
 {
@@ -14,7 +21,8 @@ namespace vke_render
         GRAPHICS_QUEUE = 0,
         COMPUTE_QUEUE,
         TRANSFER_QUEUE,
-        CPU_QUEUE
+        CPU_QUEUE,
+        QUEUE_TYPE_CNT
     };
 
     struct QueueFamilyIndices
@@ -76,12 +84,74 @@ namespace vke_render
     class CPUCommandQueue : public CommandQueue
     {
     public:
-        virtual void Submit(uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence) override
+        const uint64_t CPU_QUEUE_WAIT_TIMEOUT = 50000; // ns
+        CPUCommandQueue() : running(false), idle(true) {}
+        CPUCommandQueue(VkDevice device) : running(false), idle(true), device(device) {}
+
+        virtual void Submit(uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence) override;
+
+        void Start()
         {
+            bool r = false;
+            if (running.compare_exchange_strong(r, true))
+                worker = std::thread(&CPUCommandQueue::process, this);
         }
 
-        void Start() {}
-        void Stop() {}
+        void Stop()
+        {
+            bool r = true;
+            if (running.compare_exchange_strong(r, false))
+            {
+                queueCV.notify_one();
+                if (worker.joinable())
+                    worker.join();
+            }
+        }
+
+        void WaitIdle()
+        {
+            idle.wait(false);
+        }
+
+    private:
+        struct SubmitInfo
+        {
+            std::vector<VkSemaphoreSubmitInfo> signalSemaphoreInfos;
+            std::function<void()> *callback;
+
+            SubmitInfo() {}
+            SubmitInfo(uint32_t semaphoreCnt, std::function<void()> *callback)
+                : signalSemaphoreInfos(semaphoreCnt), callback(callback) {}
+        };
+
+        struct WaitInfo
+        {
+            uint64_t value;
+            std::shared_ptr<uint32_t> counter;
+            std::function<void()> callback;
+
+            WaitInfo() {}
+            WaitInfo(uint64_t value) : value(value) {}
+            WaitInfo(uint64_t value, std::shared_ptr<uint32_t> &counter, std::function<void()> callback = nullptr)
+                : value(value), counter(counter), callback(callback) {}
+
+            bool operator<(const WaitInfo &ano) const
+            {
+                return value < ano.value;
+            }
+        };
+
+        VkDevice device;
+        std::atomic<bool> running;
+        std::atomic<bool> idle;
+        std::mutex queueMutex;
+        std::condition_variable queueCV;
+        std::thread worker;
+
+        std::map<VkSemaphore, std::multiset<WaitInfo>> waitInfoMap;
+        std::vector<SubmitInfo> submitInfos;
+
+        void process();
     };
 }
 

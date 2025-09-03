@@ -157,25 +157,6 @@ namespace vke_render
         {
             VkBufferCopy copyRegion = {offset, offset, size};
             vkCmdCopyBuffer(commandBuffer, buffer, stagingBuffer.buffer, 1, &copyRegion);
-
-            VkBufferMemoryBarrier barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.buffer = stagingBuffer.buffer;
-            barrier.offset = offset;
-            barrier.size = size;
-
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_HOST_BIT,
-                0,
-                0, nullptr,
-                1, &barrier,
-                0, nullptr);
         }
     };
 }

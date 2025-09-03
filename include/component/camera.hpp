@@ -32,7 +32,7 @@ namespace vke_component
             init();
         }
 
-        Camera(vke_common::GameObject *obj, nlohmann::json &json)
+        Camera(vke_common::GameObject *obj, const nlohmann::json &json)
             : id(0), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
               near(json["near"]), far(json["far"]), Component(obj),
               buffer(nullptr)

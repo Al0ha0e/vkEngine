@@ -48,6 +48,11 @@ namespace vke_common
             return instance;
         }
 
+        static void WaitIdle()
+        {
+            vke_render::Renderer::WaitIdle();
+        }
+
         static void Dispose()
         {
             vke_physics::PhysicsManager::Dispose();

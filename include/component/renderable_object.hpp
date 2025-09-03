@@ -23,7 +23,7 @@ namespace vke_component
             init();
         }
 
-        RenderableObject(vke_common::GameObject *obj, nlohmann::json &json) : Component(obj)
+        RenderableObject(vke_common::GameObject *obj, const nlohmann::json &json) : Component(obj)
         {
             material = vke_common::AssetManager::LoadMaterial(json["material"]);
             mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);

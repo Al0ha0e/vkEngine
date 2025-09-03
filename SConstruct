@@ -31,7 +31,7 @@ CROSS_PLATFORM_DETERMINISTIC = True
 OBJECT_LAYER_BITS = 0
 DEBUG = False
 
-jolt_ccflags = ["/std:c++17","/EHsc","/O2"]
+jolt_ccflags = ["/std:c++20","/EHsc","/O2"]
 
 jolt_cppdefines = [
     # "JPH_DISABLE_CUSTOM_ALLOCATOR",
@@ -79,7 +79,7 @@ if USE_AVX:
 #########################
 
 env = Environment(CC = 'cl',
-                   CCFLAGS = ['/std:c++17','/EHsc','/O2'] + jolt_ccflags)
+                   CCFLAGS = ['/std:c++20','/EHsc','/O2'] + jolt_ccflags)
 
 joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppdefines'])
 
@@ -90,7 +90,8 @@ cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./t
 cppdefines = [] # ['NDEBUG']
 commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/opaque_render.cpp", "./src/render/shader.cpp", "./src/render/pipeline.cpp",
-                "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
+                "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
+                "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/physics/physics.cpp",
                 "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp"]
 
@@ -106,12 +107,12 @@ for info in targetinfo:
     env.Program(info[0],
         info[1]+commonsrc,
         LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines,
-        SCONS_CXX_STANDARD="c++17")
+        SCONS_CXX_STANDARD="c++20")
 
 
 env.Library("out/vkengine",commonsrc,
                         LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines,
-                        SCONS_CXX_STANDARD="c++17")
+                        SCONS_CXX_STANDARD="c++20")
 
 ### shader
 

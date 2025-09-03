@@ -60,7 +60,7 @@ namespace vke_render
 
         void AddCnt(VkDescriptorType type, int cnt)
         {
-            auto &it = descriptorCntMap.find(type);
+            auto it = descriptorCntMap.find(type);
             if (it == descriptorCntMap.end())
             {
                 descriptorCntMap[type] = cnt;
@@ -106,7 +106,7 @@ namespace vke_render
                 return false;
             for (auto &kv : info.descriptorCntMap)
             {
-                auto &it = descriptorCntMap.find(kv.first);
+                auto it = descriptorCntMap.find(kv.first);
                 if (it == descriptorCntMap.end() || it->second < kv.second)
                     return false;
             }

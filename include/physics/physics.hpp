@@ -193,6 +193,11 @@ namespace vke_physics
             return instance->updates.AddEventListener(rigidbody, callback);
         }
 
+        static vke_ds::id32_t RegisterUpdateListener(void *rigidbody, vke_common::EventHub<void>::callback_t &&callback)
+        {
+            return instance->updates.AddEventListener(rigidbody, std::move(callback));
+        }
+
         static void RemoveUpdateListener(vke_ds::id32_t id)
         {
             instance->updates.RemoveEventListener(id);

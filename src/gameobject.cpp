@@ -5,7 +5,7 @@
 
 namespace vke_common
 {
-    std::unique_ptr<Component> GameObject::loadComponent(nlohmann::json &json)
+    std::unique_ptr<Component> GameObject::loadComponent(const nlohmann::json &json)
     {
         std::string type = json["type"];
         if (type == "camera")

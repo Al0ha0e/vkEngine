@@ -10,7 +10,7 @@ namespace vke_render
             SpvReflectDescriptorSet &ds = reflectInfo.descriptor_sets[i];
             uint32_t setID = ds.set;
 
-            auto &it = bindingInfoMap.find(setID);
+            auto it = bindingInfoMap.find(setID);
             if (it != bindingInfoMap.end())
                 continue;
 
@@ -53,7 +53,7 @@ namespace vke_render
         {
             SpvReflectBlockVariable &block = reflectInfo.push_constant_blocks[i];
 
-            auto &it = pushConstantRangeMap.find(block.name);
+            auto it = pushConstantRangeMap.find(block.name);
             if (it != pushConstantRangeMap.end())
                 continue;
 

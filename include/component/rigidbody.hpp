@@ -24,7 +24,7 @@ namespace vke_physics
             init(motionType, layer, friction, restitution);
         }
 
-        RigidBody(vke_common::GameObject *obj, nlohmann::json &json)
+        RigidBody(vke_common::GameObject *obj, const nlohmann::json &json)
             : Component(obj), shape(new PhyscisShape(json["shape"]))
         {
             init(json["motionType"], json["layer"], json["friction"], json["restitution"]);

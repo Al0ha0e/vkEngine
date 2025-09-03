@@ -613,4 +613,11 @@ namespace vke_render
             swapChainImageViews[i] = RenderEnvironment::CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
         depthImageView = RenderEnvironment::CreateImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
     }
+
+    void RenderEnvironment::createCPUCommandQueue()
+    {
+        std::unique_ptr<CPUCommandQueue> cpuQueue = std::make_unique<CPUCommandQueue>(logicalDevice);
+        cpuQueue->Start();
+        commandQueues[CPU_QUEUE] = std::move(cpuQueue);
+    }
 };

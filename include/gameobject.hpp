@@ -41,7 +41,7 @@ namespace vke_common
             initWithParent(fa);
         }
 
-        TransformParameter(nlohmann::json &json)
+        TransformParameter(const nlohmann::json &json)
         {
             auto pos = json["pos"];
             auto scl = json["scl"];
@@ -52,7 +52,7 @@ namespace vke_common
             init();
         }
 
-        TransformParameter(const TransformParameter &fa, nlohmann::json &json)
+        TransformParameter(const TransformParameter &fa, const nlohmann::json &json)
         {
             auto pos = json["pos"];
             auto scl = json["scl"];
@@ -80,21 +80,21 @@ namespace vke_common
             calcModelMatrixWithParent(fa.model);
         }
 
-        void SetLocalPosition(glm::vec3 &pos)
+        void SetLocalPosition(const glm::vec3 &pos)
         {
             localPosition = pos;
             position = pos;
             calcModelMatrix();
         }
 
-        void SetLocalPositionWithParent(const glm::mat4 &fa, glm::vec3 &pos)
+        void SetLocalPositionWithParent(const glm::mat4 &fa, const glm::vec3 &pos)
         {
             localPosition = pos;
             calcModelMatrixWithParent(fa);
             position = model[3];
         }
 
-        void TranslateLocal(glm::vec3 &det)
+        void TranslateLocal(const glm::vec3 &det)
         {
             glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
             localPosition += localDet;
@@ -102,7 +102,7 @@ namespace vke_common
             calcModelMatrix();
         }
 
-        void TranslateLocalWithParent(const glm::mat4 &fa, glm::vec3 &det)
+        void TranslateLocalWithParent(const glm::mat4 &fa, const glm::vec3 &det)
         {
             glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
             localPosition += localDet;
@@ -110,49 +110,49 @@ namespace vke_common
             position = model[3];
         }
 
-        void TranslateGlobal(glm::vec3 &det)
+        void TranslateGlobal(const glm::vec3 &det)
         {
             position += det;
             localPosition += det;
             calcModelMatrix();
         }
 
-        void TranslateGlobalWithParent(const glm::mat4 &fa, glm::vec3 &det)
+        void TranslateGlobalWithParent(const glm::mat4 &fa, const glm::vec3 &det)
         {
             position += det;
             localPosition = glm::inverse(fa) * glm::vec4(position, 1);
             calcModelMatrixWithParent(fa);
         }
 
-        void SetLocalRotation(glm::quat &rot)
+        void SetLocalRotation(const glm::quat &rot)
         {
             localRotation = rot;
             rotation = rot;
             calcModelMatrix();
         }
 
-        void SetLocalRotationWithParent(const TransformParameter &fa, glm::quat &rot)
+        void SetLocalRotationWithParent(const TransformParameter &fa, const glm::quat &rot)
         {
             localRotation = rot;
             rotation = fa.rotation * localRotation;
             calcModelMatrixWithParent(fa.model);
         }
 
-        void RotateLocal(float det, glm::vec3 &axis)
+        void RotateLocal(const float det, const glm::vec3 &axis)
         {
             localRotation = glm::rotate(localRotation, det, axis);
             rotation = localRotation;
             calcModelMatrix();
         }
 
-        void RotateLocalWithParent(const TransformParameter &fa, float det, glm::vec3 &axis)
+        void RotateLocalWithParent(const TransformParameter &fa, const float det, const glm::vec3 &axis)
         {
             localRotation = glm::rotate(localRotation, det, axis);
             rotation = fa.rotation * localRotation;
             calcModelMatrixWithParent(fa.model);
         }
 
-        void RotateGlobal(float det, glm::vec3 &axis)
+        void RotateGlobal(const float det, const glm::vec3 &axis)
         {
             glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
             localRotation = glm::rotate(localRotation, det, gaxis);
@@ -160,7 +160,7 @@ namespace vke_common
             calcModelMatrix();
         }
 
-        void RotateGlobalWithParent(const TransformParameter &fa, float det, glm::vec3 &axis)
+        void RotateGlobalWithParent(const TransformParameter &fa, const float det, const glm::vec3 &axis)
         {
             glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
             localRotation = glm::rotate(localRotation, det, gaxis);
@@ -168,28 +168,28 @@ namespace vke_common
             calcModelMatrixWithParent(fa.model);
         }
 
-        void SetLocalScale(glm::vec3 &scale)
+        void SetLocalScale(const glm::vec3 &scale)
         {
             localScale = scale;
             lossyScale = scale;
             calcModelMatrix();
         }
 
-        void SetLocalScaleWithParent(const TransformParameter &fa, glm::vec3 &scale)
+        void SetLocalScaleWithParent(const TransformParameter &fa, const glm::vec3 &scale)
         {
             localScale = scale;
             lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
             calcModelMatrixWithParent(fa.model);
         }
 
-        void Scale(glm::vec3 &scale)
+        void Scale(const glm::vec3 &scale)
         {
             localScale += scale;
             lossyScale = localScale;
             calcModelMatrix();
         }
 
-        void ScaleWithParent(const TransformParameter &fa, glm::vec3 &scale)
+        void ScaleWithParent(const TransformParameter &fa, const glm::vec3 &scale)
         {
             localScale += scale;
             lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
@@ -285,13 +285,13 @@ namespace vke_common
             memcpy(name, "new object", 13);
         };
 
-        GameObject(nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
+        GameObject(const nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
             : parent(nullptr), id(json["id"]), isStatic(json["static"]), layer(json["layer"]), transform(json["transform"])
         {
             init(json, objects);
         }
 
-        GameObject(GameObject *fa, nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
+        GameObject(GameObject *fa, const nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
             : parent(fa), id(json["id"]), isStatic(json["static"]), layer(json["layer"]), transform(fa->transform, json["transform"])
         {
             init(json, objects);
@@ -355,56 +355,56 @@ namespace vke_common
             children.erase(id);
         }
 
-        void SetLocalPosition(glm::vec3 &position)
+        void SetLocalPosition(const glm::vec3 &position)
         {
             parent ? transform.SetLocalPositionWithParent(parent->transform.model, position) : transform.SetLocalPosition(position);
             updateTransform(true);
         }
 
-        void SetLocalRotation(glm::quat &rotation)
+        void SetLocalRotation(const glm::quat &rotation)
         {
             parent ? transform.SetLocalRotationWithParent(parent->transform, rotation) : transform.SetLocalRotation(rotation);
             updateTransform(true);
         }
 
-        void SetLocalScale(glm::vec3 &scale)
+        void SetLocalScale(const glm::vec3 &scale)
         {
             parent ? transform.SetLocalScaleWithParent(parent->transform, scale) : transform.SetLocalScale(scale);
             updateTransform(true);
         }
 
-        void RotateGlobal(float det, glm::vec3 &axis)
+        void RotateGlobal(const float det, const glm::vec3 &axis)
         {
             parent ? transform.RotateGlobalWithParent(parent->transform, det, axis) : transform.RotateGlobal(det, axis);
             updateTransform(true);
         }
 
-        void RotateLocal(float det, glm::vec3 &axis)
+        void RotateLocal(const float det, const glm::vec3 &axis)
         {
             parent ? transform.RotateLocalWithParent(parent->transform, det, axis) : transform.RotateLocal(det, axis);
             updateTransform(true);
         }
 
-        void TranslateLocal(glm::vec3 det)
+        void TranslateLocal(const glm::vec3 &det)
         {
             parent ? transform.TranslateLocalWithParent(parent->transform.model, det) : transform.TranslateLocal(det);
             updateTransform(true);
         }
 
-        void TranslateGlobal(glm::vec3 det)
+        void TranslateGlobal(const glm::vec3 &det)
         {
             parent ? transform.TranslateGlobalWithParent(parent->transform.model, det) : transform.TranslateGlobal(det);
             updateTransform(true);
         }
 
-        void Scale(glm::vec3 scale)
+        void Scale(const glm::vec3 &scale)
         {
             parent ? transform.ScaleWithParent(parent->transform, scale) : transform.Scale(scale);
             updateTransform(true);
         }
 
     private:
-        void init(nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
+        void init(const nlohmann::json &json, std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> &objects)
         {
             std::string stdname = json["name"];
             memcpy(name, stdname.c_str(), stdname.length() + 1);
@@ -433,7 +433,7 @@ namespace vke_common
                 kv.second->updateTransform(false);
         }
 
-        std::unique_ptr<Component> loadComponent(nlohmann::json &json);
+        std::unique_ptr<Component> loadComponent(const nlohmann::json &json);
     };
 }
 

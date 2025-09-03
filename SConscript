@@ -32,4 +32,4 @@ commonsrc = ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cp
 
 env.Library("../libs/vkengine",commonsrc,
                         LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines,
-                        SCONS_CXX_STANDARD="c++17")
+                        SCONS_CXX_STANDARD="c++20")

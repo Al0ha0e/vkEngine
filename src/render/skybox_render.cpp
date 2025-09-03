@@ -131,7 +131,7 @@ namespace vke_render
 
     void SkyboxRenderer::initResources()
     {
-        auto &paramJSON = vke_common::AssetManager::LoadJSON(std::string(REL_DIR) + "/builtin_assets/config/atmosphere_param.json");
+        const auto &paramJSON = vke_common::AssetManager::LoadJSON(std::string(REL_DIR) + "/builtin_assets/config/atmosphere_param.json");
         atmosphereParameter = AtmosphereParameter(paramJSON);
         atmosphereParamBuffer = std::make_unique<DeviceBuffer>(sizeof(AtmosphereParameter), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
         atmosphereParamBuffer->ToBuffer(0, &atmosphereParameter, sizeof(AtmosphereParameter));

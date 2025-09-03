@@ -63,7 +63,7 @@ namespace vke_common
 
         Asset() : id(0), val(nullptr) {}
 
-        Asset(AssetHandle id, nlohmann::json &json)
+        Asset(AssetHandle id, const nlohmann::json &json)
             : id(id), name(json["name"]), path(json["path"]), val(nullptr) {}
         Asset(AssetHandle id, const std::string &nm, const std::string &pth)
             : id(id), name(nm), path(pth), val(nullptr) {}
@@ -91,7 +91,7 @@ namespace vke_common
     };
 
 #define DEFAULT_CONSTRUCTOR(type) \
-    type(AssetHandle id, nlohmann::json &json) : Asset(id, json) {}
+    type(AssetHandle id, const nlohmann::json &json) : Asset(id, json) {}
 
 #define DEFAULT_CONSTRUCTOR2(type) \
     type(AssetHandle id, const std::string &nm, const std::string &pth) : Asset(id, nm, pth) {}
@@ -122,15 +122,15 @@ namespace vke_common
 
         TextureAsset() {}
 
-        TextureAsset(AssetHandle id, nlohmann::json &json) : Asset(id, json)
+        TextureAsset(AssetHandle id, const nlohmann::json &json) : Asset(id, json)
         {
-            format = json.contains("format") ? json["format"] : VK_FORMAT_R8G8B8A8_SRGB;
-            usage = json.contains("usage") ? json["usage"] : VK_IMAGE_USAGE_SAMPLED_BIT;
-            layout = json.contains("layout") ? json["layout"] : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            minFilter = json.contains("minFilter") ? json["minFilter"] : VK_FILTER_LINEAR;
-            magFilter = json.contains("magFilter") ? json["magFilter"] : VK_FILTER_LINEAR;
-            addressMode = json.contains("addressMode") ? json["addressMode"] : VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            anisotropyEnable = json.contains("anisotropy") ? json["anisotropy"] : true;
+            format = json.contains("format") ? (VkFormat)json["format"] : VK_FORMAT_R8G8B8A8_SRGB;
+            usage = json.contains("usage") ? (VkImageUsageFlags)json["usage"] : VK_IMAGE_USAGE_SAMPLED_BIT;
+            layout = json.contains("layout") ? (VkImageLayout)json["layout"] : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            minFilter = json.contains("minFilter") ? (VkFilter)json["minFilter"] : VK_FILTER_LINEAR;
+            magFilter = json.contains("magFilter") ? (VkFilter)json["magFilter"] : VK_FILTER_LINEAR;
+            addressMode = json.contains("addressMode") ? (VkSamplerAddressMode)json["addressMode"] : VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            anisotropyEnable = json.contains("anisotropy") ? (bool)json["anisotropy"] : true;
         }
 
         TextureAsset(AssetHandle id, const std::string &nm, const std::string &pth)
@@ -158,7 +158,7 @@ namespace vke_common
 
         VFShaderAsset() {}
 
-        VFShaderAsset(AssetHandle id, nlohmann::json &json)
+        VFShaderAsset(AssetHandle id, const nlohmann::json &json)
             : fragPath(json["fragPath"]), Asset(id, json) {}
 
         DEFAULT_CONSTRUCTOR2(VFShaderAsset)
@@ -181,7 +181,7 @@ namespace vke_common
 
         MaterialAsset() {}
 
-        MaterialAsset(AssetHandle id, nlohmann::json &json)
+        MaterialAsset(AssetHandle id, const nlohmann::json &json)
             : shader(json["shader"]), Asset(id, json)
         {
             auto &texs = json["textures"];
@@ -202,13 +202,13 @@ namespace vke_common
         }
     };
 
-#define GET_ASSET_FUNC(tp, cache)            \
-    static tp *Get##tp(AssetHandle id)       \
-    {                                        \
-        auto &it = instance->cache.find(id); \
-        if (it == instance->cache.end())     \
-            return nullptr;                  \
-        return &(it->second);                \
+#define GET_ASSET_FUNC(tp, cache)           \
+    static tp *Get##tp(AssetHandle id)      \
+    {                                       \
+        auto it = instance->cache.find(id); \
+        if (it == instance->cache.end())    \
+            return nullptr;                 \
+        return &(it->second);               \
     }
 
 #define SET_ASSET_FUNC(tp, cache)                  \

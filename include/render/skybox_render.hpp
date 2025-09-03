@@ -30,7 +30,7 @@ namespace vke_render
         float aerialPerspectiveDistance;
 
         AtmosphereParameter() {}
-        AtmosphereParameter(nlohmann::json &json)
+        AtmosphereParameter(const nlohmann::json &json)
             : seaLevel(json["SeaLevel"]), planetRadius(json["PlanetRadius"]), atmosphereHeight(json["AtmosphereHeight"]),
               sunLightIntensity(json["SunLightIntensity"]), sunDiskAngle(json["SunDiskAngle"]),
               rayleighScatteringScale(json["RayleighScatteringScale"]), rayleighScatteringScalarHeight(json["RayleighScatteringScalarHeight"]),

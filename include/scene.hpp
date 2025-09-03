@@ -22,12 +22,12 @@ namespace vke_common
 
         Scene() : idAllocator(1), layers({"default", "editor"}) {}
 
-        Scene(nlohmann::json &json) : idAllocator(json["maxid"])
+        Scene(const nlohmann::json &json) : idAllocator(json["maxid"])
         {
             init(json);
         }
 
-        Scene(const std::string &pth, nlohmann::json &json) : path(pth), idAllocator(json["maxid"])
+        Scene(const std::string &pth, const nlohmann::json &json) : path(pth), idAllocator(json["maxid"])
         {
             init(json);
         }
@@ -93,7 +93,7 @@ namespace vke_common
     private:
         vke_ds::NaiveIDAllocator<vke_ds::id64_t> idAllocator;
 
-        void init(nlohmann::json &json);
+        void init(const nlohmann::json &json);
     };
 
     class SceneManager

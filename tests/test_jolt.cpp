@@ -61,7 +61,7 @@ int main()
 
         engine->Update();
     }
-    vkDeviceWaitIdle(engine->environment->logicalDevice);
+    vke_common::Engine::WaitIdle();
 
     // engine->MainLoop();
 

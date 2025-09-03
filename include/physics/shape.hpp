@@ -32,7 +32,7 @@ namespace vke_physics
         PhyscisShape() : shapeRef(nullptr) {}
         PhyscisShape(PhyscisShapeType type) : type(type), shapeRef(nullptr) {}
 
-        PhyscisShape(nlohmann::json &json) : type(json["type"])
+        PhyscisShape(const nlohmann::json &json) : type(json["type"])
         {
             switch (type)
             {

@@ -4,7 +4,7 @@ namespace vke_common
 {
     SceneManager *SceneManager::instance = nullptr;
 
-    void Scene::init(nlohmann::json &json)
+    void Scene::init(const nlohmann::json &json)
     {
         auto &lrs = json["layers"];
         for (auto &layer : lrs)

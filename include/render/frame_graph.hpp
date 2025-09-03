@@ -82,6 +82,8 @@ namespace vke_render
         RENDER_TASK = 0,
         COMPUTE_TASK,
         TRANSFER_TASK,
+        CPU_TASK,
+        TASK_TYPE_CNT
     };
 
     class FrameGraph;
@@ -265,7 +267,7 @@ namespace vke_render
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
             vkDestroySemaphore(logicalDevice, timelineSemaphore, nullptr);
-            for (int i = 1; i < 3; i++)
+            for (int i = 1; i < TASK_TYPE_CNT; i++)
                 if (RenderEnvironment::HasQueue(QueueType(i)))
                     for (int j = 0; j < framesInFlight; j++)
                         vkDestroyFence(logicalDevice, fences[i - 1][j], nullptr);
@@ -311,9 +313,23 @@ namespace vke_render
         vke_ds::id32_t AllocTaskNode(std::string &&name, TaskType taskType, TaskNodeExecuteCallback callback)
         {
             vke_ds::id32_t id = taskIDAllocator.Alloc();
-            TaskType actualTaskType = (taskType == COMPUTE_TASK && RenderEnvironment::HasQueue(COMPUTE_QUEUE))
-                                          ? COMPUTE_TASK
-                                          : ((taskType == TRANSFER_TASK && RenderEnvironment::HasQueue(TRANSFER_QUEUE)) ? TRANSFER_TASK : RENDER_TASK);
+            TaskType actualTaskType;
+            switch (taskType)
+            {
+            case RENDER_TASK:
+            case CPU_TASK:
+                actualTaskType = taskType;
+                break;
+            case COMPUTE_TASK:
+                actualTaskType = RenderEnvironment::HasQueue(COMPUTE_QUEUE) ? COMPUTE_TASK : RENDER_TASK;
+                break;
+            case TRANSFER_TASK:
+                actualTaskType = RenderEnvironment::HasQueue(TRANSFER_QUEUE) ? TRANSFER_TASK : RENDER_TASK;
+                break;
+            default:
+                actualTaskType = RENDER_TASK;
+            }
+
             taskNodes.emplace(id, std::make_unique<TaskNode>(std::move(name), id, taskType, actualTaskType, callback));
             return id;
         }
@@ -346,22 +362,22 @@ namespace vke_render
 
     private:
         uint32_t framesInFlight;
-        uint32_t queueFamilies[3];
-        uint32_t submitCntEstimates[3];
+        uint32_t queueFamilies[TASK_TYPE_CNT - 1];
+        uint32_t submitCntEstimates[TASK_TYPE_CNT];
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;
-        std::vector<std::unique_ptr<CommandPool>> commandPools[3];
+        std::vector<std::unique_ptr<CommandPool>> commandPools[TASK_TYPE_CNT];
         std::vector<vke_ds::id32_t> orderedTasks;
         VkSemaphore timelineSemaphore;
-        VkFence fences[2][MAX_FRAMES_IN_FLIGHT];
+        VkFence fences[TASK_TYPE_CNT - 1][MAX_FRAMES_IN_FLIGHT];
 
         void init();
-        void syncResources(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
+        void syncResources(ResourceRef &ref, TaskNode &taskNode,
                            bool &needQueueSubmit,
                            std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                            std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
                            uint64_t &waitSemaphoreValue, VkPipelineStageFlags2 &waitDstStageMask);
-        void endResourcesUse(VkCommandBuffer commandBuffer, ResourceRef &ref, TaskNode &taskNode,
+        void endResourcesUse(ResourceRef &ref, TaskNode &taskNode,
                              bool &needQueueSubmit,
                              std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                              std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers);

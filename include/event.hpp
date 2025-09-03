@@ -48,6 +48,14 @@ namespace vke_common
             return ret;
         }
 
+        vke_ds::id32_t AddEventListener(void *listener, callback_t &&callback)
+        {
+            // TODO check type
+            vke_ds::id32_t ret = idAllocator.Alloc();
+            callbackTable[ret] = std::bind(std::move(callback), listener, std::placeholders::_1);
+            return ret;
+        }
+
         void RemoveEventListener(vke_ds::id32_t id)
         {
             callbackTable.erase(id);
@@ -99,6 +107,12 @@ namespace vke_common
         {
             // TODO check type
             return instance->eventHubs[type].AddEventListener(listener, callback);
+        }
+
+        static vke_ds::id32_t AddEventListener(GlobalEventType type, void *listener, EventCallback &&callback)
+        {
+            // TODO check type
+            return instance->eventHubs[type].AddEventListener(listener, std::move(callback));
         }
 
         static void RemoveEventListener(GlobalEventType type, vke_ds::id32_t id)

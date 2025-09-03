@@ -39,8 +39,8 @@ namespace vke_common
 
     void AssetManager::loadAssetLUT(const std::string &pth)
     {
-        nlohmann::json &json = LoadJSON(pth);
-        for (auto &asset : json)
+        const nlohmann::json &json = LoadJSON(pth);
+        for (const auto &asset : json)
         {
             AssetType type = asset["type"];
             AssetHandle id = asset["id"];
@@ -107,7 +107,7 @@ namespace vke_common
         }
         LOAD_BUILTIN_ASSET(materialCache, LoadMaterial)
 
-        auto &plane = MeshAsset(BUILTIN_MESH_PLANE_ID, "Plane", "");
+        MeshAsset plane(BUILTIN_MESH_PLANE_ID, "Plane", "");
         plane.val = std::make_shared<vke_render::Mesh>(BUILTIN_MESH_PLANE_ID, planeVertices, planeIndices);
         meshCache[BUILTIN_MESH_PLANE_ID] = plane;
     }

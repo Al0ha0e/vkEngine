@@ -54,6 +54,11 @@ namespace vke_render
             createPipeline();
         }
 
+        ComputePipeline(std::shared_ptr<ShaderModuleSet> &&shader) : shader(std::move(shader))
+        {
+            createPipeline();
+        }
+
         ~ComputePipeline()
         {
             VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
@@ -61,14 +66,14 @@ namespace vke_render
             vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
         }
 
-        void Dispatch(VkCommandBuffer commandBuffer, std::vector<VkDescriptorSet> &descriptorSets, glm::ivec3 dim3)
+        void Dispatch(VkCommandBuffer commandBuffer, const std::vector<VkDescriptorSet> &descriptorSets, glm::ivec3 dim3)
         {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, 0);
             vkCmdDispatch(commandBuffer, dim3.x, dim3.y, dim3.z);
         }
 
-        void Dispatch(VkCommandBuffer commandBuffer, std::vector<VkDescriptorSet> &descriptorSets, void *constants, glm::ivec3 dim3)
+        void Dispatch(VkCommandBuffer commandBuffer, const std::vector<VkDescriptorSet> &descriptorSets, void *constants, glm::ivec3 dim3)
         {
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, descriptorSets.size(), descriptorSets.data(), 0, 0);
