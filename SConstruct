@@ -96,7 +96,6 @@ commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./sr
                 "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp"]
 
 targetinfo = [
-    ["out/test", ["./tests/test.cpp" ]],
     ["out/test_env",["./tests/test_env.cpp"]],
     ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],

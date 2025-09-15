@@ -97,28 +97,48 @@ namespace vke_render
         }
     }
 
-    void RenderEnvironment::findQueueFamilies(VkPhysicalDevice pdevice)
+    static bool checkQueueFamily(VkPhysicalDevice pdevice)
     {
-        queueFamilyIndices.clear();
-        // Assign index to queue families that could be found
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamilyProperties;
+        queueFamilyProperties.resize(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilyProperties.data());
+        std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
+        bool hasGraphicsQueue = false, hasComputeQueue = false, hasTransferQueue = false, hasPresentQueue = false;
+        for (const auto &queueFamily : queueFamilyProperties)
+        {
+            std::cout << "Queue Family Flags " << queueFamily.queueFlags << " Cnt " << queueFamily.queueCount << "\n";
+            hasGraphicsQueue |= queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT;
+            hasComputeQueue |= queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT;
+            hasTransferQueue |= queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT;
+            hasPresentQueue |= queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT;
+        }
+        if (hasGraphicsQueue && hasComputeQueue && hasTransferQueue && hasPresentQueue)
+            return true;
+        return false;
+    }
+
+    void RenderEnvironment::setQueueFamilies(VkPhysicalDevice pdevice)
+    {
+        std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
         queueFamilyProperties.resize(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilyProperties.data());
 
-        std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
-
         int i = 0;
         for (const auto &queueFamily : queueFamilyProperties)
         {
-            std::cout << "Queue Family Flags " << queueFamily.queueFlags << " Cnt " << queueFamily.queueCount << "\n";
             if (!queueFamilyIndices.graphicsAndComputeFamily.has_value() &&
                 (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
                 (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
                 queueFamilyIndices.graphicsAndComputeFamily = i;
-            else if (queueFamily.queueFlags == VK_QUEUE_COMPUTE_BIT)
+            else if (!queueFamilyIndices.computeOnlyFamily.has_value() &&
+                     (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
                 queueFamilyIndices.computeOnlyFamily = i;
-            else if (queueFamily.queueFlags == VK_QUEUE_TRANSFER_BIT)
+            else if (!queueFamilyIndices.transferOnlyFamily.has_value() &&
+                     (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT))
                 queueFamilyIndices.transferOnlyFamily = i;
 
             if (!queueFamilyIndices.presentFamily.has_value() && (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
@@ -159,7 +179,6 @@ namespace vke_render
 
     bool RenderEnvironment::isDeviceSuitable(VkPhysicalDevice pdevice)
     {
-        findQueueFamilies(pdevice);
         bool extensionsSupported = checkDeviceExtensionSupport(pdevice);
 
         bool swapChainAdequate = false;
@@ -183,7 +202,7 @@ namespace vke_render
         vkGetPhysicalDeviceFeatures2(pdevice, &supportedFeatures2);
         VkPhysicalDeviceFeatures &supportedFeatures = supportedFeatures2.features;
 
-        return queueFamilyIndices.isComplete() &&
+        return checkQueueFamily(pdevice) &&
                extensionsSupported &&
                swapChainAdequate &&
                supportedFeatures.samplerAnisotropy &&
@@ -239,11 +258,46 @@ namespace vke_render
             if (isDeviceSuitable(device))
                 candidates.push_back(device);
 
+        uint64_t maxTotMemory = 0, maxLocalMemory = 0;
+        VkPhysicalDevice bestDevice;
+
+        for (auto device : candidates)
+        {
+            VkPhysicalDeviceMemoryProperties memoryProperties;
+            vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
+
+            uint64_t totMemory = 0, localMemory = 0;
+            for (int i = 0; i < memoryProperties.memoryHeapCount; i++)
+            {
+                VkMemoryHeap &heap = memoryProperties.memoryHeaps[i];
+                std::cout << "SIZE " << heap.size * 1.0f / (1024.0 * 1024.0 * 1024.0)
+                          << " FLAGS " << heap.flags << "\n";
+                totMemory += heap.size;
+                if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+                    localMemory += heap.size;
+            }
+            std::cout << "TOT MEMORY SIZE " << totMemory * 1.0f / (1024.0 * 1024.0 * 1024.0) << " LOCAL MEMORY " << localMemory << "\n";
+            if (localMemory > maxLocalMemory)
+            {
+                maxLocalMemory = localMemory;
+                maxTotMemory = totMemory;
+                bestDevice = device;
+            }
+            else if (localMemory == maxLocalMemory && totMemory > maxTotMemory)
+            {
+                maxLocalMemory = localMemory;
+                maxTotMemory = totMemory;
+                bestDevice = device;
+            }
+        }
+
         if (candidates.size())
         {
             std::cout << "FIND " << candidates.size() << " DEVICES\n";
-            physicalDevice = candidates[0];
+            physicalDevice = bestDevice;
+            setQueueFamilies(physicalDevice);
             vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+            std::cout << std::string(physicalDeviceProperties.deviceName) << "\n";
         }
         else
         {

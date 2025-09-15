@@ -471,7 +471,6 @@ namespace vke_render
         VkCommandPool computeCommandPool;
         VkCommandPool transferCommandPool;
         VmaAllocator vmaAllocator;
-        std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
         std::vector<VkFence> inFlightFences;
@@ -488,7 +487,7 @@ namespace vke_render
 
         void createInstance();
         void createSurface();
-        void findQueueFamilies(VkPhysicalDevice pdevice);
+        void setQueueFamilies(VkPhysicalDevice pdevice);
         bool isDeviceSuitable(VkPhysicalDevice pdevice);
         void pickPhysicalDevice();
         void createLogicalDevice();
