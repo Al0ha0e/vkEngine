@@ -1,18 +1,12 @@
 #ifndef ENV_H
 #define ENV_H
 
-#include <common.hpp>
 #include <render/queue.hpp>
-#include <optional>
-#include <vector>
-#include <iostream>
-#include <map>
-#include <set>
-#include <memory>
 #include <event.hpp>
 #include <vma/vk_mem_alloc.h>
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <memory>
 
 namespace vke_render
 {
@@ -107,22 +101,21 @@ namespace vke_render
         {
             ((CPUCommandQueue *)(instance->commandQueues[CPU_QUEUE].get()))->Stop();
             instance->cleanupSwapChain();
-            VkDevice logicalDevice = instance->logicalDevice;
 
             for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
             {
-                vkDestroySemaphore(logicalDevice, instance->renderFinishedSemaphores[i], nullptr);
-                vkDestroySemaphore(logicalDevice, instance->imageAvailableSemaphores[i], nullptr);
-                vkDestroyFence(logicalDevice, instance->inFlightFences[i], nullptr);
+                vkDestroySemaphore(globalLogicalDevice, instance->renderFinishedSemaphores[i], nullptr);
+                vkDestroySemaphore(globalLogicalDevice, instance->imageAvailableSemaphores[i], nullptr);
+                vkDestroyFence(globalLogicalDevice, instance->inFlightFences[i], nullptr);
             }
 
             if (instance->computeCommandPool != instance->commandPool)
-                vkDestroyCommandPool(logicalDevice, instance->computeCommandPool, nullptr);
+                vkDestroyCommandPool(globalLogicalDevice, instance->computeCommandPool, nullptr);
             if (instance->transferCommandPool != instance->commandPool)
-                vkDestroyCommandPool(logicalDevice, instance->transferCommandPool, nullptr);
-            vkDestroyCommandPool(logicalDevice, instance->commandPool, nullptr);
+                vkDestroyCommandPool(globalLogicalDevice, instance->transferCommandPool, nullptr);
+            vkDestroyCommandPool(globalLogicalDevice, instance->commandPool, nullptr);
             vmaDestroyAllocator(instance->vmaAllocator);
-            vkDestroyDevice(logicalDevice, nullptr);
+            vkDestroyDevice(globalLogicalDevice, nullptr);
             vkDestroySurfaceKHR(instance->vkinstance, instance->surface, nullptr);
             vkDestroyInstance(instance->vkinstance, nullptr);
             glfwTerminate();
@@ -232,7 +225,7 @@ namespace vke_render
             viewInfo.subresourceRange.layerCount = 1;
 
             VkImageView imageView;
-            if (vkCreateImageView(instance->logicalDevice, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
+            if (vkCreateImageView(globalLogicalDevice, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create texture image view!");
             }
@@ -315,7 +308,7 @@ namespace vke_render
             allocInfo.commandBufferCount = 1;
 
             VkCommandBuffer commandBuffer;
-            vkAllocateCommandBuffers(instance->logicalDevice, &allocInfo, &commandBuffer);
+            vkAllocateCommandBuffers(globalLogicalDevice, &allocInfo, &commandBuffer);
 
             VkCommandBufferBeginInfo beginInfo{};
             beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -342,7 +335,7 @@ namespace vke_render
             queue->Submit(1, &submitInfo, VK_NULL_HANDLE);
             vkQueueWaitIdle(queue->queue);
 
-            vkFreeCommandBuffers(instance->logicalDevice, commandPool, 1, &commandBuffer);
+            vkFreeCommandBuffers(globalLogicalDevice, commandPool, 1, &commandBuffer);
         }
 
         static SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice pdevice)
@@ -379,9 +372,9 @@ namespace vke_render
 
         static uint32_t AcquireNextImage(uint32_t currentFrame)
         {
-            vkWaitForFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+            vkWaitForFences(globalLogicalDevice, 1, &instance->inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
             uint32_t imageIndex;
-            VkResult result = vkAcquireNextImageKHR(instance->logicalDevice,
+            VkResult result = vkAcquireNextImageKHR(globalLogicalDevice,
                                                     instance->swapChain,
                                                     UINT64_MAX,
                                                     instance->imageAvailableSemaphores[currentFrame],
@@ -397,7 +390,7 @@ namespace vke_render
             {
                 throw std::runtime_error("failed to acquire swap chain image!");
             }
-            vkResetFences(instance->logicalDevice, 1, &instance->inFlightFences[currentFrame]);
+            vkResetFences(globalLogicalDevice, 1, &instance->inFlightFences[currentFrame]);
 
             VkPipelineStageFlags2 waitDstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -461,7 +454,6 @@ namespace vke_render
         QueueFamilyIndices queueFamilyIndices;
         VkPhysicalDevice physicalDevice;
         VkPhysicalDeviceProperties physicalDeviceProperties;
-        VkDevice logicalDevice;
         std::unique_ptr<CommandQueue> commandQueues[4];
         VkQueue presentQueue;
         VkFormat swapChainImageFormat;

@@ -1,7 +1,7 @@
 #ifndef INPUT_HANDLER_H
 #define INPUT_HANDLER_H
 #include <common.hpp>
-#include <glm/glm.hpp>
+#include <glm/vec2.hpp>
 
 namespace vke_common
 {

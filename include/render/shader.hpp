@@ -1,10 +1,11 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include <render/environment.hpp>
 #include <render/descriptor.hpp>
+#include <assert.h>
 #include <string>
 #include <iostream>
+#include <map>
 #include <spirv_reflect.h>
 
 namespace vke_render
@@ -23,8 +24,7 @@ namespace vke_render
             createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             createInfo.codeSize = code.size();
             createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
-            RenderEnvironment *env = RenderEnvironment::GetInstance();
-            if (vkCreateShaderModule(env->logicalDevice, &createInfo, nullptr, &module) != VK_SUCCESS)
+            if (vkCreateShaderModule(globalLogicalDevice, &createInfo, nullptr, &module) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create shader module!");
             }
@@ -68,8 +68,7 @@ namespace vke_render
         {
             if (module != nullptr)
             {
-                RenderEnvironment *env = RenderEnvironment::GetInstance();
-                vkDestroyShaderModule(env->logicalDevice, module, nullptr);
+                vkDestroyShaderModule(globalLogicalDevice, module, nullptr);
                 spvReflectDestroyShaderModule(&reflectInfo);
             }
         }

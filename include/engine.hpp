@@ -2,12 +2,11 @@
 #define ENGINE_H
 
 #include <render/render.hpp>
-#include <render/opaque_render.hpp>
-#include <asset.hpp>
-#include <render/descriptor.hpp>
+#include <physics/physics.hpp>
 #include <scene.hpp>
 #include <event.hpp>
-#include <physics/physics.hpp>
+#include <time.hpp>
+#include <logger.hpp>
 
 namespace vke_common
 {
@@ -28,22 +27,22 @@ namespace vke_common
             return instance;
         }
 
-        vke_render::RenderEnvironment *environment;
-        vke_common::AssetManager *assetManager;
-        vke_render::DescriptorSetAllocator *allocator;
-        vke_render::Renderer *renderer;
-
-        static Engine *Init(vke_render::RenderContext *ctx,
+        static Engine *Init(GLFWwindow *window,
+                            vke_render::RenderContext *ctx,
                             std::vector<vke_render::PassType> &passes,
                             std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
         {
-            vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::GetInstance();
             instance = new Engine();
-            instance->environment = environment;
+            Logger::Init();
+            EventSystem::Init();
+            TimeManager::Init();
+            vke_render::RenderEnvironment::Init(window);
+            AssetManager::Init();
             vke_physics::PhysicsManager::Init();
-            instance->assetManager = vke_common::AssetManager::Init();
-            instance->allocator = vke_render::DescriptorSetAllocator::Init();
-            instance->renderer = vke_render::Renderer::Init(ctx, passes, customPasses);
+            vke_render::DescriptorSetAllocator::Init();
+            if (ctx == nullptr)
+                ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
+            vke_render::Renderer::Init(ctx, passes, customPasses);
             SceneManager::Init();
             return instance;
         }
@@ -55,11 +54,15 @@ namespace vke_common
 
         static void Dispose()
         {
-            vke_physics::PhysicsManager::Dispose();
             SceneManager::Dispose();
             vke_render::Renderer::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();
-            vke_common::AssetManager::Dispose();
+            vke_physics::PhysicsManager::Dispose();
+            AssetManager::Dispose();
+            vke_render::RenderEnvironment::Dispose();
+            TimeManager::Dispose();
+            EventSystem::Dispose();
+            Logger::Dispose();
             delete instance;
         }
 

@@ -2,6 +2,7 @@
 #define PIPELINE_H
 
 #include <render/shader.hpp>
+#include <glm/vec3.hpp>
 
 namespace vke_render
 {
@@ -25,8 +26,8 @@ namespace vke_render
         {
             if (pipeline != VK_NULL_HANDLE)
             {
-                vkDestroyPipeline(RenderEnvironment::GetInstance()->logicalDevice, pipeline, nullptr);
-                vkDestroyPipelineLayout(RenderEnvironment::GetInstance()->logicalDevice, pipelineLayout, nullptr);
+                vkDestroyPipeline(globalLogicalDevice, pipeline, nullptr);
+                vkDestroyPipelineLayout(globalLogicalDevice, pipelineLayout, nullptr);
             }
         }
 
@@ -61,9 +62,8 @@ namespace vke_render
 
         ~ComputePipeline()
         {
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkDestroyPipeline(logicalDevice, pipeline, nullptr);
-            vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
+            vkDestroyPipeline(globalLogicalDevice, pipeline, nullptr);
+            vkDestroyPipelineLayout(globalLogicalDevice, pipelineLayout, nullptr);
         }
 
         void Dispatch(VkCommandBuffer commandBuffer, const std::vector<VkDescriptorSet> &descriptorSets, glm::ivec3 dim3)

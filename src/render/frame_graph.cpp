@@ -1,5 +1,5 @@
 #include <render/frame_graph.hpp>
-#include <queue>
+#include <logger.hpp>
 #include <algorithm>
 
 namespace vke_render
@@ -16,8 +16,7 @@ namespace vke_render
         VkSemaphoreCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         createInfo.pNext = &timelineInfo;
-        VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-        vkCreateSemaphore(logicalDevice, &createInfo, nullptr, &timelineSemaphore);
+        vkCreateSemaphore(globalLogicalDevice, &createInfo, nullptr, &timelineSemaphore);
 
         queueFamilies[RENDER_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.graphicsAndComputeFamily.value();
         queueFamilies[COMPUTE_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.computeOnlyFamily.value();
@@ -30,7 +29,7 @@ namespace vke_render
         for (int i = 1; i < TASK_TYPE_CNT; i++)
             if (RenderEnvironment::HasQueue(QueueType(i)))
                 for (int j = 0; j < framesInFlight; j++)
-                    vkCreateFence(logicalDevice, &fenceInfo, nullptr, &fences[i - 1][j]);
+                    vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &fences[i - 1][j]);
 
         for (int i = 0; i < TASK_TYPE_CNT - 1; i++)
             if (RenderEnvironment::HasQueue(QueueType(i)))
@@ -59,14 +58,14 @@ namespace vke_render
 
     void FrameGraph::Compile()
     {
-        std::cout << "-------------------------- BEGIN COMPILE-----------------------\n";
+        VKE_LOG_DEBUG("-------------------------- BEGIN COMPILE-----------------------")
         orderedTasks.clear();
         std::set<vke_ds::id32_t> visited;
         std::queue<vke_ds::id32_t> taskQueue;
 
         // find valid tasks
 
-        std::cout << "task node cnt " << taskNodes.size() << "\n";
+        VKE_LOG_DEBUG("task node cnt {}", taskNodes.size())
 
         for (auto &kv : taskNodes)
         {
@@ -102,7 +101,7 @@ namespace vke_render
                 }
             }
         }
-        std::cout << "final out cnt " << taskQueue.size() << "\n";
+        VKE_LOG_DEBUG("final out cnt {}", taskQueue.size())
 
         while (!taskQueue.empty())
         {
@@ -222,10 +221,10 @@ namespace vke_render
                 ++cnt;
         }
 
-        std::cout << "orderedTask cnt " << orderedTasks.size() << "\n";
+        VKE_LOG_DEBUG("orderedTask cnt {}", orderedTasks.size())
         for (auto taskID : orderedTasks)
-            std::cout << "task id " << taskID << "\n";
-        std::cout << "-------------------------- END COMPILE-----------------------\n";
+            VKE_LOG_DEBUG("task id {}", taskID)
+        VKE_LOG_DEBUG("-------------------------- END COMPILE-----------------------")
     }
 
     void FrameGraph::syncResources(ResourceRef &ref, TaskNode &taskNode,
@@ -457,7 +456,6 @@ namespace vke_render
 
     void FrameGraph::Execute(uint32_t currentFrame, uint32_t imageIndex)
     {
-        VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
         VkCommandBuffer commandBuffers[TASK_TYPE_CNT] = {nullptr, nullptr, nullptr, nullptr};
 
         VkCommandBufferBeginInfo beginInfo{};
@@ -466,8 +464,8 @@ namespace vke_render
         beginInfo.pInheritanceInfo = nullptr; // Optional
 
         for (int i = 1; i < TASK_TYPE_CNT; ++i)
-            if (RenderEnvironment::HasQueue(QueueType(i)) && vkGetFenceStatus(logicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
-                vkWaitForFences(logicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
+            if (RenderEnvironment::HasQueue(QueueType(i)) && vkGetFenceStatus(globalLogicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
+                vkWaitForFences(globalLogicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
 
         for (int i = 0; i < TASK_TYPE_CNT; ++i)
             if (RenderEnvironment::HasQueue(QueueType(i)) && (submitCntEstimates[i] > 0))
@@ -478,7 +476,7 @@ namespace vke_render
                 commandBuffers[i] = commandPool->AllocateAndBegin(&beginInfo);
             }
 
-        std::cout << "---------------------EXE-------------------\n";
+        VKE_LOG_DEBUG("---------------------EXE-------------------")
         uint32_t actualSubmitCnts[TASK_TYPE_CNT] = {0, 0, 0, 0};
         uint64_t waitSemaphoreValue = 0;
         VkPipelineStageFlags2 waitDstStageMask = 0;
@@ -521,7 +519,7 @@ namespace vke_render
             TaskType actualTaskType = taskNode.actualTaskType;
             bool needQueueSubmit = taskNode.isFinalTask;
             VkCommandBuffer commandBuffer = commandBuffers[actualTaskType];
-            std::cout << "-----------TASK <" << taskNode.name << "> TYPE " << taskNode.taskType << " ACTUAL " << actualTaskType << "\n";
+            VKE_LOG_DEBUG("-----------TASK <{}> TYPE {} ACTUAL {}", taskNode.name, (uint32_t)taskNode.taskType, (uint32_t)actualTaskType)
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
@@ -559,7 +557,7 @@ namespace vke_render
                     waitSemaphoreInfo.value = waitSemaphoreValue;
                     waitSemaphoreInfo.stageMask = waitDstStageMask;
                     submitInfo.waitSemaphoreInfoCount = 1;
-                    std::cout << "------TASK <" << taskNode.name << "> WAIT FOR " << waitSemaphoreValue << "\n";
+                    VKE_LOG_DEBUG("------TASK <{}> WAIT FOR {}", taskNode.name, waitSemaphoreValue)
                 }
                 else
                 {
@@ -571,7 +569,7 @@ namespace vke_render
 
                 CommandQueue *queue = RenderEnvironment::GetQueue(QueueType(actualTaskType));
 
-                std::cout << "------TASK <" << taskNode.name << "> SUBMIT TO QUEUE " << queue << " COMMAND BUFFER " << commandBuffer << " SIGNAL " << signalSemaphoreValue << "\n";
+                VKE_LOG_DEBUG("------TASK <{}> SUBMIT TO QUEUE {} COMMAND BUFFER {} SIGNAL {}", taskNode.name, (void *)queue, (void *)commandBuffer, signalSemaphoreValue)
                 ++actualSubmitCnts[actualTaskType];
 
                 if (taskNode.isFinalTask)
@@ -580,7 +578,7 @@ namespace vke_render
                     if (actualTaskType != RENDER_TASK)
                     {
                         fence = fences[actualTaskType - 1][currentFrame];
-                        vkResetFences(logicalDevice, 1, &fence);
+                        vkResetFences(globalLogicalDevice, 1, &fence);
                     }
                     queue->Submit(1, &submitInfo, fence);
                 }

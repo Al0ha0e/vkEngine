@@ -13,6 +13,7 @@
 
 #include <common.hpp>
 #include <event.hpp>
+#include <logger.hpp>
 #include <vector>
 #include <functional>
 
@@ -115,23 +116,23 @@ namespace vke_physics
         // See: ContactListener
         virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override
         {
-            std::cout << "Contact validate callback" << std::endl;
+            VKE_LOG_INFO("Contact validate callback")
             return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
         }
 
         virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override
         {
-            std::cout << "A contact was added" << std::endl;
+            VKE_LOG_INFO("A contact was added")
         }
 
         virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override
         {
-            std::cout << "A contact was persisted" << std::endl;
+            VKE_LOG_INFO("A contact was persisted")
         }
 
         virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override
         {
-            std::cout << "A contact was removed" << std::endl;
+            VKE_LOG_INFO("A contact was removed")
         }
     };
 
@@ -140,12 +141,12 @@ namespace vke_physics
     public:
         virtual void OnBodyActivated(const JPH::BodyID &inBodyID, uint64_t inBodyUserData) override
         {
-            std::cout << "A body got activated" << std::endl;
+            VKE_LOG_INFO("A body got activated")
         }
 
         virtual void OnBodyDeactivated(const JPH::BodyID &inBodyID, uint64_t inBodyUserData) override
         {
-            std::cout << "A body went to sleep" << std::endl;
+            VKE_LOG_INFO("A body went to sleep")
         }
     };
 

@@ -106,8 +106,7 @@ namespace vke_render
         pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
         pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
 
-        VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-        if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
+        if (vkCreatePipelineLayout(globalLogicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create compute pipeline layout!");
         }
@@ -127,7 +126,7 @@ namespace vke_render
         pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = pipelineLayout;
 
-        if (vkCreateGraphicsPipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
+        if (vkCreateGraphicsPipelines(globalLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
             throw std::runtime_error("failed to create graphics pipeline!");
     }
 
@@ -145,9 +144,7 @@ namespace vke_render
         pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
         pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
 
-        VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-
-        if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
+        if (vkCreatePipelineLayout(globalLogicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create compute pipeline layout!");
         }
@@ -157,7 +154,7 @@ namespace vke_render
         pipelineInfo.layout = pipelineLayout;
         pipelineInfo.stage = shader->stageCreateInfos[0];
 
-        if (vkCreateComputePipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
+        if (vkCreateComputePipelines(globalLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create compute pipeline!");
         }

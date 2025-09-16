@@ -6,17 +6,18 @@ namespace vke_common
 
     void Engine::Update()
     {
+        vke_common::TimeManager::Update();
         vke_physics::PhysicsManager::Update();
-        renderer->Update();
+        vke_render::Renderer::GetInstance()->Update();
     }
 
     void Engine::MainLoop()
     {
-        while (!glfwWindowShouldClose(environment->window))
+        while (!glfwWindowShouldClose(vke_render::RenderEnvironment::GetInstance()->window))
         {
             glfwPollEvents();
             Update();
         }
-        vkDeviceWaitIdle(environment->logicalDevice);
+        vkDeviceWaitIdle(vke_render::globalLogicalDevice);
     }
 }

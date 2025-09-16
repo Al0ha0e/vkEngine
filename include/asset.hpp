@@ -1,10 +1,8 @@
 #ifndef ASSET_H
 #define ASSET_H
 
-#include <render/shader.hpp>
 #include <render/material.hpp>
 #include <render/mesh.hpp>
-#include <render/texture.hpp>
 #include <nlohmann/json.hpp>
 
 #include <physics/physics.hpp>

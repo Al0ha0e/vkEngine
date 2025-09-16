@@ -1,4 +1,6 @@
 #include <asset.hpp>
+#include <logger.hpp>
+#include <stb/stb_image.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -106,7 +108,7 @@ namespace vke_common
         const aiScene *scene = importer.ReadFile(pth, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_MakeLeftHanded);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
-            std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << "\n";
+            VKE_LOG_ERROR("ERROR::ASSIMP::{}", importer.GetErrorString())
             return nullptr;
         }
         return processNode(hdl, scene->mRootNode, scene);

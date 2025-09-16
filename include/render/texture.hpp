@@ -1,8 +1,8 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include <common.hpp>
 #include <render/buffer.hpp>
+#include <logger.hpp>
 
 namespace vke_render
 {
@@ -79,9 +79,8 @@ namespace vke_render
 
         ~Texture2D()
         {
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkDestroySampler(logicalDevice, textureSampler, nullptr);
-            vkDestroyImageView(logicalDevice, textureImageView, nullptr);
+            vkDestroySampler(globalLogicalDevice, textureSampler, nullptr);
+            vkDestroyImageView(globalLogicalDevice, textureImageView, nullptr);
             vmaDestroyImage(RenderEnvironment::GetInstance()->vmaAllocator, textureImage, textureImageAllocation);
         }
 
@@ -90,7 +89,7 @@ namespace vke_render
         {
             RenderEnvironment *instance = RenderEnvironment::GetInstance();
             VkCommandBuffer commandBuffer = RenderEnvironment::BeginSingleTimeCommands(instance->commandPool);
-
+            VKE_LOG_WARN("transitionImageLayout {}", (void *)commandBuffer)
             if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
                 RenderEnvironment::MakeLayoutTransition(commandBuffer, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
                                                         oldLayout, newLayout,
@@ -130,7 +129,7 @@ namespace vke_render
             samplerInfo.minLod = 0.0f;
             samplerInfo.maxLod = 0.0f;
 
-            if (vkCreateSampler(RenderEnvironment::GetInstance()->logicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
+            if (vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create texture sampler!");
             }

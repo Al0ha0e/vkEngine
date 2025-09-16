@@ -4,7 +4,6 @@
 #include <render/environment.hpp>
 #include <render/command_pool.hpp>
 #include <ds/id_allocator.hpp>
-#include <set>
 
 namespace vke_render
 {
@@ -265,12 +264,11 @@ namespace vke_render
 
         ~FrameGraph()
         {
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-            vkDestroySemaphore(logicalDevice, timelineSemaphore, nullptr);
+            vkDestroySemaphore(globalLogicalDevice, timelineSemaphore, nullptr);
             for (int i = 1; i < TASK_TYPE_CNT; i++)
                 if (RenderEnvironment::HasQueue(QueueType(i)))
                     for (int j = 0; j < framesInFlight; j++)
-                        vkDestroyFence(logicalDevice, fences[i - 1][j], nullptr);
+                        vkDestroyFence(globalLogicalDevice, fences[i - 1][j], nullptr);
         }
 
         vke_ds::id32_t AddPermanentResource(std::unique_ptr<RenderResource> &&resource, PermanentResourceState &resourceState)

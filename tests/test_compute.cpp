@@ -1,9 +1,4 @@
-#include <render/pipeline.hpp>
-#include <asset.hpp>
-#include <render/descriptor.hpp>
-#include <render/buffer.hpp>
 #include <engine.hpp>
-#include <vector>
 
 GLFWwindow *initWindow(int width, int height)
 {
@@ -19,16 +14,13 @@ int main()
         vke_render::SKYBOX_RENDERER};
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
     GLFWwindow *window = initWindow(800, 600);
-    vke_common::EventSystem::Init();
-    vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
-    vke_common::Engine *engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses);
+    vke_common::Engine *engine = vke_common::Engine::Init(window, nullptr, passes, customPasses);
+    vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::GetInstance();
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_compute_desc.json");
     {
         std::shared_ptr<vke_render::ShaderModuleSet> shader = vke_common::AssetManager::LoadComputeShader(2048);
 
         VkDeviceSize bufferSize = 1024 * sizeof(int);
-
-        VkDevice logicalDevice = environment->logicalDevice;
 
         vke_render::StagedBuffer buffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
         memset(buffer.data, 0, bufferSize);
@@ -43,7 +35,7 @@ int main()
         VkDescriptorBufferInfo bufferInfo{};
         vke_render::InitDescriptorBufferInfo(bufferInfo, buffer.buffer, 0, buffer.bufferSize);
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], descriptorSets[0], 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
-        vkUpdateDescriptorSets(logicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(vke_render::globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
         vke_render::GPUCommandPool commandPool(environment->queueFamilyIndices.computeOnlyFamily.has_value() ? environment->queueFamilyIndices.computeOnlyFamily.value()
                                                                                                              : environment->queueFamilyIndices.graphicsAndComputeFamily.value(),
@@ -125,7 +117,5 @@ int main()
         vke_common::Engine::WaitIdle();
     }
     vke_common::Engine::Dispose();
-    vke_render::RenderEnvironment::Dispose();
-    vke_common::EventSystem::Dispose();
     return 0;
 }

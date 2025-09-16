@@ -1,9 +1,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include <render/environment.hpp>
 #include <render/buffer.hpp>
-#include <iostream>
 
 namespace vke_render
 {

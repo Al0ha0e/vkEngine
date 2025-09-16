@@ -1,5 +1,4 @@
 #include <render/queue.hpp>
-#include <iostream>
 
 namespace vke_render
 {

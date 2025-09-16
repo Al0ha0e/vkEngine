@@ -1,12 +1,14 @@
 #include <render/environment.hpp>
 #include <render/descriptor.hpp>
-#include <iostream>
-#include <set>
+#include <logger.hpp>
 #include <string>
 #include <algorithm>
 
 namespace vke_render
 {
+
+    VkDevice globalLogicalDevice = nullptr;
+
     DescriptorSetAllocator *DescriptorSetAllocator::instance = nullptr;
     RenderEnvironment *RenderEnvironment::instance = nullptr;
     // using QueueFamilyIndices = RenderEnvironment::QueueFamilyIndices;
@@ -66,7 +68,7 @@ namespace vke_render
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-        std::cout << glfwExtensionCount << " glfw extensions supported\n";
+        VKE_LOG_INFO("{} glfw extensions supported", glfwExtensionCount)
 
         createInfo.enabledExtensionCount = glfwExtensionCount;
         createInfo.ppEnabledExtensionNames = glfwExtensions;
@@ -104,11 +106,13 @@ namespace vke_render
         std::vector<VkQueueFamilyProperties> queueFamilyProperties;
         queueFamilyProperties.resize(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilyProperties.data());
-        std::cout << "Queue Family Cnt " << queueFamilyCount << "\n";
+
+        VKE_LOG_INFO("Queue Family Cnt {}", queueFamilyCount);
+
         bool hasGraphicsQueue = false, hasComputeQueue = false, hasTransferQueue = false, hasPresentQueue = false;
         for (const auto &queueFamily : queueFamilyProperties)
         {
-            std::cout << "Queue Family Flags " << queueFamily.queueFlags << " Cnt " << queueFamily.queueCount << "\n";
+            VKE_LOG_INFO("Queue Family Flags {} Cnt {}", queueFamily.queueFlags, queueFamily.queueCount);
             hasGraphicsQueue |= queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT;
             hasComputeQueue |= queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT;
             hasTransferQueue |= queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT;
@@ -248,7 +252,7 @@ namespace vke_render
         physicalDevice = VK_NULL_HANDLE;
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(vkinstance, &deviceCount, nullptr);
-        std::cout << deviceCount << " devcies \n";
+        VKE_LOG_INFO("{} devcies", deviceCount);
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
         std::vector<VkPhysicalDevice> candidates;
@@ -270,13 +274,13 @@ namespace vke_render
             for (int i = 0; i < memoryProperties.memoryHeapCount; i++)
             {
                 VkMemoryHeap &heap = memoryProperties.memoryHeaps[i];
-                std::cout << "SIZE " << heap.size * 1.0f / (1024.0 * 1024.0 * 1024.0)
-                          << " FLAGS " << heap.flags << "\n";
+                VKE_LOG_INFO("SIZE {} FLAGS {}", heap.size * 1.0f / (1024.0 * 1024.0 * 1024.0), heap.flags);
                 totMemory += heap.size;
                 if (heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
                     localMemory += heap.size;
             }
-            std::cout << "TOT MEMORY SIZE " << totMemory * 1.0f / (1024.0 * 1024.0 * 1024.0) << " LOCAL MEMORY " << localMemory << "\n";
+            VKE_LOG_INFO("TOT MEMORY SIZE {} LOCAL MEMORY  {}", totMemory * 1.0f / (1024.0 * 1024.0 * 1024.0), localMemory);
+
             if (localMemory > maxLocalMemory)
             {
                 maxLocalMemory = localMemory;
@@ -293,11 +297,12 @@ namespace vke_render
 
         if (candidates.size())
         {
-            std::cout << "FIND " << candidates.size() << " DEVICES\n";
+            VKE_LOG_INFO("FIND {} DEVICES", candidates.size());
             physicalDevice = bestDevice;
             setQueueFamilies(physicalDevice);
             vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-            std::cout << std::string(physicalDeviceProperties.deviceName) << "\n";
+            VKE_LOG_INFO(std::string(physicalDeviceProperties.deviceName));
+            // exit(0);
         }
         else
         {
@@ -385,18 +390,18 @@ namespace vke_render
         createInfo.ppEnabledExtensionNames = deviceExtensions.data();
         createInfo.enabledLayerCount = 0;
 
-        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &logicalDevice) != VK_SUCCESS)
+        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &globalLogicalDevice) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create logical device!");
         }
 
         VkQueue queue;
-        vkGetDeviceQueue(logicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &queue);
+        vkGetDeviceQueue(globalLogicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &queue);
         commandQueues[GRAPHICS_QUEUE] = std::make_unique<GPUCommandQueue>(queue);
 
         if (queueFamilyIndices.computeOnlyFamily.has_value())
         {
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.computeOnlyFamily.value(), 0, &queue);
+            vkGetDeviceQueue(globalLogicalDevice, queueFamilyIndices.computeOnlyFamily.value(), 0, &queue);
             commandQueues[COMPUTE_QUEUE] = std::make_unique<GPUCommandQueue>(queue);
         }
         else
@@ -404,13 +409,13 @@ namespace vke_render
 
         if (queueFamilyIndices.transferOnlyFamily.has_value())
         {
-            vkGetDeviceQueue(logicalDevice, queueFamilyIndices.transferOnlyFamily.value(), 0, &queue);
+            vkGetDeviceQueue(globalLogicalDevice, queueFamilyIndices.transferOnlyFamily.value(), 0, &queue);
             commandQueues[TRANSFER_QUEUE] = std::make_unique<GPUCommandQueue>(queue);
         }
         else
             commandQueues[TRANSFER_QUEUE] = nullptr;
 
-        vkGetDeviceQueue(logicalDevice, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
+        vkGetDeviceQueue(globalLogicalDevice, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
     }
 
     void RenderEnvironment::createVulkanMemoryAllocator()
@@ -418,7 +423,7 @@ namespace vke_render
         VmaAllocatorCreateInfo allocatorCreateInfo = {};
         allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
         allocatorCreateInfo.physicalDevice = physicalDevice;
-        allocatorCreateInfo.device = logicalDevice;
+        allocatorCreateInfo.device = globalLogicalDevice;
         allocatorCreateInfo.instance = vkinstance;
 
         if (vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator) != VK_SUCCESS)
@@ -433,12 +438,12 @@ namespace vke_render
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
-        vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool);
+        vkCreateCommandPool(globalLogicalDevice, &poolInfo, nullptr, &commandPool);
 
         if (queueFamilyIndices.computeOnlyFamily.has_value())
         {
             poolInfo.queueFamilyIndex = queueFamilyIndices.computeOnlyFamily.value();
-            vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &computeCommandPool);
+            vkCreateCommandPool(globalLogicalDevice, &poolInfo, nullptr, &computeCommandPool);
         }
         else
         {
@@ -448,7 +453,7 @@ namespace vke_render
         if (queueFamilyIndices.transferOnlyFamily.has_value())
         {
             poolInfo.queueFamilyIndex = queueFamilyIndices.transferOnlyFamily.value();
-            vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &transferCommandPool);
+            vkCreateCommandPool(globalLogicalDevice, &poolInfo, nullptr, &transferCommandPool);
         }
         else
         {
@@ -471,9 +476,9 @@ namespace vke_render
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            if (vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-                vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-                vkCreateFence(logicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
+            if (vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+                vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+                vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
             {
 
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
@@ -608,16 +613,16 @@ namespace vke_render
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        if (vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+        if (vkCreateSwapchainKHR(globalLogicalDevice, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to create swap chain!");
         }
 
-        vkGetSwapchainImagesKHR(logicalDevice, swapChain, &imageCnt, nullptr);
+        vkGetSwapchainImagesKHR(globalLogicalDevice, swapChain, &imageCnt, nullptr);
         swapChainImages.resize(imageCnt);
-        vkGetSwapchainImagesKHR(logicalDevice, swapChain, &imageCnt, swapChainImages.data());
+        vkGetSwapchainImagesKHR(globalLogicalDevice, swapChain, &imageCnt, swapChainImages.data());
 
-        std::cout << "IMAGE COUNT " << imageCnt << "\n";
+        VKE_LOG_INFO("IMAGE COUNT {}", imageCnt);
 
         swapChainImageFormat = surfaceFormat.format;
         swapChainExtent = extent;
@@ -636,17 +641,17 @@ namespace vke_render
     void RenderEnvironment::cleanupSwapChain()
     {
         for (auto imageView : instance->swapChainImageViews)
-            vkDestroyImageView(logicalDevice, imageView, nullptr);
+            vkDestroyImageView(globalLogicalDevice, imageView, nullptr);
 
-        vkDestroyImageView(logicalDevice, instance->depthImageView, nullptr);
+        vkDestroyImageView(globalLogicalDevice, instance->depthImageView, nullptr);
         vmaDestroyImage(instance->vmaAllocator, instance->depthImage, instance->depthImageVmaAllocation);
 
-        vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
+        vkDestroySwapchainKHR(globalLogicalDevice, swapChain, nullptr);
     }
 
     void RenderEnvironment::recreateSwapChain()
     {
-        vkDeviceWaitIdle(logicalDevice);
+        vkDeviceWaitIdle(globalLogicalDevice);
         cleanupSwapChain();
         createSwapChain();
         createImageViews();
@@ -670,7 +675,7 @@ namespace vke_render
 
     void RenderEnvironment::createCPUCommandQueue()
     {
-        std::unique_ptr<CPUCommandQueue> cpuQueue = std::make_unique<CPUCommandQueue>(logicalDevice);
+        std::unique_ptr<CPUCommandQueue> cpuQueue = std::make_unique<CPUCommandQueue>(globalLogicalDevice);
         cpuQueue->Start();
         commandQueues[CPU_QUEUE] = std::move(cpuQueue);
     }

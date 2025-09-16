@@ -5,11 +5,6 @@
 #include <asset.hpp>
 #include <gameobject.hpp>
 
-#include <memory>
-#include <iostream>
-#include <fstream>
-#include <map>
-
 namespace vke_common
 {
     class Scene

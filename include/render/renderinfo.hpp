@@ -1,10 +1,8 @@
 #ifndef RENDER_INFO_H
 #define RENDER_INFO_H
 
-#include <render/environment.hpp>
 #include <render/material.hpp>
 #include <render/mesh.hpp>
-#include <render/buffer.hpp>
 #include <render/pipeline.hpp>
 #include <ds/id_allocator.hpp>
 
@@ -61,10 +59,7 @@ namespace vke_render
             }
         }
 
-        ~RenderInfo()
-        {
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-        }
+        ~RenderInfo() {}
 
         void CreatePipeline(std::vector<uint32_t> &vertexAttributeSizes,
                             VkVertexInputRate vertexInputRate,

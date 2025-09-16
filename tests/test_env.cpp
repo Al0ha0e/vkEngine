@@ -1,15 +1,6 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-
-#include <engine.hpp>
-#include <gameobject.hpp>
 #include <component/camera.hpp>
 #include <component/renderable_object.hpp>
+#include <engine.hpp>
 
 const uint32_t WIDTH = 1024;
 const uint32_t HEIGHT = 768;
@@ -37,9 +28,7 @@ int main()
         vke_render::SKYBOX_RENDERER};
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
     GLFWwindow *window = initWindow(WIDTH, HEIGHT);
-    vke_common::EventSystem::Init();
-    vke_render::RenderEnvironment *environment = vke_render::RenderEnvironment::Init(window);
-    engine = vke_common::Engine::Init(&(environment->rootRenderContext), passes, customPasses);
+    engine = vke_common::Engine::Init(window, nullptr, passes, customPasses);
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_desc.json");
 
     // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
@@ -93,15 +82,11 @@ int main()
 
         processInput(window, camp, objp);
 
-        engine->renderer->Update();
+        engine->Update();
     }
     vke_common::Engine::WaitIdle();
-
-    // engine->MainLoop();
-
     vke_common::Engine::Dispose();
-    vke_render::RenderEnvironment::Dispose();
-    vke_common::EventSystem::Dispose();
+
     return 0;
 }
 

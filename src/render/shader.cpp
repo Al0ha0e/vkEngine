@@ -97,7 +97,7 @@ namespace vke_render
                 layoutInfo.pNext = &bindingFlagsCreateInfo;
             }
 
-            if (vkCreateDescriptorSetLayout(RenderEnvironment::GetInstance()->logicalDevice,
+            if (vkCreateDescriptorSetLayout(globalLogicalDevice,
                                             &layoutInfo,
                                             nullptr,
                                             &(descriptorSetInfo.layout)) != VK_SUCCESS)

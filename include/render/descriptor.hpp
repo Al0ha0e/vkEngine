@@ -1,7 +1,10 @@
 #ifndef DESCRIPTOR_H
 #define DESCRIPTOR_H
 
-#include <render/environment.hpp>
+#include <render/render_common.hpp>
+#include <map>
+#include <vector>
+#include <stdexcept>
 
 namespace vke_render
 {
@@ -52,10 +55,7 @@ namespace vke_render
         ~DescriptorSetInfo()
         {
             if (layout)
-            {
-                VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
-                vkDestroyDescriptorSetLayout(logicalDevice, layout, nullptr);
-            }
+                vkDestroyDescriptorSetLayout(globalLogicalDevice, layout, nullptr);
         }
 
         void AddCnt(VkDescriptorType type, int cnt)
@@ -174,9 +174,8 @@ namespace vke_render
 
         static void Dispose()
         {
-            VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
             for (auto &kv : instance->descriptorSetPools)
-                vkDestroyDescriptorPool(logicalDevice, kv.first, nullptr);
+                vkDestroyDescriptorPool(globalLogicalDevice, kv.first, nullptr);
             delete DescriptorSetAllocator::instance;
         }
 
@@ -220,7 +219,7 @@ namespace vke_render
             poolInfo.maxSets = info.setCnt;
 
             VkDescriptorPool ret;
-            if (vkCreateDescriptorPool(RenderEnvironment::GetInstance()->logicalDevice, &poolInfo, nullptr, &ret) != VK_SUCCESS)
+            if (vkCreateDescriptorPool(globalLogicalDevice, &poolInfo, nullptr, &ret) != VK_SUCCESS)
             {
                 throw std::runtime_error("failed to create descriptor pool!");
             }
@@ -248,7 +247,7 @@ namespace vke_render
 
             VkDescriptorSet ret;
             if (vkAllocateDescriptorSets(
-                    RenderEnvironment::GetInstance()->logicalDevice,
+                    globalLogicalDevice,
                     &allocInfo,
                     &ret) != VK_SUCCESS)
             {

@@ -1,7 +1,6 @@
 #ifndef SUBPASS_H
 #define SUBPASS_H
 
-#include <render/environment.hpp>
 #include <render/frame_graph.hpp>
 
 namespace vke_render
@@ -36,11 +35,7 @@ namespace vke_render
                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
         {
             this->subpassID = subpassID;
-            environment = RenderEnvironment::GetInstance();
         }
-
-    private:
-        RenderEnvironment *environment;
     };
 }
 

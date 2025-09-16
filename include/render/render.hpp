@@ -1,14 +1,10 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
-#include <common.hpp>
-#include <render/environment.hpp>
 #include <render/skybox_render.hpp>
 #include <render/opaque_render.hpp>
 #include <render/frame_graph.hpp>
 #include <event.hpp>
-#include <vector>
-#include <map>
 
 namespace vke_render
 {
@@ -49,7 +45,6 @@ namespace vke_render
 
             instance->context = *ctx;
             instance->currentFrame = 0;
-            instance->logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
             instance->passcnt = passes.size();
 
             ctx->resizeEventHub->AddEventListener(instance,
@@ -101,7 +96,7 @@ namespace vke_render
 
         static void WaitIdle()
         {
-            vkDeviceWaitIdle(RenderEnvironment::GetInstance()->logicalDevice);
+            vkDeviceWaitIdle(globalLogicalDevice);
             CPUCommandQueue *cpuQueue = (CPUCommandQueue *)RenderEnvironment::GetInstance()->commandQueues[CPU_QUEUE].get();
             cpuQueue->WaitIdle();
         }
@@ -170,7 +165,6 @@ namespace vke_render
         vke_ds::id32_t cameraResourceNodeID;
         DescriptorSetInfo globalDescriptorSetInfo;
         VkDescriptorSet globalDescriptorSet;
-        VkDevice logicalDevice;
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;

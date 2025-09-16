@@ -1,12 +1,8 @@
 #ifndef SKYBOX_RENDER_H
 #define SKYBOX_RENDER_H
 
-#include <render/environment.hpp>
 #include <render/renderinfo.hpp>
-#include <render/material.hpp>
-#include <render/mesh.hpp>
 #include <render/subpass.hpp>
-#include <render/pipeline.hpp>
 #include <nlohmann/json.hpp>
 
 namespace vke_render

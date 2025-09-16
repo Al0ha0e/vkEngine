@@ -1,5 +1,5 @@
 #include <render/render.hpp>
-#include <render/subpass.hpp>
+#include <logger.hpp>
 #include <algorithm>
 
 namespace vke_render
@@ -22,7 +22,7 @@ namespace vke_render
         layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
         layoutInfo.pBindings = &camInfoLayoutBinding;
 
-        vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo,
+        vkCreateDescriptorSetLayout(globalLogicalDevice, &layoutInfo,
                                     nullptr, &globalDescriptorSetInfo.layout);
         globalDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
 
@@ -30,7 +30,7 @@ namespace vke_render
         InitDescriptorBufferInfo(bufferInfo, camInfoBuffer.buffer, 0, camInfoBuffer.bufferSize);
         VkWriteDescriptorSet descriptorWrite{};
         ConstructDescriptorSetWrite(descriptorWrite, globalDescriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
-        vkUpdateDescriptorSets(logicalDevice, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(globalLogicalDevice, 1, &descriptorWrite, 0, nullptr);
     }
 
     void Renderer::initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
@@ -51,7 +51,7 @@ namespace vke_render
         binfo.range = camInfoBuffer.bufferSize;
         vke_ds::id32_t cameraResourceID = frameGraph->AddPermanentBufferResource("camInfoBuffer", binfo, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-        std::cout << "resource ids " << colorAttachmentResourceID << " " << depthAttachmentResourceID << " " << cameraResourceID << "\n";
+        VKE_LOG_INFO("resource ids {} {} {}", colorAttachmentResourceID, depthAttachmentResourceID, cameraResourceID)
 
         frameGraph->AddTargetResource(colorAttachmentResourceID);
         frameGraph->AddTargetResource(depthAttachmentResourceID);
@@ -105,7 +105,7 @@ namespace vke_render
         if (cameraInfoUpdated)
         {
             cameraInfoUpdated = false;
-            std::cout << "Cam updated\n";
+            VKE_LOG_INFO("Cam updated")
             frameGraph->resourceNodes[cameraResourceNodeID]->srcTaskID = cameraUpdateTaskID;
             frameGraph->Compile();
 

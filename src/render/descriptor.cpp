@@ -1,11 +1,7 @@
-#include <render/render.hpp>
-#include <iostream>
-#include <fstream>
-#include <asset.hpp>
+#include <render/descriptor.hpp>
 
 namespace vke_render
 {
-
     void InitDescriptorSetLayoutBinding(VkDescriptorSetLayoutBinding &dst,
                                         uint32_t binding,
                                         VkDescriptorType descriptorType,

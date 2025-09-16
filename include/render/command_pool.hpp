@@ -1,6 +1,7 @@
 #ifndef COMMAND_POOL_H
 #define COMMAND_POOL_H
-#include <render/environment.hpp>
+
+#include <render/render_common.hpp>
 #include <deque>
 
 namespace vke_render
@@ -59,18 +60,16 @@ namespace vke_render
             commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
             commandPoolCreateInfo.flags = flags;
             commandPoolCreateInfo.queueFamilyIndex = queueFamilyIndex;
-            vkCreateCommandPool(RenderEnvironment::GetInstance()->logicalDevice,
-                                &commandPoolCreateInfo, nullptr, &commandPool);
+            vkCreateCommandPool(globalLogicalDevice, &commandPoolCreateInfo, nullptr, &commandPool);
         }
 
         virtual ~GPUCommandPool() override
         {
             if (commandPool != nullptr)
             {
-                VkDevice logicalDevice = RenderEnvironment::GetInstance()->logicalDevice;
                 if (commandBuffers.size() > 0)
-                    vkFreeCommandBuffers(logicalDevice, commandPool, commandBuffers.size(), commandBuffers.data());
-                vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
+                    vkFreeCommandBuffers(globalLogicalDevice, commandPool, commandBuffers.size(), commandBuffers.data());
+                vkDestroyCommandPool(globalLogicalDevice, commandPool, nullptr);
             }
         }
 
@@ -80,7 +79,7 @@ namespace vke_render
             if (this != &ano)
             {
                 if (commandPool != nullptr)
-                    vkDestroyCommandPool(RenderEnvironment::GetInstance()->logicalDevice, commandPool, nullptr);
+                    vkDestroyCommandPool(globalLogicalDevice, commandPool, nullptr);
                 commandPool = ano.commandPool;
                 ano.commandPool = nullptr;
             }
@@ -110,13 +109,13 @@ namespace vke_render
                 allocInfo.commandPool = commandPool;
                 allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
                 allocInfo.commandBufferCount = cnt + allocatedCnt - prevSize;
-                vkAllocateCommandBuffers(RenderEnvironment::GetInstance()->logicalDevice, &allocInfo, commandBuffers.data() + prevSize);
+                vkAllocateCommandBuffers(globalLogicalDevice, &allocInfo, commandBuffers.data() + prevSize);
             }
         }
 
         virtual void Reset() override
         {
-            vkResetCommandPool(RenderEnvironment::GetInstance()->logicalDevice, commandPool, 0);
+            vkResetCommandPool(globalLogicalDevice, commandPool, 0);
             allocatedCnt = 0;
         }
 

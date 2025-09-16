@@ -1,4 +1,3 @@
-#include <render/render.hpp>
 #include <render/skybox_render.hpp>
 #include <asset.hpp>
 
@@ -170,7 +169,7 @@ namespace vke_render
         // layout(set = 1, binding = 4, rgba8) uniform writeonly image2D skyViewImage;
         VkDescriptorImageInfo imageInfo2{nullptr, skyLUT->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[2], skyBoxDescriptorSet, 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &imageInfo2);
-        vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
 
     void SkyboxRenderer::Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)

@@ -6,6 +6,11 @@
 #include <event.hpp>
 #include <gameobject.hpp>
 
+#ifdef _MINWINDEF_
+#undef near
+#undef far
+#endif
+
 namespace vke_component
 {
     class Camera : public vke_common::Component
@@ -120,5 +125,10 @@ namespace vke_component
         }
     };
 }
+
+#ifdef _MINWINDEF_
+#define near
+#define far
+#endif
 
 #endif

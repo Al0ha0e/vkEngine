@@ -2,7 +2,6 @@
 #define MATERIAL_H
 
 #include <render/shader.hpp>
-#include <render/descriptor.hpp>
 #include <render/texture.hpp>
 
 namespace vke_render
@@ -33,7 +32,7 @@ namespace vke_render
                 imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 vke_render::ConstructDescriptorSetWrite(writes[i], descriptorSet, st + i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo);
             }
-            vkUpdateDescriptorSets(RenderEnvironment::GetInstance()->logicalDevice, writes.size(), writes.data(), 0, nullptr);
+            vkUpdateDescriptorSets(globalLogicalDevice, writes.size(), writes.data(), 0, nullptr);
         }
     };
 }

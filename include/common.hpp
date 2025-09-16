@@ -9,8 +9,6 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-#include <stb/stb_image.h>
-
 #define VKE_DEBUG
 
 #ifdef VKE_DEBUG
@@ -22,6 +20,8 @@ const bool DEBUG_MODE = false;
 #ifndef COMPILE_TO_LIB
 #define REL_DIR "."
 #endif
+
+#include <cstdint>
 
 namespace vke_common
 {
