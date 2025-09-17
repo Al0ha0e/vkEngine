@@ -135,4 +135,4 @@ for s in shaders:
 cmds = ["python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"]
 for cmd in cmds:
     print(cmd)
-    # os.system(cmd)
+    os.system(cmd)
