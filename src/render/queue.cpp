@@ -1,21 +1,11 @@
 #include <render/queue.hpp>
+#include <logger.hpp>
 
 namespace vke_render
 {
 
     void CPUCommandQueue::Submit(uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence)
     {
-        for (int i = 0; i < submitCount; i++)
-        {
-            const VkSubmitInfo2 &submitInfo = pSubmits[i];
-
-            SubmitInfo &localSubmitInfo = submitInfos.emplace_back(submitInfo.signalSemaphoreInfoCount,
-                                                                   (std::function<void()> *)(submitInfo.pCommandBufferInfos[0].commandBuffer));
-
-            for (int j = 0; j < submitInfo.signalSemaphoreInfoCount; j++)
-                localSubmitInfo.signalSemaphoreInfos[j] = submitInfo.pSignalSemaphoreInfos[j];
-        }
-
         std::shared_ptr<uint32_t> submitCnt = std::make_shared<uint32_t>(submitCount);
 
         std::lock_guard lock(queueMutex);
@@ -23,22 +13,31 @@ namespace vke_render
         {
             const VkSubmitInfo2 &submitInfo = pSubmits[i];
 
-            auto callback = [this, i, fence, submitCnt]()
-            {
-                (*submitInfos[i].callback)();
+            std::shared_ptr<SubmitInfo> localSubmitInfo = std::make_shared<SubmitInfo>(submitInfo.signalSemaphoreInfoCount,
+                                                                                       (std::function<void()> *)(submitInfo.pCommandBufferInfos[0].commandBuffer));
 
-                for (auto &signalSemInfo : submitInfos[i].signalSemaphoreInfos)
+            for (int j = 0; j < submitInfo.signalSemaphoreInfoCount; j++)
+                localSubmitInfo->signalSemaphoreInfos[j] = submitInfo.pSignalSemaphoreInfos[j];
+
+            auto callback = [this, localSubmitInfo, fence, submitCnt]()
+            {
+                (*(localSubmitInfo->callback))();
+
+                for (auto &signalSemInfo : localSubmitInfo->signalSemaphoreInfos)
                 {
                     VkSemaphoreSignalInfo signalInfo = {};
                     signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
                     signalInfo.semaphore = signalSemInfo.semaphore;
                     signalInfo.value = signalSemInfo.value;
-
+                    VKE_LOG_INFO("submitCnt {} CPU SIGNAL {} {}", (*submitCnt), (void *)(signalSemInfo.semaphore), signalSemInfo.value)
                     vkSignalSemaphore(device, &signalInfo);
                 }
 
                 if (fence != nullptr && --(*submitCnt) == 0)
-                    vkResetFences(device, 1, &fence);
+                {
+                    VKE_LOG_INFO("RESET FENCE {}", (void *)fence)
+                    ((std::atomic<bool> *)fence)->store(true);
+                }
             };
             std::shared_ptr<uint32_t> counter = std::make_unique<uint32_t>(submitInfo.waitSemaphoreInfoCount);
             for (int j = 0; j < submitInfo.waitSemaphoreInfoCount; j++)

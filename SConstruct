@@ -115,7 +115,7 @@ env.Library("out/vkengine",commonsrc,
 
 ### shader
 
-glslc = 'glslc'
+glslc = 'glslc --target-env=vulkan1.4'
 
 sprefix = './builtin_assets/shader/'
 shaders = [
@@ -130,7 +130,13 @@ for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
 
-
+sprefix = './tests/shader/'
+shaders = [
+    ['test.comp','test_compute.spv'],
+]
+for s in shaders:
+    print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
+    os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
 
 cmds = ["python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"]
 for cmd in cmds:

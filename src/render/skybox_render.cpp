@@ -221,7 +221,7 @@ namespace vke_render
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
-        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.08, 0, 0));
+        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.04, 0, 0));
         vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(glm::vec4), &sunLightDir);
         skyboxMesh->Render(commandBuffer);
 
@@ -230,7 +230,7 @@ namespace vke_render
 
     void SkyboxRenderer::generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
     {
-        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.08, 0, 0));
+        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.04, 0, 0));
         skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSet, skyBoxDescriptorSet},
                                            &sunLightDir, glm::ivec3(8, 4, 1));
     }

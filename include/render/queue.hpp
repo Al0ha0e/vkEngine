@@ -122,6 +122,24 @@ namespace vke_render
             SubmitInfo() {}
             SubmitInfo(uint32_t semaphoreCnt, std::function<void()> *callback)
                 : signalSemaphoreInfos(semaphoreCnt), callback(callback) {}
+
+            SubmitInfo &operator=(SubmitInfo &&ano)
+            {
+                if (this != &ano)
+                {
+                    signalSemaphoreInfos = std::move(ano.signalSemaphoreInfos);
+                    callback = ano.callback;
+                    ano.callback = nullptr;
+                }
+                return *this;
+            }
+
+            SubmitInfo(SubmitInfo &&ano)
+                : signalSemaphoreInfos(std::move(ano.signalSemaphoreInfos)),
+                  callback(ano.callback)
+            {
+                ano.callback = nullptr;
+            }
         };
 
         struct WaitInfo

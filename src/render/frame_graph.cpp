@@ -7,26 +7,18 @@ namespace vke_render
 
     void FrameGraph::init()
     {
-        VkSemaphoreTypeCreateInfo timelineInfo{};
-
-        timelineInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-        timelineInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-        timelineInfo.initialValue = 0;
-
-        VkSemaphoreCreateInfo createInfo = {};
-        createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        createInfo.pNext = &timelineInfo;
-        vkCreateSemaphore(globalLogicalDevice, &createInfo, nullptr, &timelineSemaphore);
-
         queueFamilies[RENDER_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.graphicsAndComputeFamily.value();
         queueFamilies[COMPUTE_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.computeOnlyFamily.value();
         queueFamilies[TRANSFER_TASK] = RenderEnvironment::GetInstance()->queueFamilyIndices.transferOnlyFamily.value();
+
+        for (int i = 0; i < framesInFlight; i++)
+            cpuSemaphores.push_back(std::make_unique<std::atomic<bool>>(true));
 
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-        for (int i = 1; i < TASK_TYPE_CNT; i++)
+        for (int i = 1; i < TASK_TYPE_CNT - 1; i++)
             if (RenderEnvironment::HasQueue(QueueType(i)))
                 for (int j = 0; j < framesInFlight; j++)
                     vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &fences[i - 1][j]);
@@ -37,6 +29,8 @@ namespace vke_render
                     commandPools[i].push_back(std::make_unique<GPUCommandPool>(queueFamilies[i], VK_COMMAND_POOL_CREATE_TRANSIENT_BIT));
         for (int j = 0; j < framesInFlight; j++)
             commandPools[CPU_TASK].push_back(std::make_unique<CPUCommandPool>());
+
+        semaphorePool = std::make_unique<SemaphorePool>();
     }
 
     void FrameGraph::checkCrossQueue(ResourceRef &ref, TaskNode &taskNode)
@@ -58,14 +52,15 @@ namespace vke_render
 
     void FrameGraph::Compile()
     {
-        VKE_LOG_DEBUG("-------------------------- BEGIN COMPILE-----------------------")
+        VKE_LOG_INFO("-------------------------- BEGIN COMPILE-----------------------")
         orderedTasks.clear();
+        semaphorePool->Reset();
         std::set<vke_ds::id32_t> visited;
         std::queue<vke_ds::id32_t> taskQueue;
 
         // find valid tasks
 
-        VKE_LOG_DEBUG("task node cnt {}", taskNodes.size())
+        VKE_LOG_INFO("task node cnt {}", taskNodes.size())
 
         for (auto &kv : taskNodes)
         {
@@ -101,7 +96,7 @@ namespace vke_render
                 }
             }
         }
-        VKE_LOG_DEBUG("final out cnt {}", taskQueue.size())
+        VKE_LOG_INFO("final out cnt {}", taskQueue.size())
 
         while (!taskQueue.empty())
         {
@@ -143,7 +138,14 @@ namespace vke_render
             TaskNode &node = *taskNodes[taskQueue.front()];
             taskQueue.pop();
             orderedTasks.push_back(node.taskID);
-            node.order = orderedTasks.size();
+
+            if (node.currentSemaphore == nullptr)
+            {
+                node.currentSemaphore = semaphorePool->AllocateSemaphore();
+                node.semaphoreValueOffset = 1;
+            }
+
+            bool allocateNext = true;
 
             for (auto &ref : node.resourceRefs)
             {
@@ -156,6 +158,13 @@ namespace vke_render
                         TaskNode &dstNode = *taskNodes[dstTaskID];
                         if (dstNode.valid)
                         {
+                            if (allocateNext && dstNode.currentSemaphore == nullptr)
+                            {
+                                allocateNext = false;
+                                dstNode.currentSemaphore = node.currentSemaphore;
+                                dstNode.semaphoreValueOffset = node.semaphoreValueOffset + 1;
+                            }
+
                             dstNode.indeg--;
                             if (dstNode.indeg == 0)
                                 taskQueue.push(dstTaskID);
@@ -176,14 +185,11 @@ namespace vke_render
         for (int i = 0; i < TASK_TYPE_CNT; ++i)
             submitCntEstimates[i] = 0;
 
-        if (RenderEnvironment::HasQueue(COMPUTE_QUEUE) || RenderEnvironment::HasQueue(TRANSFER_QUEUE))
+        for (auto taskID : orderedTasks)
         {
-            for (auto taskID : orderedTasks)
-            {
-                TaskNode &taskNode = *taskNodes[taskID];
-                for (auto &ref : taskNode.resourceRefs)
-                    checkCrossQueue(ref, taskNode);
-            }
+            TaskNode &taskNode = *taskNodes[taskID];
+            for (auto &ref : taskNode.resourceRefs)
+                checkCrossQueue(ref, taskNode);
         }
 
         // construct first access
@@ -205,7 +211,7 @@ namespace vke_render
             TaskNode &taskNode = *taskNodes[taskID];
             for (auto &ref : taskNode.resourceRefs)
             {
-                ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
+                ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // last use out
                 auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
                 if (resource->lastAccessTaskID == 0)
                     resource->lastAccessTaskID = taskID;
@@ -221,17 +227,18 @@ namespace vke_render
                 ++cnt;
         }
 
-        VKE_LOG_DEBUG("orderedTask cnt {}", orderedTasks.size())
+        VKE_LOG_INFO("orderedTask cnt {}", orderedTasks.size())
         for (auto taskID : orderedTasks)
-            VKE_LOG_DEBUG("task id {}", taskID)
-        VKE_LOG_DEBUG("-------------------------- END COMPILE-----------------------")
+            VKE_LOG_INFO("task id {}", taskID)
+        VKE_LOG_INFO("-------------------------- END COMPILE-----------------------")
     }
 
     void FrameGraph::syncResources(ResourceRef &ref, TaskNode &taskNode,
                                    bool &needQueueSubmit,
                                    std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                                    std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
-                                   uint64_t &waitSemaphoreValue, VkPipelineStageFlags2 &waitDstStageMask)
+                                   std::map<VkSemaphore, uint64_t> &waitSemaphoreMap,
+                                   VkPipelineStageFlags2 &waitDstStageMask)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
@@ -276,7 +283,12 @@ namespace vke_render
                 // std::cout << "  CROSS QUEUE " << prevUsedRef.imageLayout << " " << ref.imageLayout << "\n";
                 needQueueSubmit = true;
                 waitDstStageMask |= ref.stageMask;
-                waitSemaphoreValue = std::max(waitSemaphoreValue, prevUsedTask.lastSemaphoreValue);
+
+                auto it = waitSemaphoreMap.find(prevUsedTask.lastSemaphore);
+                if (it == waitSemaphoreMap.end())
+                    waitSemaphoreMap[prevUsedTask.lastSemaphore] = prevUsedTask.lastSemaphoreValue;
+                else
+                    waitSemaphoreMap[prevUsedTask.lastSemaphore] = std::max(it->second, prevUsedTask.lastSemaphoreValue);
 
                 if (resource->resourceType == IMAGE_RESOURCE &&
                     ((prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) ||
@@ -463,9 +475,20 @@ namespace vke_render
         beginInfo.flags = 0;                  // Optional
         beginInfo.pInheritanceInfo = nullptr; // Optional
 
-        for (int i = 1; i < TASK_TYPE_CNT; ++i)
+        for (int i = 1; i < TASK_TYPE_CNT - 1; ++i)
             if (RenderEnvironment::HasQueue(QueueType(i)) && vkGetFenceStatus(globalLogicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
+            {
+                VKE_LOG_WARN("WAIT FOR FENCE0 {} {}", i, (void *)(fences[i - 1][currentFrame]))
                 vkWaitForFences(globalLogicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
+                VKE_LOG_WARN("WAIT FOR FENCE1 {} {}", i, (void *)(fences[i - 1][currentFrame]))
+            }
+
+        if (!cpuSemaphores[currentFrame]->load())
+        {
+            VKE_LOG_WARN("WAIT FOR CPU0")
+            cpuSemaphores[currentFrame]->wait(false);
+            VKE_LOG_WARN("WAIT FOR CPU1")
+        }
 
         for (int i = 0; i < TASK_TYPE_CNT; ++i)
             if (RenderEnvironment::HasQueue(QueueType(i)) && (submitCntEstimates[i] > 0))
@@ -478,10 +501,11 @@ namespace vke_render
 
         VKE_LOG_DEBUG("---------------------EXE-------------------")
         uint32_t actualSubmitCnts[TASK_TYPE_CNT] = {0, 0, 0, 0};
-        uint64_t waitSemaphoreValue = 0;
         VkPipelineStageFlags2 waitDstStageMask = 0;
         std::vector<VkBufferMemoryBarrier2> bufferMemoryBarriers;
         std::vector<VkImageMemoryBarrier2> imageMemoryBarriers;
+        std::map<VkSemaphore, uint64_t> waitSemaphoreMap;
+        std::vector<VkSemaphoreSubmitInfo> waitSemaphoreInfos;
         VkDependencyInfo dependencyInfo{};
         dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
         dependencyInfo.pNext = nullptr;
@@ -491,16 +515,9 @@ namespace vke_render
         commandBufferSubmitInfo.pNext = nullptr;
         commandBufferSubmitInfo.deviceMask = 0;
 
-        VkSemaphoreSubmitInfo waitSemaphoreInfo{};
-        waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        waitSemaphoreInfo.pNext = nullptr;
-        waitSemaphoreInfo.semaphore = timelineSemaphore;
-        waitSemaphoreInfo.deviceIndex = 0;
-
         VkSemaphoreSubmitInfo signalSemaphoreInfo{};
         signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
         signalSemaphoreInfo.pNext = nullptr;
-        signalSemaphoreInfo.semaphore = timelineSemaphore;
         signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
         signalSemaphoreInfo.deviceIndex = 0;
 
@@ -509,7 +526,6 @@ namespace vke_render
         submitInfo.pNext = nullptr; //&tlsSubmitInfo;
         submitInfo.commandBufferInfoCount = 1;
         submitInfo.pCommandBufferInfos = &commandBufferSubmitInfo;
-        submitInfo.pWaitSemaphoreInfos = &waitSemaphoreInfo;
         submitInfo.signalSemaphoreInfoCount = 1;
         submitInfo.pSignalSemaphoreInfos = &signalSemaphoreInfo;
 
@@ -524,7 +540,7 @@ namespace vke_render
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
                 syncResources(ref, taskNode, needQueueSubmit, bufferMemoryBarriers, imageMemoryBarriers,
-                              waitSemaphoreValue, waitDstStageMask);
+                              waitSemaphoreMap, waitDstStageMask);
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
             dependencyInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
@@ -552,33 +568,43 @@ namespace vke_render
 
                 commandBufferSubmitInfo.commandBuffer = commandBuffer;
 
-                if (waitSemaphoreValue > 0)
+                for (auto [k, v] : waitSemaphoreMap)
                 {
-                    waitSemaphoreInfo.value = waitSemaphoreValue;
-                    waitSemaphoreInfo.stageMask = waitDstStageMask;
-                    submitInfo.waitSemaphoreInfoCount = 1;
-                    VKE_LOG_DEBUG("------TASK <{}> WAIT FOR {}", taskNode.name, waitSemaphoreValue)
-                }
-                else
-                {
-                    submitInfo.waitSemaphoreInfoCount = 0;
+                    waitSemaphoreInfos.push_back(VkSemaphoreSubmitInfo{
+                        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                        .semaphore = k,
+                        .value = v,
+                        .stageMask = waitDstStageMask,
+                        .deviceIndex = 0});
+                    VKE_LOG_DEBUG("------TASK <{}> WAIT FOR {} {}", taskNode.name, (void *)(k), v)
                 }
 
-                uint64_t signalSemaphoreValue = taskNode.order + timelineSemaphoreBase;
+                submitInfo.waitSemaphoreInfoCount = waitSemaphoreMap.size();
+                submitInfo.pWaitSemaphoreInfos = waitSemaphoreInfos.data();
+
+                uint64_t signalSemaphoreValue = taskNode.semaphoreValueOffset + semaphoreValueBase;
+                signalSemaphoreInfo.semaphore = taskNode.currentSemaphore;
                 signalSemaphoreInfo.value = signalSemaphoreValue;
 
                 CommandQueue *queue = RenderEnvironment::GetQueue(QueueType(actualTaskType));
 
-                VKE_LOG_DEBUG("------TASK <{}> SUBMIT TO QUEUE {} COMMAND BUFFER {} SIGNAL {}", taskNode.name, (void *)queue, (void *)commandBuffer, signalSemaphoreValue)
+                VKE_LOG_DEBUG("------TASK <{}> SUBMIT TO QUEUE {} COMMAND BUFFER {} SIGNAL {} {}", taskNode.name, (void *)queue, (void *)commandBuffer, (void *)(signalSemaphoreInfo.semaphore), signalSemaphoreValue)
                 ++actualSubmitCnts[actualTaskType];
 
                 if (taskNode.isFinalTask)
                 {
                     VkFence fence = nullptr;
-                    if (actualTaskType != RENDER_TASK)
+                    if (actualTaskType == CPU_TASK)
+                    {
+                        cpuSemaphores[currentFrame]->store(false);
+                        fence = (VkFence)(cpuSemaphores[currentFrame].get());
+                    }
+                    else if (actualTaskType != RENDER_TASK)
                     {
                         fence = fences[actualTaskType - 1][currentFrame];
+                        VKE_LOG_WARN("RESET FENCE {} {}", (uint32_t)actualTaskType, (void *)fence)
                         vkResetFences(globalLogicalDevice, 1, &fence);
+                        VKE_LOG_WARN("RESET FENCE {} {}", (uint32_t)actualTaskType, (void *)fence)
                     }
                     queue->Submit(1, &submitInfo, fence);
                 }
@@ -588,13 +614,15 @@ namespace vke_render
                     commandBuffers[actualTaskType] = commandPools[actualTaskType][currentFrame]->AllocateAndBegin(&beginInfo);
                 }
 
-                waitSemaphoreValue = 0;
                 waitDstStageMask = 0;
+                waitSemaphoreMap.clear();
+                waitSemaphoreInfos.clear();
+                taskNode.lastSemaphore = taskNode.currentSemaphore;
+                taskNode.lastSemaphoreValue = taskNode.semaphoreValueOffset + semaphoreValueBase;
             }
-            taskNode.lastSemaphoreValue = taskNode.order + timelineSemaphoreBase;
         }
         for (int i = 0; i < TASK_TYPE_CNT; i++)
             submitCntEstimates[i] = actualSubmitCnts[i];
-        timelineSemaphoreBase += orderedTasks.size();
+        semaphoreValueBase += orderedTasks.size();
     }
 }

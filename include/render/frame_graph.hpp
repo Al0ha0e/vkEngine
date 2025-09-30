@@ -3,7 +3,9 @@
 
 #include <render/environment.hpp>
 #include <render/command_pool.hpp>
+#include <render/semaphore_pool.hpp>
 #include <ds/id_allocator.hpp>
+#include <logger.hpp>
 
 namespace vke_render
 {
@@ -100,29 +102,31 @@ namespace vke_render
         bool needQueueSubmit;
         bool isFinalTask;
         uint32_t indeg;
-        uint32_t order;
         uint64_t lastSemaphoreValue;
+        uint64_t semaphoreValueOffset;
+        VkSemaphore lastSemaphore;
+        VkSemaphore currentSemaphore;
         std::vector<ResourceRef> resourceRefs;
         TaskNodeExecuteCallback executeCallback;
 
         TaskNode() : taskID(0), taskType(RENDER_TASK), valid(false),
                      needQueueSubmit(false), isFinalTask(false), indeg(0),
-                     order(0), lastSemaphoreValue(0) {}
+                     lastSemaphoreValue(0), semaphoreValueOffset(0), lastSemaphore(nullptr), currentSemaphore(nullptr) {}
 
         TaskNode(std::string &&name, TaskType type, TaskType actualTaskType)
             : name(std::move(name)), taskID(0), taskType(type), actualTaskType(actualTaskType),
               valid(false), needQueueSubmit(false), isFinalTask(false),
-              indeg(0), order(0), lastSemaphoreValue(0) {}
+              indeg(0), lastSemaphoreValue(0), semaphoreValueOffset(0), lastSemaphore(nullptr), currentSemaphore(nullptr) {}
 
         TaskNode(std::string &&name, vke_ds::id32_t id, TaskType type, TaskType actualTaskType)
             : name(std::move(name)), taskID(id), taskType(type), actualTaskType(actualTaskType),
               valid(false), needQueueSubmit(false), isFinalTask(false),
-              indeg(0), order(0), lastSemaphoreValue(0) {}
+              indeg(0), lastSemaphoreValue(0), semaphoreValueOffset(0), lastSemaphore(nullptr), currentSemaphore(nullptr) {}
 
         TaskNode(std::string &&name, vke_ds::id32_t id, TaskType type, TaskType actualTaskType, TaskNodeExecuteCallback &callback)
             : name(std::move(name)), taskID(id), taskType(type), actualTaskType(actualTaskType),
               valid(false), needQueueSubmit(false), isFinalTask(false),
-              indeg(0), order(0), lastSemaphoreValue(0), executeCallback(callback) {}
+              indeg(0), lastSemaphoreValue(0), semaphoreValueOffset(0), lastSemaphore(nullptr), currentSemaphore(nullptr), executeCallback(callback) {}
 
         ~TaskNode() {}
         TaskNode &operator=(const TaskNode &) = delete;
@@ -140,8 +144,10 @@ namespace vke_render
                 needQueueSubmit = ano.needQueueSubmit;
                 isFinalTask = ano.isFinalTask;
                 indeg = ano.indeg;
-                order = ano.order;
                 lastSemaphoreValue = ano.lastSemaphoreValue;
+                semaphoreValueOffset = ano.semaphoreValueOffset;
+                lastSemaphore = ano.lastSemaphore;
+                currentSemaphore = ano.currentSemaphore;
                 resourceRefs = std::move(ano.resourceRefs);
                 executeCallback = std::move(ano.executeCallback);
             }
@@ -150,7 +156,9 @@ namespace vke_render
 
         TaskNode(TaskNode &&ano)
             : name(std::move(name)), taskID(ano.taskID), taskType(ano.taskType), actualTaskType(ano.actualTaskType),
-              valid(ano.valid), needQueueSubmit(needQueueSubmit), isFinalTask(isFinalTask), indeg(ano.indeg), order(ano.order), lastSemaphoreValue(ano.lastSemaphoreValue),
+              valid(ano.valid), needQueueSubmit(needQueueSubmit), isFinalTask(isFinalTask), indeg(ano.indeg),
+              lastSemaphoreValue(ano.lastSemaphoreValue), semaphoreValueOffset(ano.semaphoreValueOffset),
+              lastSemaphore(ano.lastSemaphore), currentSemaphore(ano.currentSemaphore),
               resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)) {}
 
         void AddResourceRef(bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
@@ -169,7 +177,8 @@ namespace vke_render
             needQueueSubmit = false;
             isFinalTask = false;
             indeg = 0;
-            order = 0;
+            currentSemaphore = nullptr;
+            semaphoreValueOffset = 0;
         }
     };
 
@@ -218,7 +227,7 @@ namespace vke_render
         ImageResource()
             : RenderResource(IMAGE_RESOURCE), image(nullptr), aspectMask(VK_IMAGE_ASPECT_NONE) {}
         ImageResource(std::string &&name, vke_ds::id32_t id, VkImage image, VkImageAspectFlags aspect, VkDescriptorImageInfo info)
-            : RenderResource(std::move(name), id, IMAGE_RESOURCE), image(image), aspectMask(aspect), info(info) {}
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE), image(image), aspectMask(aspect), info(info) { VKE_LOG_DEBUG("IMAGE RESOURCE {} {}", name, (void *)image) }
     };
 
     class BufferResource : public RenderResource
@@ -228,7 +237,7 @@ namespace vke_render
         BufferResource()
             : RenderResource(BUFFER_RESOURCE) {}
         BufferResource(std::string &&name, vke_ds::id32_t id, VkDescriptorBufferInfo info)
-            : RenderResource(std::move(name), id, BUFFER_RESOURCE), info(info) {}
+            : RenderResource(std::move(name), id, BUFFER_RESOURCE), info(info) { VKE_LOG_DEBUG("BUFFER RESOURCE {} {}", name, (void *)(info.buffer)) }
     };
 
     struct PermanentResourceState
@@ -245,7 +254,7 @@ namespace vke_render
     class FrameGraph
     {
     public:
-        uint64_t timelineSemaphoreBase;
+        uint64_t semaphoreValueBase;
         std::vector<std::unique_ptr<RenderResource>> permanentResources;
         std::map<vke_ds::id32_t, std::unique_ptr<RenderResource>> transientResources;
         std::vector<PermanentResourceState> permanentResourceStates;
@@ -254,7 +263,7 @@ namespace vke_render
         std::map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
 
         FrameGraph(uint32_t framesInFlight)
-            : framesInFlight(framesInFlight), timelineSemaphoreBase(0), taskIDAllocator(1), resourceIDAllocator(1)
+            : framesInFlight(framesInFlight), semaphoreValueBase(0), taskIDAllocator(1), resourceIDAllocator(1)
         {
             init();
         }
@@ -264,8 +273,7 @@ namespace vke_render
 
         ~FrameGraph()
         {
-            vkDestroySemaphore(globalLogicalDevice, timelineSemaphore, nullptr);
-            for (int i = 1; i < TASK_TYPE_CNT; i++)
+            for (int i = 1; i < TASK_TYPE_CNT - 1; i++)
                 if (RenderEnvironment::HasQueue(QueueType(i)))
                     for (int j = 0; j < framesInFlight; j++)
                         vkDestroyFence(globalLogicalDevice, fences[i - 1][j], nullptr);
@@ -365,16 +373,18 @@ namespace vke_render
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;
         std::vector<std::unique_ptr<CommandPool>> commandPools[TASK_TYPE_CNT];
+        std::unique_ptr<SemaphorePool> semaphorePool;
         std::vector<vke_ds::id32_t> orderedTasks;
-        VkSemaphore timelineSemaphore;
-        VkFence fences[TASK_TYPE_CNT - 1][MAX_FRAMES_IN_FLIGHT];
+        VkFence fences[TASK_TYPE_CNT - 2][MAX_FRAMES_IN_FLIGHT];
+        std::vector<std::unique_ptr<std::atomic<bool>>> cpuSemaphores;
 
         void init();
         void syncResources(ResourceRef &ref, TaskNode &taskNode,
                            bool &needQueueSubmit,
                            std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                            std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
-                           uint64_t &waitSemaphoreValue, VkPipelineStageFlags2 &waitDstStageMask);
+                           std::map<VkSemaphore, uint64_t> &waitSemaphoreMap,
+                           VkPipelineStageFlags2 &waitDstStageMask);
         void endResourcesUse(ResourceRef &ref, TaskNode &taskNode,
                              bool &needQueueSubmit,
                              std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
