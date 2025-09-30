@@ -29,14 +29,15 @@ namespace vke_render
                     signalInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
                     signalInfo.semaphore = signalSemInfo.semaphore;
                     signalInfo.value = signalSemInfo.value;
-                    VKE_LOG_INFO("submitCnt {} CPU SIGNAL {} {}", (*submitCnt), (void *)(signalSemInfo.semaphore), signalSemInfo.value)
+                    VKE_LOG_DEBUG("submitCnt {} CPU SIGNAL {} {}", (*submitCnt), (void *)(signalSemInfo.semaphore), signalSemInfo.value)
                     vkSignalSemaphore(device, &signalInfo);
                 }
 
                 if (fence != nullptr && --(*submitCnt) == 0)
                 {
-                    VKE_LOG_INFO("RESET FENCE {}", (void *)fence)
+                    VKE_LOG_DEBUG("SET CPU FENCE OK {}", (void *)fence)
                     ((std::atomic<bool> *)fence)->store(true);
+                    ((std::atomic<bool> *)fence)->notify_one();
                 }
             };
             std::shared_ptr<uint32_t> counter = std::make_unique<uint32_t>(submitInfo.waitSemaphoreInfoCount);

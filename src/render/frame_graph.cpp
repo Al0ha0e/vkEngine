@@ -253,6 +253,7 @@ namespace vke_render
             {
                 // std::cout << "  FIRST IMAGE USE\n";
                 ImageResource *imageResource = (ImageResource *)resource.get();
+                VKE_LOG_DEBUG("FIRST IMAGE USE {} {}", imageResource->name, (void *)(imageResource->image))
                 imageMemoryBarriers.emplace_back();
                 VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -280,7 +281,7 @@ namespace vke_render
             // std::cout << "PREVUSED TASK " << prevUsedTask.name << "\n";
             if (prevUsedTask.actualTaskType != taskNode.actualTaskType) // cross queue
             {
-                // std::cout << "  CROSS QUEUE " << prevUsedRef.imageLayout << " " << ref.imageLayout << "\n";
+                // VKE_LOG_DEBUG("CROSS QUEUE {} {}", (uint32_t)prevUsedRef.imageLayout, (uint32_t)ref.imageLayout)
                 needQueueSubmit = true;
                 waitDstStageMask |= ref.stageMask;
 
@@ -296,6 +297,7 @@ namespace vke_render
                 {
                     // std::cout << "  CROSS QUEUE IMAGE RECEIVE\n";
                     ImageResource *imageResource = (ImageResource *)resource.get();
+                    VKE_LOG_DEBUG("CROSS QUEUE IMAGE RECEIVE {} {}", imageResource->name, (void *)(imageResource->image))
                     imageMemoryBarriers.emplace_back();
                     VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -309,6 +311,7 @@ namespace vke_render
                     if (prevUsedTask.actualTaskType != CPU_TASK && taskNode.actualTaskType != CPU_TASK &&
                         prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                     {
+                        VKE_LOG_DEBUG("REAL CROSS QUEUE IMAGE RECEIVE")
                         barrier.srcQueueFamilyIndex = queueFamilies[resource->prevUsedTask->actualTaskType];
                         barrier.dstQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
                     }
@@ -402,8 +405,8 @@ namespace vke_render
                 ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE &&
                 crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
             {
-                // std::cout << "  CROSS QUEUE IMAGE RELEASE\n";
                 ImageResource *imageResource = (ImageResource *)resource.get();
+                VKE_LOG_DEBUG("CROSS QUEUE IMAGE RELEASE {} {}", imageResource->name, (void *)(imageResource->image))
                 imageMemoryBarriers.emplace_back();
                 VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -413,12 +416,13 @@ namespace vke_render
                 barrier.dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
                 barrier.dstAccessMask = VK_ACCESS_NONE;
                 barrier.oldLayout = ref.imageLayout;
-                barrier.newLayout = crossQueueRef.imageLayout;
+                barrier.newLayout = ref.imageLayout;
                 if (taskNode.actualTaskType != CPU_TASK &&
                     ref.crossQueueTask->actualTaskType != CPU_TASK &&
                     ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE &&
                     crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                 {
+                    VKE_LOG_DEBUG("REAL CROSS QUEUE IMAGE RELEASE")
                     barrier.srcQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
                     barrier.dstQueueFamilyIndex = queueFamilies[ref.crossQueueTask->actualTaskType];
                 }
@@ -478,16 +482,16 @@ namespace vke_render
         for (int i = 1; i < TASK_TYPE_CNT - 1; ++i)
             if (RenderEnvironment::HasQueue(QueueType(i)) && vkGetFenceStatus(globalLogicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
             {
-                VKE_LOG_WARN("WAIT FOR FENCE0 {} {}", i, (void *)(fences[i - 1][currentFrame]))
+                VKE_LOG_DEBUG("WAIT FOR FENCE0 {} {}", i, (void *)(fences[i - 1][currentFrame]))
                 vkWaitForFences(globalLogicalDevice, 1, &(fences[i - 1][currentFrame]), VK_TRUE, UINT64_MAX);
-                VKE_LOG_WARN("WAIT FOR FENCE1 {} {}", i, (void *)(fences[i - 1][currentFrame]))
+                VKE_LOG_DEBUG("WAIT FOR FENCE1 {} {}", i, (void *)(fences[i - 1][currentFrame]))
             }
 
         if (!cpuSemaphores[currentFrame]->load())
         {
-            VKE_LOG_WARN("WAIT FOR CPU0")
+            VKE_LOG_DEBUG("WAIT FOR CPU0 {}", (void *)(cpuSemaphores[currentFrame].get()))
             cpuSemaphores[currentFrame]->wait(false);
-            VKE_LOG_WARN("WAIT FOR CPU1")
+            VKE_LOG_DEBUG("WAIT FOR CPU1 {}", (void *)(cpuSemaphores[currentFrame].get()))
         }
 
         for (int i = 0; i < TASK_TYPE_CNT; ++i)
@@ -596,15 +600,16 @@ namespace vke_render
                     VkFence fence = nullptr;
                     if (actualTaskType == CPU_TASK)
                     {
+                        VKE_LOG_DEBUG("RESET CPU FENCE {}", (void *)(cpuSemaphores[currentFrame].get()))
                         cpuSemaphores[currentFrame]->store(false);
                         fence = (VkFence)(cpuSemaphores[currentFrame].get());
                     }
                     else if (actualTaskType != RENDER_TASK)
                     {
                         fence = fences[actualTaskType - 1][currentFrame];
-                        VKE_LOG_WARN("RESET FENCE {} {}", (uint32_t)actualTaskType, (void *)fence)
+                        VKE_LOG_DEBUG("RESET FENCE {} {}", (uint32_t)actualTaskType, (void *)fence)
                         vkResetFences(globalLogicalDevice, 1, &fence);
-                        VKE_LOG_WARN("RESET FENCE {} {}", (uint32_t)actualTaskType, (void *)fence)
+                        VKE_LOG_DEBUG("RESET FENCE {} {}", (uint32_t)actualTaskType, (void *)fence)
                     }
                     queue->Submit(1, &submitInfo, fence);
                 }
