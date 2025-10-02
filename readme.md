@@ -34,18 +34,20 @@ The build will produce several test/demo executables. For example:
 
 ## Third Party Libraries 
 
-- [assimp](https://github.com/assimp/assimp) 
 - [glfw](https://github.com/glfw/glfw) 
-- [JoltPhysics](https://github.com/jrouwe/JoltPhysics) 
-- [nlohmann/json](https://github.com/nlohmann/json) 
 - [SPIRV-Reflect](https://github.com/KhronosGroup/SPIRV-Reflect) 
 - [stb_image](https://github.com/nothings/stb) 
+- [assimp](https://github.com/assimp/assimp) 
+- [tinygltf](https://github.com/syoyo/tinygltf)
 - [VulkanMemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+- [nlohmann/json](https://github.com/nlohmann/json)
+- [spdlog](https://github.com/gabime/spdlog)  
+- [JoltPhysics](https://github.com/jrouwe/JoltPhysics) 
 
 
 ## Roadmap 
 
-- **Frame Graph**: support for multiple queue families 
-- **Rendering**: cluster-based deferred rendering & PBR 
-- **C++ Reflection**: python-based preprocessing tool to generate metadata 
-- **Scripting**: CoreCLR integration
+- [x] **Frame Graph**: support for multiple queue families 
+- [ ] **Rendering**: cluster-based deferred rendering & PBR 
+- [ ] **C++ Reflection**: python-based preprocessing tool to generate metadata 
+- [ ] **Scripting**: CoreCLR integration

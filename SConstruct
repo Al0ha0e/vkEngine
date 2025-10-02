@@ -93,7 +93,7 @@ commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./sr
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
                 "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",
-                "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp"]
+                "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp","./third_party/tinygltf/tiny_gltf.cpp"]
 
 targetinfo = [
     ["out/test_env",["./tests/test_env.cpp"]],
