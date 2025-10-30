@@ -32,8 +32,7 @@ int main()
 
         task.CreateDescriptorSets(descriptorSets);
 
-        VkDescriptorBufferInfo bufferInfo{};
-        vke_render::InitDescriptorBufferInfo(bufferInfo, buffer.buffer, 0, buffer.bufferSize);
+        VkDescriptorBufferInfo bufferInfo = buffer.GetDescriptorBufferInfo();
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], descriptorSets[0], 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &bufferInfo);
         vkUpdateDescriptorSets(vke_render::globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
@@ -91,25 +90,21 @@ int main()
         frameGraph.AddTaskNodeResourceRef(computeTaskNodeID, false, 0, computeOutResourceNodeID,
                                           VK_ACCESS_2_SHADER_WRITE_BIT,
                                           VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                          VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
         frameGraph.AddTaskNodeResourceRef(transferTaskNodeID, false, computeOutResourceNodeID, 0,
                                           VK_ACCESS_2_TRANSFER_READ_BIT,
                                           VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                                          VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
 
         frameGraph.AddTaskNodeResourceRef(transferTaskNodeID, false, 0, transferOutResourceNodeID,
                                           VK_ACCESS_2_TRANSFER_WRITE_BIT,
                                           VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                                          VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
         frameGraph.AddTaskNodeResourceRef(cpuTaskNodeID, false, transferOutResourceNodeID, 0,
                                           VK_ACCESS_2_HOST_READ_BIT,
                                           VK_PIPELINE_STAGE_2_HOST_BIT,
-                                          VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.Compile();
         frameGraph.Execute(0, 0);

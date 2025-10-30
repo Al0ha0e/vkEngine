@@ -16,16 +16,6 @@ namespace vke_render
         dst.pImmutableSamplers = pImmutableSamplers;
     }
 
-    void InitDescriptorBufferInfo(VkDescriptorBufferInfo &bufferInfo,
-                                  VkBuffer buffer,
-                                  VkDeviceSize offset,
-                                  VkDeviceSize range)
-    {
-        bufferInfo.buffer = buffer;
-        bufferInfo.offset = offset;
-        bufferInfo.range = range;
-    }
-
 #define COMMON_DS_WRITE_CONSTRUCT(binding, type)                    \
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET; \
     descriptorWrite.pNext = nullptr;                                \
@@ -35,33 +25,31 @@ namespace vke_render
     descriptorWrite.descriptorType = type;                          \
     descriptorWrite.descriptorCount = cnt;
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     uint32_t binding,
-                                                     VkDescriptorType descriptorType,
-                                                     VkDescriptorBufferInfo *bufferInfo,
-                                                     int st,
-                                                     int cnt)
+    void ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                     VkDescriptorSet descriptorSet,
+                                     uint32_t binding,
+                                     VkDescriptorType descriptorType,
+                                     VkDescriptorBufferInfo *bufferInfo,
+                                     int st,
+                                     int cnt)
     {
         COMMON_DS_WRITE_CONSTRUCT(binding, descriptorType)
         descriptorWrite.pBufferInfo = bufferInfo;
         descriptorWrite.pImageInfo = nullptr;       // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
-        return descriptorWrite;
     }
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     uint32_t binding,
-                                                     VkDescriptorType descriptorType,
-                                                     VkDescriptorImageInfo *imageInfo,
-                                                     int st,
-                                                     int cnt)
+    void ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                     VkDescriptorSet descriptorSet,
+                                     uint32_t binding,
+                                     VkDescriptorType descriptorType,
+                                     VkDescriptorImageInfo *imageInfo,
+                                     int st,
+                                     int cnt)
     {
         COMMON_DS_WRITE_CONSTRUCT(binding, descriptorType)
         descriptorWrite.pBufferInfo = nullptr;
         descriptorWrite.pImageInfo = imageInfo;     // Optional
         descriptorWrite.pTexelBufferView = nullptr; // Optional
-        return descriptorWrite;
     }
 }

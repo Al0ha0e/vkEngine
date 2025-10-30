@@ -343,9 +343,9 @@ namespace vke_render
         void AddTaskNodeResourceRef(vke_ds::id32_t taskID,
                                     bool isTransient, vke_ds::id32_t inResourceNodeID, vke_ds::id32_t outResourceNodeID,
                                     VkAccessFlags2 accessMask, VkPipelineStageFlags2 stageMask,
-                                    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                                     VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                                    VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
+                                    VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED)
         {
             TaskNode &taskNode = *taskNodes[taskID];
             taskNode.AddResourceRef(isTransient, inResourceNodeID, outResourceNodeID, accessMask, stageMask, layout, loadOp, storeOp);

@@ -26,8 +26,7 @@ namespace vke_render
                                     nullptr, &globalDescriptorSetInfo.layout);
         globalDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
 
-        VkDescriptorBufferInfo bufferInfo{};
-        InitDescriptorBufferInfo(bufferInfo, camInfoBuffer.buffer, 0, camInfoBuffer.bufferSize);
+        VkDescriptorBufferInfo bufferInfo = camInfoBuffer.GetDescriptorBufferInfo();
         VkWriteDescriptorSet descriptorWrite{};
         ConstructDescriptorSetWrite(descriptorWrite, globalDescriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
         vkUpdateDescriptorSets(globalLogicalDevice, 1, &descriptorWrite, 0, nullptr);
@@ -79,7 +78,6 @@ namespace vke_render
         frameGraph->AddTaskNodeResourceRef(cameraUpdateTaskID, false, 0, cameraResourceNodeID,
                                            VK_ACCESS_TRANSFER_WRITE_BIT,
                                            VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                           VK_IMAGE_LAYOUT_UNDEFINED,
                                            VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
     }
 

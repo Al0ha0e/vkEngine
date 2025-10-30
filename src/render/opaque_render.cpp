@@ -18,18 +18,17 @@ namespace vke_render
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                          VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], opaqueOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[depthAttachmentResourceID], opaqueOutDepthResourceNodeID,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                                          VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE);
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                                          VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
         currentResourceNodeID[colorAttachmentResourceID] = opaqueOutColorResourceNodeID;
         currentResourceNodeID[depthAttachmentResourceID] = opaqueOutDepthResourceNodeID;
