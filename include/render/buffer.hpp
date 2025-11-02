@@ -44,6 +44,15 @@ namespace vke_render
             if (buffer)
                 vmaDestroyBuffer(RenderEnvironment::GetInstance()->vmaAllocator, buffer, vmaAllocation);
         }
+
+        VkDescriptorBufferInfo GetDescriptorBufferInfo(VkDeviceSize offset = 0)
+        {
+            VkDescriptorBufferInfo bufferInfo;
+            bufferInfo.buffer = buffer;
+            bufferInfo.offset = offset;
+            bufferInfo.range = bufferSize;
+            return bufferInfo;
+        }
     };
 
     class HostCoherentBuffer : public Buffer

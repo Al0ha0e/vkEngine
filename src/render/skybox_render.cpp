@@ -20,8 +20,8 @@ namespace vke_render
         frameGraph.AddTaskNodeResourceRef(lutTaskID, false, 0, lutOutResourceNodeID,
                                           VK_ACCESS_SHADER_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                          VK_IMAGE_LAYOUT_GENERAL,
-                                          VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
+                                          VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
+                                          VK_IMAGE_LAYOUT_GENERAL);
 
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
@@ -34,23 +34,22 @@ namespace vke_render
         frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                          VK_IMAGE_LAYOUT_UNDEFINED,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], skyOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE);
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, currentResourceNodeID[depthAttachmentResourceID], 0,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
                                           VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                                          VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
         frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, lutOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         currentResourceNodeID[colorAttachmentResourceID] = skyOutColorResourceNodeID;
     }
@@ -160,8 +159,7 @@ namespace vke_render
 
         std::vector<VkWriteDescriptorSet> descriptorWrites(3);
         // layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
-        VkDescriptorBufferInfo bufferInfo{};
-        vke_render::InitDescriptorBufferInfo(bufferInfo, atmosphereParamBuffer->buffer, 0, atmosphereParamBuffer->bufferSize);
+        VkDescriptorBufferInfo bufferInfo = atmosphereParamBuffer->GetDescriptorBufferInfo();
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], skyBoxDescriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
         // layout(set = 1, binding = 3) uniform sampler2D skyViewLUT;
         VkDescriptorImageInfo imageInfo1{skyLUT->textureSampler, skyLUT->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};

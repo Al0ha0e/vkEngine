@@ -18,11 +18,6 @@ namespace vke_render
                                         VkShaderStageFlags stageFlags,
                                         const VkSampler *pImmutableSamplers);
 
-    void InitDescriptorBufferInfo(VkDescriptorBufferInfo &bufferInfo,
-                                  VkBuffer buffer,
-                                  VkDeviceSize offset,
-                                  VkDeviceSize range);
-
     struct DescriptorSetInfo
     {
         VkDescriptorSetLayout layout;
@@ -257,21 +252,21 @@ namespace vke_render
         }
     };
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     uint32_t binding,
-                                                     VkDescriptorType descriptorType,
-                                                     VkDescriptorBufferInfo *bufferInfo,
-                                                     int st = 0,
-                                                     int cnt = 1);
+    void ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                     VkDescriptorSet descriptorSet,
+                                     uint32_t binding,
+                                     VkDescriptorType descriptorType,
+                                     VkDescriptorBufferInfo *bufferInfo,
+                                     int st = 0,
+                                     int cnt = 1);
 
-    VkWriteDescriptorSet ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
-                                                     VkDescriptorSet descriptorSet,
-                                                     uint32_t binding,
-                                                     VkDescriptorType descriptorType,
-                                                     VkDescriptorImageInfo *imageInfo,
-                                                     int st = 0,
-                                                     int cnt = 1);
+    void ConstructDescriptorSetWrite(VkWriteDescriptorSet &descriptorWrite,
+                                     VkDescriptorSet descriptorSet,
+                                     uint32_t binding,
+                                     VkDescriptorType descriptorType,
+                                     VkDescriptorImageInfo *imageInfo,
+                                     int st = 0,
+                                     int cnt = 1);
 }
 
 #endif
