@@ -43,6 +43,13 @@ namespace vke_render
             return renderInfoMap[material.get()]->AddUnit(mesh, pushConstants, constantSize);
         }
 
+        uint64_t AddUnit(std::shared_ptr<Material> &material, std::shared_ptr<const Mesh> &mesh,
+                         std::vector<PushConstantInfo> &&pushConstantInfos, uint32_t perPrimitiveStart)
+        {
+            RegisterMaterial(material);
+            return renderInfoMap[material.get()]->AddUnit(mesh, std::move(pushConstantInfos), perPrimitiveStart);
+        }
+
         void RemoveUnit(Material *material, vke_ds::id64_t id)
         {
             renderInfoMap[material]->RemoveUnit(id);

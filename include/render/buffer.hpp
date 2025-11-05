@@ -2,9 +2,13 @@
 #define BUFFER_H
 
 #include <render/environment.hpp>
+#include <ds/mem_with_len.hpp>
 
 namespace vke_render
 {
+
+    using CPUBuffer = vke_ds::Memory;
+
     class Buffer
     {
     public:

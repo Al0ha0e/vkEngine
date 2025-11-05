@@ -95,8 +95,25 @@ commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./sr
                 "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",
                 "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp","./third_party/tinygltf/tiny_gltf.cpp"]
 
+### tools
+
+toolCommonSrc = ["./src/logger.cpp"]
+
+targetinfo = [
+    ["tools/gltf_conv", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_conv.cpp"]],
+    ["tools/obj_conv", ["./src/tools/obj_conv.cpp"]]
+]
+
+for info in targetinfo:
+    env.Program(info[0],
+        toolCommonSrc + info[1],
+        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines)
+
+### tests
+
 targetinfo = [
     ["out/test_env",["./tests/test_env.cpp"]],
+    ["out/test_sponza",["./tests/test_sponza.cpp"]],
     ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],
     ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]]
@@ -105,13 +122,11 @@ targetinfo = [
 for info in targetinfo:
     env.Program(info[0],
         info[1]+commonsrc,
-        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines,
-        SCONS_CXX_STANDARD="c++20")
+        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines)
 
 
 env.Library("out/vkengine",commonsrc,
-                        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines,
-                        SCONS_CXX_STANDARD="c++20")
+                        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines)
 
 ### shader
 
@@ -121,6 +136,8 @@ sprefix = './builtin_assets/shader/'
 shaders = [
     ['default.frag','default_frag.spv'],
     ['default.vert','default_vert.spv'],
+    ['default_multi.frag','default_multi_frag.spv'],
+    ['default_multi.vert','default_multi_vert.spv'],
     ['skybox.frag','skyfrag.spv'],
     ['skybox.vert','skyvert.spv'],
     ['sky_lut.comp','sky_lut.spv']

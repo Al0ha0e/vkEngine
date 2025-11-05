@@ -66,7 +66,7 @@ namespace vke_render
     private:
         VkDescriptorSet skyBoxDescriptorSet;
         std::unique_ptr<GraphicsPipeline> renderPipeline;
-        std::unique_ptr<Mesh> skyboxMesh;
+        std::unique_ptr<BaseMesh<glm::vec3>> skyboxMesh;
         std::unique_ptr<Material> skyboxMaterial;
         std::unique_ptr<ComputePipeline> skyLUTGenerationPipeline;
         std::unique_ptr<DeviceBuffer> atmosphereParamBuffer;

@@ -13,6 +13,7 @@ namespace vke_component
     public:
         std::shared_ptr<vke_render::Material> material;
         std::shared_ptr<const vke_render::Mesh> mesh;
+        std::vector<glm::ivec4> textureIndices;
 
         RenderableObject(
             std::shared_ptr<vke_render::Material> &mat,
@@ -27,6 +28,12 @@ namespace vke_component
         {
             material = vke_common::AssetManager::LoadMaterial(json["material"]);
             mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
+            if (json.contains("textureIndices"))
+            {
+                auto &indices = json["textureIndices"];
+                for (auto &index : indices)
+                    textureIndices.push_back(glm::ivec4(index[0].get<int>(), index[1].get<int>(), index[2].get<int>(), 0));
+            }
             init();
         }
 
@@ -51,7 +58,14 @@ namespace vke_component
         void init()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, &gameObject->transform.model, sizeof(glm::mat4));
+
+            if (mesh->infos.size() == 1)
+                renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, &gameObject->transform.model, sizeof(glm::mat4));
+            else
+                renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh,
+                                                                  {vke_render::PushConstantInfo(sizeof(glm::mat4), &gameObject->transform.model, 0),
+                                                                   vke_render::PushConstantInfo(sizeof(glm::ivec4), textureIndices.data(), sizeof(glm::mat4))},
+                                                                  1);
         }
     };
 }

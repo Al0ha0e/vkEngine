@@ -7,4 +7,6 @@ assets
 out
 builtin_assets/texture/scattering_lut.png
 builtin_assets/texture/transmitance_lut.png
+sponza-gltf-pbr
+tools/*.dll
 !builtin_assets/**/*.obj

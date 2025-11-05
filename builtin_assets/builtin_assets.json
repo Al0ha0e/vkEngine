@@ -25,25 +25,25 @@
     "type": 1,
     "id": 2,
     "name": "Cube",
-    "path": "/builtin_assets/mesh/cube.obj"
+    "path": "/builtin_assets/mesh/cube.mesh"
   },
   {
     "type": 1,
     "id": 3,
     "name": "Sphere",
-    "path": "/builtin_assets/mesh/sphere.obj"
+    "path": "/builtin_assets/mesh/sphere.mesh"
   },
   {
     "type": 1,
     "id": 4,
     "name": "Cylinder",
-    "path": "/builtin_assets/mesh/cylinder.obj"
+    "path": "/builtin_assets/mesh/cylinder.mesh"
   },
   {
     "type": 1,
     "id": 5,
     "name": "Monkey",
-    "path": "/builtin_assets/mesh/monkey.obj"
+    "path": "/builtin_assets/mesh/monkey.mesh"
   },
   {
     "type": 2,
@@ -60,6 +60,13 @@
     "fragPath": "/builtin_assets/shader/skyfrag.spv"
   },
   {
+    "type": 2,
+    "id": 3,
+    "name": "DefaultMultiShader",
+    "path": "/builtin_assets/shader/default_multi_vert.spv",
+    "fragPath": "/builtin_assets/shader/default_multi_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",
@@ -71,7 +78,8 @@
     "name": "DefaultMaterial",
     "path": "",
     "shader": 1,
-    "textures": [1]
+    "textures": [1],
+    "bindingInfos": [{ "binding": 0, "offset": 0, "cnt": 1 }]
   },
   {
     "type": 4,
@@ -79,6 +87,10 @@
     "name": "SkyboxMaterial",
     "path": "",
     "shader": 2,
-    "textures": [2, 3]
+    "textures": [2, 3],
+    "bindingInfos": [
+      { "binding": 1, "offset": 0, "cnt": 1 },
+      { "binding": 2, "offset": 0, "cnt": 1 }
+    ]
   }
 ]

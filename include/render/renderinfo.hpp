@@ -20,21 +20,59 @@ namespace vke_render
             : view(view), projection(projection), viewPos(viewPos, 1.0) {}
     };
 
+    struct PushConstantInfo
+    {
+        uint32_t offset;
+        uint32_t size;
+        void *pValues;
+
+        PushConstantInfo() : offset(0), size(0), pValues(nullptr) {}
+        PushConstantInfo(uint32_t size, void *pValues, uint32_t offset = 0) : offset(offset), size(size), pValues(pValues) {}
+    };
+
     struct RenderUnit
     {
         std::shared_ptr<const Mesh> mesh;
-        void *pushConstants;
-        uint32_t constantSize;
+        std::vector<PushConstantInfo> pushConstantInfos;
+        uint32_t perPrimitiveStart;
 
         RenderUnit() = default;
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, void *pushConstants, uint32_t constantSize)
-            : mesh(msh), pushConstants(pushConstants), constantSize(constantSize) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh, void *pValues, uint32_t constantSize)
+            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues)), perPrimitiveStart(1) {}
+
+        RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart)
+            : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())) {}
 
         void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout, int descriptorSetOffset)
         {
-            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, constantSize, pushConstants);
-            mesh->Render(commandBuffer);
+            if (mesh->infos.size() == 0)
+                return;
+
+            for (int i = 0; i < perPrimitiveStart; i++)
+            {
+                auto &info = pushConstantInfos[i];
+                vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, info.offset, info.size, info.pValues);
+            }
+
+            if (mesh->infos.size() == 1)
+            {
+                mesh->Render(commandBuffer);
+                return;
+            }
+
+            VkIndexType prevIndexType = VK_INDEX_TYPE_MAX_ENUM;
+            size_t innerOffset = 0;
+            for (int i = 0; i < mesh->infos.size(); i++)
+            {
+                for (int j = perPrimitiveStart; j < pushConstantInfos.size(); j++)
+                {
+                    auto &info = pushConstantInfos[j];
+                    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, info.offset, info.size,
+                                       ((char *)info.pValues) + i * info.size);
+                }
+                mesh->RenderPrimitive(commandBuffer, i, prevIndexType);
+            }
         }
     };
 
@@ -72,6 +110,13 @@ namespace vke_render
         {
             vke_ds::id64_t id = allocator.Alloc();
             units[id] = RenderUnit(mesh, pushConstants, constantSize);
+            return id;
+        }
+
+        vke_ds::id64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<PushConstantInfo> &&pushConstantInfos, uint32_t perPrimitiveStart)
+        {
+            vke_ds::id64_t id = allocator.Alloc();
+            units[id] = RenderUnit(mesh, std::move(pushConstantInfos), perPrimitiveStart);
             return id;
         }
 

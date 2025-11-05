@@ -21,7 +21,11 @@ namespace vke_render
         std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions(inputVariableCount);
         for (int i = 0; i < inputVariableCount; i++)
         {
-            SpvReflectInterfaceVariable &variable = *(vertReflectInfo.input_variables[i]);
+            int j;
+            for (j = 0; j < inputVariableCount; j++)
+                if (vertReflectInfo.input_variables[j]->location == i)
+                    break;
+            SpvReflectInterfaceVariable &variable = *(vertReflectInfo.input_variables[j]);
             vertexAttributeDescriptions[i].binding = 0;
             vertexAttributeDescriptions[i].location = variable.location;
             vertexAttributeDescriptions[i].format = (VkFormat)variable.format;
@@ -58,7 +62,7 @@ namespace vke_render
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
         rasterizer.depthBiasConstantFactor = 0.0f; // Optional
         rasterizer.depthBiasClamp = 0.0f;          // Optional

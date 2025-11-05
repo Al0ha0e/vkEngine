@@ -30,6 +30,7 @@ namespace vke_common
 
     const AssetHandle BUILTIN_VFSHADER_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_VFSHADER_SKYBOX_ID = 2;
+    const AssetHandle BUILTIN_VFSHADER_DEFAULT_MULTI_ID = 3;
 
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
 
@@ -176,6 +177,7 @@ namespace vke_common
     public:
         AssetHandle shader;
         std::vector<AssetHandle> textures;
+        std::shared_ptr<std::vector<vke_render::TextureBindingInfo>> textureBindingInfos;
 
         MaterialAsset() {}
 
@@ -185,6 +187,10 @@ namespace vke_common
             auto &texs = json["textures"];
             for (auto &tex : texs)
                 textures.push_back(tex);
+            textureBindingInfos = std::make_shared<std::vector<vke_render::TextureBindingInfo>>();
+            auto &bindingInfos = json["bindingInfos"];
+            for (auto &bindingInfo : bindingInfos)
+                textureBindingInfos->emplace_back(bindingInfo["binding"], bindingInfo["offset"], bindingInfo["cnt"]);
         }
 
         DEFAULT_CONSTRUCTOR2(MaterialAsset)
@@ -195,6 +201,14 @@ namespace vke_common
             ret += ", \"textures\": [ ";
             for (auto texture : textures)
                 ret += std::to_string(texture) + ",";
+            ret[ret.length() - 1] = ']';
+            ret += ", \"bindingInfos\":[";
+            for (auto &bindingInfo : (*textureBindingInfos))
+            {
+                ret += "\n{\"binding\":" + std::to_string(bindingInfo.binding) + ",";
+                ret += "\"offset\":" + std::to_string(bindingInfo.offset) + ",";
+                ret += "\"cnt\":" + std::to_string(bindingInfo.cnt) + "},";
+            }
             ret[ret.length() - 1] = ']';
             return ret;
         }

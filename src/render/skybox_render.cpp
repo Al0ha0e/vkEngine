@@ -86,46 +86,48 @@ namespace vke_render
     const std::vector<glm::vec3> skyboxVertices = {
         // positions
         {-1.0f, 1.0f, -1.0f},
+        {1.0f, -1.0f, -1.0f},
         {-1.0f, -1.0f, -1.0f},
         {1.0f, -1.0f, -1.0f},
-        {1.0f, -1.0f, -1.0f},
+        {-1.0f, 1.0f, -1.0f},
         {1.0f, 1.0f, -1.0f},
-        {-1.0f, 1.0f, -1.0f},
 
         {-1.0f, -1.0f, 1.0f},
+        {-1.0f, 1.0f, -1.0f},
         {-1.0f, -1.0f, -1.0f},
         {-1.0f, 1.0f, -1.0f},
-        {-1.0f, 1.0f, -1.0f},
-        {-1.0f, 1.0f, 1.0f},
         {-1.0f, -1.0f, 1.0f},
+        {-1.0f, 1.0f, 1.0f},
 
         {1.0f, -1.0f, -1.0f},
+        {1.0f, 1.0f, 1.0f},
         {1.0f, -1.0f, 1.0f},
         {1.0f, 1.0f, 1.0f},
-        {1.0f, 1.0f, 1.0f},
-        {1.0f, 1.0f, -1.0f},
         {1.0f, -1.0f, -1.0f},
+        {1.0f, 1.0f, -1.0f},
 
         {-1.0f, -1.0f, 1.0f},
+        {1.0f, 1.0f, 1.0f},
         {-1.0f, 1.0f, 1.0f},
         {1.0f, 1.0f, 1.0f},
-        {1.0f, 1.0f, 1.0f},
-        {1.0f, -1.0f, 1.0f},
         {-1.0f, -1.0f, 1.0f},
+        {1.0f, -1.0f, 1.0f},
 
         {-1.0f, 1.0f, -1.0f},
+        {1.0f, 1.0f, 1.0f},
         {1.0f, 1.0f, -1.0f},
         {1.0f, 1.0f, 1.0f},
-        {1.0f, 1.0f, 1.0f},
-        {-1.0f, 1.0f, 1.0f},
         {-1.0f, 1.0f, -1.0f},
+        {-1.0f, 1.0f, 1.0f},
 
         {-1.0f, -1.0f, -1.0f},
-        {-1.0f, -1.0f, 1.0f},
-        {1.0f, -1.0f, -1.0f},
         {1.0f, -1.0f, -1.0f},
         {-1.0f, -1.0f, 1.0f},
-        {1.0f, -1.0f, 1.0f}};
+        {1.0f, -1.0f, -1.0f},
+        {1.0f, -1.0f, 1.0f},
+        {-1.0f, -1.0f, 1.0f}
+
+    };
 
     void SkyboxRenderer::initResources()
     {
@@ -149,13 +151,13 @@ namespace vke_render
         std::vector<uint32_t> indices;
         for (int i = 0; i < skyboxVertices.size(); i++)
             indices.push_back(i);
-        skyboxMesh = std::make_unique<Mesh>(0, skyboxVertices.size() * sizeof(glm::vec3), (void *)skyboxVertices.data(), indices);
+        skyboxMesh = std::make_unique<BaseMesh<glm::vec3>>(0, skyboxVertices, indices);
     }
 
     void SkyboxRenderer::createDescriptorSet()
     {
         skyBoxDescriptorSet = skyboxMaterial->shader->CreateDescriptorSet(1);
-        skyboxMaterial->UpdateDescriptorSet(skyBoxDescriptorSet, 1);
+        skyboxMaterial->UpdateDescriptorSet(skyBoxDescriptorSet);
 
         std::vector<VkWriteDescriptorSet> descriptorWrites(3);
         // layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
