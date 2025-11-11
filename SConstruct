@@ -89,7 +89,8 @@ libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/']
 cppdefines = [] # ['NDEBUG']
 commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
-                "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/opaque_render.cpp", "./src/render/shader.cpp", "./src/render/pipeline.cpp",
+                "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", 
+                "./src/render/deferred_lighting.cpp","./src/render/shader.cpp", "./src/render/pipeline.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
                 "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",
@@ -138,6 +139,8 @@ shaders = [
     ['default.vert','default_vert.spv'],
     ['default_multi.frag','default_multi_frag.spv'],
     ['default_multi.vert','default_multi_vert.spv'],
+    ['deferred_lighting.frag','deferred_lighting_frag.spv'],
+    ['deferred_lighting.vert','deferred_lighting_vert.spv'],
     ['skybox.frag','skyfrag.spv'],
     ['skybox.vert','skyvert.spv'],
     ['sky_lut.comp','sky_lut.spv']

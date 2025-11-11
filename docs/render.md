@@ -1,3 +1,5 @@
+## 总述
+
 三部分：
 
 - 资源管理：frame graph 实现，声明每个 pass 输入输出的资源，创建并维护资源
@@ -30,7 +32,7 @@ https://github.com/KhronosGroup/SPIRV-Cross/issues/2171#issuecomment-1607198720
 - material：包括若干 descriptor set，对应一个 json 配置文件，其中制定了对应的 shader，texture 及其对应的 descriptor set（可以是 material 特有的或管线对应的），push constant 的值、大小和偏移量
 - mesh: 包括顶点和索引数组，push constant 的值、大小和偏移量
 
-### Frame Graph 备忘
+## Frame Graph 备忘
 
 两条执行线：
 
@@ -38,7 +40,7 @@ https://github.com/KhronosGroup/SPIRV-Cross/issues/2171#issuecomment-1607198720
 - compute：执行 compute shader
 - transfer 传输队列
 
-#### 编译过程：
+### 编译过程：
 
 - 标记 valid：
 
@@ -49,7 +51,7 @@ https://github.com/KhronosGroup/SPIRV-Cross/issues/2171#issuecomment-1607198720
   - 收集第一批入度为 0 的 Task
   - 迭代把入度为 0 的 Task 的所有出边去掉
 
-#### 同步方法
+### 同步方法
 
 对于使用同一资源的前后两个 Task：
 
@@ -74,18 +76,29 @@ Task 运行结束后：
 - 更新所有用到的资源的 lastUsed
 - 如果存在 crossQueue 的资源，进行所有权转移并 signal Timeline Semaphore
 
-#### 注意事项
+### 注意事项
 
 - Timeline Semaphore 不能重置
 - 每个 Pass 对一个资源的操作都需要了解要对其进行的下一个操作以保证所有权转移可以正常进行，因此某一帧的最后一个操作也需要了解下一帧的第一个操作
 
-#### 坑
+### 坑
 
 SYNC-HAZARD-WRITE-AFTER-READ error with swapchain acquisition and command buffer submission
 https://stackoverflow.com/questions/77871832/sync-hazard-write-after-read-error-with-swapchain-acquisition-and-command-buffer
 https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/7193#issuecomment-1875960974
 
-### TODO
 
-用 vkCmdPipelineBarrier2 打包多个 barrier（vkCmdPipelineBarrier 不支持每个 barrier 一个 stageMask）
+## Deferred Rendering
+
+### GBuffer 组织
+
+|名称|格式|内容|备注|
+|-|-|-|-|
+|GBuffer0|R8G8B8A8_UNorm|BaseColor(rgb) + Occlusion(a)||
+|GBuffer1|A2B10G10R10_UNormPack32|WorldNormal(rgb10-bit) + MaterialFlags(a)||
+|GBuffer2|R8G8B8A8_UNorm|Metallic(r) + Roughness(g)||
+|Depth|D32_SFloat|深度||
+
+## TODO
+
 实现 descriptor set 回收

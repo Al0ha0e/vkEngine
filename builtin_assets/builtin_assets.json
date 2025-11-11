@@ -67,6 +67,13 @@
     "fragPath": "/builtin_assets/shader/default_multi_frag.spv"
   },
   {
+    "type": 2,
+    "id": 4,
+    "name": "DeferredLightingShader",
+    "path": "/builtin_assets/shader/deferred_lighting_vert.spv",
+    "fragPath": "/builtin_assets/shader/deferred_lighting_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",

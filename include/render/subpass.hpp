@@ -9,8 +9,9 @@ namespace vke_render
     enum PassType
     {
         CUSTOM_RENDERER,
+        GBUFFER_PASS,
+        DEFERRED_LIGHTING_PASS,
         SKYBOX_RENDERER,
-        OPAQUE_RENDERER
     };
 
     class RenderPassBase

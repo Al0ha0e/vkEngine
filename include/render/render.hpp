@@ -1,9 +1,9 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <render/gbuffer_pass.hpp>
+#include <render/deferred_lighting.hpp>
 #include <render/skybox_render.hpp>
-#include <render/opaque_render.hpp>
-#include <render/frame_graph.hpp>
 #include <event.hpp>
 
 namespace vke_render
@@ -70,6 +70,22 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(customPass));
                     break;
                 }
+                case GBUFFER_PASS:
+                {
+                    std::unique_ptr<GBufferPass> gbufferPass = std::make_unique<GBufferPass>(ctx, instance->globalDescriptorSet);
+                    gbufferPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[GBUFFER_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(gbufferPass));
+                    break;
+                }
+                case DEFERRED_LIGHTING_PASS:
+                {
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSet);
+                    lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(lightingPass));
+                    break;
+                }
                 case SKYBOX_RENDERER:
                 {
                     std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSet);
@@ -78,14 +94,7 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(skyboxRenderer));
                     break;
                 }
-                case OPAQUE_RENDERER:
-                {
-                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx, instance->globalDescriptorSet);
-                    opaqueRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
-                    instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
-                    instance->subPasses.push_back(std::move(opaqueRenderer));
-                    break;
-                }
+
                 default:
                     break;
                 }
@@ -143,9 +152,9 @@ namespace vke_render
             instance->cameraInfoUpdated = true;
         }
 
-        static OpaqueRenderer *GetOpaqueRenderer()
+        static GBufferPass *GetGBufferPass()
         {
-            return static_cast<OpaqueRenderer *>(instance->subPasses[instance->subPassMap[OPAQUE_RENDERER]].get());
+            return static_cast<GBufferPass *>(instance->subPasses[instance->subPassMap[GBUFFER_PASS]].get());
         }
 
         static void OnWindowResize(void *listener, RenderContext *ctx)
