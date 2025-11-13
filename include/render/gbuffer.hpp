@@ -5,8 +5,9 @@
 
 namespace vke_render
 {
-    const uint32_t GBUFFER_CNT = 3;
-    const VkFormat gbufferFormats[GBUFFER_CNT] = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_A2R10G10B10_UNORM_PACK32, VK_FORMAT_R8G8B8A8_UNORM};
+    const uint32_t GBUFFER_CNT = 4;
+    const VkFormat gbufferFormats[GBUFFER_CNT] = {VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_A2R10G10B10_UNORM_PACK32,
+                                                  VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_R32_SFLOAT};
 
     class GBuffer
     {

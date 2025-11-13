@@ -95,6 +95,7 @@ static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &
 {
     std::set<int> materialSet;
     std::map<int, uint32_t> textureMap;
+    std::set<int> srgbTextures;
 
     auto &mesh = model.meshes[node.mesh];
     for (auto &prim : mesh.primitives)
@@ -116,7 +117,11 @@ static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &
         if (baseColorTexture.index == -1 || metallicRoughnessTexture.index == -1 || normalTexture.index == -1)
             textureMissing = true;
         if (baseColorTexture.index != -1 && textureMap.find(baseColorTexture.index) == textureMap.end())
+        {
             textureMap[baseColorTexture.index] = 0;
+            srgbTextures.insert(baseColorTexture.index);
+        }
+
         if (metallicRoughnessTexture.index != -1 && textureMap.find(metallicRoughnessTexture.index) == textureMap.end())
             textureMap[metallicRoughnessTexture.index] = 0;
         if (normalTexture.index != -1 && textureMap.find(normalTexture.index) == textureMap.end())
@@ -141,7 +146,8 @@ static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &
         assetLUT.push_back({{"type", 0},
                             {"id", ++maxTextureID},
                             {"name", gltfName + std::string("_Tex_") + std::to_string(maxTextureID)},
-                            {"path", oTexPath.string()}});
+                            {"path", oTexPath.string()},
+                            {"format", srgbTextures.find(texID) == srgbTextures.end() ? 37 : 43}});
         texArr.push_back(maxTextureID);
     }
 

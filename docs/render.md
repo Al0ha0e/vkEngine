@@ -97,7 +97,7 @@ https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/7193#issuecomment
 |GBuffer0|R8G8B8A8_UNorm|BaseColor(rgb) + Occlusion(a)||
 |GBuffer1|A2B10G10R10_UNormPack32|WorldNormal(rgb10-bit) + MaterialFlags(a)||
 |GBuffer2|R8G8B8A8_UNorm|Metallic(r) + Roughness(g)||
-|Depth|D32_SFloat|深度||
+|GBuffer3|R32_SFLOAT|线性深度|用作计算view space位置，另有单独的深度缓冲做深度测试|
 
 ## TODO
 

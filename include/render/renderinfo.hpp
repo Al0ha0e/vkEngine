@@ -22,12 +22,12 @@ namespace vke_render
 
     struct PushConstantInfo
     {
-        uint32_t offset;
         uint32_t size;
+        uint32_t offset;
         void *pValues;
 
         PushConstantInfo() : offset(0), size(0), pValues(nullptr) {}
-        PushConstantInfo(uint32_t size, void *pValues, uint32_t offset = 0) : offset(offset), size(size), pValues(pValues) {}
+        PushConstantInfo(uint32_t size, void *pValues, uint32_t offset = 0) : size(size), offset(offset), pValues(pValues) {}
     };
 
     struct RenderUnit
@@ -57,6 +57,11 @@ namespace vke_render
 
             if (mesh->infos.size() == 1)
             {
+                for (int i = perPrimitiveStart; i < pushConstantInfos.size(); i++)
+                {
+                    auto &info = pushConstantInfos[i];
+                    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, info.offset, info.size, info.pValues);
+                }
                 mesh->Render(commandBuffer);
                 return;
             }

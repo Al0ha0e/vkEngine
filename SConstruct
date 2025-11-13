@@ -89,8 +89,8 @@ libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/']
 cppdefines = [] # ['NDEBUG']
 commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
-                "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", 
-                "./src/render/deferred_lighting.cpp","./src/render/shader.cpp", "./src/render/pipeline.cpp",
+                "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", "./src/render/deferred_lighting.cpp",
+                "./src/render/shader.cpp", "./src/render/pipeline.cpp","./src/render/light.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
                 "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",

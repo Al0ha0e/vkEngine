@@ -58,8 +58,7 @@ namespace vke_component
         void init()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-
-            if (mesh->infos.size() == 1)
+            if (textureIndices.size() == 0)
                 renderID = renderer->GetGBufferPass()->AddUnit(material, mesh, &gameObject->transform.model, sizeof(glm::mat4));
             else
                 renderID = renderer->GetGBufferPass()->AddUnit(material, mesh,

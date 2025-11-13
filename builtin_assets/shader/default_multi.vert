@@ -16,22 +16,21 @@ layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec4 inTangent;
 layout(location = 3) in vec2 inTexCoord;
 
-layout(location = 0) out vec3 vWorldPos;
-layout(location = 1) out vec3 vNormal;
-layout(location = 2) out vec2 vTexCoord;
-layout(location = 3) out mat3 vTBN;
+layout(location = 0) out vec3 vViewPos;
+layout(location = 1) out vec2 vTexCoord;
+layout(location = 2) out mat3 vTBN;
 
 void main() {
     vec4 worldPos = model * vec4(inPosition, 1.0);
-    vWorldPos = worldPos.xyz;
-
-    vec3 N = normalize(mat3(model) * inNormal);
-    vec3 T = normalize(mat3(model) * inTangent.xyz);
-    vec3 B = cross(N, T) * inTangent.w;
-    vTBN = mat3(T, B, N);
-    vNormal = N;
-
+    vec4 viewPos = VPBlock.view * worldPos;
+    vViewPos = viewPos.xyz;
     vTexCoord = inTexCoord;
 
-    gl_Position = VPBlock.projection * VPBlock.view * worldPos;
+    mat3 mvMat = mat3(VPBlock.view * model);
+    vec3 T = normalize(mvMat * inTangent.xyz);
+    vec3 N = normalize(mvMat * inNormal);
+    vec3 B = normalize(cross(N, T) * inTangent.w);
+    vTBN = mat3(T, B, N);
+
+    gl_Position = VPBlock.projection * viewPos;
 }
