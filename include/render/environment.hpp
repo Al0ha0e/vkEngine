@@ -187,8 +187,9 @@ namespace vke_render
         }
 
         static void CreateImage(uint32_t width, uint32_t height, VkFormat format,
-                                VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-                                VkImage *image, VmaAllocation *vmaAllocation, VmaAllocationInfo *vmaAllocationInfo)
+                                VkImageTiling tiling, VkImageUsageFlags usage, uint32_t mipLevelCnt,
+                                VkMemoryPropertyFlags properties, VkImage *image,
+                                VmaAllocation *vmaAllocation, VmaAllocationInfo *vmaAllocationInfo)
         {
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -196,7 +197,7 @@ namespace vke_render
             imageInfo.extent.width = width;
             imageInfo.extent.height = height;
             imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = 1;
+            imageInfo.mipLevels = mipLevelCnt;
             imageInfo.arrayLayers = 1;
             imageInfo.format = format;
             imageInfo.tiling = tiling;
@@ -211,7 +212,7 @@ namespace vke_render
             vmaCreateImage(instance->vmaAllocator, &imageInfo, &alloationCreateInfo, image, vmaAllocation, vmaAllocationInfo);
         }
 
-        static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+        static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevelCnt = 1)
         {
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -220,7 +221,7 @@ namespace vke_render
             viewInfo.format = format;
             viewInfo.subresourceRange.aspectMask = aspectFlags;
             viewInfo.subresourceRange.baseMipLevel = 0;
-            viewInfo.subresourceRange.levelCount = 1;
+            viewInfo.subresourceRange.levelCount = mipLevelCnt;
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = 1;
 
@@ -240,6 +241,7 @@ namespace vke_render
                                          VkImageLayout newLayout,
                                          VkImage image,
                                          VkImageAspectFlags aspectMask,
+                                         uint32_t mipLevelCnt,
                                          VkPipelineStageFlags sourceStage,
                                          VkPipelineStageFlags destinationStage)
         {
@@ -254,7 +256,7 @@ namespace vke_render
             barrier.image = image;
             barrier.subresourceRange.aspectMask = aspectMask;
             barrier.subresourceRange.baseMipLevel = 0;
-            barrier.subresourceRange.levelCount = 1;
+            barrier.subresourceRange.levelCount = mipLevelCnt;
             barrier.subresourceRange.baseArrayLayer = 0;
             barrier.subresourceRange.layerCount = 1;
 
@@ -268,10 +270,8 @@ namespace vke_render
                 1, &barrier);
         }
 
-        static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+        static void CopyBufferToImage(VkCommandBuffer commandBuffer, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
         {
-            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
-
             VkBufferImageCopy region{};
             region.bufferOffset = 0;
             region.bufferRowLength = 0;
@@ -295,7 +295,12 @@ namespace vke_render
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 1,
                 &region);
+        }
 
+        static void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+        {
+            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
+            CopyBufferToImage(commandBuffer, buffer, image, width, height);
             EndSingleTimeCommands((GPUCommandQueue *)GetQueueNotNull(TRANSFER_QUEUE), instance->transferCommandPool, commandBuffer);
         }
 

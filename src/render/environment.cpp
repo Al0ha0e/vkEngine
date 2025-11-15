@@ -629,11 +629,11 @@ namespace vke_render
 
         depthFormat = findDepthFormat();
         CreateImage(extent.width, extent.height, depthFormat,
-                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    &depthImage, &depthImageVmaAllocation, nullptr);
+                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &depthImage, &depthImageVmaAllocation, nullptr);
         VkCommandBuffer tmpCmdBuffer = BeginSingleTimeCommands(commandPool);
         MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT,
+                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, 1,
                              VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
         EndSingleTimeCommands(GetGraphicsQueue(), commandPool, tmpCmdBuffer);
     }

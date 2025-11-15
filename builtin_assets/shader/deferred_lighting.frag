@@ -23,9 +23,6 @@ layout(set = 1, binding = 3) uniform sampler2D gLinearDepth;
 
 const float PI = 3.14159265359;
 
-vec3 SRGBtoLinear(vec3 c) { return pow(c, vec3(2.2)); }
-vec3 LinearToSRGB(vec3 c) { return pow(c, vec3(1.0/2.2)); }
-
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness*roughness;
     float a2 = a*a;
@@ -57,7 +54,7 @@ void main()
     vec4 metalRough   = texture(gMetalRough, vTexCoord);
     float depth = texture(gLinearDepth, vTexCoord).r;
 
-    vec3 albedo = SRGBtoLinear(baseColorTex.rgb);
+    vec3 albedo = baseColorTex.rgb;
 
     float metallic = clamp(metalRough.r, 0.0, 1.0);
     float roughness = clamp(metalRough.g, 0.04, 1.0);
@@ -91,11 +88,10 @@ void main()
     vec3 Lo = (kD * diffuse + spec) * radiance * NdotL;
 
     // small ambient fallback (no IBL)
-    vec3 ambient = albedo * 0.001; //* occlusion; // low ambient
+    vec3 ambient = albedo * 0.1; //* occlusion; // low ambient
 
     vec3 color = Lo + ambient;
     vec3 mapped = color / (color + vec3(1.0));
-    mapped = LinearToSRGB(mapped);
 
     outColor = vec4(mapped, 1.0);
 }

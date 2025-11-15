@@ -80,7 +80,7 @@ namespace vke_common
         return std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight,
                                                        asset.format, asset.usage, asset.layout,
                                                        asset.minFilter, asset.magFilter, asset.addressMode,
-                                                       asset.anisotropyEnable);
+                                                       asset.anisotropyEnable, asset.generateMipMap);
     }
 
     std::unique_ptr<vke_render::Texture2D> AssetManager::LoadTexture2DUnique(const AssetHandle hdl)

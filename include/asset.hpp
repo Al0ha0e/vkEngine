@@ -119,6 +119,7 @@ namespace vke_common
         VkFilter magFilter;
         VkSamplerAddressMode addressMode;
         bool anisotropyEnable;
+        bool generateMipMap;
 
         TextureAsset() {}
 
@@ -131,12 +132,13 @@ namespace vke_common
             magFilter = json.contains("magFilter") ? (VkFilter)json["magFilter"] : VK_FILTER_LINEAR;
             addressMode = json.contains("addressMode") ? (VkSamplerAddressMode)json["addressMode"] : VK_SAMPLER_ADDRESS_MODE_REPEAT;
             anisotropyEnable = json.contains("anisotropy") ? (bool)json["anisotropy"] : true;
+            generateMipMap = json.contains("genMipMap") ? (bool)json["genMipMap"] : true;
         }
 
         TextureAsset(AssetHandle id, const std::string &nm, const std::string &pth)
             : Asset(id, nm, pth),
               format(VK_FORMAT_R8G8B8A8_SRGB), usage(VK_IMAGE_USAGE_SAMPLED_BIT), layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-              minFilter(VK_FILTER_LINEAR), magFilter(VK_FILTER_LINEAR), addressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT), anisotropyEnable(VK_TRUE) {}
+              minFilter(VK_FILTER_LINEAR), magFilter(VK_FILTER_LINEAR), addressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT), anisotropyEnable(VK_TRUE), generateMipMap(true) {}
 
         std::string toJSON()
         {
@@ -146,7 +148,8 @@ namespace vke_common
                               ", \"minFilter\": " + std::to_string(minFilter) +
                               ", \"magFilter\": " + std::to_string(magFilter) +
                               ", \"addressMode\": " + std::to_string(addressMode) +
-                              ", \"anisotropy\": " + std::to_string(anisotropyEnable);
+                              ", \"anisotropy\": " + std::to_string(anisotropyEnable) +
+                              ", \"genMipMap\": " + std::to_string(generateMipMap);
             return ret;
         }
     };

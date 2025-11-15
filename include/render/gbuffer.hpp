@@ -67,13 +67,14 @@ namespace vke_render
                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
             for (int i = 0; i < GBUFFER_CNT; ++i)
                 RenderEnvironment::CreateImage(width, height, gbufferFormats[i],
-                                               VK_IMAGE_TILING_OPTIMAL, usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                               &images[i], &gbufferImageVmaAllocations[i], nullptr);
+                                               VK_IMAGE_TILING_OPTIMAL, usageFlags, 1,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &images[i],
+                                               &gbufferImageVmaAllocations[i], nullptr);
             RenderEnvironment *instance = RenderEnvironment::GetInstance();
             VkCommandBuffer tmpCmdBuffer = RenderEnvironment::BeginSingleTimeCommands(instance->commandPool);
             for (int i = 0; i < GBUFFER_CNT; ++i)
                 RenderEnvironment::MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, images[i], VK_IMAGE_ASPECT_COLOR_BIT,
+                                                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, images[i], VK_IMAGE_ASPECT_COLOR_BIT, 1,
                                                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
             RenderEnvironment::EndSingleTimeCommands(RenderEnvironment::GetGraphicsQueue(), instance->commandPool, tmpCmdBuffer);
             for (int i = 0; i < GBUFFER_CNT; ++i)
