@@ -95,6 +95,12 @@ commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./sr
                 "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",
                 "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp","./third_party/tinygltf/tiny_gltf.cpp"]
 
+### coreclr
+NETHOST_PATH = "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.8/runtimes/win-x64/native/"
+libpath.append(NETHOST_PATH)
+libs.append('nethost')
+
+
 ### tools
 
 toolCommonSrc = ["./src/logger.cpp"]
@@ -116,7 +122,8 @@ targetinfo = [
     ["out/test_sponza",["./tests/test_sponza.cpp"]],
     ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],
-    ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]]
+    ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]],
+    ["out/test_coreclr",["./tests/test_coreclr.cpp"]]
 ]
 
 for info in targetinfo:
