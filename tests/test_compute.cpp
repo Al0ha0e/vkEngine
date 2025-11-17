@@ -10,7 +10,6 @@ GLFWwindow *initWindow(int width, int height)
 int main()
 {
     std::vector<vke_render::PassType> passes = {
-        vke_render::OPAQUE_RENDERER,
         vke_render::SKYBOX_RENDERER};
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
     GLFWwindow *window = initWindow(800, 600);

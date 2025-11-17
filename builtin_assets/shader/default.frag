@@ -1,13 +1,19 @@
 #version 450
-layout(location = 0) in vec3 fragColor;
-layout(location = 1) in vec2 fragTexCoord;
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) in vec3 vNormal;
+layout(location = 1) in vec3 vViewPos;
+layout(location = 2) in vec2 vTexCoord;
 
-layout(set = 1, binding = 0) uniform sampler2D texSampler;
+layout(location = 0) out vec4 outBaseColor;     // GBuffer0
+layout(location = 1) out vec4 outNormal;   // GBuffer1
+layout(location = 2) out vec4 outMetalRough;    // GBuffer2
+layout(location = 3) out float outLinearDepth;
+
+layout(set = 1, binding = 0) uniform sampler2D uBaseColorTex;
 
 void main() {
-    outColor = vec4(fragColor, 1.0);
-    // outColor = texture(texSampler, fragTexCoord);//vec4(fragTexCoord, 1.0);
-    //outColor.r /= float(a);
+    outBaseColor = vec4(texture(uBaseColorTex, vTexCoord).rgb, 0);
+    outNormal = vec4(normalize(vNormal) * 0.5 + 0.5, 0);
+    outMetalRough = vec4(0.0);
+    outLinearDepth = -vViewPos.z;
 }

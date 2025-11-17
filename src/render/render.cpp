@@ -8,28 +8,43 @@ namespace vke_render
 
     void Renderer::initDescriptorSet()
     {
+        std::vector<VkDescriptorSetLayoutBinding> bindingInfos;
         VkDescriptorSetLayoutBinding camInfoLayoutBinding{};
         camInfoLayoutBinding.binding = 0;
         camInfoLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         camInfoLayoutBinding.descriptorCount = 1;
         camInfoLayoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+        bindingInfos.push_back(camInfoLayoutBinding);
 
-        globalDescriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+        globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_NO_LIGHT].AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+        globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT].AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+        LightManager::GetBindingInfo(bindingInfos, globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT]);
 
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = 1;
         layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-        layoutInfo.pBindings = &camInfoLayoutBinding;
-
+        layoutInfo.pBindings = bindingInfos.data();
         vkCreateDescriptorSetLayout(globalLogicalDevice, &layoutInfo,
-                                    nullptr, &globalDescriptorSetInfo.layout);
-        globalDescriptorSet = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfo);
+                                    nullptr, &(globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_NO_LIGHT].layout));
+        layoutInfo.bindingCount = 2;
+        vkCreateDescriptorSetLayout(globalLogicalDevice, &layoutInfo,
+                                    nullptr, &(globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT].layout));
+
+        globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT] = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
+        globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT] = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT]);
+
+        // write descriptor set
+        std::vector<VkWriteDescriptorSet> descriptorWrites;
 
         VkDescriptorBufferInfo bufferInfo = camInfoBuffer.GetDescriptorBufferInfo();
-        VkWriteDescriptorSet descriptorWrite{};
-        ConstructDescriptorSetWrite(descriptorWrite, globalDescriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
-        vkUpdateDescriptorSets(globalLogicalDevice, 1, &descriptorWrite, 0, nullptr);
+        descriptorWrites.push_back(VkWriteDescriptorSet{});
+        ConstructDescriptorSetWrite(descriptorWrites[0], globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+        vkUpdateDescriptorSets(globalLogicalDevice, 1, descriptorWrites.data(), 0, nullptr);
+
+        descriptorWrites[0].dstSet = globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT];
+        LightManager::GetDescriptorSetWrite(descriptorWrites, globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT]);
+        vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
     }
 
     void Renderer::initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,

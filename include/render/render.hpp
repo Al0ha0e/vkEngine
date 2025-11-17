@@ -1,13 +1,17 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <render/gbuffer_pass.hpp>
+#include <render/deferred_lighting.hpp>
 #include <render/skybox_render.hpp>
-#include <render/opaque_render.hpp>
-#include <render/frame_graph.hpp>
+#include <render/light.hpp>
 #include <event.hpp>
 
 namespace vke_render
 {
+
+    const uint32_t GLOBAL_DESCRIPTOR_SET_NO_LIGHT = 0;
+    const uint32_t GLOBAL_DESCRIPTOR_SET_LIGHT = 1;
 
     class Renderer
     {
@@ -50,6 +54,8 @@ namespace vke_render
             ctx->resizeEventHub->AddEventListener(instance,
                                                   vke_common::EventHub<RenderContext>::callback_t(OnWindowResize));
 
+            instance->lightManager = LightManager::Init();
+
             instance->initDescriptorSet();
 
             std::map<std::string, vke_ds::id32_t> blackboard;
@@ -70,22 +76,31 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(customPass));
                     break;
                 }
+                case GBUFFER_PASS:
+                {
+                    std::unique_ptr<GBufferPass> gbufferPass = std::make_unique<GBufferPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
+                    gbufferPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[GBUFFER_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(gbufferPass));
+                    break;
+                }
+                case DEFERRED_LIGHTING_PASS:
+                {
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT]);
+                    lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(lightingPass));
+                    break;
+                }
                 case SKYBOX_RENDERER:
                 {
-                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSet);
+                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
                     skyboxRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(skyboxRenderer));
                     break;
                 }
-                case OPAQUE_RENDERER:
-                {
-                    std::unique_ptr<OpaqueRenderer> opaqueRenderer = std::make_unique<OpaqueRenderer>(ctx, instance->globalDescriptorSet);
-                    opaqueRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
-                    instance->subPassMap[OPAQUE_RENDERER] = instance->subPasses.size();
-                    instance->subPasses.push_back(std::move(opaqueRenderer));
-                    break;
-                }
+
                 default:
                     break;
                 }
@@ -104,6 +119,7 @@ namespace vke_render
         static void Dispose()
         {
             instance->cleanup();
+            LightManager::Dispose();
             delete instance;
         }
 
@@ -143,9 +159,9 @@ namespace vke_render
             instance->cameraInfoUpdated = true;
         }
 
-        static OpaqueRenderer *GetOpaqueRenderer()
+        static GBufferPass *GetGBufferPass()
         {
-            return static_cast<OpaqueRenderer *>(instance->subPasses[instance->subPassMap[OPAQUE_RENDERER]].get());
+            return static_cast<GBufferPass *>(instance->subPasses[instance->subPassMap[GBUFFER_PASS]].get());
         }
 
         static void OnWindowResize(void *listener, RenderContext *ctx)
@@ -163,11 +179,12 @@ namespace vke_render
         vke_ds::id32_t colorAttachmentResourceID;
         vke_ds::id32_t cameraUpdateTaskID;
         vke_ds::id32_t cameraResourceNodeID;
-        DescriptorSetInfo globalDescriptorSetInfo;
-        VkDescriptorSet globalDescriptorSet;
+        DescriptorSetInfo globalDescriptorSetInfos[2]; // 0 no light, 1 light
+        VkDescriptorSet globalDescriptorSets[2];
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;
+        LightManager *lightManager;
 
         void initDescriptorSet();
         void initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,

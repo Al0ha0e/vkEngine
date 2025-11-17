@@ -40,7 +40,7 @@ namespace vke_component
         ~RenderableObject()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderer->GetOpaqueRenderer()->RemoveUnit(material.get(), renderID);
+            renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
         }
 
         std::string ToJSON() override
@@ -58,14 +58,13 @@ namespace vke_component
         void init()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-
-            if (mesh->infos.size() == 1)
-                renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh, &gameObject->transform.model, sizeof(glm::mat4));
+            if (textureIndices.size() == 0)
+                renderID = renderer->GetGBufferPass()->AddUnit(material, mesh, &gameObject->transform.model, sizeof(glm::mat4));
             else
-                renderID = renderer->GetOpaqueRenderer()->AddUnit(material, mesh,
-                                                                  {vke_render::PushConstantInfo(sizeof(glm::mat4), &gameObject->transform.model, 0),
-                                                                   vke_render::PushConstantInfo(sizeof(glm::ivec4), textureIndices.data(), sizeof(glm::mat4))},
-                                                                  1);
+                renderID = renderer->GetGBufferPass()->AddUnit(material, mesh,
+                                                               {vke_render::PushConstantInfo(sizeof(glm::mat4), &gameObject->transform.model, 0),
+                                                                vke_render::PushConstantInfo(sizeof(glm::ivec4), textureIndices.data(), sizeof(glm::mat4))},
+                                                               1);
         }
     };
 }
