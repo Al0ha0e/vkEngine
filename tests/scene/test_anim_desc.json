@@ -1,0 +1,29 @@
+[
+  {
+    "id": 2048,
+    "name": "taunt",
+    "path": "./tests/animation/taunt.mesh",
+    "type": 1
+  },
+  {
+    "type": 4,
+    "id": 2048,
+    "name": "animMat",
+    "path": "",
+    "shader": 4,
+    "textures": [1],
+    "bindingInfos": [{ "binding": 0, "offset": 0, "cnt": 1 }]
+  },
+  {
+    "type": 5,
+    "id": 2048,
+    "name": "testSkeleton",
+    "path": "./tests/animation/taunt_skeleton.ozz"
+  },
+  {
+    "type": 6,
+    "id": 2048,
+    "name": "testAnimation",
+    "path": "./tests/animation/taunt_animation.ozz"
+  }
+]

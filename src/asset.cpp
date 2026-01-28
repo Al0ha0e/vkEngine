@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <span>
 
 namespace vke_common
 {
@@ -51,6 +52,8 @@ namespace vke_common
                 LOAD_LUT_CASE(ASSET_VF_SHADER, VFShaderAsset, vfShaderCache)
                 LOAD_LUT_CASE(ASSET_COMPUTE_SHADER, ComputeShaderAsset, computeShaderCache)
                 LOAD_LUT_CASE(ASSET_MATERIAL, MaterialAsset, materialCache)
+                LOAD_LUT_CASE(ASSET_SKELETON, SkeletonAsset, skeletonCache)
+                LOAD_LUT_CASE(ASSET_ANIMATION, AnimationAsset, animationCache)
                 LOAD_LUT_CASE(ASSET_SCENE, SceneAsset, sceneCache)
             default:
                 break;
@@ -108,7 +111,9 @@ namespace vke_common
         LOAD_BUILTIN_ASSET(materialCache, LoadMaterial)
 
         MeshAsset plane(BUILTIN_MESH_PLANE_ID, "Plane", "");
-        plane.val = std::make_shared<vke_render::Mesh>(BUILTIN_MESH_PLANE_ID, planeVertices, planeIndices);
+        plane.val = std::make_shared<vke_render::Mesh>(BUILTIN_MESH_PLANE_ID,
+                                                       std::span<const vke_render::Vertex>(planeVertices),
+                                                       std::span<const uint32_t>(planeIndices));
         meshCache[BUILTIN_MESH_PLANE_ID] = plane;
     }
 };

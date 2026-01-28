@@ -15,7 +15,7 @@ namespace vke_render
         GraphicsPipeline() = default;
 
         GraphicsPipeline(std::shared_ptr<ShaderModuleSet> &shader,
-                         std::vector<uint32_t> &vertexAttributeSizes,
+                         const std::vector<uint32_t> &vertexAttributeSizes,
                          VkVertexInputRate vertexInputRate,
                          VkGraphicsPipelineCreateInfo &pipelineInfo) : shader(shader)
         {
@@ -38,7 +38,7 @@ namespace vke_render
 
     private:
         std::shared_ptr<ShaderModuleSet> shader;
-        void createPipeline(std::vector<uint32_t> &vertexAttributeSizes,
+        void createPipeline(const std::vector<uint32_t> &vertexAttributeSizes,
                             VkVertexInputRate vertexInputRate,
                             VkGraphicsPipelineCreateInfo &pipelineInfo);
     };

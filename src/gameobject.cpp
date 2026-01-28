@@ -1,6 +1,7 @@
 #include <gameobject.hpp>
 #include <component/camera.hpp>
 #include <component/renderable_object.hpp>
+#include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
 
 namespace vke_common
@@ -12,6 +13,8 @@ namespace vke_common
             return std::make_unique<vke_component::Camera>(this, json);
         if (type == "renderableObject")
             return std::make_unique<vke_component::RenderableObject>(this, json);
+        if (type == "animator")
+            return std::make_unique<vke_component::SkeletonAnimator>(this, json);
         if (type == "rigidbody")
             return std::make_unique<vke_physics::RigidBody>(this, json);
         return nullptr;

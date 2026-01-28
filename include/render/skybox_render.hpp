@@ -44,8 +44,8 @@ namespace vke_render
     public:
         AtmosphereParameter atmosphereParameter;
 
-        SkyboxRenderer(RenderContext *ctx, VkDescriptorSet globalDescriptorSet)
-            : RenderPassBase(SKYBOX_RENDERER, ctx, globalDescriptorSet) {}
+        SkyboxRenderer(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets)
+            : RenderPassBase(SKYBOX_RENDERER, ctx, globalDescriptorSets) {}
 
         ~SkyboxRenderer() {}
 
@@ -66,7 +66,7 @@ namespace vke_render
     private:
         VkDescriptorSet skyBoxDescriptorSet;
         std::unique_ptr<GraphicsPipeline> renderPipeline;
-        std::unique_ptr<BaseMesh<glm::vec3>> skyboxMesh;
+        std::unique_ptr<Mesh> skyboxMesh;
         std::unique_ptr<Material> skyboxMaterial;
         std::unique_ptr<ComputePipeline> skyLUTGenerationPipeline;
         std::unique_ptr<DeviceBuffer> atmosphereParamBuffer;

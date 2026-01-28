@@ -2,7 +2,7 @@
 
 namespace vke_render
 {
-    void GraphicsPipeline::createPipeline(std::vector<uint32_t> &vertexAttributeSizes,
+    void GraphicsPipeline::createPipeline(const std::vector<uint32_t> &vertexAttributeSizes,
                                           VkVertexInputRate vertexInputRate,
                                           VkGraphicsPipelineCreateInfo &pipelineInfo)
     {

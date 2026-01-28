@@ -6,10 +6,11 @@
 #include <fstream>
 #include <filesystem>
 #include <map>
+#include <unordered_set>
 
-static bool checkGLTFNode(const tinygltf::Model &model, const tinygltf::Node &node);
-static void processGLTFNode(const tinygltf::Model &model, const tinygltf::Node &node, const std::string &opth);
-static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &node, nlohmann::json &assetLUT, nlohmann::json &scene, const std::filesystem::path &odir);
+bool checkScene(const tinygltf::Model &model, const tinygltf::Scene &scene);
+void processMeshNode(const tinygltf::Model &model, const tinygltf::Node &node, const std::string &opth);
+void processMaterial(const tinygltf::Model &model, const tinygltf::Node &node, nlohmann::json &assetLUT, nlohmann::json &textureIndices, const std::filesystem::path &odir);
 
 uint32_t maxMeshID = 2047;
 uint32_t maxTextureID = 2047;
@@ -17,7 +18,7 @@ uint32_t maxMaterialID = 2047;
 
 std::string gltfName;
 
-static nlohmann::json loadJSON(const std::filesystem::path &pth)
+nlohmann::json loadJSON(const std::filesystem::path &pth)
 {
     nlohmann::json ret;
     std::ifstream ifs(pth, std::ios::in);
@@ -26,7 +27,7 @@ static nlohmann::json loadJSON(const std::filesystem::path &pth)
     return ret;
 }
 
-static void saveJSON(const std::filesystem::path &pth, const nlohmann::json &json)
+void saveJSON(const std::filesystem::path &pth, const nlohmann::json &json)
 {
     std::ofstream ofs(pth, std::ios::out);
     ofs << json;
@@ -80,22 +81,173 @@ int main(int argc, char **argv)
     std::string warn;
     loader.LoadBinaryFromFile(&model, &err, &warn, pth.string().c_str());
 
-    const tinygltf::Node &node = model.nodes[model.scenes[0].nodes[0]]; // TODO load scene
-    if (!checkGLTFNode(model, node))
+    if (!checkScene(model, model.scenes[0]))
         throw std::runtime_error("invalid gltf format");
-    processGLTFNode(model, node, opth.string());
+    VKE_LOG_INFO("GLTF CHECK OK")
 
-    processMaterial(model, node, assetLUT, scene, odir);
-    saveJSON(assetPth, assetLUT);
-    saveJSON(scenePth, scene);
+    const tinygltf::Node &node = model.nodes[model.scenes[0].nodes[0]]; // TODO load scene
+    processMeshNode(model, node, opth.string());
+
+    auto &mesh = model.meshes[node.mesh];
+    uint32_t maxID = scene["maxid"];
+    auto textureIndices = nlohmann::json::array();
+
+    processMaterial(model, node, assetLUT, textureIndices, odir);
+
+    nlohmann::json gameObject = {
+        {"id", maxID},
+        {"static", true},
+        {"name", gltfName},
+        {"layer", 0},
+        {"parent", 0},
+        {"transform",
+         {{"pos", nlohmann::json::array({0.0, 0.0, 0.0})},
+          {"scl", nlohmann::json::array({1.0, 1.0, 1.0})},
+          {"rot", nlohmann::json::array({0.0, 0.0, 0.0, 1.0})}}},
+        {"components", nlohmann::json::array({{{"type", "renderableObject"},
+                                               {"material", maxMaterialID},
+                                               {"mesh", maxMeshID},
+                                               {"textureIndices", textureIndices}}})},
+        {"children", nlohmann::json::array()}};
+    scene["maxid"] = maxID + 1;
+    scene["objects"].push_back(gameObject);
+
+    // saveJSON(assetPth, assetLUT);
+    // saveJSON(scenePth, scene);
     return 0;
 }
 
-static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &node, nlohmann::json &assetLUT, nlohmann::json &scene, const std::filesystem::path &odir)
+bool checkAttribute(const std::string &&name,
+                    const tinygltf::Model &model,
+                    const tinygltf::Primitive &prim,
+                    const int type, const int ctype)
 {
-    std::set<int> materialSet;
+    auto it = prim.attributes.find(name);
+    if (it == prim.attributes.end())
+        return true;
+    VKE_LOG_INFO("CHECK ATTR {}", name)
+    const tinygltf::Accessor &accessor = model.accessors[it->second];
+    if (accessor.type != type || accessor.componentType != ctype)
+        return false;
+    return true;
+}
+
+bool checkMesh(const tinygltf::Model &model, const tinygltf::Node &node)
+{
+    if (node.mesh == -1)
+        return false;
+
+    auto &mesh = model.meshes[node.mesh];
+    for (auto &prim : mesh.primitives)
+    {
+        if (prim.attributes.size() == 0)
+            return false;
+        int cnt = model.accessors[prim.attributes.begin()->second].count;
+        for (auto &[name, idx] : prim.attributes)
+            if (model.accessors[idx].count != cnt)
+                return false;
+
+        if (!checkAttribute("NORMAL", model, prim, TINYGLTF_TYPE_VEC3, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("POSITION", model, prim, TINYGLTF_TYPE_VEC3, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("TANGENT", model, prim, TINYGLTF_TYPE_VEC4, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("TEXCOORD_0", model, prim, TINYGLTF_TYPE_VEC2, TINYGLTF_PARAMETER_TYPE_FLOAT))
+            return false;
+
+        if (prim.indices == -1)
+            return false;
+        const tinygltf::Accessor &accessor = model.accessors[prim.indices];
+        if (accessor.type != TINYGLTF_TYPE_SCALAR)
+            return false;
+        if (accessor.componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT &&
+            accessor.componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT)
+            return false;
+    }
+    return true;
+}
+
+bool checkSkin(const tinygltf::Model &model, const int meshID)
+{
+    auto &mesh = model.meshes[meshID];
+    VKE_LOG_INFO("CHECK SKIN {} NAME {} PRIM_CNT {}", meshID, mesh.name, mesh.primitives.size())
+    for (auto &prim : mesh.primitives)
+    {
+        if (prim.attributes.size() == 0)
+            return false;
+        int cnt = model.accessors[prim.attributes.begin()->second].count;
+        for (auto &[name, idx] : prim.attributes)
+            if (model.accessors[idx].count != cnt)
+                return false;
+
+        if (!checkAttribute("NORMAL", model, prim, TINYGLTF_TYPE_VEC3, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("POSITION", model, prim, TINYGLTF_TYPE_VEC3, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("TANGENT", model, prim, TINYGLTF_TYPE_VEC4, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("TEXCOORD_0", model, prim, TINYGLTF_TYPE_VEC2, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
+            !checkAttribute("JOINTS_0", model, prim, TINYGLTF_TYPE_VEC4, TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE) ||
+            !checkAttribute("WEIGHTS_0", model, prim, TINYGLTF_TYPE_VEC4, TINYGLTF_PARAMETER_TYPE_FLOAT))
+            return false;
+
+        if (prim.indices == -1)
+            return false;
+        const tinygltf::Accessor &accessor = model.accessors[prim.indices];
+        if (accessor.type != TINYGLTF_TYPE_SCALAR)
+            return false;
+        if (accessor.componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT &&
+            accessor.componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT)
+            return false;
+    }
+    return true;
+}
+
+bool checkSkinNode(const tinygltf::Model &model, const int nodeID, std::unordered_set<int> &visited)
+{
+    visited.insert(nodeID);
+    const tinygltf::Node &node = model.nodes[nodeID];
+    VKE_LOG_INFO("CHECK SKIN_NODE ID {} NAME {} MESH {}", nodeID, node.name, node.mesh)
+    if (node.mesh == -1 || !checkSkin(model, node.mesh))
+        return false;
+    auto &skin = model.skins[node.skin];
+    for (int jointID : skin.joints)
+        visited.insert(jointID);
+    return true;
+}
+
+bool checkNode(const tinygltf::Model &model, const int nodeID, std::unordered_set<int> &visited)
+{
+    visited.insert(nodeID);
+    const tinygltf::Node &node = model.nodes[nodeID];
+    VKE_LOG_INFO("CHECK NODE ID {} NAME {} MESH {} CHILDREN CNT {}", nodeID, node.name, node.mesh, node.children.size())
+    if (node.mesh == -1)
+    {
+        if (node.children.size() == 2 && model.nodes[node.children[0]].skin != -1 && !checkSkinNode(model, node.children[0], visited))
+            return false;
+    }
+    else
+    {
+        if (!checkMesh(model, node))
+            return false;
+    }
+
+    for (int child : node.children)
+        if (visited.find(child) == visited.end() && !checkNode(model, child, visited))
+            return false;
+    return true;
+}
+
+bool checkScene(const tinygltf::Model &model, const tinygltf::Scene &scene)
+{
+    VKE_LOG_INFO("CHECK SCENE {} NODE CNT {}", scene.name, scene.nodes.size())
+    std::unordered_set<int> visited;
+    for (int nodeID : scene.nodes)
+        if (visited.find(nodeID) == visited.end() && !checkNode(model, nodeID, visited))
+            return false;
+    return true;
+}
+
+void processMaterial(const tinygltf::Model &model, const tinygltf::Node &node, nlohmann::json &assetLUT, nlohmann::json &textureIndices, const std::filesystem::path &odir)
+{
+    std::unordered_set<int> materialSet;
     std::map<int, uint32_t> textureMap;
-    std::set<int> srgbTextures;
+    std::unordered_set<int> srgbTextures;
 
     auto &mesh = model.meshes[node.mesh];
     for (auto &prim : mesh.primitives)
@@ -164,9 +316,6 @@ static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &
                                                                  {"offset", 0},
                                                                  {"cnt", texArr.size()}}})}});
 
-    uint32_t maxID = scene["maxid"];
-    auto textureIndices = nlohmann::json::array();
-
     for (auto &prim : mesh.primitives)
     {
         auto &mat = model.materials[prim.material];
@@ -179,87 +328,18 @@ static void processMaterial(const tinygltf::Model &model, const tinygltf::Node &
                                   textureMap[metallicRoughnessTexture.index],
                                   textureMap[normalTexture.index]});
     }
-
-    nlohmann::json gameObject = {
-        {"id", maxID},
-        {"static", true},
-        {"name", gltfName},
-        {"layer", 0},
-        {"parent", 0},
-        {"transform",
-         {{"pos", nlohmann::json::array({0.0, 0.0, 0.0})},
-          {"scl", nlohmann::json::array({1.0, 1.0, 1.0})},
-          {"rot", nlohmann::json::array({0.0, 0.0, 0.0, 1.0})}}},
-        {"components", nlohmann::json::array({{{"type", "renderableObject"},
-                                               {"material", maxMaterialID},
-                                               {"mesh", maxMeshID},
-                                               {"textureIndices", textureIndices}}})},
-        {"children", nlohmann::json::array()}};
-    scene["maxid"] = maxID + 1;
-    scene["objects"].push_back(gameObject);
-}
-
-static bool checkAttribute(const std::string &&name,
-                           const tinygltf::Model &model,
-                           const tinygltf::Primitive &prim,
-                           const int type, const int ctype)
-{
-    auto it = prim.attributes.find(name);
-    if (it == prim.attributes.end())
-        return true;
-    const tinygltf::Accessor &accessor = model.accessors[it->second];
-    if (accessor.type != type || accessor.componentType != ctype)
-        return false;
-    return true;
-}
-
-static bool checkGLTFNode(const tinygltf::Model &model, const tinygltf::Node &node)
-{
-    if (node.mesh == -1)
-        return false;
-
-    auto &mesh = model.meshes[node.mesh];
-    for (auto &prim : mesh.primitives)
-    {
-        if (prim.attributes.size() == 0)
-            return false;
-        int cnt = model.accessors[prim.attributes.begin()->second].count;
-        for (auto &[name, idx] : prim.attributes)
-            if (model.accessors[idx].count != cnt)
-                return false;
-
-        if (!checkAttribute("NORMAL", model, prim, TINYGLTF_TYPE_VEC3, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
-            !checkAttribute("POSITION", model, prim, TINYGLTF_TYPE_VEC3, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
-            !checkAttribute("TANGENT", model, prim, TINYGLTF_TYPE_VEC4, TINYGLTF_PARAMETER_TYPE_FLOAT) ||
-            !checkAttribute("TEXCOORD_0", model, prim, TINYGLTF_TYPE_VEC2, TINYGLTF_PARAMETER_TYPE_FLOAT))
-            return false;
-
-        if (prim.indices == -1)
-            return false;
-        const tinygltf::Accessor &accessor = model.accessors[prim.indices];
-        if (accessor.type != TINYGLTF_TYPE_SCALAR)
-            return false;
-        if (accessor.componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT &&
-            accessor.componentType != TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT)
-            return false;
-    }
-
-    for (auto &childID : node.children)
-        if (!checkGLTFNode(model, model.nodes[childID]))
-            return false;
-    return true;
 }
 
 template <typename T, size_t OSTRIDE>
-static void copyGLTFBuffer(const tinygltf::Model &model,
-                           const uint32_t accessorIdx,
-                           vke_render::CPUBuffer &obuffer,
-                           const size_t offset)
+void copyGLTFBuffer(const tinygltf::Model &model,
+                    const uint32_t accessorIdx,
+                    vke_render::CPUBuffer<> &obuffer,
+                    const size_t offset)
 {
     auto &accessor = model.accessors[accessorIdx];
     auto &view = model.bufferViews[accessor.bufferView];
     auto &buffer = model.buffers[view.buffer];
-    unsigned char *obufferp = obuffer.data + offset;
+    std::byte *obufferp = obuffer.data + offset;
 
     const unsigned char *bufferp = buffer.data.data() + view.byteOffset + accessor.byteOffset;
     const uint32_t cnt = accessor.count;
@@ -277,11 +357,11 @@ static void copyGLTFBuffer(const tinygltf::Model &model,
     }
 }
 
-static void copyAttribute(const tinygltf::Model &model,
-                          const tinygltf::Primitive &prim,
-                          const std::string &&name,
-                          vke_render::CPUBuffer &obuffer,
-                          const size_t offset)
+void copyAttribute(const tinygltf::Model &model,
+                   const tinygltf::Primitive &prim,
+                   const std::string &&name,
+                   vke_render::CPUBuffer<> &obuffer,
+                   const size_t offset)
 {
     VKE_LOG_INFO("CPOY ATTR {}", name)
     auto it = prim.attributes.find(name);
@@ -289,7 +369,7 @@ static void copyAttribute(const tinygltf::Model &model,
         copyGLTFBuffer<float, sizeof(vke_render::Vertex)>(model, it->second, obuffer, offset);
 }
 
-static void processGLTFNode(const tinygltf::Model &model, const tinygltf::Node &node, const std::string &opth)
+void processMeshNode(const tinygltf::Model &model, const tinygltf::Node &node, const std::string &opth)
 {
     auto &mesh = model.meshes[node.mesh];
     size_t vertexSumSize = 0, indexSumSize = 0;
@@ -300,8 +380,8 @@ static void processGLTFNode(const tinygltf::Model &model, const tinygltf::Node &
     {
         vke_render::MeshInfo &meshInfo = meshInfos[i];
         meshInfo.vertexOffset = vertexSumSize;
-
-        meshInfo.vertexSize = sizeof(vke_render::Vertex) * model.accessors[prim.attributes.begin()->second].count;
+        meshInfo.vertexCnt = model.accessors[prim.attributes.begin()->second].count;
+        meshInfo.vertexSize = sizeof(vke_render::Vertex) * meshInfo.vertexCnt;
         vertexSumSize += meshInfo.vertexSize;
 
         auto it = indexFirstPrim.find(prim.indices);
@@ -327,8 +407,8 @@ static void processGLTFNode(const tinygltf::Model &model, const tinygltf::Node &
         ++i;
     }
 
-    vke_render::CPUBuffer vertices(vertexSumSize);
-    vke_render::CPUBuffer indices(indexSumSize);
+    vke_render::CPUBuffer<> vertices(vertexSumSize);
+    vke_render::CPUBuffer<> indices(indexSumSize);
 
     i = 0;
     for (auto &prim : mesh.primitives)

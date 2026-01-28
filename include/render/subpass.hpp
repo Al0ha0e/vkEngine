@@ -20,10 +20,10 @@ namespace vke_render
         PassType type;
         int subpassID;
         RenderContext *context;
-        VkDescriptorSet globalDescriptorSet;
+        VkDescriptorSet *globalDescriptorSets;
 
-        RenderPassBase(PassType type, RenderContext *ctx, VkDescriptorSet globalDescriptorSet)
-            : type(type), context(ctx), globalDescriptorSet(globalDescriptorSet) {}
+        RenderPassBase(PassType type, RenderContext *ctx, VkDescriptorSet *globalDescriptorSets)
+            : type(type), context(ctx), globalDescriptorSets(globalDescriptorSets) {}
 
         virtual ~RenderPassBase() {}
 

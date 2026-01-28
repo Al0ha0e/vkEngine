@@ -24,16 +24,11 @@ namespace vke_render
         }
 
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
-        vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
 
         vke_ds::id32_t gbufferOutDepthResourceNodeID = frameGraph.AllocResourceNode("gbufferOutDepth", false, depthAttachmentResourceID);
         vke_ds::id32_t gbufferTaskNodeID = frameGraph.AllocTaskNode("gbuffer pass", RENDER_TASK,
                                                                     std::bind(&GBufferPass::Render, this,
                                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
-                                          VK_ACCESS_SHADER_READ_BIT,
-                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         for (int i = 0; i < GBUFFER_CNT; i++)
             frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, false, 0, gbufferResourceNodeIDs[i],
                                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -50,7 +45,18 @@ namespace vke_render
         currentResourceNodeID[depthAttachmentResourceID] = gbufferOutDepthResourceNodeID;
     }
 
-    void GBufferPass::createGraphicsPipeline(RenderInfo &renderInfo)
+    static const std::vector<uint32_t> noskinVertexAttributeSizes = {sizeof(vke_render::Vertex::pos), sizeof(vke_render::Vertex::normal),
+                                                                     sizeof(vke_render::Vertex::tangent), sizeof(vke_render::Vertex::texCoord)};
+    static const std::vector<uint32_t> skinVertexAttributeSizes = {
+        sizeof(vke_render::SkinVertex::pos),
+        sizeof(vke_render::SkinVertex::normal),
+        sizeof(vke_render::SkinVertex::tangent),
+        sizeof(vke_render::SkinVertex::texCoord),
+        sizeof(vke_render::SkinVertex::weights),
+        sizeof(vke_render::SkinVertex::jointIDs),
+    };
+
+    void GBufferPass::createGraphicsPipeline(RenderInfo &renderInfo, bool isSkin)
     {
         VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
         pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
@@ -75,9 +81,7 @@ namespace vke_render
         pipelineInfo.pNext = &pipelineRenderingCreateInfo;
         pipelineInfo.pDepthStencilState = &depthStencil;
 
-        std::vector<uint32_t> vertexAttributeSizes = {sizeof(vke_render::Vertex::pos), sizeof(vke_render::Vertex::normal),
-                                                      sizeof(vke_render::Vertex::tangent), sizeof(vke_render::Vertex::texCoord)};
-        renderInfo.CreatePipeline(vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
+        renderInfo.CreatePipeline(isSkin ? skinVertexAttributeSizes : noskinVertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
     }
 
     void GBufferPass::Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
@@ -136,7 +140,7 @@ namespace vke_render
             scissor.extent = {context->width, context->height};
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            renderInfo->Render(commandBuffer, globalDescriptorSet);
+            renderInfo->Render(commandBuffer, globalDescriptorSets[currentFrame]);
         }
 
         vkCmdEndRendering(commandBuffer);

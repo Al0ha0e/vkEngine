@@ -9,17 +9,12 @@ namespace vke_render
                                                    std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
-        vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
 
         vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutColor", false, colorAttachmentResourceID);
         vke_ds::id32_t lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
                                                                      std::bind(&DeferredLightingPass::Render, this,
                                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
-                                          VK_ACCESS_SHADER_READ_BIT,
-                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         for (int i = 0; i < GBUFFER_CNT; i++)
             frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["gbuffer" + std::to_string(i)]], 0,
                                               VK_ACCESS_SHADER_READ_BIT,
@@ -113,7 +108,7 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDescriptorSet descriptorSets[2] = {globalDescriptorSet, lightingDescriptorSet};
+        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], lightingDescriptorSet};
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);

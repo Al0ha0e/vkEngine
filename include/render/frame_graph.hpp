@@ -363,6 +363,8 @@ namespace vke_render
 
         void ClearPermanentResources() { permanentResources.clear(); }
 
+        void SetGlobalCallback(std::function<void()> callback) { globalCallback = callback; }
+
         void Compile();
         void Execute(uint32_t currentFrame, uint32_t imageIndex);
 
@@ -377,6 +379,7 @@ namespace vke_render
         std::vector<vke_ds::id32_t> orderedTasks;
         VkFence fences[TASK_TYPE_CNT - 2][MAX_FRAMES_IN_FLIGHT];
         std::vector<std::unique_ptr<std::atomic<bool>>> cpuSemaphores;
+        std::function<void()> globalCallback;
 
         void init();
         void syncResources(ResourceRef &ref, TaskNode &taskNode,

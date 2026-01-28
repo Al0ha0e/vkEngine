@@ -18,8 +18,7 @@ namespace vke_render
     private:
         static Renderer *instance;
         Renderer()
-            : camInfoBuffer(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-              cameraIDAllocator(1), currentCamera(1), cameraInfoUpdated(false), frameGraphUpdated(false) {};
+            : cameraIDAllocator(1), currentCamera(1), cameraInfoUpdateCnt(0), frameGraphUpdated(false) {};
         ~Renderer() {}
 
     public:
@@ -27,10 +26,7 @@ namespace vke_render
         uint32_t currentFrame;
         uint32_t passcnt;
 
-        vke_render::StagedBuffer camInfoBuffer;
         vke_ds::id32_t currentCamera;
-        vke_ds::NaiveIDAllocator<vke_ds::id32_t> cameraIDAllocator;
-        std::unordered_map<vke_ds::id32_t, std::function<void()>> cameras;
 
         vke_common::EventHub<glm::vec2> resizeEventHub;
 
@@ -53,6 +49,9 @@ namespace vke_render
 
             ctx->resizeEventHub->AddEventListener(instance,
                                                   vke_common::EventHub<RenderContext>::callback_t(OnWindowResize));
+
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+                instance->camInfoBuffers.emplace_back(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
             instance->lightManager = LightManager::Init();
 
@@ -123,9 +122,8 @@ namespace vke_render
             delete instance;
         }
 
-        static vke_ds::id32_t RegisterCamera(vke_render::HostCoherentBuffer **buffer, std::function<void()> callback)
+        static vke_ds::id32_t RegisterCamera(std::function<void()> callback)
         {
-            *buffer = &(instance->camInfoBuffer.stagingBuffer);
             vke_ds::id32_t ret = instance->cameraIDAllocator.Alloc();
             instance->cameras[ret] = callback;
             if (ret == instance->currentCamera)
@@ -153,10 +151,20 @@ namespace vke_render
             }
         }
 
-        static void UpdateCameraInfo(CameraInfo &cameraInfo)
+        static void UpdateCameraInfo(CameraInfo *cameraInfo)
         {
-            instance->camInfoBuffer.stagingBuffer.ToBuffer(0, &cameraInfo, sizeof(vke_render::CameraInfo));
-            instance->cameraInfoUpdated = true;
+            instance->hostCameraInfo = cameraInfo;
+            instance->cameraInfoUpdateCnt = 2;
+        }
+
+        static void AddRenderUpdateCallback(vke_ds::id64_t id, std::function<void(uint32_t)> callback)
+        {
+            instance->renderUpdateCallbacks[id] = callback;
+        }
+
+        static void RemoveRenderUpdateCallback(vke_ds::id64_t id)
+        {
+            instance->renderUpdateCallbacks.erase(id);
         }
 
         static GBufferPass *GetGBufferPass()
@@ -174,17 +182,22 @@ namespace vke_render
         void Update();
 
     private:
-        bool cameraInfoUpdated;
         bool frameGraphUpdated;
         vke_ds::id32_t colorAttachmentResourceID;
-        vke_ds::id32_t cameraUpdateTaskID;
-        vke_ds::id32_t cameraResourceNodeID;
         DescriptorSetInfo globalDescriptorSetInfos[2]; // 0 no light, 1 light
-        VkDescriptorSet globalDescriptorSets[2];
+        VkDescriptorSet globalDescriptorSets[2][MAX_FRAMES_IN_FLIGHT];
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;
         LightManager *lightManager;
+
+        uint32_t cameraInfoUpdateCnt;
+        CameraInfo *hostCameraInfo;
+        std::vector<vke_render::HostCoherentBuffer> camInfoBuffers;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> cameraIDAllocator;
+        std::unordered_map<vke_ds::id32_t, std::function<void()>> cameras;
+
+        std::unordered_map<vke_ds::id64_t, std::function<void(uint32_t)>> renderUpdateCallbacks;
 
         void initDescriptorSet();
         void initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,

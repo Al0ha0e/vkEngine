@@ -3,6 +3,7 @@
 
 #include <render/material.hpp>
 #include <render/mesh.hpp>
+#include <animation.hpp>
 #include <nlohmann/json.hpp>
 
 #include <physics/physics.hpp>
@@ -31,7 +32,8 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_VFSHADER_SKYBOX_ID = 2;
     const AssetHandle BUILTIN_VFSHADER_DEFAULT_MULTI_ID = 3;
-    const AssetHandle BUILTIN_VFSHADER_DEFERRED_LIGHTING_ID = 4;
+    const AssetHandle BUILTIN_VFSHADER_DEFAULT_SKIN_ID = 4;
+    const AssetHandle BUILTIN_VFSHADER_DEFERRED_LIGHTING_ID = 5;
 
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
 
@@ -45,11 +47,14 @@ namespace vke_common
         ASSET_VF_SHADER,
         ASSET_COMPUTE_SHADER,
         ASSET_MATERIAL,
+        ASSET_SKELETON,
+        ASSET_ANIMATION,
         ASSET_SCENE,
         ASSET_CNT_FLAG
     };
 
-    const std::string AssetTypeToName[] = {"Texture", "Mesh", "VFShader", "ComputeShader", "Material", "PhysicalMaterial", "Scene"};
+    const std::string AssetTypeToName[] = {"Texture", "Mesh", "VFShader", "ComputeShader",
+                                           "Material", "Skeleton", "Animation", "Scene"};
 
     template <AssetType TID, typename T, typename VT>
     class Asset
@@ -107,6 +112,8 @@ namespace vke_common
 
     LEAF_ASSET_TYPE(MeshAsset, ASSET_MESH, vke_render::Mesh)
     LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ShaderModuleSet)
+    LEAF_ASSET_TYPE(SkeletonAsset, ASSET_SKELETON, vke_common::Skeleton)
+    LEAF_ASSET_TYPE(AnimationAsset, ASSET_ANIMATION, vke_common::Animation)
     LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, int);
 
     class TextureAsset : public Asset<ASSET_TEXTURE, TextureAsset, vke_render::Texture2D>
@@ -260,6 +267,8 @@ namespace vke_common
         std::map<AssetHandle, VFShaderAsset> vfShaderCache;
         std::map<AssetHandle, ComputeShaderAsset> computeShaderCache;
         std::map<AssetHandle, MaterialAsset> materialCache;
+        std::map<AssetHandle, SkeletonAsset> skeletonCache;
+        std::map<AssetHandle, AnimationAsset> animationCache;
         std::map<AssetHandle, SceneAsset> sceneCache;
 
         static AssetManager *GetInstance()
@@ -293,18 +302,24 @@ namespace vke_common
         static std::unique_ptr<vke_render::ShaderModuleSet> LoadVertFragShaderUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_render::ShaderModuleSet> LoadComputeShaderUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_render::Material> LoadMaterialUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_common::Skeleton> LoadSkeletonUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_common::Animation> LoadAnimationUnique(const AssetHandle hdl);
 
         static std::shared_ptr<vke_render::Texture2D> LoadTexture2D(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Mesh> LoadMesh(const AssetHandle hdl);
         static std::shared_ptr<vke_render::ShaderModuleSet> LoadVertFragShader(const AssetHandle hdl);
         static std::shared_ptr<vke_render::ShaderModuleSet> LoadComputeShader(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Material> LoadMaterial(const AssetHandle hdl);
+        static std::shared_ptr<vke_common::Skeleton> LoadSkeleton(const AssetHandle hdl);
+        static std::shared_ptr<vke_common::Animation> LoadAnimation(const AssetHandle hdl);
 
         ASSET_OP_FUNCS(TextureAsset, textureCache)
         ASSET_OP_FUNCS(MeshAsset, meshCache)
         ASSET_OP_FUNCS(VFShaderAsset, vfShaderCache)
         ASSET_OP_FUNCS(ComputeShaderAsset, computeShaderCache)
         ASSET_OP_FUNCS(MaterialAsset, materialCache)
+        ASSET_OP_FUNCS(SkeletonAsset, skeletonCache)
+        ASSET_OP_FUNCS(AnimationAsset, animationCache)
         ASSET_OP_FUNCS(SceneAsset, sceneCache)
 
     private:

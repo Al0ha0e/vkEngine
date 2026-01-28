@@ -42,7 +42,7 @@ int main(int argc, char **argv)
         VKE_LOG_INFO("VO {} VS {} IO {} IS {} IC {}", info.vertexOffset, info.vertexSize, info.indexOffset, info.indexSize, info.indexCnt)
 
     std::ofstream outFile(opth, std::ios::binary);
-    vke_render::Mesh::MeshDataToBinary(outFile, infos, vertices, indices);
+    vke_render::Mesh::MeshDataToBinary<vke_render::Vertex, uint32_t>(outFile, infos, vertices, indices);
 
     return 0;
 }
@@ -53,6 +53,7 @@ static void processMesh(aiMesh *mesh, const aiScene *scene,
 {
     vke_render::MeshInfo info;
     info.vertexOffset = vertices.size() * sizeof(vke_render::Vertex);
+    info.vertexCnt = mesh->mNumVertices;
     info.vertexSize = mesh->mNumVertices * sizeof(vke_render::Vertex);
     info.indexOffset = indices.size() * sizeof(uint32_t);
 

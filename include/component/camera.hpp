@@ -23,24 +23,19 @@ namespace vke_component
         float near;
         float far;
         float aspect;
-        glm::mat4 view;
-        glm::mat4 projection;
-        glm::vec3 viewPos;
-        vke_render::HostCoherentBuffer *buffer;
+        vke_render::CameraInfo cameraInfo;
 
         Camera(float fov, float width, float height,
                float near, float far, vke_common::GameObject *obj)
             : id(0), fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
-              near(near), far(far), Component(obj),
-              buffer(nullptr)
+              near(near), far(far), Component(obj)
         {
             init();
         }
 
         Camera(vke_common::GameObject *obj, const nlohmann::json &json)
             : id(0), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
-              near(json["near"]), far(json["far"]), Component(obj),
-              buffer(nullptr)
+              near(json["near"]), far(json["far"]), Component(obj)
         {
             init();
         }
@@ -68,8 +63,8 @@ namespace vke_component
         {
             glm::vec3 gfront = param.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
             glm::vec3 gup = param.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            viewPos = param.position;
-            view = glm::lookAt(viewPos, viewPos + gfront, gup);
+            cameraInfo.viewPos = glm::vec4(param.position, 0.0f);
+            cameraInfo.view = glm::lookAt(param.position, param.position + gfront, gup);
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -79,8 +74,8 @@ namespace vke_component
             width = w;
             height = h;
             aspect = width / height;
-            projection = glm::perspective(fov, aspect, near, far);
-            projection[1][1] *= -1;
+            cameraInfo.projection = glm::perspective(fov, aspect, near, far);
+            cameraInfo.projection[1][1] *= -1;
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -102,15 +97,15 @@ namespace vke_component
                 vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
 
             vke_common::TransformParameter &transform = gameObject->transform;
-            viewPos = transform.position;
+            cameraInfo.viewPos = glm::vec4(transform.position, 0.0f);
             glm::vec3 gfront = transform.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
             glm::vec3 gup = transform.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            view = glm::lookAt(viewPos, viewPos + gfront, gup);
-            projection = glm::perspective(fov, aspect, near, far);
-            projection[1][1] *= -1;
+            cameraInfo.view = glm::lookAt(transform.position, transform.position + gfront, gup);
+            cameraInfo.projection = glm::perspective(fov, aspect, near, far);
+            cameraInfo.projection[1][1] *= -1;
 
             std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
-            id = vke_render::Renderer::RegisterCamera(&buffer, callback);
+            id = vke_render::Renderer::RegisterCamera(callback);
         }
 
         void onCameraSelected()
@@ -120,8 +115,7 @@ namespace vke_component
 
         void updateCameraInfo()
         {
-            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            vke_render::Renderer::UpdateCameraInfo(cameraInfo);
+            vke_render::Renderer::UpdateCameraInfo(&cameraInfo);
         }
     };
 }

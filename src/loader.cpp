@@ -5,6 +5,8 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <ozz/base/io/archive.h>
+#include <ozz/base/io/stream.h>
 
 namespace vke_common
 {
@@ -183,5 +185,57 @@ namespace vke_common
     {
         std::function<std::unique_ptr<vke_render::Material>(MaterialAsset &)> op(loadMaterial);
         return loadFromCacheOrUpdate<vke_render::Material>(instance->materialCache, hdl, op);
+    }
+
+    std::unique_ptr<Skeleton> loadSkeleton(SkeletonAsset &asset)
+    {
+        auto ret = std::make_unique<Skeleton>(asset.id);
+        ozz::io::File file(asset.path.c_str(), "rb");
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Skeleton>())
+        {
+            VKE_LOG_ERROR("Failed to load skeleton instance from file {}", asset.path)
+            return nullptr;
+        }
+        archive >> ret->skeleton;
+        return ret;
+    }
+
+    std::unique_ptr<Skeleton> AssetManager::LoadSkeletonUnique(const AssetHandle hdl)
+    {
+        auto &asset = tryGetAsset(instance->skeletonCache, hdl);
+        return loadSkeleton(asset);
+    }
+
+    std::shared_ptr<Skeleton> AssetManager::LoadSkeleton(const AssetHandle hdl)
+    {
+        std::function<std::unique_ptr<Skeleton>(SkeletonAsset &)> op(loadSkeleton);
+        return loadFromCacheOrUpdate<Skeleton>(instance->skeletonCache, hdl, op);
+    }
+
+    std::unique_ptr<Animation> loadAnimation(AnimationAsset &asset)
+    {
+        auto ret = std::make_unique<Animation>(asset.id);
+        ozz::io::File file(asset.path.c_str(), "rb");
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Animation>())
+        {
+            VKE_LOG_ERROR("Failed to load animation instance from file {}", asset.path)
+            return nullptr;
+        }
+        archive >> ret->animation;
+        return ret;
+    }
+
+    std::unique_ptr<Animation> AssetManager::LoadAnimationUnique(const AssetHandle hdl)
+    {
+        auto &asset = tryGetAsset(instance->animationCache, hdl);
+        return loadAnimation(asset);
+    }
+
+    std::shared_ptr<Animation> AssetManager::LoadAnimation(const AssetHandle hdl)
+    {
+        std::function<std::unique_ptr<Animation>(AnimationAsset &)> op(loadAnimation);
+        return loadFromCacheOrUpdate<Animation>(instance->animationCache, hdl, op);
     }
 }
