@@ -24,10 +24,7 @@ namespace vke_render
             createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             createInfo.codeSize = code.size();
             createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
-            if (vkCreateShaderModule(globalLogicalDevice, &createInfo, nullptr, &module) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create shader module!");
-            }
+            VKE_VK_CHECK(vkCreateShaderModule(globalLogicalDevice, &createInfo, nullptr, &module), "Failed to create shader module!")
 
             SpvReflectResult result = spvReflectCreateShaderModule(code.size(), code.data(), &reflectInfo);
             assert(result == SPV_REFLECT_RESULT_SUCCESS);

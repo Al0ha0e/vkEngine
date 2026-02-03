@@ -11,8 +11,6 @@ static void processNode(aiNode *node, const aiScene *scene,
 
 int main(int argc, char **argv)
 {
-    vke_common::Logger::Init();
-
     if (argc != 3)
         return -1;
 

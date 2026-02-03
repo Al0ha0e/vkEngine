@@ -1,0 +1,9 @@
+import os
+import shutil
+
+os.system("dotnet build ./EngineCore/ -c Release")
+
+filenames = ["EngineCore.dll", "EngineCore.runtimeconfig.json"]
+
+for filename in filenames:
+    shutil.copy("./EngineCore/bin/Release/net9.0/" + filename, "./" + filename)

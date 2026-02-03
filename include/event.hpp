@@ -4,7 +4,7 @@
 #include <iostream>
 #include <functional>
 #include <map>
-
+#include <common.hpp>
 #include <ds/id_allocator.hpp>
 
 namespace vke_common
@@ -86,8 +86,7 @@ namespace vke_common
     public:
         static EventSystem *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("EventSystem not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "EventSystem not initialized!")
             return instance;
         }
 

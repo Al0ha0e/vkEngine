@@ -32,8 +32,7 @@ namespace vke_render
 
         static Renderer *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("Renderer not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "Renderer not initialized!")
             return instance;
         }
 

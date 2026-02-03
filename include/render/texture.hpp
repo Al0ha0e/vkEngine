@@ -101,7 +101,7 @@ namespace vke_render
                                                         image, VK_IMAGE_ASPECT_COLOR_BIT,
                                                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
             else
-                throw std::invalid_argument("unsupported layout transition!");
+                VKE_FATAL("Unsupported layout transition!")
 
             RenderEnvironment::EndSingleTimeCommands(RenderEnvironment::GetGraphicsQueue(), instance->commandPool, commandBuffer);
         }
@@ -129,10 +129,7 @@ namespace vke_render
             samplerInfo.minLod = 0.0f;
             samplerInfo.maxLod = 0.0f;
 
-            if (vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create texture sampler!");
-            }
+            VKE_VK_CHECK(vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &textureSampler), "Failed to create texture sampler!")
         }
     };
 }

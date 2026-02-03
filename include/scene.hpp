@@ -106,8 +106,7 @@ namespace vke_common
     public:
         static SceneManager *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("SceneManager not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "SceneManager not initialized!")
             return instance;
         }
 

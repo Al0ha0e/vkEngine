@@ -1,4 +1,4 @@
-#include <logger.hpp>
+#include <common.hpp>
 #include <render/mesh.hpp>
 #include <tinygltf/tiny_gltf.h>
 #include <nlohmann/json.hpp>
@@ -14,12 +14,10 @@
 
 bool checkScene(const tinygltf::Model &model, const tinygltf::Scene &scene);
 void processSkinNode(const tinygltf::Model &model, const tinygltf::Node &node, const std::string &opth, std::map<std::string, uint32_t> &nameMap);
-bool buildOzzSkeleton(const tinygltf::Model &model, const tinygltf::Node &node, std::map<std::string, uint32_t> &nameMap);
+ozz::unique_ptr<ozz::animation::Skeleton> buildOzzSkeleton(const tinygltf::Model &model, const tinygltf::Node &node);
 
 int main(int argc, char **argv)
 {
-    vke_common::Logger::Init();
-
     if (argc != 3)
         return -1;
 
@@ -36,8 +34,7 @@ int main(int argc, char **argv)
     std::string warn;
     loader.LoadBinaryFromFile(&model, &err, &warn, pth.string().c_str());
 
-    if (!checkScene(model, model.scenes[0]))
-        throw std::runtime_error("invalid gltf format");
+    VKE_FATAL_IF(!checkScene(model, model.scenes[0]), "Invalid gltf format!")
     VKE_LOG_INFO("GLTF CHECK OK")
 
     auto &root = model.nodes[model.scenes[0].nodes[0]];
@@ -45,7 +42,12 @@ int main(int argc, char **argv)
     const tinygltf::Node &node = model.nodes[root.children[0]];
 
     std::map<std::string, uint32_t> nameMap;
-    buildOzzSkeleton(model, root, nameMap);
+    ozz::unique_ptr<ozz::animation::Skeleton> skeleton = buildOzzSkeleton(model, root);
+
+    const auto &names = skeleton->joint_names();
+
+    for (int i = 0; i < names.size(); ++i)
+        nameMap[std::string(names[i])] = i;
 
     for (auto &[k, v] : nameMap)
         VKE_LOG_INFO("K {} V {}", k, v)
@@ -327,19 +329,19 @@ bool convertNodeToJoint(
     return true;
 }
 
-bool buildOzzSkeleton(const tinygltf::Model &model, const tinygltf::Node &node, std::map<std::string, uint32_t> &nameMap)
+ozz::unique_ptr<ozz::animation::Skeleton> buildOzzSkeleton(const tinygltf::Model &model, const tinygltf::Node &node)
 {
     ozz::animation::offline::RawSkeleton rawSkeleton;
     rawSkeleton.roots.resize(1);
     ozz::animation::offline::RawSkeleton::Joint &rootjoint = rawSkeleton.roots[0];
 
     if (!convertNodeToJoint(model, node, &rootjoint))
-        return false;
+        return nullptr;
 
     if (!rawSkeleton.Validate())
     {
         VKE_LOG_ERROR("Output skeleton failed validation. This is likely an implementation issue.")
-        return false;
+        return nullptr;
     }
 
     ozz::animation::offline::SkeletonBuilder builder;
@@ -348,13 +350,8 @@ bool buildOzzSkeleton(const tinygltf::Model &model, const tinygltf::Node &node, 
     if (!skeleton)
     {
         VKE_LOG_ERROR("Failed to build runtime skeleton.")
-        return false;
+        return nullptr;
     }
 
-    const auto &names = skeleton->joint_names();
-
-    for (int i = 0; i < names.size(); ++i)
-        nameMap[std::string(names[i])] = i;
-
-    return true;
+    return skeleton;
 }

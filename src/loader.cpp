@@ -14,10 +14,7 @@ namespace vke_common
     {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-        if (!file.is_open())
-        {
-            throw std::runtime_error("failed to open file!");
-        }
+        VKE_FATAL_IF(!file.is_open(), "Failed to open file!")
 
         size_t fileSize = (size_t)file.tellg();
         buffer.resize(fileSize);
@@ -51,8 +48,7 @@ namespace vke_common
     static inline AT &tryGetAsset(std::map<AssetHandle, AT> &assets, const AssetHandle hdl)
     {
         auto it = assets.find(hdl);
-        if (it == assets.end())
-            throw std::runtime_error("Asset Not Exist!\n");
+        VKE_FATAL_IF(it == assets.end(), "Asset Not Exist!")
         return it->second;
     }
 
@@ -74,10 +70,7 @@ namespace vke_common
     {
         int texWidth, texHeight, texChannels;
         stbi_uc *pixels = stbi_load(asset.path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels)
-        {
-            throw std::runtime_error("failed to load texture image!");
-        }
+        VKE_FATAL_IF(!pixels, "Failed to load texture image!")
 
         return std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight,
                                                        asset.format, asset.usage, asset.layout,

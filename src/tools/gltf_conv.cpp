@@ -1,4 +1,4 @@
-#include <logger.hpp>
+#include <common.hpp>
 #include <render/mesh.hpp>
 #include <tinygltf/tiny_gltf.h>
 #include <nlohmann/json.hpp>
@@ -36,8 +36,6 @@ void saveJSON(const std::filesystem::path &pth, const nlohmann::json &json)
 
 int main(int argc, char **argv)
 {
-    vke_common::Logger::Init();
-
     if (argc != 5)
         return -1;
 
@@ -81,8 +79,7 @@ int main(int argc, char **argv)
     std::string warn;
     loader.LoadBinaryFromFile(&model, &err, &warn, pth.string().c_str());
 
-    if (!checkScene(model, model.scenes[0]))
-        throw std::runtime_error("invalid gltf format");
+    VKE_FATAL_IF(!checkScene(model, model.scenes[0]), "Invalid gltf format!")
     VKE_LOG_INFO("GLTF CHECK OK")
 
     const tinygltf::Node &node = model.nodes[model.scenes[0].nodes[0]]; // TODO load scene

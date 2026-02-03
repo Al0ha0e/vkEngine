@@ -273,8 +273,7 @@ namespace vke_common
 
         static AssetManager *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("AssetManager not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "AssetManager not initialized!")
             return instance;
         }
 

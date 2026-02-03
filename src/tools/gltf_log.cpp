@@ -13,8 +13,6 @@ void logMaterial(tinygltf::Model &model, uint32_t id);
 
 int main(int argc, char **argv)
 {
-    vke_common::Logger::Init();
-
     if (argc != 2)
         return -1;
 

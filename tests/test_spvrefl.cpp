@@ -1,3 +1,4 @@
+#include <common.hpp>
 #include <spirv_reflect.h>
 #include <iostream>
 #include <fstream>
@@ -8,10 +9,7 @@ static inline void readFile(const std::string &filename, std::vector<char> &buff
     std::cout << filename << "\n";
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-    if (!file.is_open())
-    {
-        throw std::runtime_error("failed to open file!");
-    }
+    VKE_FATAL_IF(!file.is_open(), "Failed to open file!")
 
     size_t fileSize = (size_t)file.tellg();
     buffer.resize(fileSize);

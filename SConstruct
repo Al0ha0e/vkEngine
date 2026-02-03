@@ -79,8 +79,9 @@ if USE_AVX:
 #########################
 
 env = Environment(CC = 'cl',
-                   CCFLAGS = ['/std:c++23preview','/EHsc','/O2','/utf-8'] + jolt_ccflags)
+                   CCFLAGS = ['/std:c++23preview','/EHs-','/O2','/utf-8'] + jolt_ccflags)
 
+SConscript(['csharp/Sconscript'])
 joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppdefines'])
 ozzObjs = SConscript(['third_party/ozz/Sconscript'], exports=['env'])
 
@@ -88,13 +89,13 @@ ozzObjs = SConscript(['third_party/ozz/Sconscript'], exports=['env'])
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/']
-cppdefines = [] # ['NDEBUG']
+cppdefines = ['JSON_NOEXCEPTION','SPDLOG_NO_EXCEPTIONS'] # ['NDEBUG']
 commonsrc = joltObjs + ozzObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", "./src/render/deferred_lighting.cpp",
                 "./src/render/shader.cpp", "./src/render/pipeline.cpp","./src/render/light.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
                 "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
-                "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",
+                "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp", "./src/script.cpp",
                 "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp","./third_party/tinygltf/tiny_gltf.cpp"]
 
 ### coreclr
@@ -128,7 +129,6 @@ targetinfo = [
     ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],
     ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]],
-    ["out/test_coreclr",["./tests/test_coreclr.cpp"]]
 ]
 
 for info in targetinfo:
@@ -173,4 +173,4 @@ for s in shaders:
 cmds = ["python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"]
 for cmd in cmds:
     print(cmd)
-    os.system(cmd)
+    # os.system(cmd)
