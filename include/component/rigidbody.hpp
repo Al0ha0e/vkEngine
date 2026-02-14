@@ -78,10 +78,13 @@ namespace vke_physics
         void init(JPH::EMotionType motionType, JPH::ObjectLayer layer, float friction, float restitution)
         {
             vke_common::TransformParameter &param = gameObject->transform;
+            const glm::vec3 position = param.GetGlobalPosition();
+            const glm::quat rotation = param.GetGlobalRotation();
+
             JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
             JPH::BodyCreationSettings settings(shape->shapeRef,
-                                               JPH::RVec3(param.position.x, param.position.y, param.position.z),
-                                               JPH::Quat(param.rotation.x, param.rotation.y, param.rotation.z, param.rotation.w),
+                                               JPH::RVec3(position.x, position.y, position.z),
+                                               JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
                                                motionType, layer);
             bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
             interface.SetFriction(bodyID, friction);

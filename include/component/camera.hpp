@@ -61,10 +61,12 @@ namespace vke_component
 
         void OnTransformed(vke_common::TransformParameter &param) override
         {
-            glm::vec3 gfront = param.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            glm::vec3 gup = param.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            cameraInfo.viewPos = glm::vec4(param.position, 0.0f);
-            cameraInfo.view = glm::lookAt(param.position, param.position + gfront, gup);
+            const glm::vec3 position = param.GetGlobalPosition();
+            const glm::quat rotation = param.GetGlobalRotation();
+            const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+            cameraInfo.viewPos = glm::vec4(position, 0.0f);
+            cameraInfo.view = glm::lookAt(position, position + gfront, gup);
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -97,10 +99,14 @@ namespace vke_component
                 vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
 
             vke_common::TransformParameter &transform = gameObject->transform;
-            cameraInfo.viewPos = glm::vec4(transform.position, 0.0f);
-            glm::vec3 gfront = transform.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            glm::vec3 gup = transform.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            cameraInfo.view = glm::lookAt(transform.position, transform.position + gfront, gup);
+
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+            cameraInfo.viewPos = glm::vec4(position, 0.0f);
+            cameraInfo.view = glm::lookAt(position, position + gfront, gup);
             cameraInfo.projection = glm::perspective(fov, aspect, near, far);
             cameraInfo.projection[1][1] *= -1;
 

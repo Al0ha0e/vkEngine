@@ -16,15 +16,12 @@ namespace vke_common
     struct TransformParameter
     {
         glm::mat4 model;
-        glm::vec3 position;
         glm::vec3 localPosition;
-        glm::vec3 lossyScale;
         glm::vec3 localScale;
-        glm::quat rotation;
         glm::quat localRotation;
 
         TransformParameter()
-            : model(1), position(0), localPosition(0), lossyScale(1), localScale(1), rotation(glm::vec3(0)), localRotation(glm::vec3(0))
+            : model(1), localPosition(0), localScale(1), localRotation(glm::vec3(0))
         {
             init();
         }
@@ -48,7 +45,7 @@ namespace vke_common
             auto rot = json["rot"];
             localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
             localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
-            localRotation = glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>());
+            localRotation = glm::normalize(glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>()));
             init();
         }
 
@@ -59,31 +56,54 @@ namespace vke_common
             auto rot = json["rot"];
             localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
             localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
-            localRotation = glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>());
+            localRotation = glm::normalize(glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>()));
             initWithParent(fa);
+        }
+
+        glm::vec3 GetGlobalPosition() const
+        {
+            return glm::vec3(model[3]);
+        }
+
+        glm::vec3 GetLossyScale() const
+        {
+            return glm::vec3(
+                glm::length(glm::vec3(model[0])),
+                glm::length(glm::vec3(model[1])),
+                glm::length(glm::vec3(model[2])));
+        }
+
+        glm::quat GetGlobalRotation() const
+        {
+            glm::vec3 scale = GetLossyScale();
+            glm::mat3 rotMat(
+                glm::vec3(model[0]) / scale.x,
+                glm::vec3(model[1]) / scale.y,
+                glm::vec3(model[2]) / scale.z);
+            return glm::quat_cast(rotMat);
         }
 
         void RemoveParent()
         {
-            localPosition = position;
-            localScale = lossyScale;
-            localRotation = rotation;
+            localPosition = GetGlobalPosition();
+            localScale = GetLossyScale();
+            localRotation = glm::normalize(GetGlobalRotation());
             calcModelMatrix();
         }
 
         void SetParent(const TransformParameter &fa)
         {
             glm::mat4 inv(glm::inverse(fa.model));
-            localPosition = inv * glm::vec4(position, 1);
-            localRotation = glm::inverse(fa.rotation) * rotation;
-            localScale = glm::mat4_cast(glm::inverse(localRotation)) * inv * glm::mat4_cast(rotation) * glm::vec4(lossyScale, 0);
+
+            localPosition = inv * glm::vec4(GetGlobalPosition(), 1);
+            localRotation = glm::normalize(glm::inverse(fa.GetGlobalRotation()) * GetGlobalRotation());
+            localScale = GetLossyScale() / fa.GetLossyScale();
             calcModelMatrixWithParent(fa.model);
         }
 
         void SetLocalPosition(const glm::vec3 &pos)
         {
             localPosition = pos;
-            position = pos;
             calcModelMatrix();
         }
 
@@ -91,108 +111,90 @@ namespace vke_common
         {
             localPosition = pos;
             calcModelMatrixWithParent(fa);
-            position = model[3];
         }
 
         void TranslateLocal(const glm::vec3 &det)
         {
-            glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
-            localPosition += localDet;
-            position += localDet;
+            localPosition += localRotation * det;
             calcModelMatrix();
         }
 
         void TranslateLocalWithParent(const glm::mat4 &fa, const glm::vec3 &det)
         {
-            glm::vec3 localDet = glm::mat4_cast(localRotation) * glm::vec4(det, 0);
-            localPosition += localDet;
+            localPosition += localRotation * det;
             calcModelMatrixWithParent(fa);
-            position = model[3];
         }
 
         void TranslateGlobal(const glm::vec3 &det)
         {
-            position += det;
             localPosition += det;
             calcModelMatrix();
         }
 
         void TranslateGlobalWithParent(const glm::mat4 &fa, const glm::vec3 &det)
         {
-            position += det;
-            localPosition = glm::inverse(fa) * glm::vec4(position, 1);
+            localPosition = glm::inverse(fa) * glm::vec4(GetGlobalPosition() + det, 1.0f);
             calcModelMatrixWithParent(fa);
         }
 
         void SetLocalRotation(const glm::quat &rot)
         {
-            localRotation = rot;
-            rotation = rot;
+            localRotation = glm::normalize(rot);
             calcModelMatrix();
         }
 
         void SetLocalRotationWithParent(const TransformParameter &fa, const glm::quat &rot)
         {
-            localRotation = rot;
-            rotation = fa.rotation * localRotation;
+            localRotation = glm::normalize(rot);
             calcModelMatrixWithParent(fa.model);
         }
 
         void RotateLocal(const float det, const glm::vec3 &axis)
         {
-            localRotation = glm::rotate(localRotation, det, axis);
-            rotation = localRotation;
+            localRotation = glm::normalize(glm::rotate(localRotation, det, axis));
             calcModelMatrix();
         }
 
         void RotateLocalWithParent(const TransformParameter &fa, const float det, const glm::vec3 &axis)
         {
-            localRotation = glm::rotate(localRotation, det, axis);
-            rotation = fa.rotation * localRotation;
+            localRotation = glm::normalize(glm::rotate(localRotation, det, axis));
             calcModelMatrixWithParent(fa.model);
         }
 
         void RotateGlobal(const float det, const glm::vec3 &axis)
         {
-            glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
-            localRotation = glm::rotate(localRotation, det, gaxis);
-            rotation = localRotation;
+            localRotation = glm::normalize(glm::angleAxis(det, glm::normalize(axis)) * localRotation);
             calcModelMatrix();
         }
 
         void RotateGlobalWithParent(const TransformParameter &fa, const float det, const glm::vec3 &axis)
         {
-            glm::vec3 gaxis = glm::mat4_cast(glm::inverse(rotation)) * glm::vec4(axis, 0);
-            localRotation = glm::rotate(localRotation, det, gaxis);
-            rotation = fa.rotation * localRotation;
+            glm::quat parentRot = fa.GetGlobalRotation();
+            localRotation = glm::normalize(glm::inverse(parentRot) * glm::angleAxis(det, glm::normalize(axis)) * parentRot * localRotation);
             calcModelMatrixWithParent(fa.model);
         }
 
         void SetLocalScale(const glm::vec3 &scale)
         {
             localScale = scale;
-            lossyScale = scale;
             calcModelMatrix();
         }
 
         void SetLocalScaleWithParent(const TransformParameter &fa, const glm::vec3 &scale)
         {
             localScale = scale;
-            lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
             calcModelMatrixWithParent(fa.model);
         }
 
         void Scale(const glm::vec3 &scale)
         {
-            localScale += scale;
-            lossyScale = localScale;
+            localScale *= scale;
             calcModelMatrix();
         }
 
         void ScaleWithParent(const TransformParameter &fa, const glm::vec3 &scale)
         {
-            localScale += scale;
-            lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
+            localScale *= scale;
             calcModelMatrixWithParent(fa.model);
         }
 
@@ -240,17 +242,11 @@ namespace vke_common
         void init()
         {
             calcModelMatrix();
-            position = localPosition;
-            lossyScale = localScale;
-            rotation = localRotation;
         }
 
         void initWithParent(const TransformParameter &fa)
         {
             calcModelMatrixWithParent(fa.model);
-            position = model[3];
-            rotation = fa.rotation * localRotation;
-            lossyScale = glm::mat4_cast(glm::inverse(rotation)) * fa.model * glm::mat4_cast(localRotation) * glm::vec4(localScale, 0);
         }
     };
 
