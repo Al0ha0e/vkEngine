@@ -6,10 +6,10 @@ const uint32_t WIDTH = 1024;
 const uint32_t HEIGHT = 768;
 
 vke_common::Engine *engine;
-vke_common::TransformParameter camParam(glm::vec3(-5.0f, 4.0f, 10.0f), glm::vec3(1), glm::quat(1.0, 0.0, 0.0, 0.0));
-vke_common::GameObject *camp = nullptr;
+entt::entity camera = entt::null;
+vke_common::Scene *currentScene = nullptr;
 
-void processInput(GLFWwindow *window, vke_common::GameObject *target);
+void processInput(GLFWwindow *window, entt::entity target);
 void mouseCallback(GLFWwindow *window, double xpos, double ypos);
 
 GLFWwindow *initWindow(int width, int height)
@@ -30,7 +30,8 @@ int main()
     engine = vke_common::Engine::Init(window, nullptr, passes, customPasses);
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_anim_desc.json");
     vke_common::SceneManager::LoadScene("./tests/scene/test_anim_scene.json");
-    camp = vke_common::SceneManager::GetInstance()->currentScene->objects[1].get();
+    currentScene = vke_common::SceneManager::GetInstance()->currentScene.get();
+    camera = currentScene->GetObjectEntity(1);
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouseCallback);
@@ -39,7 +40,7 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        processInput(window, camp);
+        processInput(window, camera);
         engine->Update();
     }
     vke_common::Engine::WaitIdle();
@@ -53,7 +54,7 @@ int main()
 float moveSpeed = 2.5f;
 float rotateSpeed = 1.0f;
 
-void processInput(GLFWwindow *window, vke_common::GameObject *target)
+void processInput(GLFWwindow *window, entt::entity target)
 {
     float time_delta = vke_common::TimeManager::GetInstance()->deltaTime;
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -61,19 +62,19 @@ void processInput(GLFWwindow *window, vke_common::GameObject *target)
 
     CHECK_KEY(GLFW_KEY_W)
     {
-        target->TranslateLocal(glm::vec3(0, 0, -moveSpeed * time_delta));
+        currentScene->TranslateLocal(target, glm::vec3(0, 0, -moveSpeed * time_delta));
     }
     CHECK_KEY(GLFW_KEY_A)
     {
-        target->TranslateLocal(glm::vec3(-moveSpeed * time_delta, 0, 0));
+        currentScene->TranslateLocal(target, glm::vec3(-moveSpeed * time_delta, 0, 0));
     }
     CHECK_KEY(GLFW_KEY_S)
     {
-        target->TranslateLocal(glm::vec3(0, 0, moveSpeed * time_delta));
+        currentScene->TranslateLocal(target, glm::vec3(0, 0, moveSpeed * time_delta));
     }
     CHECK_KEY(GLFW_KEY_D)
     {
-        target->TranslateLocal(glm::vec3(moveSpeed * time_delta, 0, 0));
+        currentScene->TranslateLocal(target, glm::vec3(moveSpeed * time_delta, 0, 0));
     }
 }
 
@@ -93,6 +94,6 @@ void mouseCallback(GLFWwindow *window, double xpos, double ypos)
     float yoffset = lastY - ypos;
     lastX = xpos;
     lastY = ypos;
-    camp->RotateGlobal(-xoffset * rotateSpeed * time_delta, glm::vec3(0.0f, 1.0f, 0.0f));
-    camp->RotateLocal(yoffset * rotateSpeed * time_delta, glm::vec3(1.0f, 0.0f, 0.0f));
+    currentScene->RotateGlobal(camera, -xoffset * rotateSpeed * time_delta, glm::vec3(0.0f, 1.0f, 0.0f));
+    currentScene->RotateLocal(camera, yoffset * rotateSpeed * time_delta, glm::vec3(1.0f, 0.0f, 0.0f));
 }

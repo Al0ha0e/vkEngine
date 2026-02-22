@@ -4,7 +4,7 @@
 #include <render/render.hpp>
 #include <render/buffer.hpp>
 #include <event.hpp>
-#include <gameobject.hpp>
+#include <component/transform.hpp>
 
 #ifdef _MINWINDEF_
 #undef near
@@ -13,7 +13,7 @@
 
 namespace vke_component
 {
-    class Camera : public vke_common::Component
+    class Camera
     {
     public:
         vke_ds::id32_t id;
@@ -25,19 +25,21 @@ namespace vke_component
         float aspect;
         vke_render::CameraInfo cameraInfo;
 
-        Camera(float fov, float width, float height,
-               float near, float far, vke_common::GameObject *obj)
+        Camera(const vke_common::Transform &transform,
+               float fov, float width, float height,
+               float near, float far)
             : id(0), fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
-              near(near), far(far), Component(obj)
+              near(near), far(far)
         {
-            init();
+            init(transform);
         }
 
-        Camera(vke_common::GameObject *obj, const nlohmann::json &json)
-            : id(0), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
-              near(json["near"]), far(json["far"]), Component(obj)
+        Camera(const vke_common::Transform &transform, const nlohmann::json &json)
+            : id(0), fov(glm::radians((float)json["fov"])),
+              width(json["width"]), height(json["height"]), aspect(width / height),
+              near(json["near"]), far(json["far"])
         {
-            init();
+            init(transform);
         }
 
         ~Camera()
@@ -47,22 +49,22 @@ namespace vke_component
             renderer->resizeEventHub.RemoveEventListener(resizeListenerID);
         }
 
-        std::string ToJSON() override
+        nlohmann::json ToJSON()
         {
-            std::string ret = "{\n\"type\":\"camera\",\n";
-            ret += "\"fov\": " + std::to_string(glm::degrees(fov)) + ",\n";
-            ret += "\"width\": " + std::to_string(width) + ",\n";
-            ret += "\"height\": " + std::to_string(height) + ",\n";
-            ret += "\"near\": " + std::to_string(near) + ",\n";
-            ret += "\"far\": " + std::to_string(far);
-            ret += "\n}";
+            nlohmann::json ret = {
+                {"type", "camera"},
+                {"fov", glm::degrees(fov)},
+                {"width", width},
+                {"height", height},
+                {"near", near},
+                {"far", far}};
             return ret;
         }
 
-        void OnTransformed(vke_common::TransformParameter &param) override
+        void OnTransformed(vke_common::Transform &transform)
         {
-            const glm::vec3 position = param.GetGlobalPosition();
-            const glm::quat rotation = param.GetGlobalRotation();
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
             const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
             const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
             cameraInfo.viewPos = glm::vec4(position, 0.0f);
@@ -91,14 +93,12 @@ namespace vke_component
     private:
         vke_ds::id32_t resizeListenerID;
 
-        void init()
+        void init(const vke_common::Transform &transform)
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             resizeListenerID = renderer->resizeEventHub.AddEventListener(
                 this,
                 vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
-
-            vke_common::TransformParameter &transform = gameObject->transform;
 
             const glm::vec3 position = transform.GetGlobalPosition();
             const glm::quat rotation = transform.GetGlobalRotation();

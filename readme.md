@@ -44,6 +44,7 @@ The build will produce several test/demo executables. For example:
 - [spdlog](https://github.com/gabime/spdlog)  
 - [JoltPhysics](https://github.com/jrouwe/JoltPhysics) 
 - [ozz-animation](https://github.com/guillaumeblanc/ozz-animation)
+- [entt](https://github.com/skypjack/entt)
 
 
 ## Roadmap 

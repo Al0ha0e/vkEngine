@@ -24,10 +24,10 @@ namespace vke_render
     {
         uint32_t size;
         uint32_t offset;
-        void *pValues;
+        const void *pValues;
 
         PushConstantInfo() : offset(0), size(0), pValues(nullptr) {}
-        PushConstantInfo(uint32_t size, void *pValues, uint32_t offset = 0) : size(size), offset(offset), pValues(pValues) {}
+        PushConstantInfo(const uint32_t size, const void *pValues, const uint32_t offset = 0) : size(size), offset(offset), pValues(pValues) {}
     };
 
     struct RenderUnit
@@ -39,7 +39,7 @@ namespace vke_render
 
         RenderUnit() = default;
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr)
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr)
             : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues)), perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet) {}
 
         RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)

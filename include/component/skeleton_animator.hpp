@@ -2,7 +2,7 @@
 #define SKELETON_ANIMATOR_H
 
 #include <time.hpp>
-#include <gameobject.hpp>
+#include <component/transform.hpp>
 #include <animation.hpp>
 #include <render/render.hpp>
 #include <ozz/animation/runtime/local_to_model_job.h>
@@ -17,7 +17,7 @@ namespace vke_component
 
     const uint32_t MAX_BONE_PER_SKELETON = 256;
 
-    class SkeletonAnimator : public vke_common::Component
+    class SkeletonAnimator
     {
     public:
         std::shared_ptr<vke_render::Material> material;
@@ -26,23 +26,23 @@ namespace vke_component
         std::unique_ptr<vke_render::RenderUnit> renderUnit;
 
         SkeletonAnimator(
+            const vke_common::Transform &transform,
             std::shared_ptr<vke_render::Material> &mat,
             std::shared_ptr<const vke_render::Mesh> &mesh,
             std::shared_ptr<vke_common::Skeleton> &skeleton,
-            std::shared_ptr<vke_common::Animation> &animation,
-            vke_common::GameObject *obj)
-            : material(mat), skeleton(skeleton), animation(animation), Component(obj)
+            std::shared_ptr<vke_common::Animation> &animation)
+            : material(mat), skeleton(skeleton), animation(animation)
         {
-            init(mesh);
+            init(transform, mesh);
         }
 
-        SkeletonAnimator(vke_common::GameObject *obj, const nlohmann::json &json) : Component(obj)
+        SkeletonAnimator(const vke_common::Transform &transform, const nlohmann::json &json)
         {
             material = vke_common::AssetManager::LoadMaterial(json["material"]);
             std::shared_ptr<const vke_render::Mesh> mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
             skeleton = vke_common::AssetManager::LoadSkeleton(json["skeleton"]);
             animation = vke_common::AssetManager::LoadAnimation(json["animation"]);
-            init(mesh);
+            init(transform, mesh);
         }
 
         ~SkeletonAnimator()
@@ -52,14 +52,14 @@ namespace vke_component
             renderer->RemoveRenderUpdateCallback(renderID);
         }
 
-        std::string ToJSON() override
+        nlohmann::json ToJSON()
         {
-            std::string ret = "{\n\"type\":\"animator\"";
-            ret += ",\n\"material\": " + std::to_string(material->handle);
-            ret += ",\n\"mesh\": " + std::to_string(renderUnit->mesh->handle);
-            ret += ",\n\"skeleton\": " + std::to_string(skeleton->handle);
-            ret += ",\n\"animation\": " + std::to_string(animation->handle);
-            ret += "\n}";
+            nlohmann::json ret = {
+                {"type", "animator"},
+                {"material", material->handle},
+                {"mesh", renderUnit->mesh->handle},
+                {"skeleton", skeleton->handle},
+                {"animation", animation->handle}};
             return ret;
         }
 
@@ -71,7 +71,7 @@ namespace vke_component
     private:
         vke_ds::id64_t renderID;
 
-        void init(std::shared_ptr<const vke_render::Mesh> &mesh)
+        void init(const vke_common::Transform &transform, std::shared_ptr<const vke_render::Mesh> &mesh)
         {
             timeRatio = 0.0f;
             playbackSpeed = 1.0f;
@@ -115,7 +115,7 @@ namespace vke_component
                 vkUpdateDescriptorSets(vke_render::globalLogicalDevice, 1, &descriptorSetWrite, 0, nullptr);
             }
 
-            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &gameObject->transform.model, sizeof(glm::mat4), descriptorSets[0]);
+            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, sizeof(glm::mat4), descriptorSets[0]);
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
             renderer->AddRenderUpdateCallback(renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
