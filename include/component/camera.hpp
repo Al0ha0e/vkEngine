@@ -4,7 +4,7 @@
 #include <render/render.hpp>
 #include <render/buffer.hpp>
 #include <event.hpp>
-#include <gameobject.hpp>
+#include <component/transform.hpp>
 
 #ifdef _MINWINDEF_
 #undef near
@@ -13,7 +13,7 @@
 
 namespace vke_component
 {
-    class Camera : public vke_common::Component
+    class Camera
     {
     public:
         vke_ds::id32_t id;
@@ -23,26 +23,23 @@ namespace vke_component
         float near;
         float far;
         float aspect;
-        glm::mat4 view;
-        glm::mat4 projection;
-        glm::vec3 viewPos;
-        vke_render::HostCoherentBuffer *buffer;
+        vke_render::CameraInfo cameraInfo;
 
-        Camera(float fov, float width, float height,
-               float near, float far, vke_common::GameObject *obj)
+        Camera(const vke_common::Transform &transform,
+               float fov, float width, float height,
+               float near, float far)
             : id(0), fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
-              near(near), far(far), Component(obj),
-              buffer(nullptr)
+              near(near), far(far)
         {
-            init();
+            init(transform);
         }
 
-        Camera(vke_common::GameObject *obj, const nlohmann::json &json)
-            : id(0), fov(glm::radians((float)json["fov"])), width(json["width"]), height(json["height"]), aspect(width / height),
-              near(json["near"]), far(json["far"]), Component(obj),
-              buffer(nullptr)
+        Camera(const vke_common::Transform &transform, const nlohmann::json &json)
+            : id(0), fov(glm::radians((float)json["fov"])),
+              width(json["width"]), height(json["height"]), aspect(width / height),
+              near(json["near"]), far(json["far"])
         {
-            init();
+            init(transform);
         }
 
         ~Camera()
@@ -52,24 +49,26 @@ namespace vke_component
             renderer->resizeEventHub.RemoveEventListener(resizeListenerID);
         }
 
-        std::string ToJSON() override
+        nlohmann::json ToJSON()
         {
-            std::string ret = "{\n\"type\":\"camera\",\n";
-            ret += "\"fov\": " + std::to_string(glm::degrees(fov)) + ",\n";
-            ret += "\"width\": " + std::to_string(width) + ",\n";
-            ret += "\"height\": " + std::to_string(height) + ",\n";
-            ret += "\"near\": " + std::to_string(near) + ",\n";
-            ret += "\"far\": " + std::to_string(far);
-            ret += "\n}";
+            nlohmann::json ret = {
+                {"type", "camera"},
+                {"fov", glm::degrees(fov)},
+                {"width", width},
+                {"height", height},
+                {"near", near},
+                {"far", far}};
             return ret;
         }
 
-        void OnTransformed(vke_common::TransformParameter &param) override
+        void OnTransformed(vke_common::Transform &transform)
         {
-            glm::vec3 gfront = param.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            glm::vec3 gup = param.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            viewPos = param.position;
-            view = glm::lookAt(viewPos, viewPos + gfront, gup);
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+            cameraInfo.viewPos = glm::vec4(position, 0.0f);
+            cameraInfo.view = glm::lookAt(position, position + gfront, gup);
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -79,8 +78,8 @@ namespace vke_component
             width = w;
             height = h;
             aspect = width / height;
-            projection = glm::perspective(fov, aspect, near, far);
-            projection[1][1] *= -1;
+            cameraInfo.projection = glm::perspective(fov, aspect, near, far);
+            cameraInfo.projection[1][1] *= -1;
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -94,23 +93,25 @@ namespace vke_component
     private:
         vke_ds::id32_t resizeListenerID;
 
-        void init()
+        void init(const vke_common::Transform &transform)
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             resizeListenerID = renderer->resizeEventHub.AddEventListener(
                 this,
                 vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
 
-            vke_common::TransformParameter &transform = gameObject->transform;
-            viewPos = transform.position;
-            glm::vec3 gfront = transform.rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            glm::vec3 gup = transform.rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-            view = glm::lookAt(viewPos, viewPos + gfront, gup);
-            projection = glm::perspective(fov, aspect, near, far);
-            projection[1][1] *= -1;
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+            cameraInfo.viewPos = glm::vec4(position, 0.0f);
+            cameraInfo.view = glm::lookAt(position, position + gfront, gup);
+            cameraInfo.projection = glm::perspective(fov, aspect, near, far);
+            cameraInfo.projection[1][1] *= -1;
 
             std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
-            id = vke_render::Renderer::RegisterCamera(&buffer, callback);
+            id = vke_render::Renderer::RegisterCamera(callback);
         }
 
         void onCameraSelected()
@@ -120,8 +121,7 @@ namespace vke_component
 
         void updateCameraInfo()
         {
-            vke_render::CameraInfo cameraInfo(view, projection, viewPos);
-            vke_render::Renderer::UpdateCameraInfo(cameraInfo);
+            vke_render::Renderer::UpdateCameraInfo(&cameraInfo);
         }
     };
 }

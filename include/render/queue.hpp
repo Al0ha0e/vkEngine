@@ -76,8 +76,7 @@ namespace vke_render
 
         virtual void Submit(uint32_t submitCount, const VkSubmitInfo2 *pSubmits, VkFence fence) override
         {
-            if (vkQueueSubmit2(queue, submitCount, pSubmits, fence) != VK_SUCCESS)
-                throw std::runtime_error("vkQueueSubmit2 FAIL");
+            VKE_VK_CHECK(vkQueueSubmit2(queue, submitCount, pSubmits, fence), "vkQueueSubmit2 FAIL")
         }
     };
 

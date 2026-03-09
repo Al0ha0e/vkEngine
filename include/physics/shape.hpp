@@ -73,36 +73,39 @@ namespace vke_physics
             }
         }
 
-        std::string ToJSON()
+        nlohmann::json ToJSON()
         {
+            nlohmann::json ret;
             if (shapeRef == nullptr)
-                return "{}";
-            std::string ret = "{ \"type\": " + std::to_string((int)type);
+                return ret;
+            ret["type"] = (int)type;
             switch (type)
             {
             case PHYSICS_SHAPE_SPHERE:
             {
                 JPH::SphereShape *shape = (JPH::SphereShape *)shapeRef.GetPtr();
-                ret += ", \"radius\": " + std::to_string(shape->GetRadius());
+                ret["radius"] = shape->GetRadius();
             }
             break;
             case PHYSICS_SHAPE_BOX:
             {
                 JPH::BoxShape *shape = (JPH::BoxShape *)shapeRef.GetPtr();
                 const JPH::Vec3 &extent = shape->GetHalfExtent();
-                ret += ", \"halfExtent\": [" + std::to_string(extent.GetX()) + ", " + std::to_string(extent.GetY()) + ", " + std::to_string(extent.GetZ()) + "]";
+                ret["halfExtent"] = {extent.GetX(), extent.GetY(), extent.GetZ()};
             }
             break;
             case PHYSICS_SHAPE_CAPSULE:
             {
                 JPH::CapsuleShape *shape = (JPH::CapsuleShape *)shapeRef.GetPtr();
-                ret += ", \"radius\": " + std::to_string(shape->GetRadius()) + ", \"halfHeight\": " + std::to_string(shape->GetHalfHeightOfCylinder());
+                ret["radius"] = shape->GetRadius();
+                ret["halfHeight"] = shape->GetHalfHeightOfCylinder();
             }
             break;
             case PHYSICS_SHAPE_CYLINDER:
             {
                 JPH::CylinderShape *shape = (JPH::CylinderShape *)shapeRef.GetPtr();
-                ret += ", \"radius\": " + std::to_string(shape->GetRadius()) + ", \"halfHeight\": " + std::to_string(shape->GetHalfHeight());
+                ret["radius"] = shape->GetRadius();
+                ret["halfHeight"] = shape->GetHalfHeight();
             }
             break;
             case PHYSICS_SHAPE_TRIANGLE:
@@ -111,9 +114,9 @@ namespace vke_physics
                 const JPH::Vec3 &v1 = shape->GetVertex1();
                 const JPH::Vec3 &v2 = shape->GetVertex2();
                 const JPH::Vec3 &v3 = shape->GetVertex3();
-                ret += ", \"v1\": [" + std::to_string(v1.GetX()) + ", " + std::to_string(v1.GetY()) + ", " + std::to_string(v1.GetZ()) + "]";
-                ret += ", \"v2\": [" + std::to_string(v2.GetX()) + ", " + std::to_string(v2.GetY()) + ", " + std::to_string(v2.GetZ()) + "]";
-                ret += ", \"v3\": [" + std::to_string(v3.GetX()) + ", " + std::to_string(v3.GetY()) + ", " + std::to_string(v3.GetZ()) + "]";
+                ret["v1"] = {v1.GetX(), v1.GetY(), v1.GetZ()};
+                ret["v2"] = {v2.GetX(), v2.GetY(), v2.GetZ()};
+                ret["v3"] = {v3.GetX(), v3.GetY(), v3.GetZ()};
             }
             break;
             case PHYSICS_SHAPE_PLANE:
@@ -121,14 +124,13 @@ namespace vke_physics
                 JPH::PlaneShape *shape = (JPH::PlaneShape *)shapeRef.GetPtr();
                 const JPH::Plane &plane = shape->GetPlane();
                 const JPH::Vec3 &normal = plane.GetNormal();
-                ret += ", \"normal\": [" + std::to_string(normal.GetX()) + ", " + std::to_string(normal.GetY()) + ", " + std::to_string(normal.GetZ()) + "]";
-                ret += ", \"c\":" + std::to_string(plane.GetConstant());
+                ret["normal"] = {normal.GetX(), normal.GetY(), normal.GetZ()};
+                ret["c"] = plane.GetConstant();
             }
             break;
             default:
                 break;
             }
-            ret += " }";
             return ret;
         }
     };

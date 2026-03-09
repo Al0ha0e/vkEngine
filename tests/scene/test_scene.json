@@ -44,28 +44,7 @@
           "mesh": 5
         }
       ],
-      "children": [
-        {
-          "id": 4,
-          "static": true,
-          "name": "object4",
-          "layer": 0,
-          "parent": 2,
-          "transform": {
-            "pos": [-3.0, -5.0, 0.0],
-            "scl": [2.0, 2.0, 6.0],
-            "rot": [0.0, 0.0, 0.0, 1.0]
-          },
-          "components": [
-            {
-              "type": "renderableObject",
-              "material": 1,
-              "mesh": 3
-            }
-          ],
-          "children": []
-        }
-      ]
+      "children": [4]
     },
     {
       "id": 3,
@@ -83,6 +62,26 @@
           "type": "renderableObject",
           "material": 1,
           "mesh": 5
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 4,
+      "static": true,
+      "name": "object4",
+      "layer": 0,
+      "parent": 2,
+      "transform": {
+        "pos": [-3.0, -5.0, 0.0],
+        "scl": [2.0, 2.0, 6.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
         }
       ],
       "children": []

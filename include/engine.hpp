@@ -6,7 +6,7 @@
 #include <scene.hpp>
 #include <event.hpp>
 #include <time.hpp>
-#include <logger.hpp>
+#include <script.hpp>
 
 namespace vke_common
 {
@@ -22,8 +22,7 @@ namespace vke_common
     public:
         static Engine *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("Engine not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "Engine not initialized!")
             return instance;
         }
 
@@ -33,7 +32,6 @@ namespace vke_common
                             std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
         {
             instance = new Engine();
-            Logger::Init();
             EventSystem::Init();
             TimeManager::Init();
             vke_render::RenderEnvironment::Init(window);
@@ -44,6 +42,7 @@ namespace vke_common
                 ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
             vke_render::Renderer::Init(ctx, passes, customPasses);
             SceneManager::Init();
+            ScriptManager::Init();
             return instance;
         }
 
@@ -62,7 +61,6 @@ namespace vke_common
             vke_render::RenderEnvironment::Dispose();
             TimeManager::Dispose();
             EventSystem::Dispose();
-            Logger::Dispose();
             delete instance;
         }
 

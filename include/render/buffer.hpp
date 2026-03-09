@@ -6,8 +6,8 @@
 
 namespace vke_render
 {
-
-    using CPUBuffer = vke_ds::Memory;
+    template <size_t Alignment = alignof(std::max_align_t)>
+    using CPUBuffer = vke_ds::Memory<Alignment>;
 
     class Buffer
     {

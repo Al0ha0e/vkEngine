@@ -2,7 +2,7 @@
 
 namespace vke_render
 {
-    void GraphicsPipeline::createPipeline(std::vector<uint32_t> &vertexAttributeSizes,
+    void GraphicsPipeline::createPipeline(const std::vector<uint32_t> &vertexAttributeSizes,
                                           VkVertexInputRate vertexInputRate,
                                           VkGraphicsPipelineCreateInfo &pipelineInfo)
     {
@@ -109,10 +109,7 @@ namespace vke_render
         pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
         pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
 
-        if (vkCreatePipelineLayout(globalLogicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create compute pipeline layout!");
-        }
+        VKE_VK_CHECK(vkCreatePipelineLayout(globalLogicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)), "Failed to create compute pipeline layout!")
         /////////////////////////////////////////////////////////////////////////////
 
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -129,8 +126,7 @@ namespace vke_render
         pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = pipelineLayout;
 
-        if (vkCreateGraphicsPipelines(globalLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
-            throw std::runtime_error("failed to create graphics pipeline!");
+        VKE_VK_CHECK(vkCreateGraphicsPipelines(globalLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline), "Failed to create graphics pipeline!")
     }
 
     void ComputePipeline::createPipeline()
@@ -147,19 +143,13 @@ namespace vke_render
         pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
         pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
 
-        if (vkCreatePipelineLayout(globalLogicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create compute pipeline layout!");
-        }
+        VKE_VK_CHECK(vkCreatePipelineLayout(globalLogicalDevice, &pipelineLayoutInfo, nullptr, &(pipelineLayout)), "Failed to create compute pipeline layout!")
 
         VkComputePipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
         pipelineInfo.layout = pipelineLayout;
         pipelineInfo.stage = shader->stageCreateInfos[0];
 
-        if (vkCreateComputePipelines(globalLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create compute pipeline!");
-        }
+        VKE_VK_CHECK(vkCreateComputePipelines(globalLogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline), "Failed to create compute pipeline!")
     }
 }

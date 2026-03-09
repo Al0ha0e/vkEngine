@@ -69,6 +69,13 @@
   {
     "type": 2,
     "id": 4,
+    "name": "DefaultSkinShader",
+    "path": "/builtin_assets/shader/default_skin_vert.spv",
+    "fragPath": "/builtin_assets/shader/default_frag.spv"
+  },
+  {
+    "type": 2,
+    "id": 5,
     "name": "DeferredLightingShader",
     "path": "/builtin_assets/shader/deferred_lighting_vert.spv",
     "fragPath": "/builtin_assets/shader/deferred_lighting_frag.spv"

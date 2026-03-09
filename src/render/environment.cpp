@@ -49,10 +49,8 @@ namespace vke_render
 
     void RenderEnvironment::createInstance()
     {
-        if (DEBUG_MODE && !checkValidationLayerSupport())
-        {
-            throw std::runtime_error("validation layers requested, but not available!");
-        }
+        VKE_FATAL_IF(DEBUG_MODE && !checkValidationLayerSupport(), "Validation layers requested, but not available!")
+
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = "test";
@@ -93,10 +91,7 @@ namespace vke_render
 
     void RenderEnvironment::createSurface()
     {
-        if (glfwCreateWindowSurface(vkinstance, window, nullptr, &surface) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create window surface!");
-        }
+        VKE_VK_CHECK(glfwCreateWindowSurface(vkinstance, window, nullptr, &surface), "Failed to create window surface!")
     }
 
     static bool checkQueueFamily(VkPhysicalDevice pdevice)
@@ -305,9 +300,7 @@ namespace vke_render
             // exit(0);
         }
         else
-        {
-            throw std::runtime_error("failed to find a suitable GPU!");
-        }
+            VKE_FATAL("Failed to find a suitable GPU!")
     }
 
     void RenderEnvironment::createLogicalDevice()
@@ -390,10 +383,7 @@ namespace vke_render
         createInfo.ppEnabledExtensionNames = deviceExtensions.data();
         createInfo.enabledLayerCount = 0;
 
-        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &globalLogicalDevice) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create logical device!");
-        }
+        VKE_VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, nullptr, &globalLogicalDevice), "Failed to create logical device!")
 
         VkQueue queue;
         vkGetDeviceQueue(globalLogicalDevice, queueFamilyIndices.graphicsAndComputeFamily.value(), 0, &queue);
@@ -426,10 +416,7 @@ namespace vke_render
         allocatorCreateInfo.device = globalLogicalDevice;
         allocatorCreateInfo.instance = vkinstance;
 
-        if (vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create VMA allocator!");
-        }
+        VKE_VK_CHECK(vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator), "failed to create VMA allocator!")
     }
 
     void RenderEnvironment::createCommandPool()
@@ -476,13 +463,10 @@ namespace vke_render
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            if (vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-                vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-                vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
-            {
-
-                throw std::runtime_error("failed to create synchronization objects for a frame!");
-            }
+            VKE_FATAL_IF(vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+                             vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+                             vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS,
+                         "Failed to create synchronization objects for a frame!")
         }
 
         VkSemaphoreTypeCreateInfo timelineInfo{};
@@ -556,7 +540,7 @@ namespace vke_render
             }
         }
 
-        throw std::runtime_error("failed to find supported format!");
+        VKE_FATAL("Failed to find supported format!")
     }
 
     static VkFormat findDepthFormat()
@@ -613,10 +597,7 @@ namespace vke_render
         createInfo.clipped = VK_TRUE;
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        if (vkCreateSwapchainKHR(globalLogicalDevice, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to create swap chain!");
-        }
+        VKE_VK_CHECK(vkCreateSwapchainKHR(globalLogicalDevice, &createInfo, nullptr, &swapChain), "Failed to create swap chain!")
 
         vkGetSwapchainImagesKHR(globalLogicalDevice, swapChain, &imageCnt, nullptr);
         swapChainImages.resize(imageCnt);

@@ -7,11 +7,10 @@ const uint32_t HEIGHT = 768;
 
 vke_common::Engine *engine;
 float time_prev, time_delta;
-vke_common::TransformParameter camParam(glm::vec3(-5.0f, 4.0f, 10.0f), glm::vec3(1), glm::quat(1.0, 0.0, 0.0, 0.0));
-vke_common::GameObject *camp = nullptr;
-vke_common::GameObject *objp = nullptr, *obj2p = nullptr;
+entt::entity camera = entt::null;
+vke_common::Scene *currentScene = nullptr;
 
-void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common::GameObject *obj);
+void processInput(GLFWwindow *window, entt::entity target);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 
 GLFWwindow *initWindow(int width, int height)
@@ -32,39 +31,9 @@ int main()
     engine = vke_common::Engine::Init(window, nullptr, passes, customPasses);
     vke_common::AssetManager::LoadAssetLUT("./tests/scene/test_desc.json");
 
-    // vke_common::TransformParameter targetParam(glm::vec3(-0.5f, 0.5f, -1.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    // vke_common::TransformParameter targetParam2(glm::vec3(-10.0f, 1.0f, 0.0f), glm::vec3(1), glm::quat(1.0f, 0.0f, 0.0f, 0.0f));
-    // std::unique_ptr<vke_common::GameObject> targetGameObj = std::make_unique<vke_common::GameObject>(targetParam);
-    // std::unique_ptr<vke_common::GameObject> targetGameObj2 = std::make_unique<vke_common::GameObject>(targetParam2);
-    // objp = targetGameObj.get();
-    // obj2p = targetGameObj2.get();
-
-    // std::unique_ptr<vke_common::GameObject> cameraGameObj = std::make_unique<vke_common::GameObject>(camParam);
-    // camp = cameraGameObj.get();
-    // cameraGameObj->AddComponent(std::make_unique<vke_component::Camera>(105, WIDTH, HEIGHT, 0.01, 1000, camp));
-
-    // vke_common::AssetManager *manager = vke_common::AssetManager::GetInstance();
-
-    // {
-    //     std::shared_ptr<vke_render::Material> material = manager->LoadMaterial("./tests/material/mat1.json");
-    //     // std::shared_ptr<const vke_render::Mesh> mesh = manager->LoadMesh("./tests/model/nanosuit.obj");
-    //     std::shared_ptr<const vke_render::Mesh> mesh = manager->LoadMesh(vke_common::BuiltinMonkeyPath);
-
-    //     targetGameObj->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj.get()));
-    //     targetGameObj2->AddComponent(std::make_unique<vke_component::RenderableObject>(material, mesh, targetGameObj2.get()));
-    // }
-
-    // std::unique_ptr<vke_common::Scene> scene = std::make_unique<vke_common::Scene>();
-    // scene->AddObject(std::move(cameraGameObj));
-    // scene->AddObject(std::move(targetGameObj));
-    // scene->AddObject(std::move(targetGameObj2));
-
-    // vke_common::SceneManager::SetCurrentScene(std::move(scene));
-
     vke_common::SceneManager::LoadScene("./tests/scene/test_scene.json");
-    camp = vke_common::SceneManager::GetInstance()->currentScene->objects[1].get();
-    objp = vke_common::SceneManager::GetInstance()->currentScene->objects[2].get();
-    obj2p = vke_common::SceneManager::GetInstance()->currentScene->objects[3].get();
+    currentScene = vke_common::SceneManager::GetInstance()->currentScene.get();
+    camera = currentScene->GetObjectEntity(1);
 
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -81,7 +50,7 @@ int main()
         time_prev = now;
         // std::cout << 1 / time_delta << std::endl;
 
-        processInput(window, camp, objp);
+        processInput(window, camera);
 
         engine->Update();
     }
@@ -96,100 +65,27 @@ int main()
 float moveSpeed = 2.5f;
 float rotateSpeed = 1.0f;
 
-void processInput(GLFWwindow *window, vke_common::GameObject *target, vke_common::GameObject *obj)
+void processInput(GLFWwindow *window, entt::entity target)
 {
+    float time_delta = vke_common::TimeManager::GetInstance()->deltaTime;
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
     CHECK_KEY(GLFW_KEY_W)
     {
-        target->TranslateLocal(glm::vec3(0, 0, -moveSpeed * time_delta));
+        currentScene->TranslateLocal(target, glm::vec3(0, 0, -moveSpeed * time_delta));
     }
     CHECK_KEY(GLFW_KEY_A)
     {
-        target->TranslateLocal(glm::vec3(-moveSpeed * time_delta, 0, 0));
+        currentScene->TranslateLocal(target, glm::vec3(-moveSpeed * time_delta, 0, 0));
     }
     CHECK_KEY(GLFW_KEY_S)
     {
-        target->TranslateLocal(glm::vec3(0, 0, moveSpeed * time_delta));
+        currentScene->TranslateLocal(target, glm::vec3(0, 0, moveSpeed * time_delta));
     }
     CHECK_KEY(GLFW_KEY_D)
     {
-        target->TranslateLocal(glm::vec3(moveSpeed * time_delta, 0, 0));
-    }
-    CHECK_KEY(GLFW_KEY_0)
-    {
-        vke_common::SceneManager::SaveScene("./tests/scene/test_scene.json");
-    }
-    CHECK_KEY(GLFW_KEY_1)
-    {
-        obj->RotateLocal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
-    }
-    CHECK_KEY(GLFW_KEY_2)
-    {
-        obj->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
-    }
-    CHECK_KEY(GLFW_KEY_3)
-    {
-        obj->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
-    }
-    CHECK_KEY(GLFW_KEY_4)
-    {
-        obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
-    }
-    CHECK_KEY(GLFW_KEY_5)
-    {
-        obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
-    }
-    CHECK_KEY(GLFW_KEY_6)
-    {
-        obj->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
-    }
-    CHECK_KEY(GLFW_KEY_8)
-    {
-        obj->Scale(glm::vec3(0.2 * time_delta, 0, 0));
-    }
-    CHECK_KEY(GLFW_KEY_9)
-    {
-        obj->Scale(glm::vec3(-0.2 * time_delta, 0, 0));
-    }
-
-    CHECK_KEY(GLFW_KEY_T)
-    {
-        obj2p->TranslateGlobal(glm::vec3(moveSpeed * time_delta, 0, 0));
-        // obj2p->RotateLocal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
-    }
-    CHECK_KEY(GLFW_KEY_Y)
-    {
-        obj2p->TranslateGlobal(glm::vec3(0, moveSpeed * time_delta, 0));
-        // obj2p->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
-    }
-    CHECK_KEY(GLFW_KEY_U)
-    {
-        obj2p->TranslateGlobal(glm::vec3(0, 0, moveSpeed * time_delta));
-        // obj2p->RotateLocal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
-    }
-    CHECK_KEY(GLFW_KEY_G)
-    {
-        obj2p->RotateGlobal(rotateSpeed * time_delta, glm::vec3(1, 0, 0));
-    }
-    CHECK_KEY(GLFW_KEY_H)
-    {
-        obj2p->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 1, 0));
-    }
-    CHECK_KEY(GLFW_KEY_J)
-    {
-        obj2p->RotateGlobal(rotateSpeed * time_delta, glm::vec3(0, 0, 1));
-    }
-    static bool pressed = false;
-    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS && !pressed)
-    {
-        pressed = true;
-        obj2p->SetParent(obj2p->parent ? nullptr : objp);
-    }
-    if (glfwGetKey(window, GLFW_KEY_7) == GLFW_RELEASE)
-    {
-        pressed = false;
+        currentScene->TranslateLocal(target, glm::vec3(moveSpeed * time_delta, 0, 0));
     }
 }
 
@@ -208,6 +104,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
     float yoffset = lastY - ypos;
     lastX = xpos;
     lastY = ypos;
-    camp->RotateGlobal(-xoffset * rotateSpeed * time_delta, glm::vec3(0.0f, 1.0f, 0.0f));
-    camp->RotateLocal(yoffset * rotateSpeed * time_delta, glm::vec3(1.0f, 0.0f, 0.0f));
+    currentScene->RotateGlobal(camera, -xoffset * rotateSpeed * time_delta, glm::vec3(0.0f, 1.0f, 0.0f));
+    currentScene->RotateLocal(camera, yoffset * rotateSpeed * time_delta, glm::vec3(1.0f, 0.0f, 0.0f));
 }

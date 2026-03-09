@@ -8,17 +8,12 @@ namespace vke_render
     {
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
-        vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
 
         vke_ds::id32_t opaqueOutColorResourceNodeID = frameGraph.AllocResourceNode("opaqueOutColor", false, colorAttachmentResourceID);
         vke_ds::id32_t opaqueOutDepthResourceNodeID = frameGraph.AllocResourceNode("opaqueOutDepth", false, depthAttachmentResourceID);
         vke_ds::id32_t opaqueTaskNodeID = frameGraph.AllocTaskNode("opaque render", RENDER_TASK,
                                                                    std::bind(&OpaqueRenderer::Render, this,
                                                                              std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
-                                          VK_ACCESS_SHADER_READ_BIT,
-                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.AddTaskNodeResourceRef(opaqueTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], opaqueOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -115,7 +110,7 @@ namespace vke_render
             scissor.extent = {context->width, context->height};
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            renderInfo->Render(commandBuffer, globalDescriptorSet);
+            renderInfo->Render(commandBuffer, globalDescriptorSets[currentFrame]);
         }
 
         vkCmdEndRendering(commandBuffer);

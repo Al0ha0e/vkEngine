@@ -11,8 +11,8 @@ namespace vke_render
     class GBufferPass : public RenderPassBase
     {
     public:
-        GBufferPass(RenderContext *ctx, VkDescriptorSet globalDescriptorSet)
-            : RenderPassBase(GBUFFER_PASS, ctx, globalDescriptorSet) {}
+        GBufferPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets)
+            : RenderPassBase(GBUFFER_PASS, ctx, globalDescriptorSets) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -29,7 +29,7 @@ namespace vke_render
             GBuffer::Dispose();
         }
 
-        void RegisterMaterial(std::shared_ptr<Material> &material)
+        void RegisterMaterial(std::shared_ptr<Material> &material, bool isSkin = false)
         {
             auto &rMap = renderInfoMap;
             Material *matp = material.get();
@@ -37,22 +37,15 @@ namespace vke_render
                 return;
 
             RenderInfo *info = new RenderInfo(material);
-            createGraphicsPipeline(*info);
+            createGraphicsPipeline(*info, isSkin);
             rMap[matp] = std::move(std::unique_ptr<RenderInfo>(info));
             // return id;
         }
 
-        uint64_t AddUnit(std::shared_ptr<Material> &material, std::shared_ptr<const Mesh> &mesh, void *pushConstants, uint32_t constantSize)
+        vke_ds::id64_t AddUnit(std::shared_ptr<Material> &material, RenderUnit *unit, bool isSkin = false)
         {
-            RegisterMaterial(material);
-            return renderInfoMap[material.get()]->AddUnit(mesh, pushConstants, constantSize);
-        }
-
-        uint64_t AddUnit(std::shared_ptr<Material> &material, std::shared_ptr<const Mesh> &mesh,
-                         std::vector<PushConstantInfo> &&pushConstantInfos, uint32_t perPrimitiveStart)
-        {
-            RegisterMaterial(material);
-            return renderInfoMap[material.get()]->AddUnit(mesh, std::move(pushConstantInfos), perPrimitiveStart);
+            RegisterMaterial(material, isSkin);
+            return renderInfoMap[material.get()]->AddUnit(unit);
         }
 
         void RemoveUnit(Material *material, vke_ds::id64_t id)
@@ -70,7 +63,7 @@ namespace vke_render
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
-        void createGraphicsPipeline(RenderInfo &renderInfo);
+        void createGraphicsPipeline(RenderInfo &renderInfo, bool isSkin);
     };
 }
 

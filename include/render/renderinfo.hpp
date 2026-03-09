@@ -24,10 +24,10 @@ namespace vke_render
     {
         uint32_t size;
         uint32_t offset;
-        void *pValues;
+        const void *pValues;
 
         PushConstantInfo() : offset(0), size(0), pValues(nullptr) {}
-        PushConstantInfo(uint32_t size, void *pValues, uint32_t offset = 0) : size(size), offset(offset), pValues(pValues) {}
+        PushConstantInfo(const uint32_t size, const void *pValues, const uint32_t offset = 0) : size(size), offset(offset), pValues(pValues) {}
     };
 
     struct RenderUnit
@@ -35,19 +35,30 @@ namespace vke_render
         std::shared_ptr<const Mesh> mesh;
         std::vector<PushConstantInfo> pushConstantInfos;
         uint32_t perPrimitiveStart;
+        VkDescriptorSet perUnitDescriptorSet;
 
         RenderUnit() = default;
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, void *pValues, uint32_t constantSize)
-            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues)), perPrimitiveStart(1) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr)
+            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues)), perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet) {}
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart)
-            : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)
+            : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())), perUnitDescriptorSet(descriptorSet) {}
 
         void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout, int descriptorSetOffset)
         {
             if (mesh->infos.size() == 0)
                 return;
+
+            if (perUnitDescriptorSet != nullptr)
+                vkCmdBindDescriptorSets(
+                    commandBuffer,
+                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipelineLayout,
+                    descriptorSetOffset,
+                    1,
+                    &perUnitDescriptorSet,
+                    0, nullptr);
 
             for (int i = 0; i < perPrimitiveStart; i++)
             {
@@ -87,15 +98,13 @@ namespace vke_render
         std::shared_ptr<Material> material;
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         VkDescriptorSet commonDescriptorSet;
-        bool hasCommonDescriptorSet;
-        std::map<vke_ds::id64_t, RenderUnit> units;
+        std::map<vke_ds::id64_t, RenderUnit *> units;
 
         RenderInfo(std::shared_ptr<Material> &mat)
             : material(mat),
               commonDescriptorSet(nullptr)
         {
-            hasCommonDescriptorSet = material->textures.size() > 0;
-            if (hasCommonDescriptorSet)
+            if (material->textures.size() > 0)
             {
                 commonDescriptorSet = material->shader->CreateDescriptorSet(1);
                 material->UpdateDescriptorSet(commonDescriptorSet);
@@ -104,25 +113,26 @@ namespace vke_render
 
         ~RenderInfo() {}
 
-        void CreatePipeline(std::vector<uint32_t> &vertexAttributeSizes,
+        void CreatePipeline(const std::vector<uint32_t> &vertexAttributeSizes,
                             VkVertexInputRate vertexInputRate,
                             VkGraphicsPipelineCreateInfo &pipelineInfo)
         {
             renderPipeline = std::make_unique<GraphicsPipeline>(material->shader, vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
         }
 
-        vke_ds::id64_t AddUnit(std::shared_ptr<const Mesh> mesh, void *pushConstants, uint32_t constantSize)
+        vke_ds::id64_t AddUnit(RenderUnit *unit)
         {
             vke_ds::id64_t id = allocator.Alloc();
-            units[id] = RenderUnit(mesh, pushConstants, constantSize);
+            units[id] = unit;
             return id;
         }
 
-        vke_ds::id64_t AddUnit(std::shared_ptr<const Mesh> mesh, std::vector<PushConstantInfo> &&pushConstantInfos, uint32_t perPrimitiveStart)
+        RenderUnit *GetUnit(vke_ds::id64_t id)
         {
-            vke_ds::id64_t id = allocator.Alloc();
-            units[id] = RenderUnit(mesh, std::move(pushConstantInfos), perPrimitiveStart);
-            return id;
+            const auto &kv = units.find(id);
+            if (kv == units.end())
+                return nullptr;
+            return kv->second;
         }
 
         void RemoveUnit(vke_ds::id64_t id)
@@ -133,7 +143,7 @@ namespace vke_render
         void Render(VkCommandBuffer &commandBuffer, VkDescriptorSet globalDescriptorSet)
         {
             int setcnt = 0;
-            if (globalDescriptorSet)
+            if (globalDescriptorSet != nullptr)
                 vkCmdBindDescriptorSets(
                     commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -143,7 +153,7 @@ namespace vke_render
                     &globalDescriptorSet,
                     0, nullptr);
 
-            if (hasCommonDescriptorSet)
+            if (commonDescriptorSet != nullptr)
                 vkCmdBindDescriptorSets(
                     commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -153,7 +163,7 @@ namespace vke_render
                     &commonDescriptorSet,
                     0, nullptr);
             for (auto &unit : units)
-                unit.second.Render(commandBuffer, renderPipeline->pipelineLayout, setcnt);
+                unit.second->Render(commandBuffer, renderPipeline->pipelineLayout, setcnt);
         }
 
     private:

@@ -43,11 +43,13 @@ The build will produce several test/demo executables. For example:
 - [nlohmann/json](https://github.com/nlohmann/json)
 - [spdlog](https://github.com/gabime/spdlog)  
 - [JoltPhysics](https://github.com/jrouwe/JoltPhysics) 
+- [ozz-animation](https://github.com/guillaumeblanc/ozz-animation)
+- [entt](https://github.com/skypjack/entt)
 
 
 ## Roadmap 
 
 - [x] **Frame Graph**: support for multiple queue families 
+- [ ] **Scripting**: CoreCLR integration
 - [ ] **Rendering**: cluster-based deferred rendering & PBR 
 - [ ] **C++ Reflection**: python-based preprocessing tool to generate metadata 
-- [ ] **Scripting**: CoreCLR integration

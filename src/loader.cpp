@@ -5,6 +5,8 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <ozz/base/io/archive.h>
+#include <ozz/base/io/stream.h>
 
 namespace vke_common
 {
@@ -12,10 +14,7 @@ namespace vke_common
     {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-        if (!file.is_open())
-        {
-            throw std::runtime_error("failed to open file!");
-        }
+        VKE_FATAL_IF(!file.is_open(), "Failed to open file!")
 
         size_t fileSize = (size_t)file.tellg();
         buffer.resize(fileSize);
@@ -49,8 +48,7 @@ namespace vke_common
     static inline AT &tryGetAsset(std::map<AssetHandle, AT> &assets, const AssetHandle hdl)
     {
         auto it = assets.find(hdl);
-        if (it == assets.end())
-            throw std::runtime_error("Asset Not Exist!\n");
+        VKE_FATAL_IF(it == assets.end(), "Asset Not Exist!")
         return it->second;
     }
 
@@ -72,10 +70,7 @@ namespace vke_common
     {
         int texWidth, texHeight, texChannels;
         stbi_uc *pixels = stbi_load(asset.path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        if (!pixels)
-        {
-            throw std::runtime_error("failed to load texture image!");
-        }
+        VKE_FATAL_IF(!pixels, "Failed to load texture image!")
 
         return std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight,
                                                        asset.format, asset.usage, asset.layout,
@@ -183,5 +178,57 @@ namespace vke_common
     {
         std::function<std::unique_ptr<vke_render::Material>(MaterialAsset &)> op(loadMaterial);
         return loadFromCacheOrUpdate<vke_render::Material>(instance->materialCache, hdl, op);
+    }
+
+    std::unique_ptr<Skeleton> loadSkeleton(SkeletonAsset &asset)
+    {
+        auto ret = std::make_unique<Skeleton>(asset.id);
+        ozz::io::File file(asset.path.c_str(), "rb");
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Skeleton>())
+        {
+            VKE_LOG_ERROR("Failed to load skeleton instance from file {}", asset.path)
+            return nullptr;
+        }
+        archive >> ret->skeleton;
+        return ret;
+    }
+
+    std::unique_ptr<Skeleton> AssetManager::LoadSkeletonUnique(const AssetHandle hdl)
+    {
+        auto &asset = tryGetAsset(instance->skeletonCache, hdl);
+        return loadSkeleton(asset);
+    }
+
+    std::shared_ptr<Skeleton> AssetManager::LoadSkeleton(const AssetHandle hdl)
+    {
+        std::function<std::unique_ptr<Skeleton>(SkeletonAsset &)> op(loadSkeleton);
+        return loadFromCacheOrUpdate<Skeleton>(instance->skeletonCache, hdl, op);
+    }
+
+    std::unique_ptr<Animation> loadAnimation(AnimationAsset &asset)
+    {
+        auto ret = std::make_unique<Animation>(asset.id);
+        ozz::io::File file(asset.path.c_str(), "rb");
+        ozz::io::IArchive archive(&file);
+        if (!archive.TestTag<ozz::animation::Animation>())
+        {
+            VKE_LOG_ERROR("Failed to load animation instance from file {}", asset.path)
+            return nullptr;
+        }
+        archive >> ret->animation;
+        return ret;
+    }
+
+    std::unique_ptr<Animation> AssetManager::LoadAnimationUnique(const AssetHandle hdl)
+    {
+        auto &asset = tryGetAsset(instance->animationCache, hdl);
+        return loadAnimation(asset);
+    }
+
+    std::shared_ptr<Animation> AssetManager::LoadAnimation(const AssetHandle hdl)
+    {
+        std::function<std::unique_ptr<Animation>(AnimationAsset &)> op(loadAnimation);
+        return loadFromCacheOrUpdate<Animation>(instance->animationCache, hdl, op);
     }
 }

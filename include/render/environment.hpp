@@ -59,8 +59,7 @@ namespace vke_render
     public:
         static RenderEnvironment *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("RenderEnvironment not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "RenderEnvironment not initialized!")
             return instance;
         }
 
@@ -129,7 +128,7 @@ namespace vke_render
                 if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
                     return i;
 
-            throw std::runtime_error("failed to find suitable memory type!");
+            VKE_FATAL("Failed to find suitable memory type!")
         }
 
         static bool HasQueue(QueueType type)
@@ -226,10 +225,7 @@ namespace vke_render
             viewInfo.subresourceRange.layerCount = 1;
 
             VkImageView imageView;
-            if (vkCreateImageView(globalLogicalDevice, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create texture image view!");
-            }
+            VKE_VK_CHECK(vkCreateImageView(globalLogicalDevice, &viewInfo, nullptr, &imageView), "failed to create texture image view!")
 
             return imageView;
         }
@@ -391,10 +387,9 @@ namespace vke_render
                 instance->windowResized = false;
                 // return;
             }
-            else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-            {
-                throw std::runtime_error("failed to acquire swap chain image!");
-            }
+            else
+                VKE_FATAL_IF(result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR, "failed to acquire swap chain image!")
+
             vkResetFences(globalLogicalDevice, 1, &instance->inFlightFences[currentFrame]);
 
             VkPipelineStageFlags2 waitDstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -445,10 +440,8 @@ namespace vke_render
                 instance->recreateSwapChain();
                 instance->windowResized = false;
             }
-            else if (result != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to present swap chain image!");
-            }
+            else
+                VKE_VK_CHECK(result, "failed to present swap chain image!")
         }
 
         uint32_t imageCnt;

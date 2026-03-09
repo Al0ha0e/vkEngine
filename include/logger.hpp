@@ -20,80 +20,71 @@ namespace vke_common
         static Logger *GetInstance()
         {
             if (instance == nullptr)
-                throw std::runtime_error("Logger not initialized!");
+            {
+                instance = new Logger();
+                instance->init();
+            }
             return instance;
-        }
-
-        static Logger *Init()
-        {
-            instance = new Logger();
-            instance->init();
-            return instance;
-        }
-
-        static void Dispose()
-        {
-            delete instance;
         }
 
         template <typename... Args>
         static void Trace(spdlog::format_string_t<Args...> fmt, Args &&...args)
         {
-            instance->logger->trace(fmt, std::forward<Args>(args)...);
+            GetInstance()->logger->trace(fmt, std::forward<Args>(args)...);
         }
 
         template <typename... Args>
         static void Debug(spdlog::format_string_t<Args...> fmt, Args &&...args)
         {
-            instance->logger->debug(fmt, std::forward<Args>(args)...);
+            GetInstance()->logger->debug(fmt, std::forward<Args>(args)...);
         }
 
         template <typename... Args>
         static void Info(spdlog::format_string_t<Args...> fmt, Args &&...args)
         {
-            instance->logger->info(fmt, std::forward<Args>(args)...);
+            GetInstance()->logger->info(fmt, std::forward<Args>(args)...);
         }
 
         template <typename... Args>
         static void Warn(spdlog::format_string_t<Args...> fmt, Args &&...args)
         {
-            instance->logger->warn(fmt, std::forward<Args>(args)...);
+            GetInstance()->logger->warn(fmt, std::forward<Args>(args)...);
         }
 
         template <typename... Args>
         static void Error(spdlog::format_string_t<Args...> fmt, Args &&...args)
         {
-            instance->logger->error(fmt, std::forward<Args>(args)...);
+            GetInstance()->logger->error(fmt, std::forward<Args>(args)...);
         }
 
         template <typename T>
         static void Trace(const T &msg)
         {
-            instance->logger->trace(msg);
+            GetInstance()->logger->trace(msg);
         }
 
         template <typename T>
         static void Debug(const T &msg)
         {
-            instance->logger->debug(msg);
+            GetInstance()->logger->debug(msg);
         }
 
         template <typename T>
         static void Info(const T &msg)
         {
-            instance->logger->info(msg);
+            GetInstance()->logger->info(msg);
         }
 
         template <typename T>
         static void Warn(const T &msg)
         {
-            instance->logger->warn(msg);
+            GetInstance()->logger->warn(msg);
         }
 
         template <typename T>
         static void Error(const T &msg)
         {
-            instance->logger->error(msg);
+            GetInstance()->logger->error(msg);
         }
 
     private:

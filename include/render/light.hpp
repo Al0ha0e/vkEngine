@@ -58,11 +58,10 @@ namespace vke_render
             descriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
         }
 
-        static void GetDescriptorSetWrite(std::vector<VkWriteDescriptorSet> &descriptorSetWrites, VkDescriptorSet descriptorSet)
+        static void GetDescriptorSetWrite(uint32_t id, std::vector<VkWriteDescriptorSet> &descriptorSetWrites, VkDescriptorSet descriptorSet)
         {
             VkDescriptorBufferInfo bufferInfo = instance->directionalLightBuffer->GetDescriptorBufferInfo();
-            descriptorSetWrites.push_back(VkWriteDescriptorSet{});
-            ConstructDescriptorSetWrite(descriptorSetWrites[descriptorSetWrites.size() - 1], descriptorSet, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+            ConstructDescriptorSetWrite(descriptorSetWrites[1], descriptorSet, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
         }
 
     private:

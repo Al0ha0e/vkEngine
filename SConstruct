@@ -6,7 +6,7 @@ import shutil
 
 def GetFileWithExt(dir,ext):
     ret = []
-    for _,dir,files in os.walk(dir):
+    for _,dirs,files in os.walk(dir):
         for filename in files:
             _,suf = os.path.splitext(filename)
             if suf == ext:
@@ -79,22 +79,30 @@ if USE_AVX:
 #########################
 
 env = Environment(CC = 'cl',
-                   CCFLAGS = ['/std:c++23preview','/EHsc','/O2','/utf-8'] + jolt_ccflags)
+                   CCFLAGS = ['/std:c++23preview','/EHs-','/O2','/utf-8'] + jolt_ccflags)
 
+SConscript(['csharp/Sconscript'])
 joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppdefines'])
+ozzObjs = SConscript(['third_party/ozz/Sconscript'], exports=['env'])
 
 
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/']
-cppdefines = [] # ['NDEBUG']
-commonsrc = joltObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
+cppdefines = ['JSON_NOEXCEPTION','SPDLOG_NO_EXCEPTIONS'] # ['NDEBUG']
+commonsrc = joltObjs + ozzObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", "./src/render/deferred_lighting.cpp",
                 "./src/render/shader.cpp", "./src/render/pipeline.cpp","./src/render/light.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
-                "./src/gameobject.cpp", "./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
-                "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp",
+                "./src/component.cpp","./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
+                "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp", "./src/script.cpp",
                 "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp","./third_party/tinygltf/tiny_gltf.cpp"]
+
+### coreclr
+NETHOST_PATH = "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.8/runtimes/win-x64/native/"
+libpath.append(NETHOST_PATH)
+libs.append('nethost')
+
 
 ### tools
 
@@ -102,6 +110,8 @@ toolCommonSrc = ["./src/logger.cpp"]
 
 targetinfo = [
     ["tools/gltf_conv", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_conv.cpp"]],
+    ["tools/gltf_skin_conv", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_skin_conv.cpp"]+ozzObjs],
+    ["tools/gltf_log", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_log.cpp"]],
     ["tools/obj_conv", ["./src/tools/obj_conv.cpp"]]
 ]
 
@@ -114,10 +124,11 @@ for info in targetinfo:
 
 targetinfo = [
     ["out/test_env",["./tests/test_env.cpp"]],
+    ["out/test_anim",["./tests/test_anim.cpp"]],
     ["out/test_sponza",["./tests/test_sponza.cpp"]],
     ["out/test_jolt", ["./tests/test_jolt.cpp"]],
     ["out/test_compute",["./tests/test_compute.cpp"]],
-    ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]]
+    ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]],
 ]
 
 for info in targetinfo:
@@ -137,6 +148,7 @@ sprefix = './builtin_assets/shader/'
 shaders = [
     ['default.frag','default_frag.spv'],
     ['default.vert','default_vert.spv'],
+    ['default_skin.vert','default_skin_vert.spv'],
     ['default_multi.frag','default_multi_frag.spv'],
     ['default_multi.vert','default_multi_vert.spv'],
     ['deferred_lighting.frag','deferred_lighting_frag.spv'],
@@ -161,4 +173,4 @@ for s in shaders:
 cmds = ["python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"]
 for cmd in cmds:
     print(cmd)
-    os.system(cmd)
+    # os.system(cmd)

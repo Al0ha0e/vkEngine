@@ -3,6 +3,7 @@
 *.dblite
 *.spv
 .vscode
+__pycache__
 assets
 out
 builtin_assets/texture/scattering_lut.png

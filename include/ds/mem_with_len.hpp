@@ -1,24 +1,40 @@
 #ifndef MEM_WITH_LEN_H
 #define MEM_WITH_LEN_H
 
+#include <cstddef>
+#include <logger.hpp>
+
 namespace vke_ds
 {
+
+    template <size_t Alignment>
     class Memory
     {
-    public:
-        unsigned char *data;
-        size_t size;
+        static_assert((Alignment & (Alignment - 1)) == 0,
+                      "Alignment must be power of two");
 
-        Memory() : data(nullptr), size(0) {}
-        Memory(size_t size) : size(size) { data = new unsigned char[size]; }
+    public:
+        std::byte *data = nullptr;
+        size_t size = 0;
+
+        Memory() = default;
+
+        explicit Memory(size_t size) noexcept : size(size)
+        {
+            if (size > 0)
+                data = static_cast<std::byte *>(
+                    ::operator new(size, std::align_val_t(Alignment)));
+        }
 
         Memory &operator=(const Memory &) = delete;
         Memory(const Memory &) = delete;
 
-        Memory &operator=(Memory &&ano)
+        Memory &operator=(Memory &&ano) noexcept
         {
             if (this != &ano)
             {
+                if (data)
+                    ::operator delete(data, std::align_val_t(Alignment));
                 data = ano.data;
                 size = ano.size;
                 ano.data = nullptr;
@@ -27,16 +43,26 @@ namespace vke_ds
             return *this;
         }
 
-        Memory(Memory &&ano) : data(ano.data), size(ano.size)
+        Memory(Memory &&ano) noexcept : data(ano.data), size(ano.size)
         {
             ano.data = nullptr;
             ano.size = 0;
         }
 
-        ~Memory()
+        void WriteToBinaryStream(std::ostream &binary) const
+        {
+            VKE_LOG_INFO("WriteToBinaryStream {}", size);
+            if (size > 0 && data)
+            {
+                binary.write((const char *)&size, sizeof(size_t));
+                binary.write((const char *)data, size);
+            }
+        }
+
+        ~Memory() noexcept
         {
             if (data != nullptr)
-                delete[] data;
+                ::operator delete(data, std::align_val_t(Alignment));
         }
     };
 }

@@ -25,16 +25,11 @@ namespace vke_render
 
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
-        vke_ds::id32_t cameraResourceID = blackboard["cameraInfo"];
 
         vke_ds::id32_t skyOutColorResourceNodeID = frameGraph.AllocResourceNode("skyOutColor", false, colorAttachmentResourceID);
         vke_ds::id32_t skyTaskNodeID = frameGraph.AllocTaskNode("skybox render", RENDER_TASK,
                                                                 std::bind(&SkyboxRenderer::Render, this,
                                                                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, currentResourceNodeID[cameraResourceID], 0,
-                                          VK_ACCESS_SHADER_READ_BIT,
-                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
-                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
         frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], skyOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -151,7 +146,7 @@ namespace vke_render
         std::vector<uint32_t> indices;
         for (int i = 0; i < skyboxVertices.size(); i++)
             indices.push_back(i);
-        skyboxMesh = std::make_unique<BaseMesh<glm::vec3>>(0, skyboxVertices, indices);
+        skyboxMesh = std::make_unique<Mesh>(0, std::span<const glm::vec3>(skyboxVertices), std::span<const uint32_t>(indices));
     }
 
     void SkyboxRenderer::createDescriptorSet()
@@ -217,7 +212,7 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDescriptorSet descriptorSets[2] = {globalDescriptorSet, skyBoxDescriptorSet};
+        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], skyBoxDescriptorSet};
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
@@ -231,7 +226,7 @@ namespace vke_render
     void SkyboxRenderer::generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
     {
         glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.04, 0, 0));
-        skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSet, skyBoxDescriptorSet},
+        skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame], skyBoxDescriptorSet},
                                            &sunLightDir, glm::ivec3(8, 4, 1));
     }
 }

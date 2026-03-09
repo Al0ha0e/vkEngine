@@ -156,8 +156,7 @@ namespace vke_render
     public:
         static DescriptorSetAllocator *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("DescriptorSetAllocator not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "DescriptorSetAllocator not initialized!")
             return instance;
         }
 
@@ -214,10 +213,7 @@ namespace vke_render
             poolInfo.maxSets = info.setCnt;
 
             VkDescriptorPool ret;
-            if (vkCreateDescriptorPool(globalLogicalDevice, &poolInfo, nullptr, &ret) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create descriptor pool!");
-            }
+            VKE_VK_CHECK(vkCreateDescriptorPool(globalLogicalDevice, &poolInfo, nullptr, &ret), "failed to create descriptor pool!")
             return ret;
         }
 
@@ -241,13 +237,8 @@ namespace vke_render
             }
 
             VkDescriptorSet ret;
-            if (vkAllocateDescriptorSets(
-                    globalLogicalDevice,
-                    &allocInfo,
-                    &ret) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to allocate descriptor sets!");
-            }
+            VKE_VK_CHECK(vkAllocateDescriptorSets(globalLogicalDevice, &allocInfo, &ret),
+                         "failed to allocate descriptor sets!")
             return ret;
         }
     };

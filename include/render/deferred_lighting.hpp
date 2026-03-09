@@ -11,8 +11,8 @@ namespace vke_render
     class DeferredLightingPass : public RenderPassBase
     {
     public:
-        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet globalDescriptorSet)
-            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSet) {}
+        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets)
+            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,

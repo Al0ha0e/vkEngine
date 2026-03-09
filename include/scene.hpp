@@ -1,9 +1,12 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+#include <entt/entity/registry.hpp>
 #include <ds/id_allocator.hpp>
 #include <asset.hpp>
 #include <gameobject.hpp>
+#include <component/transform.hpp>
+#include <unordered_set>
 
 namespace vke_common
 {
@@ -13,82 +16,184 @@ namespace vke_common
         vke_common::AssetHandle handle;
         std::string path;
         std::vector<std::string> layers;
-        std::map<vke_ds::id64_t, std::unique_ptr<GameObject>> objects;
+
+        Scene(const Scene &) = delete;
+        Scene &operator=(const Scene &) = delete;
 
         Scene() : idAllocator(1), layers({"default", "editor"}) {}
 
-        Scene(const nlohmann::json &json) : idAllocator(json["maxid"])
+        Scene(const nlohmann::json &json)
+            : idAllocator(json["maxid"])
         {
             init(json);
         }
 
-        Scene(const std::string &pth, const nlohmann::json &json) : path(pth), idAllocator(json["maxid"])
+        Scene(const std::string &pth, const nlohmann::json &json)
+            : path(pth), idAllocator(json["maxid"])
         {
             init(json);
         }
 
-        ~Scene() {}
-
-        std::string ToJSON()
+        ~Scene()
         {
-            std::string ret = "{\n";
-            ret += "\"maxid\": " + std::to_string(idAllocator.id) + ",\n";
-
-            ret += "\"layers\": [";
-            for (auto &layer : layers)
-                ret += "\"" + layer + "\",";
-            ret[ret.length() - 1] = ']';
-            ret += ",\n";
-
-            ret += "\"objects\": [ ";
-            for (auto &obj : objects)
-                if (obj.second->parent == nullptr && obj.second->layer != 1)
-                    ret += "\n" + obj.second->ToJSON() + ",";
-            ret[ret.length() - 1] = ']';
-            ret += "\n}";
-
-            return ret;
+            vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
         }
 
-        void AddObject(std::unique_ptr<GameObject> &&object)
+        nlohmann::json ToJSON();
+
+        // void AddObject(std::unique_ptr<GameObject> &&object)
+        // {
+        //     vke_ds::id32_t id = idAllocator.Alloc();
+        //     object->id = id;
+        //     entt::entity entity = registry.create();
+        //     idToEntity[id] = entity;
+        //     gameObjects[id] = std::move(object);
+        // }
+
+        entt::entity GetObjectEntity(vke_ds::id32_t id)
         {
-            vke_ds::id64_t id = idAllocator.Alloc();
-            object->id = id;
-            objects[id] = std::forward<std::unique_ptr<GameObject>>(object);
+            auto it = idToEntity.find(id);
+            return it == idToEntity.end() ? entt::null : it->second;
         }
 
-        void RemoveObject(vke_ds::id64_t id)
+        vke_ds::id32_t GetEntityID(entt::entity entity)
         {
-            auto &object = objects[id];
-            if (object->parent != nullptr)
-                object->parent->RemoveChild(id);
+            return registry.valid(entity) ? registry.get<GameObject>(entity).id : 0;
+        }
 
-            std::vector<vke_ds::id64_t> objsToBeRemoved = {id};
+        void RemoveObject(entt::entity entity)
+        {
+            if (!registry.valid(entity))
+                return;
+
+            Transform &transform = registry.get<Transform>(entity);
+            if (transform.parent != entt::null)
+                RemoveChild(transform.parent, entity);
+
+            std::vector<entt::entity> entitiesToBeRemoved = {entity};
             int now = 0;
-            while (now < objsToBeRemoved.size())
+            while (now < entitiesToBeRemoved.size())
             {
-                vke_ds::id64_t oid = objsToBeRemoved[now++];
-                auto &object = objects[oid];
-                for (auto &kv : object->children)
-                    objsToBeRemoved.push_back(kv.first);
+                entt::entity deadEntity = entitiesToBeRemoved[now++];
+                vke_ds::id32_t deadID = registry.get<GameObject>(deadEntity).id;
+                idToEntity.erase(deadID);
+                Transform &deadTransform = registry.get<Transform>(deadEntity);
+                for (auto &child : deadTransform.children)
+                    entitiesToBeRemoved.push_back(child);
             }
 
-            for (vke_ds::id64_t oid : objsToBeRemoved)
-                objects.erase(oid);
+            // TODO Clean up component
+
+            for (entt::entity ent : entitiesToBeRemoved)
+                registry.destroy(ent);
         }
 
-        GameObject *GetObject(vke_ds::id64_t id)
+        void RemoveChild(entt::entity entity, entt::entity childEntity)
         {
-            auto it = objects.find(id);
-            if (it == objects.end())
-                return nullptr;
-            return it->second.get();
+            registry.get<Transform>(entity).children.erase(childEntity);
+        }
+
+        void SetParent(entt::entity entity, entt::entity parentEntity)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+
+            if (transform.parent == parentEntity)
+                return;
+
+            if (transform.parent != entt::null)
+            {
+                RemoveChild(transform.parent, entity);
+                transform.RemoveParent();
+            }
+            transform.parent = parentEntity;
+            if (transform.parent == entt::null)
+            {
+                updateTransform(entity, transform, true);
+                return;
+            }
+
+            transform.SetParent(registry.get<Transform>(transform.parent));
+            registry.get<Transform>(transform.parent).children.insert(entity);
+            updateTransform(entity, transform, true);
+        }
+
+        void SetLocalPosition(const entt::entity entity, const glm::vec3 &position)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.SetLocalPositionWithParent(registry.get<Transform>(transform.parent).model, position)
+                                           : transform.SetLocalPosition(position);
+            updateTransform(entity, transform, true);
+        }
+
+        void SetLocalRotation(const entt::entity entity, const glm::quat &rotation)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.SetLocalRotationWithParent(registry.get<Transform>(transform.parent), rotation)
+                                           : transform.SetLocalRotation(rotation);
+            updateTransform(entity, transform, true);
+        }
+
+        void SetLocalScale(const entt::entity entity, const glm::vec3 &scale)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.SetLocalScaleWithParent(registry.get<Transform>(transform.parent), scale)
+                                           : transform.SetLocalScale(scale);
+            updateTransform(entity, transform, true);
+        }
+
+        void RotateGlobal(const entt::entity entity, const float det, const glm::vec3 &axis)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.RotateGlobalWithParent(registry.get<Transform>(transform.parent), det, axis)
+                                           : transform.RotateGlobal(det, axis);
+            updateTransform(entity, transform, true);
+        }
+
+        void RotateLocal(const entt::entity entity, const float det, const glm::vec3 &axis)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.RotateLocalWithParent(registry.get<Transform>(transform.parent), det, axis)
+                                           : transform.RotateLocal(det, axis);
+            updateTransform(entity, transform, true);
+        }
+
+        void TranslateLocal(const entt::entity entity, const glm::vec3 &det)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.TranslateLocalWithParent(registry.get<Transform>(transform.parent).model, det)
+                                           : transform.TranslateLocal(det);
+            updateTransform(entity, transform, true);
+        }
+
+        void TranslateGlobal(const entt::entity entity, const glm::vec3 &det)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.TranslateGlobalWithParent(registry.get<Transform>(transform.parent).model, det)
+                                           : transform.TranslateGlobal(det);
+            updateTransform(entity, transform, true);
+        }
+
+        void Scale(const entt::entity entity, const glm::vec3 &scale)
+        {
+            Transform &transform = registry.get<Transform>(entity);
+            transform.parent != entt::null ? transform.ScaleWithParent(registry.get<Transform>(transform.parent), scale)
+                                           : transform.Scale(scale);
+            updateTransform(entity, transform, true);
         }
 
     private:
-        vke_ds::NaiveIDAllocator<vke_ds::id64_t> idAllocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> idAllocator;
+        std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
+        entt::registry registry;
+        vke_ds::id32_t physicsUpdateListenerID;
 
+        void dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited);
         void init(const nlohmann::json &json);
+        void loadComponent(const entt::entity entity, const nlohmann::json &component);
+        void componentToJSON(entt::entity entity, nlohmann::json &json);
+        void updateTransform(entt::entity entity, Transform &transform, bool first);
+
+        static void physicsUpdateCallback(void *self, void *info);
     };
 
     class SceneManager
@@ -106,8 +211,7 @@ namespace vke_common
     public:
         static SceneManager *GetInstance()
         {
-            if (instance == nullptr)
-                throw std::runtime_error("SceneManager not initialized!");
+            VKE_FATAL_IF(instance == nullptr, "SceneManager not initialized!")
             return instance;
         }
 
@@ -138,7 +242,7 @@ namespace vke_common
             if (instance->currentScene != nullptr)
             {
                 std::ofstream ofs(pth);
-                ofs << instance->currentScene->ToJSON();
+                ofs << instance->currentScene->ToJSON().dump(4);
                 ofs.close();
             }
         }

@@ -1,92 +1,74 @@
 #ifndef RIGIDBODY_H
 #define RIGIDBODY_H
 
-#include <physics/physics.hpp>
 #include <physics/shape.hpp>
 #include <asset.hpp>
-#include <gameobject.hpp>
+#include <component/transform.hpp>
 
-namespace vke_physics
+namespace vke_component
 {
-    class RigidBody : public vke_common::Component
+    class RigidBody
     {
     public:
         JPH::BodyID bodyID;
-        std::shared_ptr<PhyscisShape> shape;
+        std::shared_ptr<vke_physics::PhyscisShape> shape;
 
-        RigidBody(JPH::EMotionType motionType,
+        RigidBody(const vke_common::Transform &transform,
+                  JPH::EMotionType motionType,
                   JPH::ObjectLayer layer,
                   float friction, float restitution,
-                  std::shared_ptr<PhyscisShape> &shape,
-                  vke_common::GameObject *obj)
-            : shape(shape), Component(obj)
+                  std::shared_ptr<vke_physics::PhyscisShape> &shape)
+            : shape(shape)
         {
-            init(motionType, layer, friction, restitution);
+            init(transform, motionType, layer, friction, restitution);
         }
 
-        RigidBody(vke_common::GameObject *obj, const nlohmann::json &json)
-            : Component(obj), shape(new PhyscisShape(json["shape"]))
+        RigidBody(const vke_common::Transform &transform,
+                  const nlohmann::json &json)
+            : shape(new vke_physics::PhyscisShape(json["shape"]))
         {
-            init(json["motionType"], json["layer"], json["friction"], json["restitution"]);
+            init(transform, json["motionType"], json["layer"], json["friction"], json["restitution"]);
         }
 
         ~RigidBody()
         {
-            PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
-            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
+            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
         }
 
-        std::string ToJSON() override
+        nlohmann::json ToJSON()
         {
-            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
-            std::string ret = "{\n\"type\":\"rigidbody\",\n";
-            ret += "\"motionType\": " + std::to_string((int)interface.GetMotionType(bodyID)) + ",\n";
-            ret += "\"layer\": " + std::to_string((int)interface.GetObjectLayer(bodyID)) + ",\n";
-            ret += "\"friction\": " + std::to_string(interface.GetFriction(bodyID)) + ",\n";
-            ret += "\"restitution\": " + std::to_string(interface.GetRestitution(bodyID)) + ",\n";
-            ret += "\"shape\": " + shape->ToJSON();
-            ret += "\n}";
+            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+
+            nlohmann::json ret = {
+                {"type", "rigidbody"},
+                {"motionType", (int)interface.GetMotionType(bodyID)},
+                {"layer", (int)interface.GetObjectLayer(bodyID)},
+                {"friction", interface.GetFriction(bodyID)},
+                {"restitution", interface.GetRestitution(bodyID)},
+                {"shape", shape->ToJSON()}};
             return ret;
         }
 
-        void OnTransformed(vke_common::TransformParameter &param) override
-        {
-            // TODO
-        }
-
-        static void update(void *self, void *info)
-        {
-            RigidBody *rigidbody = (RigidBody *)self;
-
-            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
-            JPH::RVec3 position;
-            JPH::Quat rotation;
-            interface.GetPositionAndRotation(rigidbody->bodyID, position, rotation);
-            JPH::RVec3 cpos;
-            cpos = interface.GetCenterOfMassPosition(rigidbody->bodyID);
-
-            rigidbody->gameObject->SetLocalPosition(glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
-            rigidbody->gameObject->SetLocalRotation(glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
-            // TODO Set Global
-        }
+        void OnTransformed(vke_common::Transform &param) {} // TODO
 
     private:
-        vke_ds::id32_t physicsUpdateListenerID;
-
-        void init(JPH::EMotionType motionType, JPH::ObjectLayer layer, float friction, float restitution)
+        void init(const vke_common::Transform &transform,
+                  JPH::EMotionType motionType, JPH::ObjectLayer layer,
+                  float friction, float restitution)
         {
-            vke_common::TransformParameter &param = gameObject->transform;
-            JPH::BodyInterface &interface = PhysicsManager::GetBodyInterface();
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+
+            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             JPH::BodyCreationSettings settings(shape->shapeRef,
-                                               JPH::RVec3(param.position.x, param.position.y, param.position.z),
-                                               JPH::Quat(param.rotation.x, param.rotation.y, param.rotation.z, param.rotation.w),
+                                               JPH::RVec3(position.x, position.y, position.z),
+                                               JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
                                                motionType, layer);
             bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
             interface.SetFriction(bodyID, friction);
             interface.SetRestitution(bodyID, restitution);
-            physicsUpdateListenerID = PhysicsManager::RegisterUpdateListener(this, std::function<void(void *, void *)>(update));
         }
     };
 }

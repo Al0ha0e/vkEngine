@@ -1,0 +1,13 @@
+import os, fnmatch
+
+Import("env")
+
+def glob_cpp(root):
+    matches = []
+    for base, dirs, files in os.walk(root):
+        matches += [os.path.join(base, f) for f in fnmatch.filter(files, "*.cc")]
+    return matches
+
+objs = env.Object(glob_cpp("."), CPPPATH="../",CPPDEFINES=[])
+
+Return("objs")

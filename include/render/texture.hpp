@@ -205,10 +205,7 @@ namespace vke_render
             samplerInfo.minLod = 0.0f;
             samplerInfo.maxLod = mipLevelCnt;
 
-            if (vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create texture sampler!");
-            }
+            VKE_VK_CHECK(vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &textureSampler), "Failed to create texture sampler!")
         }
     };
 }

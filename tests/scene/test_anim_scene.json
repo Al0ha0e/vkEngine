@@ -1,0 +1,52 @@
+{
+  "maxid": 3,
+  "layers": ["default", "editor", "test"],
+  "objects": [
+    {
+      "id": 1,
+      "static": true,
+      "name": "scene_cam",
+      "layer": 1,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 3],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "camera",
+          "id": 1,
+          "fov": 70.0,
+          "width": 1024.0,
+          "height": 768.0,
+          "near": 0.01,
+          "far": 1000.0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 2,
+      "static": true,
+      "name": "taunt",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 0.0, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "animator",
+          "material": 2048,
+          "mesh": 2048,
+          "skeleton": 2048,
+          "animation": 2048
+        }
+      ],
+      "children": []
+    }
+  ]
+}

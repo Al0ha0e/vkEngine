@@ -503,6 +503,9 @@ namespace vke_render
                 commandBuffers[i] = commandPool->AllocateAndBegin(&beginInfo);
             }
 
+        if (globalCallback)
+            globalCallback();
+
         VKE_LOG_DEBUG("---------------------EXE-------------------")
         uint32_t actualSubmitCnts[TASK_TYPE_CNT] = {0, 0, 0, 0};
         VkPipelineStageFlags2 waitDstStageMask = 0;
