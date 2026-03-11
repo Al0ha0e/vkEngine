@@ -30,6 +30,7 @@ namespace vke_render
         ~DeferredLightingPass() {}
 
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
+        void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
 
     private:
         GBuffer *gbuffer;

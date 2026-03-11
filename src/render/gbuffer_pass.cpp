@@ -8,15 +8,10 @@ namespace vke_render
                                           std::map<std::string, vke_ds::id32_t> &blackboard,
                                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
-        vke_ds::id32_t gbufferResourceIDs[GBUFFER_CNT];
         vke_ds::id32_t gbufferResourceNodeIDs[GBUFFER_CNT];
-
-        VkDescriptorImageInfo info{};
-        info.sampler = nullptr;
         for (int i = 0; i < GBUFFER_CNT; i++)
         {
-            info.imageView = gbuffer->imageViews[i];
-            gbufferResourceIDs[i] = frameGraph.AddPermanentImageResource("gbuffer" + std::to_string(i), gbuffer->images[i], VK_IMAGE_ASPECT_COLOR_BIT, info,
+            gbufferResourceIDs[i] = frameGraph.AddPermanentImageResource("gbuffer" + std::to_string(i), gbuffer->images[i], VK_IMAGE_ASPECT_COLOR_BIT,
                                                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, std::nullopt, std::nullopt);
             blackboard["gbuffer" + std::to_string(i)] = gbufferResourceIDs[i];
             gbufferResourceNodeIDs[i] = frameGraph.AllocResourceNode("oriGBuffer" + std::to_string(i), false, gbufferResourceIDs[i]);
@@ -144,5 +139,15 @@ namespace vke_render
         }
 
         vkCmdEndRendering(commandBuffer);
+    }
+
+    void GBufferPass::OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx)
+    {
+        gbuffer->Recreate(ctx->width, ctx->height);
+        for (int i = 0; i < GBUFFER_CNT; ++i)
+        {
+            ImageResource *resource = (ImageResource *)frameGraph.permanentResources[gbufferResourceIDs[i]].get();
+            resource->image = gbuffer->images[i];
+        }
     }
 }

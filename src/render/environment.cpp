@@ -633,6 +633,7 @@ namespace vke_render
     void RenderEnvironment::recreateSwapChain()
     {
         vkDeviceWaitIdle(globalLogicalDevice);
+        ((CPUCommandQueue *)commandQueues[CPU_QUEUE].get())->WaitIdle();
         cleanupSwapChain();
         createSwapChain();
         createImageViews();
@@ -643,6 +644,7 @@ namespace vke_render
         rootRenderContext.depthImage = depthImage;
         rootRenderContext.depthImageView = depthImageView;
         resizeEventHub.DispatchEvent(&rootRenderContext);
+        vkDeviceWaitIdle(globalLogicalDevice);
     }
 
     void RenderEnvironment::createImageViews()

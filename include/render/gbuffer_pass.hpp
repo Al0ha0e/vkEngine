@@ -55,10 +55,12 @@ namespace vke_render
         }
 
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
+        void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
 
     private:
         std::map<Material *, std::unique_ptr<RenderInfo>> renderInfoMap;
         GBuffer *gbuffer;
+        vke_ds::id32_t gbufferResourceIDs[GBUFFER_CNT];
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,

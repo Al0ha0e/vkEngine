@@ -244,6 +244,7 @@ namespace vke_render
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
         // std::cout << "----SYNC RESOURCE " << "TASK " << taskNode.name << " RESOURCE_NODE " << resourceNode.name << " RESOURCE " << resource->name << "\n";
         // std::cout << "resource prevUsedTask " << resource->prevUsedTask << " " << resource->prevUsedRef << "\n";
+        bool layoutChanged = false;
         if (!resourceNode.isTransient && resource->firstAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE &&
             permanentResourceStates[resourceNode.resourceID].stImageLayout.has_value()) // first use of resource
         {
@@ -251,6 +252,7 @@ namespace vke_render
             if (state.stImageLayout.has_value() &&
                 state.stImageLayout.value() != ref.imageLayout)
             {
+                layoutChanged = true;
                 // std::cout << "  FIRST IMAGE USE\n";
                 ImageResource *imageResource = (ImageResource *)resource.get();
                 VKE_LOG_DEBUG("FIRST IMAGE USE {} {}", imageResource->name, (void *)(imageResource->image))
@@ -292,10 +294,13 @@ namespace vke_render
                     waitSemaphoreMap[prevUsedTask.lastSemaphore] = std::max(it->second, prevUsedTask.lastSemaphoreValue);
 
                 if (resource->resourceType == IMAGE_RESOURCE &&
-                    ((prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) ||
+                    ((resource->prevWrite && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) ||
                      (prevUsedRef.imageLayout != ref.imageLayout)))
                 {
                     // std::cout << "  CROSS QUEUE IMAGE RECEIVE\n";
+                    layoutChanged = prevUsedRef.imageLayout != ref.imageLayout;
+                    if (layoutChanged)
+                        waitDstStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // prevent layout transfer conflict with prev write op in another queue
                     ImageResource *imageResource = (ImageResource *)resource.get();
                     VKE_LOG_DEBUG("CROSS QUEUE IMAGE RECEIVE {} {}", imageResource->name, (void *)(imageResource->image))
                     imageMemoryBarriers.emplace_back();
@@ -309,7 +314,7 @@ namespace vke_render
                     barrier.oldLayout = prevUsedRef.imageLayout;
                     barrier.newLayout = ref.imageLayout;
                     if (prevUsedTask.actualTaskType != CPU_TASK && taskNode.actualTaskType != CPU_TASK &&
-                        prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+                        resource->prevWrite && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                     {
                         VKE_LOG_DEBUG("REAL CROSS QUEUE IMAGE RECEIVE")
                         barrier.srcQueueFamilyIndex = queueFamilies[resource->prevUsedTask->actualTaskType];
@@ -332,15 +337,16 @@ namespace vke_render
             {
                 // std::cout << "  SAME QUEUE\n";
                 if ((ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
-                    (prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_STORE) ||
-                    ((resource->resourceType == IMAGE_RESOURCE) && prevUsedRef.imageLayout != ref.imageLayout))
+                    resource->prevWrite ||
+                    ((resource->resourceType == IMAGE_RESOURCE) && (prevUsedRef.imageLayout != ref.imageLayout)))
                 {
-                    bool war = (prevUsedRef.storeOp == VK_ATTACHMENT_STORE_OP_NONE &&
+                    bool war = (!resource->prevWrite &&
                                 prevUsedRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD &&
                                 ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE);
                     // std::cout << "  NEED SYNC\n";
                     if (resource->resourceType == IMAGE_RESOURCE)
                     {
+                        layoutChanged = prevUsedRef.imageLayout != ref.imageLayout;
                         war = war && prevUsedRef.imageLayout == ref.imageLayout;
                         // std::cout << "  IMAGE SYNC\n";
                         ImageResource *imageResource = (ImageResource *)resource.get();
@@ -384,6 +390,7 @@ namespace vke_render
                 }
             }
         }
+        resource->prevWrite = (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE) || layoutChanged;
         resource->prevUsedRef = &ref;
         resource->prevUsedTask = &taskNode;
     }

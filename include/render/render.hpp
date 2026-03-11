@@ -175,6 +175,8 @@ namespace vke_render
         {
             instance->recreate(ctx);
             glm::vec2 extent(ctx->width, ctx->height);
+            for (auto &subpass : instance->subPasses)
+                subpass->OnWindowResize(*instance->frameGraph, ctx);
             instance->resizeEventHub.DispatchEvent(&extent);
         }
 
@@ -183,6 +185,7 @@ namespace vke_render
     private:
         bool frameGraphUpdated;
         vke_ds::id32_t colorAttachmentResourceID;
+        vke_ds::id32_t depthAttachmentResourceID;
         DescriptorSetInfo globalDescriptorSetInfos[2]; // 0 no light, 1 light
         VkDescriptorSet globalDescriptorSets[2][MAX_FRAMES_IN_FLIGHT];
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;

@@ -11,9 +11,7 @@ namespace vke_render
                                                             std::bind(&SkyboxRenderer::generateLUT, this,
                                                                       std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
-        VkDescriptorImageInfo info{};
-        info.imageView = skyLUT->textureImageView;
-        vke_ds::id32_t lutResourceID = frameGraph.AddPermanentImageResource("skyLUT", skyLUT->textureImage, VK_IMAGE_ASPECT_COLOR_BIT, info,
+        vke_ds::id32_t lutResourceID = frameGraph.AddPermanentImageResource("skyLUT", skyLUT->textureImage, VK_IMAGE_ASPECT_COLOR_BIT,
                                                                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
         vke_ds::id32_t lutOutResourceNodeID = frameGraph.AllocResourceNode("outSkyLUT", false, lutResourceID);
 

@@ -115,4 +115,17 @@ namespace vke_render
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         vkCmdEndRendering(commandBuffer);
     }
+
+    void DeferredLightingPass::OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx)
+    {
+        VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT];
+        VkDescriptorImageInfo imageInfos[GBUFFER_CNT];
+
+        for (int i = 0; i < GBUFFER_CNT; ++i)
+        {
+            imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSet, i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
+        }
+        vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
+    }
 }

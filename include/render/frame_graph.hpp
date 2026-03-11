@@ -198,16 +198,17 @@ namespace vke_render
         vke_ds::id32_t lastAccessTaskID;
         ResourceRef *prevUsedRef;
         TaskNode *prevUsedTask;
+        bool prevWrite;
         ResourceRef *tmpPrevUsedRef;
         TaskNode *tmpPrevUsedTask;
 
         RenderResource() : resourceID(0), resourceType(IMAGE_RESOURCE),
-                           firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr) {}
+                           firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
         RenderResource(ResourceType type) : resourceID(0), resourceType(type),
-                                            firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr) {}
+                                            firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
         RenderResource(std::string &&name, vke_ds::id32_t id, ResourceType type)
             : name(name), resourceID(id), resourceType(type),
-              firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr) {}
+              firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
 
         void ResetTmpValues()
         {
@@ -223,11 +224,10 @@ namespace vke_render
     public:
         VkImage image;
         VkImageAspectFlags aspectMask;
-        VkDescriptorImageInfo info; // VkSampler sampler; VkImageView imageView; VkImageLayout imageLayout;
         ImageResource()
             : RenderResource(IMAGE_RESOURCE), image(nullptr), aspectMask(VK_IMAGE_ASPECT_NONE) {}
-        ImageResource(std::string &&name, vke_ds::id32_t id, VkImage image, VkImageAspectFlags aspect, VkDescriptorImageInfo info)
-            : RenderResource(std::move(name), id, IMAGE_RESOURCE), image(image), aspectMask(aspect), info(info) { VKE_LOG_DEBUG("IMAGE RESOURCE {} {}", name, (void *)image) }
+        ImageResource(std::string &&name, vke_ds::id32_t id, VkImage image, VkImageAspectFlags aspect)
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE), image(image), aspectMask(aspect) { VKE_LOG_DEBUG("IMAGE RESOURCE {} {}", name, (void *)image) }
     };
 
     class BufferResource : public RenderResource
@@ -288,11 +288,11 @@ namespace vke_render
             return id;
         }
 
-        vke_ds::id32_t AddPermanentImageResource(std::string &&name, VkImage image, VkImageAspectFlags aspectMask, VkDescriptorImageInfo info,
+        vke_ds::id32_t AddPermanentImageResource(std::string &&name, VkImage image, VkImageAspectFlags aspectMask,
                                                  VkPipelineStageFlags2 stStage, std::optional<VkImageLayout> stLayout, std::optional<VkImageLayout> enLayout)
         {
             vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, image, aspectMask, info));
+            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, image, aspectMask));
             permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
             return id;
         }

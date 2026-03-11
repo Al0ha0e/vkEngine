@@ -40,6 +40,14 @@ namespace vke_render
             delete instance;
         }
 
+        static void Recreate(uint32_t w, uint32_t h)
+        {
+            instance->width = w;
+            instance->height = h;
+            instance->cleanupImagesAndViews();
+            instance->createImagesAndViews();
+        }
+
         uint32_t width;
         uint32_t height;
         VkImage images[GBUFFER_CNT];
@@ -49,18 +57,7 @@ namespace vke_render
     private:
         VmaAllocation gbufferImageVmaAllocations[GBUFFER_CNT];
 
-        void dispose()
-        {
-            vkDestroySampler(globalLogicalDevice, sampler, nullptr);
-            RenderEnvironment *env = RenderEnvironment::GetInstance();
-            for (int i = 0; i < GBUFFER_CNT; ++i)
-            {
-                vkDestroyImageView(globalLogicalDevice, imageViews[i], nullptr);
-                vmaDestroyImage(env->vmaAllocator, images[i], gbufferImageVmaAllocations[i]);
-            }
-        }
-
-        void init()
+        void createImagesAndViews()
         {
             VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                                            VK_IMAGE_USAGE_SAMPLED_BIT |
@@ -79,6 +76,27 @@ namespace vke_render
             RenderEnvironment::EndSingleTimeCommands(RenderEnvironment::GetGraphicsQueue(), instance->commandPool, tmpCmdBuffer);
             for (int i = 0; i < GBUFFER_CNT; ++i)
                 imageViews[i] = RenderEnvironment::CreateImageView(images[i], gbufferFormats[i], VK_IMAGE_ASPECT_COLOR_BIT);
+        }
+
+        void cleanupImagesAndViews()
+        {
+            RenderEnvironment *env = RenderEnvironment::GetInstance();
+            for (int i = 0; i < GBUFFER_CNT; ++i)
+            {
+                vkDestroyImageView(globalLogicalDevice, imageViews[i], nullptr);
+                vmaDestroyImage(env->vmaAllocator, images[i], gbufferImageVmaAllocations[i]);
+            }
+        }
+
+        void dispose()
+        {
+            vkDestroySampler(globalLogicalDevice, sampler, nullptr);
+            cleanupImagesAndViews();
+        }
+
+        void init()
+        {
+            createImagesAndViews();
 
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

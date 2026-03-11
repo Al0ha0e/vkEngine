@@ -37,6 +37,8 @@ namespace vke_render
         {
             this->subpassID = subpassID;
         }
+
+        virtual void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) {}
     };
 }
 
