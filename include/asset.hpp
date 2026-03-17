@@ -36,6 +36,7 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_DEFERRED_LIGHTING_ID = 5;
 
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
+    const AssetHandle BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID = 2;
 
     const AssetHandle BUILTIN_MATERIAL_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_MATERIAL_SKYBOX_ID = 2;

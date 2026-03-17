@@ -477,15 +477,8 @@ namespace vke_render
         }
     }
 
-    void FrameGraph::Execute(uint32_t currentFrame, uint32_t imageIndex)
+    void FrameGraph::Sync(const uint32_t currentFrame)
     {
-        VkCommandBuffer commandBuffers[TASK_TYPE_CNT] = {nullptr, nullptr, nullptr, nullptr};
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0;                  // Optional
-        beginInfo.pInheritanceInfo = nullptr; // Optional
-
         for (int i = 1; i < TASK_TYPE_CNT - 1; ++i)
             if (RenderEnvironment::HasQueue(QueueType(i)) && vkGetFenceStatus(globalLogicalDevice, fences[i - 1][currentFrame]) == VK_NOT_READY)
             {
@@ -500,6 +493,13 @@ namespace vke_render
             cpuSemaphores[currentFrame]->wait(false);
             VKE_LOG_DEBUG("WAIT FOR CPU1 {}", (void *)(cpuSemaphores[currentFrame].get()))
         }
+    }
+
+    void FrameGraph::Execute(const uint32_t currentFrame, const uint32_t imageIndex)
+    {
+        VkCommandBuffer commandBuffers[TASK_TYPE_CNT] = {nullptr, nullptr, nullptr, nullptr};
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
         for (int i = 0; i < TASK_TYPE_CNT; ++i)
             if (RenderEnvironment::HasQueue(QueueType(i)) && (submitCntEstimates[i] > 0))
@@ -509,10 +509,6 @@ namespace vke_render
                 commandPool->PreAllocateCommandBuffer(submitCntEstimates[i]);
                 commandBuffers[i] = commandPool->AllocateAndBegin(&beginInfo);
             }
-
-        if (globalCallback)
-            globalCallback();
-
         VKE_LOG_DEBUG("---------------------EXE-------------------")
         uint32_t actualSubmitCnts[TASK_TYPE_CNT] = {0, 0, 0, 0};
         VkPipelineStageFlags2 waitDstStageMask = 0;

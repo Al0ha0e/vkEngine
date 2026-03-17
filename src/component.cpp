@@ -2,6 +2,7 @@
 #include <component/renderable_object.hpp>
 #include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
+#include <component/light.hpp>
 #include <scene.hpp>
 
 namespace vke_common
@@ -38,6 +39,12 @@ namespace vke_common
             registry.emplace<vke_component::SkeletonAnimator>(entity, transform, component);
         if (type == "rigidbody")
             registry.emplace<vke_component::RigidBody>(entity, transform, component);
+        if (type == "directionalLight")
+            registry.emplace<vke_component::DirectionalLightComponent>(entity, transform, component);
+        if (type == "pointLight")
+            registry.emplace<vke_component::PointLightComponent>(entity, transform, component);
+        if (type == "spotLight")
+            registry.emplace<vke_component::SpotLightComponent>(entity, transform, component);
     }
 
     void Scene::componentToJSON(entt::entity entity, nlohmann::json &components)
@@ -53,6 +60,15 @@ namespace vke_common
 
         if (registry.all_of<vke_component::RigidBody>(entity))
             components.push_back(registry.get<vke_component::RigidBody>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::DirectionalLightComponent>(entity))
+            components.push_back(registry.get<vke_component::DirectionalLightComponent>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::PointLightComponent>(entity))
+            components.push_back(registry.get<vke_component::PointLightComponent>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::SpotLightComponent>(entity))
+            components.push_back(registry.get<vke_component::SpotLightComponent>(entity).ToJSON());
     }
 
     void Scene::updateTransform(entt::entity entity, Transform &transform, bool first)
@@ -62,6 +78,8 @@ namespace vke_common
 
         if (vke_component::Camera *camera = registry.try_get<vke_component::Camera>(entity))
             camera->OnTransformed(transform);
+
+        // TODO light
 
         for (auto &child : transform.children)
         {

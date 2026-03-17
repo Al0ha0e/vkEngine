@@ -6,13 +6,25 @@
       "children": [],
       "components": [
         {
-          "far": 10000.0,
+          "far": 1000.0,
           "fov": 70.0,
           "height": 768.0,
           "id": 1,
           "near": 0.01,
           "type": "camera",
           "width": 1024.0
+        },
+        {
+          "type": "directionalLight",
+          "dir": [-1, -1, 0],
+          "color": [1.0, 1.0, 1.0],
+          "intensity": 1.0
+        },
+        {
+          "type": "pointLight",
+          "color": [1, 0, 0],
+          "radius": 4,
+          "intensity": 2
         }
       ],
       "id": 1,
@@ -21,7 +33,7 @@
       "parent": 0,
       "static": false,
       "transform": {
-        "pos": [0, 0, 0],
+        "pos": [0, 2, 0],
         "rot": [0.0, 0.0, 0.0, 1.0],
         "scl": [1.0, 1.0, 1.0]
       }

@@ -129,6 +129,11 @@ namespace vke_render
         StagedBuffer(StagedBuffer &&ori)
             : data(ori.data), stagingBuffer(std::move(ori.stagingBuffer)), Buffer(std::forward<StagedBuffer>(ori)) {}
 
+        void ToBuffer(size_t offset = 0)
+        {
+            RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, bufferSize, offset, offset);
+        }
+
         void ToBuffer(size_t offset, size_t size)
         {
             RenderEnvironment::CopyBuffer(stagingBuffer.buffer, buffer, size, offset, offset);

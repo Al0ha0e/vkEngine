@@ -15,6 +15,15 @@ namespace vke_render
                                                                      std::bind(&DeferredLightingPass::Render, this,
                                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["pointLightClusterBuffer"]], 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["spotLightClusterBuffer"]], 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+
         for (int i = 0; i < GBUFFER_CNT; i++)
             frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["gbuffer" + std::to_string(i)]], 0,
                                               VK_ACCESS_SHADER_READ_BIT,
@@ -112,6 +121,9 @@ namespace vke_render
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
+
+        vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0,
+                           sizeof(uint32_t), &(lightManager->lightCnts[(int)LightType::DIRECTIONAL_LIGHT]));
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         vkCmdEndRendering(commandBuffer);
     }

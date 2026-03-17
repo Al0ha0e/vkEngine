@@ -8,18 +8,6 @@
 
 namespace vke_render
 {
-    struct CameraInfo
-    {
-        glm::mat4 view;
-        glm::mat4 projection;
-        glm::vec4 viewPos;
-
-        CameraInfo() = default;
-
-        CameraInfo(glm::mat4 view, glm::mat4 projection, glm::vec3 viewPos)
-            : view(view), projection(projection), viewPos(viewPos, 1.0) {}
-    };
-
     struct PushConstantInfo
     {
         uint32_t size;

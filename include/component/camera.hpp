@@ -1,5 +1,5 @@
-#ifndef CAMERA_H
-#define CAMERA_H
+#ifndef CAMERA_COMPONENT_H
+#define CAMERA_COMPONENT_H
 
 #include <render/render.hpp>
 #include <render/buffer.hpp>
@@ -13,31 +13,25 @@
 
 namespace vke_component
 {
-    class Camera
+    class Camera // TODO only CameraInfo in renderer
     {
     public:
         vke_ds::id32_t id;
-        float fov;
         float width;
         float height;
-        float near;
-        float far;
-        float aspect;
         vke_render::CameraInfo cameraInfo;
 
         Camera(const vke_common::Transform &transform,
                float fov, float width, float height,
                float near, float far)
-            : id(0), fov(glm::radians(fov)), width(width), height(height), aspect(width / height),
-              near(near), far(far)
+            : id(0), width(width), height(height), cameraInfo(near, far, glm::radians(fov), width / height)
         {
             init(transform);
         }
 
         Camera(const vke_common::Transform &transform, const nlohmann::json &json)
-            : id(0), fov(glm::radians((float)json["fov"])),
-              width(json["width"]), height(json["height"]), aspect(width / height),
-              near(json["near"]), far(json["far"])
+            : id(0), width(json["width"]), height(json["height"]),
+              cameraInfo(json["near"], json["far"], glm::radians((float)json["fov"]), width / height)
         {
             init(transform);
         }
@@ -53,11 +47,11 @@ namespace vke_component
         {
             nlohmann::json ret = {
                 {"type", "camera"},
-                {"fov", glm::degrees(fov)},
+                {"fov", glm::degrees(cameraInfo.fov)},
                 {"width", width},
                 {"height", height},
-                {"near", near},
-                {"far", far}};
+                {"near", cameraInfo.near},
+                {"far", cameraInfo.far}};
             return ret;
         }
 
@@ -77,8 +71,8 @@ namespace vke_component
         {
             width = w;
             height = h;
-            aspect = width / height;
-            cameraInfo.projection = glm::perspective(fov, aspect, near, far);
+            cameraInfo.aspect = width / height;
+            cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
             cameraInfo.projection[1][1] *= -1;
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
@@ -107,7 +101,7 @@ namespace vke_component
 
             cameraInfo.viewPos = glm::vec4(position, 0.0f);
             cameraInfo.view = glm::lookAt(position, position + gfront, gup);
-            cameraInfo.projection = glm::perspective(fov, aspect, near, far);
+            cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
             cameraInfo.projection[1][1] *= -1;
 
             std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
@@ -121,7 +115,7 @@ namespace vke_component
 
         void updateCameraInfo()
         {
-            vke_render::Renderer::UpdateCameraInfo(&cameraInfo);
+            vke_render::Renderer::UpdateCameraInfo(cameraInfo);
         }
     };
 }

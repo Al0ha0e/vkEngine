@@ -155,7 +155,8 @@ shaders = [
     ['deferred_lighting.vert','deferred_lighting_vert.spv'],
     ['skybox.frag','skyfrag.spv'],
     ['skybox.vert','skyvert.spv'],
-    ['sky_lut.comp','sky_lut.spv']
+    ['sky_lut.comp','sky_lut.spv'],
+    ['light_cull.comp','light_cull.spv']
 ]
 
 for s in shaders:

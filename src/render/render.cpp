@@ -15,11 +15,8 @@ namespace vke_render
         camInfoLayoutBinding.descriptorCount = 1;
         camInfoLayoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
         bindingInfos.push_back(camInfoLayoutBinding);
-
+        // nolight
         globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_NO_LIGHT].AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
-        globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT].AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
-        LightManager::GetBindingInfo(bindingInfos, globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT]);
-
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layoutInfo.bindingCount = 1;
@@ -27,7 +24,12 @@ namespace vke_render
         layoutInfo.pBindings = bindingInfos.data();
         vkCreateDescriptorSetLayout(globalLogicalDevice, &layoutInfo,
                                     nullptr, &(globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_NO_LIGHT].layout));
-        layoutInfo.bindingCount = 2;
+
+        // light
+        globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT].AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+        lightManager->GetBindingInfos(bindingInfos, globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT]);
+        layoutInfo.bindingCount = bindingInfos.size();
+        layoutInfo.pBindings = bindingInfos.data();
         vkCreateDescriptorSetLayout(globalLogicalDevice, &layoutInfo,
                                     nullptr, &(globalDescriptorSetInfos[GLOBAL_DESCRIPTOR_SET_LIGHT].layout));
 
@@ -38,24 +40,30 @@ namespace vke_render
         }
 
         // write descriptor set
-        std::vector<VkWriteDescriptorSet> descriptorWrites;
+        VkDescriptorBufferInfo camBufferInfos[MAX_FRAMES_IN_FLIGHT] = {camInfoBuffers[0].GetDescriptorBufferInfo(), camInfoBuffers[1].GetDescriptorBufferInfo()};
+        VkWriteDescriptorSet noLightDescriptorWrite{};
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            ConstructDescriptorSetWrite(noLightDescriptorWrite, globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT][i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &camBufferInfos[i]);
+            vkUpdateDescriptorSets(globalLogicalDevice, 1, &noLightDescriptorWrite, 0, nullptr);
+        }
 
-        VkDescriptorBufferInfo bufferInfos[2] = {camInfoBuffers[0].GetDescriptorBufferInfo(), camInfoBuffers[1].GetDescriptorBufferInfo()};
-        descriptorWrites.push_back(VkWriteDescriptorSet{});
-        descriptorWrites.push_back(VkWriteDescriptorSet{});
+        std::vector<VkWriteDescriptorSet> lightDescriptorWrites(1, VkWriteDescriptorSet{});
+        std::vector<VkDescriptorBufferInfo> lightBufferInfos;
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            ConstructDescriptorSetWrite(descriptorWrites[0], globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT][i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfos[i]);
-            vkUpdateDescriptorSets(globalLogicalDevice, 1, descriptorWrites.data(), 0, nullptr);
-            descriptorWrites[0].dstSet = globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT][i];
-            LightManager::GetDescriptorSetWrite(i, descriptorWrites, globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT][i]);
-            vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+            ConstructDescriptorSetWrite(lightDescriptorWrites[0], globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT][i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &camBufferInfos[i]);
+            lightManager->GetDescriptorSetWrites(i, lightDescriptorWrites, globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT][i], lightBufferInfos);
+            vkUpdateDescriptorSets(globalLogicalDevice, lightDescriptorWrites.size(), lightDescriptorWrites.data(), 0, nullptr);
+            lightDescriptorWrites.resize(1);
+            lightBufferInfos.clear();
         }
+        lightManager->SetGlobalDescriptorSets(globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT]);
     }
 
-    void Renderer::initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
-                                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+    void Renderer::constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
+                                       std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
         instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT);
         colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", (*context.colorImages)[0], VK_IMAGE_ASPECT_COLOR_BIT,
@@ -74,13 +82,6 @@ namespace vke_render
 
         currentResourceNodeID[colorAttachmentResourceID] = oriColorResourceNodeID;
         currentResourceNodeID[depthAttachmentResourceID] = oriDepthResourceNodeID;
-
-        auto callback = [this]()
-        {
-            for (auto &kv : renderUpdateCallbacks)
-                kv.second(currentFrame);
-        };
-        instance->frameGraph->SetGlobalCallback(callback);
     }
 
     void Renderer::cleanup() {}
@@ -97,25 +98,32 @@ namespace vke_render
         uint32_t imageIndex = context.AcquireNextImage(currentFrame);
         ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->image = (*context.colorImages)[imageIndex];
 
+        frameGraph->Sync(currentFrame);
+
+        if (cameraInfoUpdateCnt > 0)
+        {
+            VKE_LOG_DEBUG("CAM INFO UPD {}", cameraInfoUpdateCnt)
+            --cameraInfoUpdateCnt;
+            camInfoBuffers[currentFrame].ToBuffer(0, &hostCameraInfo, sizeof(vke_render::CameraInfo));
+        }
+
+        lightManager->Update(currentFrame);
+
+        for (auto &kv : renderUpdateCallbacks)
+            kv.second(currentFrame);
+
         frameGraph->Execute(currentFrame, imageIndex);
         context.Present(currentFrame, imageIndex);
     }
 
     void Renderer::Update()
     {
-        if (cameraInfoUpdateCnt > 0)
-        {
-            VKE_LOG_DEBUG("CAM INFO UPD {}", cameraInfoUpdateCnt)
-            --cameraInfoUpdateCnt;
-            camInfoBuffers[currentFrame].ToBuffer(0, hostCameraInfo, sizeof(vke_render::CameraInfo));
-        }
 
         if (frameGraphUpdated)
         {
             frameGraph->Compile();
             frameGraphUpdated = false;
         }
-
         render();
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }

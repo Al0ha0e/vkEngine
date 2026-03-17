@@ -1,16 +1,123 @@
 #include <render/light.hpp>
+#include <asset.hpp>
 
 namespace vke_render
 {
-    LightManager *LightManager::instance = nullptr;
-
     void LightManager::init()
     {
-        directionalLightBuffer = std::make_unique<DeviceBuffer>(sizeof(DirectionalLight) * MAX_DIRECTIONAL_LIGHT_CNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+        {
+            lightCnts[i] = 0;
+            lightUpdateCnts[i] = 0;
+        }
 
-        DirectionalLight light(glm::normalize(glm::vec4(0, -1, 0, 0)), glm::vec4(1, 1, 1, 2));
-        directionalLightBuffer->ToBuffer(0, &light, sizeof(DirectionalLight));
+        auto lightCullingShader = vke_common::AssetManager::LoadComputeShader(vke_common::BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID);
+        lightCullingTask = std::make_unique<ComputePipeline>(lightCullingShader);
+
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                lightBuffers[i][j] = std::make_unique<StagedBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+        for (int i = 0; i < 2; ++i)
+            clusterBuffers[i] = std::make_unique<DeviceBuffer>(CLUSTER_DIM_X * CLUSTER_DIM_Y * CLUSTER_DIM_Z * MAX_LIGHT_PER_CLUSTER * sizeof(uint32_t),
+                                                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     }
 
-    void LightManager::dispose() {}
+    void LightManager::GetBindingInfos(std::vector<VkDescriptorSetLayoutBinding> &bindingInfos, DescriptorSetInfo &descriptorSetInfo)
+    {
+        VkDescriptorSetLayoutBinding layoutBinding{};
+        layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        layoutBinding.descriptorCount = 1;
+        layoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+        for (int i = 1; i <= (int)LightType::LIGHT_TYPE_CNT; ++i)
+        {
+            layoutBinding.binding = i;
+            bindingInfos.push_back(layoutBinding);
+        }
+
+        layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        for (int i = (int)LightType::LIGHT_TYPE_CNT + 1; i <= (int)LightType::LIGHT_TYPE_CNT + 2; ++i)
+        {
+            layoutBinding.binding = i;
+            bindingInfos.push_back(layoutBinding);
+        }
+
+        descriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, (int)LightType::LIGHT_TYPE_CNT);
+        descriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2);
+    }
+
+    void LightManager::GetDescriptorSetWrites(uint32_t id,
+                                              std::vector<VkWriteDescriptorSet> &descriptorSetWrites,
+                                              VkDescriptorSet descriptorSet,
+                                              std::vector<VkDescriptorBufferInfo> &bufferInfos)
+    {
+        uint32_t totWriteCnt = (int)LightType::LIGHT_TYPE_CNT + 2;
+        descriptorSetWrites.insert(descriptorSetWrites.end(), totWriteCnt, VkWriteDescriptorSet{});
+        bufferInfos.resize(totWriteCnt);
+
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+        {
+            bufferInfos[i] = lightBuffers[i][id]->GetDescriptorBufferInfo();
+            ConstructDescriptorSetWrite(descriptorSetWrites[i + 1], descriptorSet, i + 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &(bufferInfos[i]));
+        }
+
+        for (int i = (int)LightType::LIGHT_TYPE_CNT; i < totWriteCnt; ++i)
+        {
+            bufferInfos[i] = clusterBuffers[i - (int)LightType::LIGHT_TYPE_CNT]->GetDescriptorBufferInfo();
+            ConstructDescriptorSetWrite(descriptorSetWrites[i + 1], descriptorSet, i + 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &(bufferInfos[i]));
+        }
+    }
+
+    void LightManager::ConstructFrameGraph(FrameGraph &frameGraph,
+                                           std::map<std::string, vke_ds::id32_t> &blackboard,
+                                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+    {
+        vke_ds::id32_t pointLightBufferResourceID = frameGraph.AddPermanentBufferResource("pointLightBuffer",
+                                                                                          clusterBuffers[0]->GetDescriptorBufferInfo(), VK_PIPELINE_STAGE_NONE);
+        vke_ds::id32_t spotLightBufferResourceID = frameGraph.AddPermanentBufferResource("spotLightBuffer",
+                                                                                         clusterBuffers[1]->GetDescriptorBufferInfo(), VK_PIPELINE_STAGE_NONE);
+        blackboard["pointLightClusterBuffer"] = pointLightBufferResourceID;
+        blackboard["spotLightClusterBuffer"] = spotLightBufferResourceID;
+
+        vke_ds::id32_t outPointLightBufferResourceNodeID = frameGraph.AllocResourceNode("outPointLight", false, pointLightBufferResourceID);
+        vke_ds::id32_t outSpotLightBufferResourceNodeID = frameGraph.AllocResourceNode("outSpotLight", false, spotLightBufferResourceID);
+
+        vke_ds::id32_t lightCullingTaskNodeID = frameGraph.AllocTaskNode("light culling", COMPUTE_TASK,
+                                                                         std::bind(&LightManager::cullLights, this,
+                                                                                   std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+
+        frameGraph.AddTaskNodeResourceRef(lightCullingTaskNodeID, false, 0, outPointLightBufferResourceNodeID,
+                                          VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
+
+        frameGraph.AddTaskNodeResourceRef(lightCullingTaskNodeID, false, 0, outSpotLightBufferResourceNodeID,
+                                          VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
+
+        currentResourceNodeID[pointLightBufferResourceID] = outPointLightBufferResourceNodeID;
+        currentResourceNodeID[spotLightBufferResourceID] = outSpotLightBufferResourceNodeID;
+    }
+
+    void LightManager::cullLights(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
+    {
+        lightCullingTask->Dispatch(commandBuffer,
+                                   std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame]},
+                                   lightCnts + 1,
+                                   glm::ivec3(CLUSTER_DIM_X / 8, CLUSTER_DIM_Y / 8, CLUSTER_DIM_Z));
+    }
+
+    void LightManager::update(uint32_t currentFrame)
+    {
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+        {
+            if (lightUpdateCnts[i] > 0)
+            {
+                --lightUpdateCnts[i];
+                lightBuffers[i][currentFrame]->ToBuffer();
+            }
+        }
+    }
 }

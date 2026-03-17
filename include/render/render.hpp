@@ -5,11 +5,11 @@
 #include <render/deferred_lighting.hpp>
 #include <render/skybox_render.hpp>
 #include <render/light.hpp>
+#include <render/camera.hpp>
 #include <event.hpp>
 
 namespace vke_render
 {
-
     const uint32_t GLOBAL_DESCRIPTOR_SET_NO_LIGHT = 0;
     const uint32_t GLOBAL_DESCRIPTOR_SET_LIGHT = 1;
 
@@ -27,7 +27,7 @@ namespace vke_render
         uint32_t passcnt;
 
         vke_ds::id32_t currentCamera;
-
+        std::unique_ptr<LightManager> lightManager;
         vke_common::EventHub<glm::vec2> resizeEventHub;
 
         static Renderer *GetInstance()
@@ -52,13 +52,15 @@ namespace vke_render
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 instance->camInfoBuffers.emplace_back(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-            instance->lightManager = LightManager::Init();
+            instance->lightManager = std::make_unique<LightManager>();
 
             instance->initDescriptorSet();
 
             std::map<std::string, vke_ds::id32_t> blackboard;
             std::map<vke_ds::id32_t, vke_ds::id32_t> currentResourceNodeID;
-            instance->initFrameGraph(blackboard, currentResourceNodeID);
+            instance->constructFrameGraph(blackboard, currentResourceNodeID);
+
+            instance->lightManager->ConstructFrameGraph(*(instance->frameGraph), blackboard, currentResourceNodeID);
 
             int customPassID = 0;
             for (int i = 0; i < passes.size(); i++)
@@ -84,7 +86,7 @@ namespace vke_render
                 }
                 case DEFERRED_LIGHTING_PASS:
                 {
-                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT]);
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get());
                     lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(lightingPass));
@@ -117,7 +119,6 @@ namespace vke_render
         static void Dispose()
         {
             instance->cleanup();
-            LightManager::Dispose();
             delete instance;
         }
 
@@ -150,7 +151,7 @@ namespace vke_render
             }
         }
 
-        static void UpdateCameraInfo(CameraInfo *cameraInfo)
+        static void UpdateCameraInfo(CameraInfo cameraInfo)
         {
             instance->hostCameraInfo = cameraInfo;
             instance->cameraInfoUpdateCnt = 2;
@@ -191,10 +192,9 @@ namespace vke_render
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;
-        LightManager *lightManager;
 
         uint32_t cameraInfoUpdateCnt;
-        CameraInfo *hostCameraInfo;
+        CameraInfo hostCameraInfo;
         std::vector<vke_render::HostCoherentBuffer> camInfoBuffers;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> cameraIDAllocator;
         std::unordered_map<vke_ds::id32_t, std::function<void()>> cameras;
@@ -202,8 +202,8 @@ namespace vke_render
         std::unordered_map<vke_ds::id64_t, std::function<void(uint32_t)>> renderUpdateCallbacks;
 
         void initDescriptorSet();
-        void initFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
-                            std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
+        void constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
+                                 std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
         void cleanup();
         void recreate(RenderContext *ctx);
         void render();

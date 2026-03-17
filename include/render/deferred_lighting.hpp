@@ -4,6 +4,7 @@
 #include <render/gbuffer.hpp>
 #include <render/renderinfo.hpp>
 #include <render/subpass.hpp>
+#include <render/light.hpp>
 #include <asset.hpp>
 
 namespace vke_render
@@ -11,8 +12,8 @@ namespace vke_render
     class DeferredLightingPass : public RenderPassBase
     {
     public:
-        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets)
-            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets) {}
+        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager)
+            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -34,6 +35,7 @@ namespace vke_render
 
     private:
         GBuffer *gbuffer;
+        LightManager *lightManager;
         VkDescriptorSet lightingDescriptorSet;
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> lightingShader;

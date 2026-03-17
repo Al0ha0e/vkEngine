@@ -87,6 +87,12 @@
     "path": "./builtin_assets/shader/sky_lut.spv"
   },
   {
+    "type": 3,
+    "id": 2,
+    "name": "LightCuller",
+    "path": "./builtin_assets/shader/light_cull.spv"
+  },
+  {
     "type": 4,
     "id": 1,
     "name": "DefaultMaterial",

@@ -4,16 +4,11 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_scalar_block_layout : enable
 
+#include "camera.glsl"
 #include "atmosphere.glsl"
 
 layout(location = 0) in vec3 Dir;
 layout(location = 0) out vec4 FragColor;
-
-layout(set = 0, binding = 0) uniform VPBlockObject {
-    mat4 view;
-    mat4 projection;
-    vec4 viewPos;
-} VPBlock;
 
 const vec2 invAtan = vec2(0.1591, 0.3183);
 vec2 ViewDirToUV(vec3 v)
@@ -54,7 +49,7 @@ void main()
     vec3 viewDir = normalize(Dir);
     color.rgb += texture(skyViewLUT, ViewDirToUV(viewDir)).rgb;//SAMPLE_TEXTURE2D_X(_skyViewLut, sampler_LinearClamp, ViewDirToUV(viewDir)).rgb;
 
-    float h = max(VPBlock.viewPos.y - parameters.seaLevel, 1) + parameters.planetRadius;
+    float h = max(CameraInfo.viewPos.y - parameters.seaLevel, 1) + parameters.planetRadius;
     vec3 eyePos = vec3(0, h, 0);
     
     color.rgb += GetSunDisk(eyePos, viewDir, -mainLightDir.xyz);

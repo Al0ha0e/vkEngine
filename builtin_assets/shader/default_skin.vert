@@ -1,14 +1,12 @@
 #version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "camera.glsl"
 
 layout(push_constant) uniform PushConstants{
     mat4 model;
 };
-
-layout(set = 0, binding = 0) uniform VPBlockObject {
-    mat4 view;
-    mat4 projection;
-    vec4 viewPos;
-} VPBlock;
 
 layout(set = 2, binding = 0) uniform JointBlockObject {
     mat4 joints[256];
@@ -35,12 +33,12 @@ void main() {
     vec4 skinnedPos = skinMat * vec4(inPosition, 1.0);
     vec3 skinnedNormal = mat3(skinMat) * inNormal;
 
-    mat4 mvMat = VPBlock.view * model;
+    mat4 mvMat = CameraInfo.view * model;
     vec4 viewPos = mvMat * skinnedPos;
     vViewPos = viewPos.xyz;
     
     vNormal = normalize(mat3(mvMat) * skinnedNormal);
     vTexCoord = inTexCoord;
 
-    gl_Position = VPBlock.projection * viewPos;
+    gl_Position = CameraInfo.projection * viewPos;
 }

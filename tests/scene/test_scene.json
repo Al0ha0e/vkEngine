@@ -22,6 +22,12 @@
           "height": 768.0,
           "near": 0.01,
           "far": 1000.0
+        },
+        {
+          "type": "directionalLight",
+          "dir": [-1, -1, 0],
+          "color": [0.5, 0, 0],
+          "intensity": 1.5
         }
       ],
       "children": []
@@ -42,6 +48,12 @@
           "type": "renderableObject",
           "material": 1,
           "mesh": 5
+        },
+        {
+          "type": "directionalLight",
+          "dir": [1, -1, 0],
+          "color": [0, 0, 0.5],
+          "intensity": 1.5
         }
       ],
       "children": [4]
@@ -62,6 +74,12 @@
           "type": "renderableObject",
           "material": 1,
           "mesh": 5
+        },
+        {
+          "type": "pointLight",
+          "color": [0, 1, 0],
+          "radius": 3,
+          "intensity": 1
         }
       ],
       "children": []

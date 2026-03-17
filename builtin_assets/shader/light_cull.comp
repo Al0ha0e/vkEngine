@@ -1,0 +1,108 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_KHR_shader_subgroup_basic : enable
+
+#include "camera.glsl"
+#define CULLER_SIDE
+#include "light.glsl"
+
+
+layout(push_constant) uniform LightCnt {
+    uint pointLightCnt;
+    uint spotLightCnt;
+} lightCnts;
+
+void computeClusterAABB(int x, int y, int z, out vec3 minB, out vec3 maxB)
+{
+    float sliceZ0 = float(z) / float(CLUSTER_DIM_Z);
+    float sliceZ1 = float(z + 1) / float(CLUSTER_DIM_Z);
+
+    float zNear = -CameraInfo.near * pow(CameraInfo.far / CameraInfo.near, sliceZ0);
+    float zFar  = -CameraInfo.near * pow(CameraInfo.far / CameraInfo.near, sliceZ1);
+
+    float tanFov = tan(CameraInfo.fov * 0.5);
+    float aspect = CameraInfo.aspect;
+
+    float sliceX0 = float(x) / float(CLUSTER_DIM_X);
+    float sliceX1 = float(x + 1) / float(CLUSTER_DIM_X);
+    float sliceY0 = float(y) / float(CLUSTER_DIM_Y);
+    float sliceY1 = float(y + 1) / float(CLUSTER_DIM_Y);
+
+    float ndcX0 = sliceX0 * 2.0 - 1.0;
+    float ndcX1 = sliceX1 * 2.0 - 1.0;
+    float ndcY0 = -(sliceY0 * 2.0 - 1.0);
+    float ndcY1 = -(sliceY1 * 2.0 - 1.0);
+
+    float nearHalfHeight = abs(zNear) * tanFov;
+    float farHalfHeight = abs(zFar) * tanFov;
+    float nearHalfWidth = nearHalfHeight * aspect;
+    float farHalfWidth = farHalfHeight * aspect;
+
+    minB = vec3(
+        min(ndcX0 * nearHalfWidth, min(ndcX1 * nearHalfWidth, min(ndcX0 * farHalfWidth, ndcX1 * farHalfWidth))),
+        min(ndcY0 * nearHalfHeight, min(ndcY1 * nearHalfHeight, min(ndcY0 * farHalfHeight, ndcY1 * farHalfHeight))),
+        min(zNear, zFar)
+    );
+
+    maxB = vec3(
+        max(ndcX0 * nearHalfWidth, max(ndcX1 * nearHalfWidth, max(ndcX0 * farHalfWidth, ndcX1 * farHalfWidth))),
+        max(ndcY0 * nearHalfHeight, max(ndcY1 * nearHalfHeight, max(ndcY0 * farHalfHeight, ndcY1 * farHalfHeight))),
+        max(zNear, zFar)
+    );
+}
+
+bool pointLightIntersectsCluster(PointLight light, vec3 minB, vec3 maxB) {
+    vec3 lightPos = (CameraInfo.view * vec4(light.positionWithRadius.xyz, 1.0)).xyz;
+    float radius = light.positionWithRadius.w;
+    vec3 closest = clamp(lightPos, minB, maxB);
+    float distSqr = dot(closest - lightPos, closest - lightPos);
+    return distSqr <= radius * radius;
+}
+
+bool spotLightIntersectsCluster(SpotLight light, vec3 minB, vec3 maxB) {
+    vec3 lightPos = (CameraInfo.view * vec4(light.positionWithRadius.xyz, 1.0)).xyz;
+    float radius = light.positionWithRadius.w;
+    vec3 closest = clamp(lightPos, minB, maxB);
+    float distSqr = dot(closest - lightPos, closest - lightPos);
+    return distSqr <= radius * radius;
+}
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+void main() {
+    uvec3 gid = gl_GlobalInvocationID;
+    if (gid.x >= CLUSTER_DIM_X || gid.y >= CLUSTER_DIM_Y || gid.z >= CLUSTER_DIM_Z) return;
+
+    int clusterIndex = int(gid.z * CLUSTER_DIM_X * CLUSTER_DIM_Y +
+                           gid.y * CLUSTER_DIM_X + gid.x);
+
+    vec3 minB, maxB;
+    computeClusterAABB(int(gid.x), int(gid.y), int(gid.z), minB, maxB);
+
+    uint pointCount = 0u;
+    for (uint i = 0u; i < lightCnts.pointLightCnt; i++) {
+        if (pointLightIntersectsCluster(PointLights.lights[i], minB, maxB)) {
+            if (pointCount < MAX_LIGHT_PER_CLUSTER) {
+                ClusterPointLights.indices[clusterIndex * MAX_LIGHT_PER_CLUSTER + pointCount] = i;
+                pointCount++;
+            }
+        }
+    }
+
+    for (; pointCount < MAX_LIGHT_PER_CLUSTER; pointCount++) {
+        ClusterPointLights.indices[clusterIndex * MAX_LIGHT_PER_CLUSTER + pointCount] = 0xFFFFFFFFu;
+    }
+
+    uint spotCount = 0u;
+    for (uint i = 0u; i < lightCnts.spotLightCnt; i++) {
+        if (spotLightIntersectsCluster(SpotLights.lights[i], minB, maxB)) {
+            if (spotCount < MAX_LIGHT_PER_CLUSTER) {
+                ClusterSpotLights.indices[clusterIndex * MAX_LIGHT_PER_CLUSTER + spotCount] = i;
+                spotCount++;
+            }
+        }
+    }
+    for (; spotCount < MAX_LIGHT_PER_CLUSTER; spotCount++) {
+        ClusterSpotLights.indices[clusterIndex * MAX_LIGHT_PER_CLUSTER + spotCount] = 0xFFFFFFFFu;
+    }
+}
