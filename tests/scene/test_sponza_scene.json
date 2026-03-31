@@ -18,13 +18,22 @@
           "type": "directionalLight",
           "dir": [-1, -1, 0],
           "color": [1.0, 1.0, 1.0],
-          "intensity": 1.0
+          "intensity": 0.0
         },
         {
           "type": "pointLight",
           "color": [1, 0, 0],
           "radius": 4,
-          "intensity": 2
+          "intensity": 0
+        },
+        {
+          "type": "spotLight",
+          "dir": [0, 0, -1],
+          "radius": 20.0,
+          "color": [1.0, 1.0, 1.0],
+          "intensity": 2.0,
+          "innerCone": 0.95,
+          "outerCone": 0.8
         }
       ],
       "id": 1,

@@ -79,7 +79,14 @@ namespace vke_common
         if (vke_component::Camera *camera = registry.try_get<vke_component::Camera>(entity))
             camera->OnTransformed(transform);
 
-        // TODO light
+        if (vke_component::DirectionalLightComponent *directionalLight = registry.try_get<vke_component::DirectionalLightComponent>(entity))
+            directionalLight->OnTransformed(transform);
+
+        if (vke_component::PointLightComponent *pointLight = registry.try_get<vke_component::PointLightComponent>(entity))
+            pointLight->OnTransformed(transform);
+
+        if (vke_component::SpotLightComponent *spotLight = registry.try_get<vke_component::SpotLightComponent>(entity))
+            spotLight->OnTransformed(transform);
 
         for (auto &child : transform.children)
         {

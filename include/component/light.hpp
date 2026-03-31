@@ -6,6 +6,12 @@
 
 namespace vke_component
 {
+    inline glm::vec3 TransformForward(const vke_common::Transform &transform)
+    {
+        const glm::quat rotation = transform.GetGlobalRotation();
+        return rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+
     template <vke_render::AllowedLightType T>
     class LightComponent
     {
@@ -52,6 +58,15 @@ namespace vke_component
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             vke_render::LightManager *lightManager = renderer->lightManager.get();
             return lightManager->GetLight<vke_render::DirectionalLight>(id).colorWithIntensity.w;
+        }
+
+        void OnTransformed(const vke_common::Transform &transform)
+        {
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            vke_render::LightManager *lightManager = renderer->lightManager.get();
+            auto &light = lightManager->GetLight<vke_render::DirectionalLight>(id);
+            light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
+            lightManager->MarkDirty<vke_render::DirectionalLight>();
         }
 
         void SetDirection(const glm::vec3 &dir)
@@ -140,6 +155,15 @@ namespace vke_component
         {
             auto &light = vke_render::Renderer::GetInstance()->lightManager->GetLight<vke_render::PointLight>(id);
             return light.colorWithIntensity.w;
+        }
+
+        void OnTransformed(const vke_common::Transform &transform)
+        {
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            vke_render::LightManager *lightManager = renderer->lightManager.get();
+            auto &light = lightManager->GetLight<vke_render::PointLight>(id);
+            light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
+            lightManager->MarkDirty<vke_render::PointLight>();
         }
 
         void SetPosition(const glm::vec3 &pos)
@@ -258,6 +282,16 @@ namespace vke_component
         {
             auto &light = vke_render::Renderer::GetInstance()->lightManager->GetLight<vke_render::SpotLight>(id);
             return light.cone.y;
+        }
+
+        void OnTransformed(const vke_common::Transform &transform)
+        {
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            vke_render::LightManager *lightManager = renderer->lightManager.get();
+            auto &light = lightManager->GetLight<vke_render::SpotLight>(id);
+            light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
+            light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
+            lightManager->MarkDirty<vke_render::SpotLight>();
         }
 
         void SetRadius(float radius)
