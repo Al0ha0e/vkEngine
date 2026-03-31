@@ -2,8 +2,8 @@
 #include <component/renderable_object.hpp>
 #include <engine.hpp>
 
-const uint32_t WIDTH = 1024;
-const uint32_t HEIGHT = 768;
+const uint32_t WIDTH = 1920;
+const uint32_t HEIGHT = 1080;
 
 vke_common::Engine *engine;
 entt::entity camera = entt::null;

@@ -222,14 +222,14 @@ namespace vke_component
             auto &color = json["color"];
             float radius = json["radius"];
             float intensity = json["intensity"];
-            float innerCone = json["innerCone"];
-            float outerCone = json["outerCone"];
+            float innerCone = glm::radians(json["innerCone"].get<float>());
+            float outerCone = glm::radians(json["outerCone"].get<float>());
 
             id = lightManager->AddLight<vke_render::SpotLight>(
                 glm::vec4(transform.GetGlobalPosition(), radius),
                 glm::vec4(dir[0], dir[1], dir[2], 0.0f),
                 glm::vec4(color[0], color[1], color[2], intensity),
-                glm::vec4(innerCone, outerCone, 0.0f, 0.0f));
+                glm::vec4(glm::cos(innerCone), glm::cos(outerCone), 0.0f, 0.0f));
 
             VKE_FATAL_IF(id >= vke_render::MAX_SPOT_LIGHT_CNT,
                          "NO MORE SPOT_LIGHT");
@@ -345,8 +345,8 @@ namespace vke_component
             j["dir"] = {light.direction.x, light.direction.y, light.direction.z};
             j["color"] = {light.colorWithIntensity.x, light.colorWithIntensity.y, light.colorWithIntensity.z};
             j["intensity"] = light.colorWithIntensity.w;
-            j["innerCone"] = light.cone.x;
-            j["outerCone"] = light.cone.y;
+            j["innerCone"] = glm::degrees(light.cone.x);
+            j["outerCone"] = glm::degrees(light.cone.y);
             return j;
         }
     };

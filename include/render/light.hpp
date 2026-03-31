@@ -109,10 +109,9 @@ namespace vke_render
             lightMap[LIGHT_MAP_ST[typecode] + ret] = ret;
             ++lightCnts[typecode];
 
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                std::construct_at(
-                    reinterpret_cast<T *>(lightBuffers[typecode][i]->data) + ret,
-                    std::forward<Args>(args)...);
+            std::construct_at(
+                reinterpret_cast<T *>(cpuLightBuffers[typecode]->data) + ret,
+                std::forward<Args>(args)...);
 
             MarkDirty<T>();
             return ret;
@@ -123,7 +122,7 @@ namespace vke_render
         {
             const int typecode = (int)T::type;
             VKE_FATAL_IF(id >= lightCnts[typecode], "LIGHT NOT EXIST")
-            return ((T *)lightBuffers[typecode][0]->data)[lightMap[LIGHT_MAP_ST[typecode] + id]];
+            return ((T *)cpuLightBuffers[typecode]->data)[lightMap[LIGHT_MAP_ST[typecode] + id]];
         }
 
         void RemoveLight(LightType type, vke_ds::id32_t id)
@@ -137,14 +136,9 @@ namespace vke_render
             if (id != last)
             {
                 size_t size = LIGHT_SIZES[typecode];
-                for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                {
-                    char *base = (char *)lightBuffers[typecode][i]->data;
-                    std::memcpy(
-                        base + id * size,
-                        base + last * size,
-                        size);
-                }
+                char *base = (char *)cpuLightBuffers[typecode]->data;
+                std::memcpy(base + id * size,
+                            base + last * size, size);
                 lightMap[LIGHT_MAP_ST[typecode] + id] = lightMap[LIGHT_MAP_ST[typecode] + last];
             }
             MarkDirty(type);
@@ -172,7 +166,8 @@ namespace vke_render
         uint32_t lightMap[LIGHT_MAP_ST[(int)LightType::LIGHT_TYPE_CNT]];
         VkDescriptorSet *globalDescriptorSets;
 
-        std::unique_ptr<StagedBuffer> lightBuffers[(int)LightType::LIGHT_TYPE_CNT][MAX_FRAMES_IN_FLIGHT];
+        std::unique_ptr<DeviceBuffer> lightBuffers[(int)LightType::LIGHT_TYPE_CNT][MAX_FRAMES_IN_FLIGHT];
+        std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
         std::unique_ptr<DeviceBuffer> clusterBuffers[2];
         std::unique_ptr<ComputePipeline> lightCullingTask;
 

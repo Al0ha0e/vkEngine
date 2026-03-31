@@ -8,11 +8,11 @@
         {
           "far": 1000.0,
           "fov": 70.0,
-          "height": 768.0,
+          "height": 1080.0,
           "id": 1,
           "near": 0.01,
           "type": "camera",
-          "width": 1024.0
+          "width": 1920.0
         },
         {
           "type": "directionalLight",
@@ -22,18 +22,18 @@
         },
         {
           "type": "pointLight",
-          "color": [1, 0, 0],
-          "radius": 4,
+          "color": [1, 1, 1],
+          "radius": 5,
           "intensity": 0
         },
         {
           "type": "spotLight",
           "dir": [0, 0, -1],
-          "radius": 20.0,
-          "color": [1.0, 1.0, 1.0],
-          "intensity": 2.0,
-          "innerCone": 0.95,
-          "outerCone": 0.8
+          "radius": 10.0,
+          "color": [1.0, 0.0, 1.0],
+          "intensity": 1.0,
+          "innerCone": 25,
+          "outerCone": 45
         }
       ],
       "id": 1,

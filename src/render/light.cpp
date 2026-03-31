@@ -16,7 +16,10 @@ namespace vke_render
 
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
             for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
-                lightBuffers[i][j] = std::make_unique<StagedBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+                lightBuffers[i][j] = std::make_unique<DeviceBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
         for (int i = 0; i < 2; ++i)
             clusterBuffers[i] = std::make_unique<DeviceBuffer>(CLUSTER_DIM_X * CLUSTER_DIM_Y * CLUSTER_DIM_Z * MAX_LIGHT_PER_CLUSTER * sizeof(uint32_t),
@@ -116,7 +119,7 @@ namespace vke_render
             if (lightUpdateCnts[i] > 0)
             {
                 --lightUpdateCnts[i];
-                lightBuffers[i][currentFrame]->ToBuffer();
+                RenderEnvironment::CopyBuffer(cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer, cpuLightBuffers[i]->bufferSize, 0, 0);
             }
         }
     }
