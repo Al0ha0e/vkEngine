@@ -81,6 +81,13 @@
     "fragPath": "/builtin_assets/shader/deferred_lighting_frag.spv"
   },
   {
+    "type": 2,
+    "id": 6,
+    "name": "TextShader",
+    "path": "/builtin_assets/shader/text_vert.spv",
+    "fragPath": "/builtin_assets/shader/text_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",
@@ -112,5 +119,14 @@
       { "binding": 1, "offset": 0, "cnt": 1 },
       { "binding": 2, "offset": 0, "cnt": 1 }
     ]
+  },
+  {
+    "type": 8,
+    "id": 1,
+    "name": "Arial",
+    "path": "/builtin_assets/fonts/arial.ttf",
+    "pixelSize": 48,
+    "characterCount": 128,
+    "firstCodepoint": 32
   }
 ]

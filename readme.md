@@ -45,11 +45,20 @@ The build will produce several test/demo executables. For example:
 - [JoltPhysics](https://github.com/jrouwe/JoltPhysics) 
 - [ozz-animation](https://github.com/guillaumeblanc/ozz-animation)
 - [entt](https://github.com/skypjack/entt)
+- [freetype](https://freetype.org/)
 
 
 ## Roadmap 
 
-- [x] **Frame Graph**: support for multiple queue families 
-- [ ] **Scripting**: CoreCLR integration
-- [ ] **Rendering**: cluster-based deferred rendering & PBR 
-- [ ] **C++ Reflection**: python-based preprocessing tool to generate metadata 
+- **Frame Graph**:
+  - [x] support for multiple queue families 
+  - [ ] transient resource allocation 
+- **Rendering**:
+  - [x] cluster-based deferred rendering & PBR 
+  - [x] directional/spot/point lights
+  - [ ] UI rendering
+  - [ ] IBL
+  - [ ] shadow mapping 
+- **Scripting**:
+  - [x] CoreCLR integration
+  - [ ] python-based preprocessing tool to generate metadata 

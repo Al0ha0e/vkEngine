@@ -4,7 +4,6 @@
 #include <vector>
 #include <fstream>
 #include <string>
-#include <algorithm>
 #include <ozz/base/io/archive.h>
 #include <ozz/base/io/stream.h>
 
@@ -230,5 +229,42 @@ namespace vke_common
     {
         std::function<std::unique_ptr<Animation>(AnimationAsset &)> op(loadAnimation);
         return loadFromCacheOrUpdate<Animation>(instance->animationCache, hdl, op);
+    }
+
+    static inline std::unique_ptr<Font> loadFont(FontAsset &asset)
+    {
+        auto ret = std::make_unique<Font>(asset.id);
+        FT_Error error = FT_New_Face(AssetManager::GetInstance()->ftLibrary, asset.path.c_str(), 0, &(ret->face));
+        VKE_FATAL_IF(error != FT_Err_Ok, "Failed to load font face from {}", asset.path)
+
+        if (ret->face->charmap == nullptr)
+            FT_Select_Charmap(ret->face, FT_ENCODING_UNICODE);
+
+        error = FT_Set_Pixel_Sizes(ret->face, 0, asset.pixelSize);
+        VKE_FATAL_IF(error != FT_Err_Ok, "Failed to set font pixel size to {} for {}", asset.pixelSize, asset.path)
+
+        ret->familyName = ret->face->family_name == nullptr ? "" : ret->face->family_name;
+        ret->styleName = ret->face->style_name == nullptr ? "" : ret->face->style_name;
+        ret->glyphCount = static_cast<uint32_t>(ret->face->num_glyphs);
+        ret->pixelSize = asset.pixelSize;
+        ret->firstCodepoint = asset.firstCodepoint;
+        ret->requestedCharacterCount = asset.characterCount;
+        ret->ascender = static_cast<int>(ret->face->size->metrics.ascender >> 6);
+        ret->descender = static_cast<int>(ret->face->size->metrics.descender >> 6);
+        ret->lineHeight = static_cast<int>(ret->face->size->metrics.height >> 6);
+        ret->BuildAtlas(asset.characterCount, asset.firstCodepoint);
+        return ret;
+    }
+
+    std::unique_ptr<Font> AssetManager::LoadFontUnique(const AssetHandle hdl)
+    {
+        auto &asset = tryGetAsset(instance->fontCache, hdl);
+        return loadFont(asset);
+    }
+
+    std::shared_ptr<Font> AssetManager::LoadFont(const AssetHandle hdl)
+    {
+        std::function<std::unique_ptr<Font>(FontAsset &)> op(loadFont);
+        return loadFromCacheOrUpdate<Font>(instance->fontCache, hdl, op);
     }
 }

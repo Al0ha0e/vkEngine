@@ -4,6 +4,7 @@
 #include <render/gbuffer_pass.hpp>
 #include <render/deferred_lighting.hpp>
 #include <render/skybox_render.hpp>
+#include <render/ui.hpp>
 #include <render/light.hpp>
 #include <render/camera.hpp>
 #include <event.hpp>
@@ -98,6 +99,14 @@ namespace vke_render
                     skyboxRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(skyboxRenderer));
+                    break;
+                }
+                case UI_RENDERER:
+                {
+                    std::unique_ptr<UIRenderer> uiRenderer = std::make_unique<UIRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
+                    uiRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[UI_RENDERER] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(uiRenderer));
                     break;
                 }
 

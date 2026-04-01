@@ -238,6 +238,7 @@ namespace vke_render
                supportedFeatures12.descriptorBindingVariableDescriptorCount &&
                supportedFeatures12.runtimeDescriptorArray &&
                supportedFeatures12.timelineSemaphore &&
+               supportedFeatures13.shaderDemoteToHelperInvocation &&
                supportedFeatures13.synchronization2 &&
                supportedFeatures13.dynamicRendering;
     }
@@ -329,6 +330,7 @@ namespace vke_render
 
         VkPhysicalDeviceVulkan13Features deviceFeatures13 = {};
         deviceFeatures13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        deviceFeatures13.shaderDemoteToHelperInvocation = VK_TRUE;
         deviceFeatures13.synchronization2 = VK_TRUE;
         deviceFeatures13.dynamicRendering = VK_TRUE;
         deviceFeatures2.pNext = &deviceFeatures13;
@@ -411,7 +413,7 @@ namespace vke_render
     void RenderEnvironment::createVulkanMemoryAllocator()
     {
         VmaAllocatorCreateInfo allocatorCreateInfo = {};
-        allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+        allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_4;
         allocatorCreateInfo.physicalDevice = physicalDevice;
         allocatorCreateInfo.device = globalLogicalDevice;
         allocatorCreateInfo.instance = vkinstance;

@@ -12,9 +12,11 @@ namespace vke_common
     AssetManager *AssetManager::Init()
     {
         instance = new AssetManager();
+        instance->ftLibrary = nullptr;
         for (int i = 0; i < ASSET_CNT_FLAG; i++)
             instance->ids[i] = CUSTOM_ASSET_ID_ST;
         instance->ids[ASSET_SCENE] = 1;
+        VKE_FATAL_IF(FT_Init_FreeType(&(instance->ftLibrary)), "Failed to initialize FreeType library!")
         instance->loadBuiltinAssets();
         return instance;
     }
@@ -52,6 +54,7 @@ namespace vke_common
                 LOAD_LUT_CASE(ASSET_SKELETON, SkeletonAsset, skeletonCache)
                 LOAD_LUT_CASE(ASSET_ANIMATION, AnimationAsset, animationCache)
                 LOAD_LUT_CASE(ASSET_SCENE, SceneAsset, sceneCache)
+                LOAD_LUT_CASE(ASSET_FONT, FontAsset, fontCache)
             default:
                 break;
             }
@@ -72,6 +75,7 @@ namespace vke_common
         ASSET_TO_JSON(vfShaderCache)
         ASSET_TO_JSON(computeShaderCache)
         ASSET_TO_JSON(materialCache)
+        ASSET_TO_JSON(fontCache)
         for (auto &kv : sceneCache)
             ret += "\n" + kv.second.ToJSON() + ",";
 
@@ -106,6 +110,7 @@ namespace vke_common
             LoadVertFragShader(kv.first);
         }
         LOAD_BUILTIN_ASSET(materialCache, LoadMaterial)
+        LOAD_BUILTIN_ASSET(fontCache, LoadFont)
 
         MeshAsset plane(BUILTIN_MESH_PLANE_ID, "Plane", "");
         plane.val = std::make_shared<vke_render::Mesh>(BUILTIN_MESH_PLANE_ID,

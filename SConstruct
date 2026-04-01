@@ -84,15 +84,17 @@ env = Environment(CC = 'cl',
 SConscript(['csharp/Sconscript'])
 joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppdefines'])
 ozzObjs = SConscript(['third_party/ozz/Sconscript'], exports=['env'])
+freetypeObjs = SConscript(['third_party/freetype/Sconscript'], exports=['env'])
 
 
 libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
 libpath = ['./libs','D:/VulkanSDK/Lib']
 cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/']
+cpppath.append('./third_party/freetype/include')
 cppdefines = ['JSON_NOEXCEPTION','SPDLOG_NO_EXCEPTIONS'] # ['NDEBUG']
-commonsrc = joltObjs + ozzObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
+commonsrc = joltObjs + ozzObjs + freetypeObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
                 "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", "./src/render/deferred_lighting.cpp",
-                "./src/render/shader.cpp", "./src/render/pipeline.cpp","./src/render/light.cpp",
+                "./src/render/shader.cpp", "./src/render/pipeline.cpp","./src/render/light.cpp", "./src/render/ui.cpp",
                 "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
                 "./src/component.cpp","./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
                 "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp", "./src/script.cpp",
@@ -153,6 +155,8 @@ shaders = [
     ['default_multi.vert','default_multi_vert.spv'],
     ['deferred_lighting.frag','deferred_lighting_frag.spv'],
     ['deferred_lighting.vert','deferred_lighting_vert.spv'],
+    ['text.frag','text_frag.spv'],
+    ['text.vert','text_vert.spv'],
     ['skybox.frag','skyfrag.spv'],
     ['skybox.vert','skyvert.spv'],
     ['sky_lut.comp','sky_lut.spv'],

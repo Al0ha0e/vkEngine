@@ -12,6 +12,7 @@ namespace vke_render
         GBUFFER_PASS,
         DEFERRED_LIGHTING_PASS,
         SKYBOX_RENDERER,
+        UI_RENDERER
     };
 
     class RenderPassBase

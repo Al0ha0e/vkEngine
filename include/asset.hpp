@@ -4,6 +4,7 @@
 #include <render/material.hpp>
 #include <render/mesh.hpp>
 #include <animation.hpp>
+#include <font.hpp>
 #include <nlohmann/json.hpp>
 
 #include <physics/physics.hpp>
@@ -34,12 +35,15 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_DEFAULT_MULTI_ID = 3;
     const AssetHandle BUILTIN_VFSHADER_DEFAULT_SKIN_ID = 4;
     const AssetHandle BUILTIN_VFSHADER_DEFERRED_LIGHTING_ID = 5;
+    const AssetHandle BUILTIN_VFSHADER_TEXT_ID = 6;
 
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
     const AssetHandle BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID = 2;
 
     const AssetHandle BUILTIN_MATERIAL_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_MATERIAL_SKYBOX_ID = 2;
+
+    const AssetHandle BUILTIN_FONT_ARIAL_ID = 1;
 
     enum AssetType
     {
@@ -51,11 +55,12 @@ namespace vke_common
         ASSET_SKELETON,
         ASSET_ANIMATION,
         ASSET_SCENE,
+        ASSET_FONT,
         ASSET_CNT_FLAG
     };
 
     const std::string AssetTypeToName[] = {"Texture", "Mesh", "VFShader", "ComputeShader",
-                                           "Material", "Skeleton", "Animation", "Scene"};
+                                           "Material", "Skeleton", "Animation", "Scene", "Font"};
 
     template <AssetType TID, typename T, typename VT>
     class Asset
@@ -162,6 +167,34 @@ namespace vke_common
         }
     };
 
+    class FontAsset : public Asset<ASSET_FONT, FontAsset, vke_common::Font>
+    {
+    public:
+        uint32_t pixelSize;
+        uint32_t characterCount;
+        uint32_t firstCodepoint;
+
+        FontAsset() {}
+
+        FontAsset(AssetHandle id, const nlohmann::json &json) : Asset(id, json)
+        {
+            pixelSize = json.contains("pixelSize") ? (uint32_t)json["pixelSize"] : 48;
+            characterCount = json.contains("characterCount") ? (uint32_t)json["characterCount"] : 128;
+            firstCodepoint = json.contains("firstCodepoint") ? (uint32_t)json["firstCodepoint"] : 32;
+        }
+
+        FontAsset(AssetHandle id, const std::string &nm, const std::string &pth)
+            : Asset(id, nm, pth), pixelSize(48), characterCount(128), firstCodepoint(32) {}
+
+        std::string toJSON()
+        {
+            std::string ret = ", \"pixelSize\": " + std::to_string(pixelSize) +
+                              ", \"characterCount\": " + std::to_string(characterCount) +
+                              ", \"firstCodepoint\": " + std::to_string(firstCodepoint);
+            return ret;
+        }
+    };
+
     class VFShaderAsset : public Asset<ASSET_VF_SHADER, VFShaderAsset, vke_render::ShaderModuleSet>
     {
     public:
@@ -259,8 +292,13 @@ namespace vke_common
     {
     private:
         static AssetManager *instance;
-        AssetManager() {};
-        ~AssetManager() {}
+        AssetManager() : ftLibrary(nullptr) {};
+        ~AssetManager()
+        {
+            fontCache.clear();
+            if (ftLibrary != nullptr)
+                FT_Done_FreeType(ftLibrary);
+        }
         AssetManager(const AssetManager &);
         AssetManager &operator=(const AssetManager);
 
@@ -274,6 +312,8 @@ namespace vke_common
         std::map<AssetHandle, SkeletonAsset> skeletonCache;
         std::map<AssetHandle, AnimationAsset> animationCache;
         std::map<AssetHandle, SceneAsset> sceneCache;
+        std::map<AssetHandle, FontAsset> fontCache;
+        FT_Library ftLibrary;
 
         static AssetManager *GetInstance()
         {
@@ -286,6 +326,7 @@ namespace vke_common
         static void Dispose()
         {
             delete instance;
+            instance = nullptr;
         }
 
         static void ClearAssetLUT() { instance->clearAssetLUT(); }
@@ -307,6 +348,7 @@ namespace vke_common
         static std::unique_ptr<vke_render::Material> LoadMaterialUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_common::Skeleton> LoadSkeletonUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_common::Animation> LoadAnimationUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_common::Font> LoadFontUnique(const AssetHandle hdl);
 
         static std::shared_ptr<vke_render::Texture2D> LoadTexture2D(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Mesh> LoadMesh(const AssetHandle hdl);
@@ -315,6 +357,7 @@ namespace vke_common
         static std::shared_ptr<vke_render::Material> LoadMaterial(const AssetHandle hdl);
         static std::shared_ptr<vke_common::Skeleton> LoadSkeleton(const AssetHandle hdl);
         static std::shared_ptr<vke_common::Animation> LoadAnimation(const AssetHandle hdl);
+        static std::shared_ptr<vke_common::Font> LoadFont(const AssetHandle hdl);
 
         ASSET_OP_FUNCS(TextureAsset, textureCache)
         ASSET_OP_FUNCS(MeshAsset, meshCache)
@@ -324,6 +367,7 @@ namespace vke_common
         ASSET_OP_FUNCS(SkeletonAsset, skeletonCache)
         ASSET_OP_FUNCS(AnimationAsset, animationCache)
         ASSET_OP_FUNCS(SceneAsset, sceneCache)
+        ASSET_OP_FUNCS(FontAsset, fontCache)
 
     private:
         void clearAssetLUT();
