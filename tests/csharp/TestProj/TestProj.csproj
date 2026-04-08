@@ -5,8 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
-    <AssemblyName>EngineCore</AssemblyName>
-    <RootNamespace>vkEngine.EngineCore</RootNamespace>
+    <AssemblyName>Game</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\csharp\EngineCore\EngineCore.csproj" />
+  </ItemGroup>
+
 </Project>

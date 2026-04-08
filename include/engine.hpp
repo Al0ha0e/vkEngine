@@ -1,10 +1,13 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
+#include <game_config.hpp>
 #include <render/render.hpp>
 #include <physics/physics.hpp>
 #include <scene.hpp>
 #include <event.hpp>
+#include <input.hpp>
+#include <engine_state.hpp>
 #include <time.hpp>
 #include <script.hpp>
 
@@ -34,6 +37,8 @@ namespace vke_common
             instance = new Engine();
             EventSystem::Init();
             TimeManager::Init();
+            InputManager::Init(window);
+            EngineStateManager::Init();
             vke_render::RenderEnvironment::Init(window);
             AssetManager::Init();
             vke_physics::PhysicsManager::Init();
@@ -41,8 +46,8 @@ namespace vke_common
             if (ctx == nullptr)
                 ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
             vke_render::Renderer::Init(ctx, passes, customPasses);
-            SceneManager::Init();
             ScriptManager::Init();
+            SceneManager::Init();
             return instance;
         }
 
@@ -54,11 +59,14 @@ namespace vke_common
         static void Dispose()
         {
             SceneManager::Dispose();
+            ScriptManager::Dispose();
             vke_render::Renderer::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();
             vke_physics::PhysicsManager::Dispose();
             AssetManager::Dispose();
             vke_render::RenderEnvironment::Dispose();
+            EngineStateManager::Dispose();
+            InputManager::Dispose();
             TimeManager::Dispose();
             EventSystem::Dispose();
             delete instance;
@@ -69,7 +77,7 @@ namespace vke_common
             EventSystem::DispatchEvent(EVENT_WINDOW_RESIZE, nullptr);
         }
 
-        void Update();
+        bool Update();
 
         void MainLoop();
     };

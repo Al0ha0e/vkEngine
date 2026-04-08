@@ -3,6 +3,7 @@
 #include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
 #include <component/light.hpp>
+#include <component/script.hpp>
 #include <scene.hpp>
 
 namespace vke_common
@@ -26,29 +27,38 @@ namespace vke_common
         }
     }
 
-    void Scene::loadComponent(const entt::entity entity, const nlohmann::json &component)
+    void Scene::loadComponent(const vke_ds::id32_t id, const nlohmann::json &component)
     {
+        const entt::entity entity = idToEntity[id];
         Transform &transform = registry.get<Transform>(entity);
 
         std::string type = component["type"];
         if (type == "camera")
             registry.emplace<vke_component::Camera>(entity, transform, component);
-        if (type == "renderableObject")
+        else if (type == "renderableObject")
             registry.emplace<vke_component::RenderableObject>(entity, transform, component);
-        if (type == "animator")
+        else if (type == "animator")
             registry.emplace<vke_component::SkeletonAnimator>(entity, transform, component);
-        if (type == "rigidbody")
+        else if (type == "rigidbody")
             registry.emplace<vke_component::RigidBody>(entity, transform, component);
-        if (type == "directionalLight")
+        else if (type == "directionalLight")
             registry.emplace<vke_component::DirectionalLightComponent>(entity, transform, component);
-        if (type == "pointLight")
+        else if (type == "pointLight")
             registry.emplace<vke_component::PointLightComponent>(entity, transform, component);
-        if (type == "spotLight")
+        else if (type == "spotLight")
             registry.emplace<vke_component::SpotLightComponent>(entity, transform, component);
+        else if (type == "script")
+        {
+            csharpScriptStates.push_back(component["data"].dump());
+            // vke_component::ScriptState scriptState(id, component);
+            // csharpScripts[id].emplace(scriptState.className, std::move(scriptState));
+        }
     }
 
-    void Scene::componentToJSON(entt::entity entity, nlohmann::json &components)
+    void Scene::componentToJSON(const vke_ds::id32_t id, nlohmann::json &components)
     {
+        const entt::entity entity = idToEntity[id];
+
         if (registry.all_of<vke_component::Camera>(entity))
             components.push_back(registry.get<vke_component::Camera>(entity).ToJSON());
 
@@ -69,6 +79,13 @@ namespace vke_common
 
         if (registry.all_of<vke_component::SpotLightComponent>(entity))
             components.push_back(registry.get<vke_component::SpotLightComponent>(entity).ToJSON());
+
+        // auto scriptIt = csharpScripts.find(id);
+        // if (scriptIt != csharpScripts.end())
+        // {
+        //     for (const auto &[className, scriptState] : scriptIt->second)
+        //         components.push_back(scriptState.ToJSON());
+        // }
     }
 
     void Scene::updateTransform(entt::entity entity, Transform &transform, bool first)

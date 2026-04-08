@@ -18,10 +18,27 @@
           "type": "camera",
           "id": 1,
           "fov": 70.0,
-          "width": 1024.0,
-          "height": 768.0,
+          "width": 1920.0,
+          "height": 1080.0,
           "near": 0.01,
           "far": 1000.0
+        },
+        {
+          "type": "script",
+          "data": {
+            "id": 1,
+            "className": "TestProj.TestCameraScript",
+            "fields": [
+              {
+                "name": "MoveSpeed",
+                "val": 4.0
+              },
+              {
+                "name": "RotateSpeed",
+                "val": 2.0
+              }
+            ]
+          }
         }
       ],
       "children": []

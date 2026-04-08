@@ -27,7 +27,7 @@ namespace vke_common
                 objJSON["children"] = std::move(chidrenJSON);
 
                 nlohmann::json componentsJSON = nlohmann::json::array();
-                componentToJSON(entity, componentsJSON);
+                componentToJSON(id, componentsJSON);
                 objJSON["components"] = componentsJSON;
 
                 objectsJSON.push_back(std::move(objJSON));
@@ -98,7 +98,7 @@ namespace vke_common
             vke_ds::id32_t id = jsonObj["id"].get<vke_ds::id32_t>();
             auto &components = jsonObj["components"];
             for (auto &component : components)
-                loadComponent(idToEntity[id], component);
+                loadComponent(id, component);
         }
     }
 }

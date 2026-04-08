@@ -11,3 +11,5 @@ builtin_assets/texture/transmitance_lut.png
 sponza-gltf-pbr
 tools/*.dll
 !builtin_assets/**/*.obj
+src/generated/*
+vkEngine.sln

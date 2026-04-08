@@ -1,6 +1,6 @@
 # vkEngine 
 vkEngine is a toy game engine currently in development. 
-It uses [Vulkan](https://www.lunarg.com/vulkan-sdk/) as the rendering backend, integrates [JoltPhysics](https://github.com/jrouwe/JoltPhysics) for real-time physics simulation, and plans to support [CoreCLR](https://github.com/dotnet/runtime) as the scripting runtime for C#. 
+It uses [Vulkan](https://www.lunarg.com/vulkan-sdk/) as the rendering backend, integrates [JoltPhysics](https://github.com/jrouwe/JoltPhysics) for real-time physics simulation, and embeds [CoreCLR](https://github.com/dotnet/runtime) as the scripting runtime for C#. 
 
 The project is primarily intended as a platform for experimenting with graphics and game development techniques. 
 
@@ -10,6 +10,7 @@ The project is primarily intended as a platform for experimenting with graphics 
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) (with C++23 support)  
 - [Miniconda/Anaconda](https://docs.conda.io/) 
 - [VulkanSDK](https://www.lunarg.com/vulkan-sdk/) >= 1.4 
+- [.NET SDK 9.0](https://dotnet.microsoft.com/) 
 
 ## Build
 
@@ -23,13 +24,22 @@ mkdir out
 scons
 ```
 
+`SConstruct` will also:
+
+- build `csharp/EngineCore`
+- build the test gameplay assembly under `tests/csharp`
+- run the reflection code generator for `GameConfig`
+- compile the builtin shaders
+
 ## Run
 
-The build will produce several test/demo executables. For example:
+The build will produce `out/engine.exe`. The executable expects a single game config json:
 
 ```
-./out/test_env.exe
-./out/test_jolt.exe
+./out/engine.exe ./tests/cfg/test_sponza.json
+./out/engine.exe ./tests/cfg/test_jolt.json
+./out/engine.exe ./tests/cfg/test_anim.json
+./out/engine.exe ./tests/cfg/test_env.json
 ```
 
 ## Third Party Libraries 

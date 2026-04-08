@@ -4,8 +4,10 @@
 #include <entt/entity/registry.hpp>
 #include <ds/id_allocator.hpp>
 #include <asset.hpp>
+#include <script.hpp>
 #include <gameobject.hpp>
 #include <component/transform.hpp>
+#include <component/script.hpp>
 #include <unordered_set>
 
 namespace vke_common
@@ -181,16 +183,19 @@ namespace vke_common
             updateTransform(entity, transform, true);
         }
 
+        entt::registry registry;
+        std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
+        // std::unordered_map<vke_ds::id32_t, std::unordered_multimap<std::string, vke_component::ScriptState>> csharpScripts;
+        std::vector<std::string> csharpScriptStates;
+
     private:
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> idAllocator;
-        std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
-        entt::registry registry;
         vke_ds::id32_t physicsUpdateListenerID;
 
         void dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited);
         void init(const nlohmann::json &json);
-        void loadComponent(const entt::entity entity, const nlohmann::json &component);
-        void componentToJSON(entt::entity entity, nlohmann::json &json);
+        void loadComponent(const vke_ds::id32_t id, const nlohmann::json &component);
+        void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json);
         void updateTransform(entt::entity entity, Transform &transform, bool first);
 
         static void physicsUpdateCallback(void *self, void *info);
@@ -223,18 +228,23 @@ namespace vke_common
 
         static void Dispose()
         {
+            instance->unloadCurrentSceneFromEngine();
             delete instance;
         }
 
         static void SetCurrentScene(std::unique_ptr<Scene> &&scene)
         {
-            std::exchange<std::unique_ptr<Scene>>(instance->currentScene, std::forward<std::unique_ptr<Scene>>(scene));
+            // TODO 1: load given scene to engine
+            //  std::exchange<std::unique_ptr<Scene>>(instance->currentScene, std::forward<std::unique_ptr<Scene>>(scene));
+            instance->unloadCurrentSceneFromEngine();
+            instance->currentScene = std::move(scene);
+            instance->loadCurrentSceneToEngine();
         }
 
-        static void LoadScene(const std::string &pth)
+        static void LoadScene(const std::string &pth) // load scene data only, not load to engine
         {
             nlohmann::json json(vke_common::AssetManager::LoadJSON(pth));
-            SetCurrentScene(std::make_unique<Scene>(pth, json));
+            SetCurrentScene(std::make_unique<Scene>(pth, json)); // TODO remove, load data only
         }
 
         static void SaveScene(const std::string &pth)
@@ -245,6 +255,24 @@ namespace vke_common
                 ofs << instance->currentScene->ToJSON().dump(4);
                 ofs.close();
             }
+        }
+
+    private:
+        void loadCurrentSceneToEngine()
+        {
+            std::vector<const char *> dataPtrs;
+            for (auto &data : currentScene->csharpScriptStates)
+                dataPtrs.push_back(data.c_str());
+            ScriptManager::Load(dataPtrs.data(), dataPtrs.size());
+            ScriptManager::Start();
+        }
+
+        void unloadCurrentSceneFromEngine()
+        {
+            if (currentScene == nullptr)
+                return;
+            // TODO Unload Components
+            ScriptManager::Unload();
         }
     };
 }

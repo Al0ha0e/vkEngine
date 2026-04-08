@@ -9,7 +9,12 @@ namespace vke_common
     {
     private:
         static TimeManager *instance;
-        TimeManager() : frameStartTime(glfwGetTime()) {}
+        TimeManager()
+            : frameStartTime(static_cast<float>(glfwGetTime())),
+              prevFrameStartTime(frameStartTime),
+              deltaTime(0.0f)
+        {
+        }
         ~TimeManager() {}
         TimeManager(const TimeManager &);
         TimeManager &operator=(const TimeManager);
@@ -26,20 +31,39 @@ namespace vke_common
 
         static TimeManager *Init()
         {
-            instance = new TimeManager();
+            if (instance == nullptr)
+                instance = new TimeManager();
             return instance;
         }
 
         static void Dispose()
         {
+            if (instance == nullptr)
+                return;
             delete instance;
+            instance = nullptr;
         }
 
         static void Update()
         {
             instance->prevFrameStartTime = instance->frameStartTime;
-            instance->frameStartTime = glfwGetTime();
+            instance->frameStartTime = static_cast<float>(glfwGetTime());
             instance->deltaTime = instance->frameStartTime - instance->prevFrameStartTime;
+        }
+
+        static float GetTime()
+        {
+            return instance->frameStartTime;
+        }
+
+        static float GetDeltaTime()
+        {
+            return instance->deltaTime;
+        }
+
+        static float GetPreviousFrameTime()
+        {
+            return instance->prevFrameStartTime;
         }
     };
 }

@@ -4,23 +4,34 @@ import shutil
 # env = Environment(tools=['mingw'])
 
 
-def GetFileWithExt(dir,ext):
+def GetFileWithExt(dir, ext):
     ret = []
-    for _,dirs,files in os.walk(dir):
+    for _, dirs, files in os.walk(dir):
         for filename in files:
-            _,suf = os.path.splitext(filename)
+            _, suf = os.path.splitext(filename)
             if suf == ext:
                 ret.append(filename)
     return ret
 
-dlls = GetFileWithExt("./libs",".dll")
-for filename in dlls:
-    shutil.copy("./libs/"+filename,"./out/"+filename)
 
-selflibs = GetFileWithExt("./libs",".lib")
-            
+dlls = GetFileWithExt("./libs", ".dll")
+for filename in dlls:
+    shutil.copy("./libs/" + filename, "./out/" + filename)
+
+selflibs = GetFileWithExt("./libs", ".lib")
+
 print(dlls)
 print(selflibs)
+
+######################### CodeGen ######################
+
+files_need_reflect = ["game_config.hpp"]
+for filename in files_need_reflect:
+    cmd = f"python ./tools/codegen/reflect.py ./include/{filename}"
+    print(cmd)
+    os.system(cmd)
+
+generated_files = Glob("./src/generated/*.cpp")
 
 ######################### JOLT #########################
 USE_AVX512 = False
@@ -45,7 +56,7 @@ jolt_cppdefines = [
     "JPH_USE_SSE4_2",
     "JPH_USE_LZCNT",
     "JPH_USE_TZCNT",
-    "JPH_USE_F16C"
+    "JPH_USE_F16C",
 ]
 
 if DEBUG:
@@ -78,32 +89,71 @@ if USE_AVX:
 
 #########################
 
-env = Environment(CC = 'cl',
-                   CCFLAGS = ['/std:c++23preview','/EHs-','/O2','/utf-8'] + jolt_ccflags)
+env = Environment(
+    CC="cl", CCFLAGS=["/std:c++23preview", "/EHs-", "/O2", "/utf-8"] + jolt_ccflags
+)
 
-SConscript(['csharp/Sconscript'])
-joltObjs = SConscript(['third_party/Jolt/Sconscript'], exports=['env','jolt_cppdefines'])
-ozzObjs = SConscript(['third_party/ozz/Sconscript'], exports=['env'])
-freetypeObjs = SConscript(['third_party/freetype/Sconscript'], exports=['env'])
+SConscript(["csharp/Sconscript", "tests/csharp/Sconscript"])
+joltObjs = SConscript(
+    ["third_party/Jolt/Sconscript"], exports=["env", "jolt_cppdefines"]
+)
+ozzObjs = SConscript(["third_party/ozz/Sconscript"], exports=["env"])
+freetypeObjs = SConscript(["third_party/freetype/Sconscript"], exports=["env"])
 
 
-libs = ['msvcrtd', 'libcmt', 'Gdi32', 'shell32', 'user32','vulkan-1'] + selflibs
-libpath = ['./libs','D:/VulkanSDK/Lib']
-cpppath = ['./include','D:/VulkanSDK/Include','./third_party/spirv_reflect','./third_party/']
-cpppath.append('./third_party/freetype/include')
-cppdefines = ['JSON_NOEXCEPTION','SPDLOG_NO_EXCEPTIONS'] # ['NDEBUG']
-commonsrc = joltObjs + ozzObjs + freetypeObjs + ["./src/render/environment.cpp", "./src/asset.cpp", "./src/loader.cpp", "./src/builtin.cpp",
-                "./src/render/descriptor.cpp", "./src/render/skybox_render.cpp","./src/render/gbuffer_pass.cpp", "./src/render/deferred_lighting.cpp",
-                "./src/render/shader.cpp", "./src/render/pipeline.cpp","./src/render/light.cpp", "./src/render/ui.cpp",
-                "./src/render/render.cpp", "./src/render/frame_graph.cpp", "./src/render/queue.cpp", 
-                "./src/component.cpp","./src/scene.cpp", "./src/event.cpp", "./src/engine.cpp", 
-                "./src/input.cpp", "./src/time.cpp", "./src/logger.cpp", "./src/physics/physics.cpp", "./src/script.cpp",
-                "./third_party/spirv_reflect/spirv_reflect.cpp","./third_party/vma/vma.cpp","./third_party/stb/stb_image.cpp","./third_party/tinygltf/tiny_gltf.cpp"]
+libs = ["msvcrtd", "libcmt", "Gdi32", "shell32", "user32", "vulkan-1"] + selflibs
+libpath = ["./libs", "D:/VulkanSDK/Lib"]
+cpppath = [
+    "./include",
+    "D:/VulkanSDK/Include",
+    "./third_party/spirv_reflect",
+    "./third_party/",
+]
+cpppath.append("./third_party/freetype/include")
+cppdefines = ["JSON_NOEXCEPTION", "SPDLOG_NO_EXCEPTIONS"]  # ['NDEBUG']
+commonsrc = (
+    joltObjs
+    + ozzObjs
+    + freetypeObjs
+    + [
+        "./src/render/environment.cpp",
+        "./src/asset.cpp",
+        "./src/loader.cpp",
+        "./src/builtin.cpp",
+        "./src/render/descriptor.cpp",
+        "./src/render/skybox_render.cpp",
+        "./src/render/gbuffer_pass.cpp",
+        "./src/render/deferred_lighting.cpp",
+        "./src/render/shader.cpp",
+        "./src/render/pipeline.cpp",
+        "./src/render/light.cpp",
+        "./src/render/ui.cpp",
+        "./src/render/render.cpp",
+        "./src/render/frame_graph.cpp",
+        "./src/render/queue.cpp",
+        "./src/component.cpp",
+        "./src/scene.cpp",
+        "./src/event.cpp",
+        "./src/engine.cpp",
+        "./src/engine_state.cpp",
+        "./src/input.cpp",
+        "./src/time.cpp",
+        "./src/logger.cpp",
+        "./src/physics/physics.cpp",
+        "./src/script.cpp",
+        "./third_party/spirv_reflect/spirv_reflect.cpp",
+        "./third_party/vma/vma.cpp",
+        "./third_party/stb/stb_image.cpp",
+        "./third_party/tinygltf/tiny_gltf.cpp",
+        "./src/interop/native.cpp",
+    ]
+    + generated_files
+)
 
 ### coreclr
 NETHOST_PATH = "C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Host.win-x64/9.0.8/runtimes/win-x64/native/"
 libpath.append(NETHOST_PATH)
-libs.append('nethost')
+libs.append("nethost")
 
 
 ### tools
@@ -111,71 +161,108 @@ libs.append('nethost')
 toolCommonSrc = ["./src/logger.cpp"]
 
 targetinfo = [
-    ["tools/gltf_conv", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_conv.cpp"]],
-    ["tools/gltf_skin_conv", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_skin_conv.cpp"]+ozzObjs],
-    ["tools/gltf_log", ["./third_party/stb/stb_image.cpp", "./third_party/tinygltf/tiny_gltf.cpp", "./src/tools/gltf_log.cpp"]],
-    ["tools/obj_conv", ["./src/tools/obj_conv.cpp"]]
+    [
+        "tools/gltf_conv",
+        [
+            "./third_party/stb/stb_image.cpp",
+            "./third_party/tinygltf/tiny_gltf.cpp",
+            "./src/tools/gltf_conv.cpp",
+        ],
+    ],
+    [
+        "tools/gltf_skin_conv",
+        [
+            "./third_party/stb/stb_image.cpp",
+            "./third_party/tinygltf/tiny_gltf.cpp",
+            "./src/tools/gltf_skin_conv.cpp",
+        ]
+        + ozzObjs,
+    ],
+    [
+        "tools/gltf_log",
+        [
+            "./third_party/stb/stb_image.cpp",
+            "./third_party/tinygltf/tiny_gltf.cpp",
+            "./src/tools/gltf_log.cpp",
+        ],
+    ],
+    ["tools/obj_conv", ["./src/tools/obj_conv.cpp"]],
 ]
 
 for info in targetinfo:
-    env.Program(info[0],
+    env.Program(
+        info[0],
         toolCommonSrc + info[1],
-        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines)
+        LIBS=libs,
+        LIBPATH=libpath,
+        CPPPATH=cpppath,
+        CPPDEFINES=cppdefines + jolt_cppdefines,
+    )
 
 ### tests
 
 targetinfo = [
-    ["out/test_env",["./tests/test_env.cpp"]],
-    ["out/test_anim",["./tests/test_anim.cpp"]],
-    ["out/test_sponza",["./tests/test_sponza.cpp"]],
-    ["out/test_jolt", ["./tests/test_jolt.cpp"]],
-    ["out/test_compute",["./tests/test_compute.cpp"]],
-    ["out/test_spvrefl",["./tests/test_spvrefl.cpp"]],
+    ["out/test_compute", ["./tests/test_compute.cpp"]],
+    ["out/test_spvrefl", ["./tests/test_spvrefl.cpp"]],
+    ["out/engine", ["./src/main.cpp"]],
 ]
 
 for info in targetinfo:
-    env.Program(info[0],
-        info[1]+commonsrc,
-        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines)
+    env.Program(
+        info[0],
+        info[1] + commonsrc,
+        LIBS=libs,
+        LIBPATH=libpath,
+        CPPPATH=cpppath,
+        CPPDEFINES=cppdefines + jolt_cppdefines,
+    )
 
 
-env.Library("out/vkengine",commonsrc,
-                        LIBS=libs, LIBPATH=libpath, CPPPATH=cpppath, CPPDEFINES=cppdefines + jolt_cppdefines)
+env.Library(
+    "out/vkengine",
+    commonsrc,
+    LIBS=libs,
+    LIBPATH=libpath,
+    CPPPATH=cpppath,
+    CPPDEFINES=cppdefines + jolt_cppdefines,
+)
 
 ### shader
 
-glslc = 'glslc --target-env=vulkan1.4'
+glslc = "glslc --target-env=vulkan1.4"
 
-sprefix = './builtin_assets/shader/'
+sprefix = "./builtin_assets/shader/"
 shaders = [
-    ['default.frag','default_frag.spv'],
-    ['default.vert','default_vert.spv'],
-    ['default_skin.vert','default_skin_vert.spv'],
-    ['default_multi.frag','default_multi_frag.spv'],
-    ['default_multi.vert','default_multi_vert.spv'],
-    ['deferred_lighting.frag','deferred_lighting_frag.spv'],
-    ['deferred_lighting.vert','deferred_lighting_vert.spv'],
-    ['text.frag','text_frag.spv'],
-    ['text.vert','text_vert.spv'],
-    ['skybox.frag','skyfrag.spv'],
-    ['skybox.vert','skyvert.spv'],
-    ['sky_lut.comp','sky_lut.spv'],
-    ['light_cull.comp','light_cull.spv']
+    ["default.frag", "default_frag.spv"],
+    ["default.vert", "default_vert.spv"],
+    ["default_skin.vert", "default_skin_vert.spv"],
+    ["default_multi.frag", "default_multi_frag.spv"],
+    ["default_multi.vert", "default_multi_vert.spv"],
+    ["deferred_lighting.frag", "deferred_lighting_frag.spv"],
+    ["deferred_lighting.vert", "deferred_lighting_vert.spv"],
+    ["text.frag", "text_frag.spv"],
+    ["text.vert", "text_vert.spv"],
+    ["skybox.frag", "skyfrag.spv"],
+    ["skybox.vert", "skyvert.spv"],
+    ["sky_lut.comp", "sky_lut.spv"],
+    ["light_cull.comp", "light_cull.spv"],
 ]
 
 for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
 
-sprefix = './tests/shader/'
+sprefix = "./tests/shader/"
 shaders = [
-    ['test.comp','test_compute.spv'],
+    ["test.comp", "test_compute.spv"],
 ]
 for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
 
-cmds = ["python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"]
+cmds = [
+    "python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"
+]
 for cmd in cmds:
     print(cmd)
     # os.system(cmd)

@@ -1,0 +1,8 @@
+import os
+import shutil
+
+os.system("dotnet build ./TestProj/ -c Release")
+
+filenames = ["game.dll"]
+
+shutil.copy("./TestProj/bin/Release/net9.0/Game.dll", "./Game.dll")

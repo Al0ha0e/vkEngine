@@ -5,6 +5,9 @@
 #include <dotnet/coreclr_delegates.h>
 #include <dotnet/hostfxr.h>
 
+#include <interop/native.hpp>
+
+#include <cstdint>
 #include <string>
 
 namespace vke_common
@@ -21,6 +24,36 @@ namespace vke_common
             : loadAssemblyAndGetFunctionPointer(nullptr),
               loadAssembly(nullptr),
               getFunctionPointer(nullptr) {}
+    };
+
+    struct CSharpSceneManagerFunctions
+    {
+        void (*load)(const char **, uint32_t);
+        void (*start)();
+        void (*update)();
+        void (*fixedUpdate)();
+        void (*lateUpdate)();
+        void (*unload)();
+
+        CSharpSceneManagerFunctions()
+            : load(nullptr),
+              start(nullptr),
+              update(nullptr),
+              fixedUpdate(nullptr),
+              lateUpdate(nullptr),
+              unload(nullptr) {}
+    };
+
+    struct CSharpExports
+    {
+        int (*init)();
+        void (*registerNativeFunctions)(vke_interop::NativeFunctions *);
+        CSharpSceneManagerFunctions sceneManagerFunctions;
+
+        CSharpExports()
+            : init(nullptr),
+              registerNativeFunctions(nullptr),
+              sceneManagerFunctions() {}
     };
 
     class ScriptManager
@@ -45,13 +78,41 @@ namespace vke_common
 
         static void Dispose()
         {
+            if (instance == nullptr)
+                return;
             delete instance;
+            instance = nullptr;
+        }
+
+        static void Load(const char **data, uint32_t cnt)
+        {
+            instance->csharpExports.sceneManagerFunctions.load(data, cnt);
+        }
+
+        static void Start()
+        {
+            instance->csharpExports.sceneManagerFunctions.start();
+        }
+
+        static void Update()
+        {
+            instance->csharpExports.sceneManagerFunctions.update();
+        }
+
+        static void Unload()
+        {
+            instance->csharpExports.sceneManagerFunctions.unload();
         }
 
     private:
         DelegateFunctionPointers functionPointers;
+        CSharpExports csharpExports;
 
         void init();
+
+        void registerNativeFunctions();
+        void getCSharpExports();
+        void getFunctionPointer(const char_t *typeName, const char_t *methodName, void **func);
     };
 }
 

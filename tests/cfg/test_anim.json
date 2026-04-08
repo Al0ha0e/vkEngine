@@ -1,0 +1,7 @@
+{
+  "windowWidth": 1920,
+  "windowHeight": 1080,
+  "assetLUTPath": "./tests/scene/test_anim_desc.json",
+  "defaultScenePath": "./tests/scene/test_anim_scene.json",
+  "gameScriptPath": "./tests/csharp/Game.dll"
+}
