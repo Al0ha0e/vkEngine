@@ -8,6 +8,11 @@
 #include <gameobject.hpp>
 #include <component/transform.hpp>
 #include <component/script.hpp>
+#include <component/camera.hpp>
+#include <component/renderable_object.hpp>
+#include <component/skeleton_animator.hpp>
+#include <component/rigidbody.hpp>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace vke_common
@@ -22,26 +27,82 @@ namespace vke_common
         Scene(const Scene &) = delete;
         Scene &operator=(const Scene &) = delete;
 
-        Scene() : idAllocator(1), layers({"default", "editor"}) {}
+        Scene()
+            : idAllocator(1), layers({"default", "editor"}),
+              physicsUpdateListenerID(0), initialized(true), loadedToEngine(false) {}
 
         Scene(const nlohmann::json &json)
-            : idAllocator(json["maxid"])
+            : idAllocator(json["maxid"]),
+              physicsUpdateListenerID(0), initialized(false), loadedToEngine(false)
         {
             init(json);
+            initialized = true;
         }
 
         Scene(const std::string &pth, const nlohmann::json &json)
-            : path(pth), idAllocator(json["maxid"])
+            : path(pth), idAllocator(json["maxid"]),
+              physicsUpdateListenerID(0), initialized(false), loadedToEngine(false)
         {
             init(json);
+            initialized = true;
         }
 
-        ~Scene()
-        {
-            vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
-        }
+        ~Scene() {}
 
         nlohmann::json ToJSON();
+
+        void LoadToEngine()
+        {
+            if (!initialized || loadedToEngine)
+                return;
+
+            auto loadView = [this]<typename T>()
+            {
+                auto view = registry.view<T>();
+                for (auto entity : view)
+                    view.template get<T>(entity).LoadToEngine();
+            };
+
+            loadView.operator()<vke_component::Camera>();
+            loadView.operator()<vke_component::RenderableObject>();
+            loadView.operator()<vke_component::SkeletonAnimator>();
+            loadView.operator()<vke_component::RigidBody>();
+            vke_render::Renderer::GetInstance()->lightManager->BindSceneLighting(&lighting);
+
+            physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
+                                                                                          std::function<void(void *, void *)>(physicsUpdateCallback));
+
+            std::vector<const char *> dataPtrs;
+            for (auto &data : csharpScriptStates)
+                dataPtrs.push_back(data.c_str());
+            ScriptManager::Load(dataPtrs.data(), dataPtrs.size());
+            ScriptManager::Start();
+            loadedToEngine = true;
+        }
+
+        void UnloadFromEngine()
+        {
+            if (!initialized || !loadedToEngine)
+                return;
+
+            ScriptManager::Unload();
+            vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
+            physicsUpdateListenerID = 0;
+            vke_render::Renderer::GetInstance()->lightManager->BindSceneLighting(nullptr);
+
+            auto unloadView = [this]<typename T>()
+            {
+                auto view = registry.view<T>();
+                for (auto entity : view)
+                    view.template get<T>(entity).UnloadFromEngine();
+            };
+
+            unloadView.operator()<vke_component::RigidBody>();
+            unloadView.operator()<vke_component::SkeletonAnimator>();
+            unloadView.operator()<vke_component::RenderableObject>();
+            unloadView.operator()<vke_component::Camera>();
+            loadedToEngine = false;
+        }
 
         // void AddObject(std::unique_ptr<GameObject> &&object)
         // {
@@ -52,13 +113,13 @@ namespace vke_common
         //     gameObjects[id] = std::move(object);
         // }
 
-        entt::entity GetObjectEntity(vke_ds::id32_t id)
+        entt::entity GetObjectEntity(vke_ds::id32_t id) const
         {
             auto it = idToEntity.find(id);
             return it == idToEntity.end() ? entt::null : it->second;
         }
 
-        vke_ds::id32_t GetEntityID(entt::entity entity)
+        vke_ds::id32_t GetEntityID(entt::entity entity) const
         {
             return registry.valid(entity) ? registry.get<GameObject>(entity).id : 0;
         }
@@ -84,10 +145,11 @@ namespace vke_common
                     entitiesToBeRemoved.push_back(child);
             }
 
-            // TODO Clean up component
+            for (entt::entity ent : entitiesToBeRemoved)
+                unloadEntityFromEngine(ent);
 
             for (entt::entity ent : entitiesToBeRemoved)
-                registry.destroy(ent);
+                registry.destroy(ent); // remove all component in registry
         }
 
         void RemoveChild(entt::entity entity, entt::entity childEntity)
@@ -185,17 +247,22 @@ namespace vke_common
 
         entt::registry registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
+        vke_render::SceneLighting lighting;
         // std::unordered_map<vke_ds::id32_t, std::unordered_multimap<std::string, vke_component::ScriptState>> csharpScripts;
         std::vector<std::string> csharpScriptStates;
 
     private:
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> idAllocator;
         vke_ds::id32_t physicsUpdateListenerID;
+        bool initialized;
+        bool loadedToEngine;
 
         void dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited);
         void init(const nlohmann::json &json);
-        void loadComponent(const vke_ds::id32_t id, const nlohmann::json &component);
+        void loadComponent(const vke_ds::id32_t id, const entt::entity entity,
+                           const nlohmann::json &component);
         void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json);
+        void unloadEntityFromEngine(entt::entity entity);
         void updateTransform(entt::entity entity, Transform &transform, bool first);
 
         static void physicsUpdateCallback(void *self, void *info);
@@ -230,21 +297,20 @@ namespace vke_common
         {
             instance->unloadCurrentSceneFromEngine();
             delete instance;
+            instance = nullptr;
         }
 
         static void SetCurrentScene(std::unique_ptr<Scene> &&scene)
         {
-            // TODO 1: load given scene to engine
-            //  std::exchange<std::unique_ptr<Scene>>(instance->currentScene, std::forward<std::unique_ptr<Scene>>(scene));
             instance->unloadCurrentSceneFromEngine();
             instance->currentScene = std::move(scene);
             instance->loadCurrentSceneToEngine();
         }
 
-        static void LoadScene(const std::string &pth) // load scene data only, not load to engine
+        static std::unique_ptr<Scene> LoadScene(const std::string &pth) // load scene data only, not load to engine
         {
             nlohmann::json json(vke_common::AssetManager::LoadJSON(pth));
-            SetCurrentScene(std::make_unique<Scene>(pth, json)); // TODO remove, load data only
+            return std::make_unique<Scene>(pth, json);
         }
 
         static void SaveScene(const std::string &pth)
@@ -260,19 +326,17 @@ namespace vke_common
     private:
         void loadCurrentSceneToEngine()
         {
-            std::vector<const char *> dataPtrs;
-            for (auto &data : currentScene->csharpScriptStates)
-                dataPtrs.push_back(data.c_str());
-            ScriptManager::Load(dataPtrs.data(), dataPtrs.size());
-            ScriptManager::Start();
+            if (currentScene == nullptr)
+                return;
+            currentScene->LoadToEngine();
         }
 
         void unloadCurrentSceneFromEngine()
         {
             if (currentScene == nullptr)
                 return;
-            // TODO Unload Components
-            ScriptManager::Unload();
+            currentScene->UnloadFromEngine();
+            currentScene = nullptr;
         }
     };
 }

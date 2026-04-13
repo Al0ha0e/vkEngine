@@ -24,19 +24,32 @@ namespace vke_component
         Camera(const vke_common::Transform &transform,
                float fov, float width, float height,
                float near, float far)
-            : id(0), width(width), height(height), cameraInfo(near, far, glm::radians(fov), width / height)
+            : id(0), resizeListenerID(0), width(width), height(height),
+              cameraInfo(near, far, glm::radians(fov), width / height)
         {
             init(transform);
         }
 
         Camera(const vke_common::Transform &transform, const nlohmann::json &json)
-            : id(0), width(json["width"]), height(json["height"]),
+            : id(0), resizeListenerID(0), width(json["width"]), height(json["height"]),
               cameraInfo(json["near"], json["far"], glm::radians((float)json["fov"]), width / height)
         {
             init(transform);
         }
 
-        ~Camera()
+        ~Camera() {}
+
+        void LoadToEngine()
+        {
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            resizeListenerID = renderer->resizeEventHub.AddEventListener(
+                this,
+                vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
+            std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
+            id = vke_render::Renderer::RegisterCamera(callback);
+        }
+
+        void UnloadFromEngine()
         {
             vke_render::Renderer::RemoveCamera(id);
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
@@ -89,11 +102,6 @@ namespace vke_component
 
         void init(const vke_common::Transform &transform)
         {
-            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            resizeListenerID = renderer->resizeEventHub.AddEventListener(
-                this,
-                vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
-
             const glm::vec3 position = transform.GetGlobalPosition();
             const glm::quat rotation = transform.GetGlobalRotation();
             const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
@@ -103,9 +111,6 @@ namespace vke_component
             cameraInfo.view = glm::lookAt(position, position + gfront, gup);
             cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
             cameraInfo.projection[1][1] *= -1;
-
-            std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
-            id = vke_render::Renderer::RegisterCamera(callback);
         }
 
         void onCameraSelected()

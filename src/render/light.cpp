@@ -10,6 +10,7 @@ namespace vke_render
             lightCnts[i] = 0;
             lightUpdateCnts[i] = 0;
         }
+        sceneLighting = nullptr;
 
         auto lightCullingShader = vke_common::AssetManager::LoadComputeShader(vke_common::BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID);
         lightCullingTask = std::make_unique<ComputePipeline>(lightCullingShader);
@@ -17,9 +18,6 @@ namespace vke_render
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
             for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
                 lightBuffers[i][j] = std::make_unique<DeviceBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-
-        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
-            cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
         for (int i = 0; i < 2; ++i)
             clusterBuffers[i] = std::make_unique<DeviceBuffer>(CLUSTER_DIM_X * CLUSTER_DIM_Y * CLUSTER_DIM_Z * MAX_LIGHT_PER_CLUSTER * sizeof(uint32_t),
@@ -114,13 +112,37 @@ namespace vke_render
 
     void LightManager::update(uint32_t currentFrame)
     {
+        if (sceneLighting != nullptr && sceneLighting->dirty)
+        {
+            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            {
+                lightCnts[i] = sceneLighting->lightCnts[i];
+                lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
+            }
+            sceneLighting->dirty = false;
+        }
+
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
         {
             if (lightUpdateCnts[i] > 0)
             {
                 --lightUpdateCnts[i];
-                RenderEnvironment::CopyBuffer(cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer, cpuLightBuffers[i]->bufferSize, 0, 0);
+                if (sceneLighting != nullptr)
+                    RenderEnvironment::CopyBuffer(sceneLighting->cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer, sceneLighting->cpuLightBuffers[i]->bufferSize);
             }
         }
+    }
+
+    void LightManager::BindSceneLighting(SceneLighting *lighting)
+    {
+        sceneLighting = lighting;
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+        {
+            lightCnts[i] = sceneLighting == nullptr ? 0 : sceneLighting->lightCnts[i];
+            lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
+        }
+
+        if (sceneLighting != nullptr)
+            sceneLighting->dirty = true;
     }
 }

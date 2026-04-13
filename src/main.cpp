@@ -26,7 +26,8 @@ int main(int argc, char **argv)
     vke_common::Engine *engine = vke_common::Engine::Init(window, nullptr, passes, customPasses);
 
     vke_common::AssetManager::LoadAssetLUT(gameConfig->assetLUTPath);
-    vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);
+    auto scene = vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);
+    vke_common::SceneManager::SetCurrentScene(std::move(scene));
 
     glfwSetFramebufferSizeCallback(window, vke_common::Engine::OnWindowResize);
     while (!glfwWindowShouldClose(window))

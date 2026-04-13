@@ -55,9 +55,6 @@ namespace vke_common
 
     void Scene::init(const nlohmann::json &json)
     {
-        physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
-                                                                                      std::function<void(void *, void *)>(physicsUpdateCallback));
-
         auto &lrs = json["layers"];
         for (auto &layer : lrs)
             layers.push_back(layer);
@@ -96,9 +93,11 @@ namespace vke_common
         for (auto &jsonObj : jsonObjs)
         {
             vke_ds::id32_t id = jsonObj["id"].get<vke_ds::id32_t>();
+            const entt::entity entity = idToEntity[id];
+
             auto &components = jsonObj["components"];
             for (auto &component : components)
-                loadComponent(id, component);
+                loadComponent(id, entity, component);
         }
     }
 }

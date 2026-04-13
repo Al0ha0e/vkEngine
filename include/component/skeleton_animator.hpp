@@ -45,7 +45,16 @@ namespace vke_component
             init(transform, mesh);
         }
 
-        ~SkeletonAnimator()
+        ~SkeletonAnimator() {}
+
+        void LoadToEngine()
+        {
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
+            renderer->AddRenderUpdateCallback(renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
+        }
+
+        void UnloadFromEngine()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
@@ -116,9 +125,6 @@ namespace vke_component
             }
 
             renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, sizeof(glm::mat4), descriptorSets[0]);
-            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
-            renderer->AddRenderUpdateCallback(renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
 
             const auto &names = skeleton->skeleton.joint_names();
             for (auto &n : names)

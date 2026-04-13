@@ -5,6 +5,9 @@
 #include <render/descriptor.hpp>
 #include <render/pipeline.hpp>
 #include <render/frame_graph.hpp>
+#include <entt/entity/entity.hpp>
+#include <glm/glm.hpp>
+#include <nlohmann/json.hpp>
 #include <concepts>
 #include <type_traits>
 #include <memory>
@@ -27,6 +30,14 @@ namespace vke_render
 
         DirectionalLight() : direction(1, 0, 0, 0), colorWithIntensity(0) {}
         DirectionalLight(glm::vec4 direction, glm::vec4 color) : direction(direction), colorWithIntensity(color) {}
+
+        nlohmann::json ToJSON() const
+        {
+            return {
+                {"type", "directionalLight"},
+                {"color", {colorWithIntensity.x, colorWithIntensity.y, colorWithIntensity.z}},
+                {"intensity", colorWithIntensity.w}};
+        }
     };
 
     struct PointLight
@@ -38,6 +49,15 @@ namespace vke_render
         PointLight() : positionWithRadius(0), colorWithIntensity(0) {}
         PointLight(glm::vec4 positionWithRadius, glm::vec4 colorWithIntensity)
             : positionWithRadius(positionWithRadius), colorWithIntensity(colorWithIntensity) {}
+
+        nlohmann::json ToJSON() const
+        {
+            return {
+                {"type", "pointLight"},
+                {"radius", positionWithRadius.w},
+                {"color", {colorWithIntensity.x, colorWithIntensity.y, colorWithIntensity.z}},
+                {"intensity", colorWithIntensity.w}};
+        }
     };
 
     struct SpotLight
@@ -51,6 +71,17 @@ namespace vke_render
         SpotLight() : positionWithRadius(0), direction(1, 0, 0, 0), colorWithIntensity(0), cone(0) {}
         SpotLight(glm::vec4 positionWithRadius, glm::vec4 direction, glm::vec4 colorWithIntensity, glm::vec4 cone)
             : positionWithRadius(positionWithRadius), direction(direction), colorWithIntensity(colorWithIntensity), cone(cone) {}
+
+        nlohmann::json ToJSON() const
+        {
+            return {
+                {"type", "spotLight"},
+                {"radius", positionWithRadius.w},
+                {"color", {colorWithIntensity.x, colorWithIntensity.y, colorWithIntensity.z}},
+                {"intensity", colorWithIntensity.w},
+                {"innerCone", glm::degrees(glm::acos(glm::clamp(cone.x, -1.0f, 1.0f)))},
+                {"outerCone", glm::degrees(glm::acos(glm::clamp(cone.y, -1.0f, 1.0f)))}};
+        }
     };
 
     template <typename T>
@@ -68,6 +99,99 @@ namespace vke_render
     constexpr size_t LIGHT_SIZES[] = {sizeof(DirectionalLight), sizeof(PointLight), sizeof(SpotLight)};
     constexpr uint32_t LIGHT_MAP_ST[] = {0, MAX_DIRECTIONAL_LIGHT_CNT, MAX_DIRECTIONAL_LIGHT_CNT + MAX_POINT_LIGHT_CNT,
                                          MAX_DIRECTIONAL_LIGHT_CNT + MAX_POINT_LIGHT_CNT + MAX_SPOT_LIGHT_CNT};
+
+    class SceneLighting
+    {
+    public:
+        bool dirty;
+        uint32_t lightCnts[(int)LightType::LIGHT_TYPE_CNT];
+        std::unordered_map<entt::entity, vke_ds::id32_t> lightMaps[(int)LightType::LIGHT_TYPE_CNT];
+        std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
+
+        SceneLighting() : dirty(true)
+        {
+            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            {
+                lightCnts[i] = 0;
+                cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            }
+        }
+
+        SceneLighting(const SceneLighting &) = delete;
+        SceneLighting &operator=(const SceneLighting &) = delete;
+        SceneLighting(SceneLighting &&) = delete;
+        SceneLighting &operator=(SceneLighting &&) = delete;
+
+        template <AllowedLightType T, typename... Args>
+        void AddLight(entt::entity entity, Args &&...args)
+        {
+            const int typecode = (int)T::type;
+            uint32_t &cnt = lightCnts[typecode];
+            VKE_FATAL_IF(cnt >= MAX_LIGHT_CNTS[typecode], "NO MORE LIGHT OF TYPE {}", typecode)
+
+            const vke_ds::id32_t id = cnt++;
+            ownerMaps[typecode].push_back(entity);
+            std::construct_at(reinterpret_cast<T *>(cpuLightBuffers[typecode]->data) + id, std::forward<Args>(args)...);
+
+            lightMaps[typecode][entity] = id;
+            dirty = true;
+        }
+
+        template <AllowedLightType T>
+        bool HasLight(entt::entity entity) const
+        {
+            const int typecode = (int)T::type;
+            return lightMaps[typecode].find(entity) != lightMaps[typecode].end();
+        }
+
+        template <AllowedLightType T>
+        T &GetLight(entt::entity entity)
+        {
+            const int typecode = (int)T::type;
+            vke_ds::id32_t id = lightMaps[typecode][entity];
+            VKE_FATAL_IF(id >= lightCnts[typecode], "LIGHT NOT EXIST")
+            return reinterpret_cast<T *>(cpuLightBuffers[typecode]->data)[id];
+        }
+
+        template <AllowedLightType T>
+        void RemoveLight(entt::entity entity)
+        {
+            const int typecode = (int)T::type;
+            auto &lightMap = lightMaps[typecode];
+            auto it = lightMap.find(entity);
+            if (it == lightMap.end())
+                return;
+
+            vke_ds::id32_t id = it->second;
+            uint32_t &cnt = lightCnts[typecode];
+            VKE_FATAL_IF(id >= cnt, "LIGHT NOT EXIST")
+
+            const uint32_t last = cnt - 1;
+            if (id != last)
+            {
+                const size_t size = LIGHT_SIZES[typecode];
+                char *base = reinterpret_cast<char *>(cpuLightBuffers[typecode]->data);
+                std::memcpy(base + id * size, base + last * size, size);
+
+                entt::entity swappedOwner = ownerMaps[typecode][last];
+                ownerMaps[typecode][id] = swappedOwner;
+                lightMap[swappedOwner] = id;
+            }
+
+            ownerMaps[typecode].pop_back();
+            --cnt;
+            lightMap.erase(it);
+            dirty = true;
+        }
+
+        void MarkDirty()
+        {
+            dirty = true;
+        }
+
+    private:
+        std::vector<entt::entity> ownerMaps[(int)LightType::LIGHT_TYPE_CNT];
+    };
 
     class LightManager
     {
@@ -98,76 +222,19 @@ namespace vke_render
             update(currentFrame);
         }
 
-        template <AllowedLightType T, typename... Args>
-        vke_ds::id32_t AddLight(Args &&...args)
-        {
-            const int typecode = (int)T::type;
-            vke_ds::id32_t ret = lightCnts[typecode];
-            if (ret >= MAX_LIGHT_CNTS[typecode])
-                return MAX_LIGHT_CNTS[typecode];
-
-            lightMap[LIGHT_MAP_ST[typecode] + ret] = ret;
-            ++lightCnts[typecode];
-
-            std::construct_at(
-                reinterpret_cast<T *>(cpuLightBuffers[typecode]->data) + ret,
-                std::forward<Args>(args)...);
-
-            MarkDirty<T>();
-            return ret;
-        }
-
-        template <vke_render::AllowedLightType T>
-        T &GetLight(vke_ds::id32_t id)
-        {
-            const int typecode = (int)T::type;
-            VKE_FATAL_IF(id >= lightCnts[typecode], "LIGHT NOT EXIST")
-            return ((T *)cpuLightBuffers[typecode]->data)[lightMap[LIGHT_MAP_ST[typecode] + id]];
-        }
-
-        void RemoveLight(LightType type, vke_ds::id32_t id)
-        {
-            const int typecode = (int)type;
-            uint32_t &cnt = lightCnts[typecode];
-            if (id >= cnt)
-                return;
-
-            uint32_t last = --cnt;
-            if (id != last)
-            {
-                size_t size = LIGHT_SIZES[typecode];
-                char *base = (char *)cpuLightBuffers[typecode]->data;
-                std::memcpy(base + id * size,
-                            base + last * size, size);
-                lightMap[LIGHT_MAP_ST[typecode] + id] = lightMap[LIGHT_MAP_ST[typecode] + last];
-            }
-            MarkDirty(type);
-        }
-
-        template <vke_render::AllowedLightType T>
-        void MarkDirty()
-        {
-            const int typecode = (int)T::type;
-            lightUpdateCnts[typecode] = MAX_FRAMES_IN_FLIGHT;
-        }
-
-        void MarkDirty(const LightType type)
-        {
-            lightUpdateCnts[(int)type] = MAX_FRAMES_IN_FLIGHT;
-        }
-
         void SetGlobalDescriptorSets(VkDescriptorSet *descriptorSet)
         {
             globalDescriptorSets = descriptorSet;
         }
 
+        void BindSceneLighting(SceneLighting *lighting);
+
     private:
         uint32_t lightUpdateCnts[(int)LightType::LIGHT_TYPE_CNT];
-        uint32_t lightMap[LIGHT_MAP_ST[(int)LightType::LIGHT_TYPE_CNT]];
         VkDescriptorSet *globalDescriptorSets;
+        SceneLighting *sceneLighting;
 
         std::unique_ptr<DeviceBuffer> lightBuffers[(int)LightType::LIGHT_TYPE_CNT][MAX_FRAMES_IN_FLIGHT];
-        std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
         std::unique_ptr<DeviceBuffer> clusterBuffers[2];
         std::unique_ptr<ComputePipeline> lightCullingTask;
 

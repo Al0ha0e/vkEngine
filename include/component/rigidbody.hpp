@@ -12,41 +12,54 @@ namespace vke_component
     public:
         JPH::BodyID bodyID;
         std::shared_ptr<vke_physics::PhyscisShape> shape;
+        JPH::BodyCreationSettings settings;
+        float friction;
+        float restitution;
 
         RigidBody(const vke_common::Transform &transform,
                   JPH::EMotionType motionType,
                   JPH::ObjectLayer layer,
                   float friction, float restitution,
                   std::shared_ptr<vke_physics::PhyscisShape> &shape)
-            : shape(shape)
+            : friction(friction), restitution(restitution), shape(shape)
         {
-            init(transform, motionType, layer, friction, restitution);
+            init(transform, motionType, layer);
         }
 
         RigidBody(const vke_common::Transform &transform,
                   const nlohmann::json &json)
-            : shape(new vke_physics::PhyscisShape(json["shape"]))
+            : friction(json["friction"]), restitution(json["restitution"]), shape(new vke_physics::PhyscisShape(json["shape"]))
         {
-            init(transform, json["motionType"], json["layer"], json["friction"], json["restitution"]);
+            init(transform, json["motionType"], json["layer"]);
         }
 
-        ~RigidBody()
+        ~RigidBody() {}
+
+        void LoadToEngine()
+        {
+            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+            interface.SetFriction(bodyID, friction);
+            interface.SetRestitution(bodyID, restitution);
+        }
+
+        void UnloadFromEngine()
         {
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
         }
 
-        nlohmann::json ToJSON()
+        nlohmann::json ToJSON() // TODO DEBUG tojson when not loaded to engine
         {
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
 
             nlohmann::json ret = {
                 {"type", "rigidbody"},
-                {"motionType", (int)interface.GetMotionType(bodyID)},
-                {"layer", (int)interface.GetObjectLayer(bodyID)},
-                {"friction", interface.GetFriction(bodyID)},
-                {"restitution", interface.GetRestitution(bodyID)},
+                {"motionType", settings.mMotionType},
+                {"layer", (int)settings.mObjectLayer},
+                {"friction", friction},
+                {"restitution", restitution},
                 {"shape", shape->ToJSON()}};
             return ret;
         }
@@ -55,20 +68,15 @@ namespace vke_component
 
     private:
         void init(const vke_common::Transform &transform,
-                  JPH::EMotionType motionType, JPH::ObjectLayer layer,
-                  float friction, float restitution)
+                  JPH::EMotionType motionType, JPH::ObjectLayer layer)
         {
             const glm::vec3 position = transform.GetGlobalPosition();
             const glm::quat rotation = transform.GetGlobalRotation();
 
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
-            JPH::BodyCreationSettings settings(shape->shapeRef,
-                                               JPH::RVec3(position.x, position.y, position.z),
-                                               JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
-                                               motionType, layer);
-            bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
-            interface.SetFriction(bodyID, friction);
-            interface.SetRestitution(bodyID, restitution);
+            settings = JPH::BodyCreationSettings(shape->shapeRef,
+                                                 JPH::RVec3(position.x, position.y, position.z),
+                                                 JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
+                                                 motionType, layer);
         }
     };
 }
