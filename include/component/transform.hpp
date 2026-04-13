@@ -119,6 +119,18 @@ namespace vke_common
             calcModelMatrixWithParent(fa);
         }
 
+        void SetGlobalPosition(const glm::vec3 &pos)
+        {
+            localPosition = pos;
+            calcModelMatrix();
+        }
+
+        void SetGlobalPositionWithParent(const glm::mat4 &fa, const glm::vec3 &pos)
+        {
+            localPosition = glm::vec3(glm::inverse(fa) * glm::vec4(pos, 1.0f));
+            calcModelMatrixWithParent(fa);
+        }
+
         void TranslateLocal(const glm::vec3 &det)
         {
             localPosition += localRotation * det;
@@ -152,6 +164,18 @@ namespace vke_common
         void SetLocalRotationWithParent(const Transform &fa, const glm::quat &rot)
         {
             localRotation = glm::normalize(rot);
+            calcModelMatrixWithParent(fa.model);
+        }
+
+        void SetGlobalRotation(const glm::quat &rot)
+        {
+            localRotation = glm::normalize(rot);
+            calcModelMatrix();
+        }
+
+        void SetGlobalRotationWithParent(const Transform &fa, const glm::quat &rot)
+        {
+            localRotation = glm::normalize(glm::inverse(fa.GetGlobalRotation()) * rot);
             calcModelMatrixWithParent(fa.model);
         }
 

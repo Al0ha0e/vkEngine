@@ -50,7 +50,7 @@ namespace vke_component
             interface.DestroyBody(bodyID);
         }
 
-        nlohmann::json ToJSON() // TODO DEBUG tojson when not loaded to engine
+        nlohmann::json ToJSON()
         {
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
 
@@ -64,7 +64,9 @@ namespace vke_component
             return ret;
         }
 
-        void OnTransformed(vke_common::Transform &param) {} // TODO
+        void OnTransformed(vke_common::Transform &param) // TODO: syncing Transform back to physics here needs a guard to avoid physics <-> scene feedback loops.
+        {
+        }
 
     private:
         void init(const vke_common::Transform &transform,

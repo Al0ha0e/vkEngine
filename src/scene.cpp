@@ -1,5 +1,4 @@
 #include <scene.hpp>
-#include <unordered_set>
 
 namespace vke_common
 {
@@ -38,21 +37,6 @@ namespace vke_common
         return ret;
     }
 
-    void Scene::dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited)
-    {
-        visited.insert(entity);
-
-        if (transform.parent != entt::null)
-            transform.SetParentFixedLocal(registry.get<Transform>(transform.parent));
-
-        for (auto child : transform.children)
-        {
-            VKE_FATAL_IF(visited.find(child) != visited.end(), "SCENE OBJ CONTAIN LOOP")
-            Transform &childTransform = registry.get<Transform>(child);
-            dfs(child, childTransform, visited);
-        }
-    }
-
     void Scene::init(const nlohmann::json &json)
     {
         auto &lrs = json["layers"];
@@ -69,26 +53,7 @@ namespace vke_common
             registry.emplace<Transform>(entity, jsonObj["transform"]);
         }
 
-        for (auto &jsonObj : jsonObjs)
-        {
-            vke_ds::id32_t id = jsonObj["id"].get<vke_ds::id32_t>();
-            Transform &transform = registry.get<Transform>(idToEntity[id]);
-
-            vke_ds::id32_t parentId = jsonObj["parent"].get<vke_ds::id32_t>();
-            transform.parent = parentId ? idToEntity.at(parentId) : entt::null;
-
-            for (auto &jsonChild : jsonObj["children"])
-                transform.children.insert(idToEntity[jsonChild.get<vke_ds::id32_t>()]);
-        }
-
-        std::unordered_set<entt::entity> visited;
-
-        for (auto &[id, entity] : idToEntity)
-        {
-            Transform &transform = registry.get<Transform>(entity);
-            if (transform.parent == entt::null)
-                dfs(entity, transform, visited);
-        }
+        transformSystem.InitializeHierarchy(jsonObjs);
 
         for (auto &jsonObj : jsonObjs)
         {

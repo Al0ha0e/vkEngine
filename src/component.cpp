@@ -7,6 +7,11 @@
 
 namespace vke_common
 {
+    static inline glm::vec3 TransformForward(const vke_common::Transform &transform)
+    {
+        return transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+
     void Scene::unloadEntityFromEngine(entt::entity entity)
     {
         if (!loadedToEngine)
@@ -47,15 +52,9 @@ namespace vke_common
             JPH::RVec3 cpos;
             cpos = interface.GetCenterOfMassPosition(rigidbody.bodyID);
 
-            scene.SetLocalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
-            scene.SetLocalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
-            // TODO Set Global
+            scene.transformSystem.SetGlobalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
+            scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
         }
-    }
-
-    static inline glm::vec3 TransformForward(const vke_common::Transform &transform)
-    {
-        return transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
     }
 
     void Scene::loadComponent(const vke_ds::id32_t id, const entt::entity entity,
@@ -154,43 +153,4 @@ namespace vke_common
         // }
     }
 
-    void Scene::updateTransform(entt::entity entity, Transform &transform, bool first)
-    {
-        if (!first)
-            transform.UpdateWithParent(registry.get<Transform>(transform.parent));
-
-        if (registry.all_of<vke_component::Camera>(entity))
-            registry.get<vke_component::Camera>(entity).OnTransformed(transform);
-
-        if (registry.all_of<vke_component::RigidBody>(entity))
-            registry.get<vke_component::RigidBody>(entity).OnTransformed(transform);
-
-        if (lighting.HasLight<vke_render::DirectionalLight>(entity))
-        {
-            auto &light = lighting.GetLight<vke_render::DirectionalLight>(entity);
-            light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
-            lighting.MarkDirty();
-        }
-
-        if (lighting.HasLight<vke_render::PointLight>(entity))
-        {
-            auto &light = lighting.GetLight<vke_render::PointLight>(entity);
-            light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
-            lighting.MarkDirty();
-        }
-
-        if (lighting.HasLight<vke_render::SpotLight>(entity))
-        {
-            auto &light = lighting.GetLight<vke_render::SpotLight>(entity);
-            light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
-            light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
-            lighting.MarkDirty();
-        }
-
-        for (auto &child : transform.children)
-        {
-            auto &childTransform = registry.get<Transform>(child);
-            updateTransform((entt::entity)child, childTransform, false);
-        }
-    }
 }

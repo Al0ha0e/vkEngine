@@ -133,6 +133,7 @@ commonsrc = (
         "./src/render/queue.cpp",
         "./src/component.cpp",
         "./src/scene.cpp",
+        "./src/scene_transform_system.cpp",
         "./src/event.cpp",
         "./src/engine.cpp",
         "./src/engine_state.cpp",
