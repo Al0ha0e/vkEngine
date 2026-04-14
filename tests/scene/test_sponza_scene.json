@@ -16,9 +16,8 @@
         },
         {
           "type": "script",
+          "className": "TestProj.TestCameraScript",
           "data": {
-            "id": 1,
-            "className": "TestProj.TestCameraScript",
             "fields": [
               {
                 "name": "MoveSpeed",

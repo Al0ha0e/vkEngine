@@ -9,16 +9,16 @@ public sealed class TestCameraScript : EntityScript
     public float RotateSpeed = 1.0f;
     private Transform? transform;
 
-    public TestCameraScript(UInt32 entityId) : base(entityId)
+    public TestCameraScript(UInt32 entity) : base(entity)
     {
-        Console.WriteLine("TestCameraScript Construct!!!!! " + entityId);
+        Console.WriteLine("TestCameraScript Construct!!!!! " + entity);
     }
 
     public override void Start()
     {
         Console.WriteLine(
-            $"TestCameraScript.Start entity={EntityId} MoveSpeed={MoveSpeed} RotateSpeed={RotateSpeed}");
-        transform = new Transform(EntityId);
+            $"TestCameraScript.Start entity={Entity} MoveSpeed={MoveSpeed} RotateSpeed={RotateSpeed}");
+        transform = new Transform(Entity);
         Input.CursorMode = CursorMode.Disabled;
     }
 

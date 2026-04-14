@@ -15,14 +15,16 @@ namespace vke_interop
         return vke_common::SceneManager::GetInstance()->currentScene.get();
     }
 
-    static entt::entity GetEntity(vke_common::Scene *scene, uint32_t id)
+    static inline entt::entity GetEntity(vke_common::Scene *scene, uint32_t entity)
     {
-        return scene->GetObjectEntity(id);
+        entt::entity ent = static_cast<entt::entity>(entity);
+        // VKE_FATAL_IF(scene == nullptr || !scene->registry.valid(ent), "Invalid scene entity {}", entity)
+        return ent;
     }
 
-    static vke_common::Transform &GetTransform(vke_common::Scene *scene, uint32_t id)
+    static vke_common::Transform &GetTransform(vke_common::Scene *scene, uint32_t entity)
     {
-        return scene->registry.get<vke_common::Transform>(GetEntity(scene, id));
+        return scene->registry.get<vke_common::Transform>(GetEntity(scene, entity));
     }
 
     static glm::vec3 ToGlm(const Vector3<float> &value)
@@ -50,70 +52,70 @@ namespace vke_interop
         return Quaternion<float>{value.x, value.y, value.z, value.w};
     }
 
-    static void VKE_INTEROP_CDECL GetTransformLocalPosition(uint32_t id, Vector3<float> *position)
+    static void VKE_INTEROP_CDECL GetTransformLocalPosition(uint32_t entity, Vector3<float> *position)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        *position = ToInterop(GetTransform(scene, id).localPosition);
+        *position = ToInterop(GetTransform(scene, entity).localPosition);
     }
 
-    static void VKE_INTEROP_CDECL SetTransformLocalPosition(uint32_t id, const Vector3<float> *position)
+    static void VKE_INTEROP_CDECL SetTransformLocalPosition(uint32_t entity, const Vector3<float> *position)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.SetLocalPosition(GetEntity(scene, id), ToGlm(*position));
+        scene->transformSystem.SetLocalPosition(GetEntity(scene, entity), ToGlm(*position));
     }
 
-    static void VKE_INTEROP_CDECL GetTransformLocalRotation(uint32_t id, Quaternion<float> *rotation)
+    static void VKE_INTEROP_CDECL GetTransformLocalRotation(uint32_t entity, Quaternion<float> *rotation)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        *rotation = ToInterop(GetTransform(scene, id).localRotation);
+        *rotation = ToInterop(GetTransform(scene, entity).localRotation);
     }
 
-    static void VKE_INTEROP_CDECL SetTransformLocalRotation(uint32_t id, const Quaternion<float> *rotation)
+    static void VKE_INTEROP_CDECL SetTransformLocalRotation(uint32_t entity, const Quaternion<float> *rotation)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.SetLocalRotation(GetEntity(scene, id), ToGlm(*rotation));
+        scene->transformSystem.SetLocalRotation(GetEntity(scene, entity), ToGlm(*rotation));
     }
 
-    static void VKE_INTEROP_CDECL GetTransformLocalScale(uint32_t id, Vector3<float> *scale)
+    static void VKE_INTEROP_CDECL GetTransformLocalScale(uint32_t entity, Vector3<float> *scale)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        *scale = ToInterop(GetTransform(scene, id).localScale);
+        *scale = ToInterop(GetTransform(scene, entity).localScale);
     }
 
-    static void VKE_INTEROP_CDECL SetTransformLocalScale(uint32_t id, const Vector3<float> *scale)
+    static void VKE_INTEROP_CDECL SetTransformLocalScale(uint32_t entity, const Vector3<float> *scale)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.SetLocalScale(GetEntity(scene, id), ToGlm(*scale));
+        scene->transformSystem.SetLocalScale(GetEntity(scene, entity), ToGlm(*scale));
     }
 
-    static void VKE_INTEROP_CDECL TranslateTransformLocal(uint32_t id, const Vector3<float> *det)
+    static void VKE_INTEROP_CDECL TranslateTransformLocal(uint32_t entity, const Vector3<float> *det)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.TranslateLocal(GetEntity(scene, id), ToGlm(*det));
+        scene->transformSystem.TranslateLocal(GetEntity(scene, entity), ToGlm(*det));
     }
 
-    static void VKE_INTEROP_CDECL TranslateTransformGlobal(uint32_t id, const Vector3<float> *det)
+    static void VKE_INTEROP_CDECL TranslateTransformGlobal(uint32_t entity, const Vector3<float> *det)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.TranslateGlobal(GetEntity(scene, id), ToGlm(*det));
+        scene->transformSystem.TranslateGlobal(GetEntity(scene, entity), ToGlm(*det));
     }
 
-    static void VKE_INTEROP_CDECL RotateTransformLocal(uint32_t id, float det, const Vector3<float> *axis)
+    static void VKE_INTEROP_CDECL RotateTransformLocal(uint32_t entity, float det, const Vector3<float> *axis)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.RotateLocal(GetEntity(scene, id), det, ToGlm(*axis));
+        scene->transformSystem.RotateLocal(GetEntity(scene, entity), det, ToGlm(*axis));
     }
 
-    static void VKE_INTEROP_CDECL RotateTransformGlobal(uint32_t id, float det, const Vector3<float> *axis)
+    static void VKE_INTEROP_CDECL RotateTransformGlobal(uint32_t entity, float det, const Vector3<float> *axis)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.RotateGlobal(GetEntity(scene, id), det, ToGlm(*axis));
+        scene->transformSystem.RotateGlobal(GetEntity(scene, entity), det, ToGlm(*axis));
     }
 
-    static void VKE_INTEROP_CDECL ScaleTransform(uint32_t id, const Vector3<float> *scale)
+    static void VKE_INTEROP_CDECL ScaleTransform(uint32_t entity, const Vector3<float> *scale)
     {
         vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.Scale(GetEntity(scene, id), ToGlm(*scale));
+        scene->transformSystem.Scale(GetEntity(scene, entity), ToGlm(*scale));
     }
 
     static int32_t VKE_INTEROP_CDECL IsKeyDown(int32_t key)

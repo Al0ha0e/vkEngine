@@ -1,78 +1,72 @@
-// #ifndef SCRIPT_COMPONENT_H
-// #define SCRIPT_COMPONENT_H
+#ifndef SCRIPT_COMPONENT_H
+#define SCRIPT_COMPONENT_H
 
-// #include <functional>
-// #include <string>
-// #include <unordered_map>
-// #include <utility>
-// #include <nlohmann/json.hpp>
-// #include <ds/id_allocator.hpp>
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <nlohmann/json.hpp>
+#include <ds/id_allocator.hpp>
 
-// namespace vke_component
-// {
-//     class ScriptState
-//     {
-//     public:
-//         vke_ds::id32_t id;
-//         std::string className;
-//         std::string serializedData;
+namespace vke_component
+{
+    class ScriptState
+    {
+    public:
+        std::string className;
+        nlohmann::json serializedData;
 
-//         ScriptState() : id(0), className(), serializedData() {}
+        ScriptState() : className(), serializedData() {}
 
-//         ScriptState(vke_ds::id32_t id, std::string className, std::string serializedData)
-//             : id(id), className(std::move(className)), serializedData(std::move(serializedData)) {}
+        ScriptState(std::string className)
+            : className(std::move(className)), serializedData() {}
 
-//         ScriptState(const ScriptState &) = default;
-//         ScriptState &operator=(const ScriptState &) = default;
+        ScriptState(const ScriptState &) = default;
+        ScriptState &operator=(const ScriptState &) = default;
 
-//         ScriptState(ScriptState &&ano) noexcept
-//             : id(ano.id),
-//               className(std::move(ano.className)),
-//               serializedData(std::move(ano.serializedData))
-//         {
-//             ano.id = 0;
-//         }
+        ScriptState(ScriptState &&ano) noexcept
+            : className(std::move(ano.className)),
+              serializedData(std::move(ano.serializedData)) {}
 
-//         ScriptState &operator=(ScriptState &&ano) noexcept
-//         {
-//             if (this == &ano)
-//                 return *this;
+        ScriptState &operator=(ScriptState &&ano) noexcept
+        {
+            if (this == &ano)
+                return *this;
+            className = std::move(ano.className);
+            serializedData = std::move(ano.serializedData);
+            return *this;
+        }
 
-//             id = ano.id;
-//             className = std::move(ano.className);
-//             serializedData = std::move(ano.serializedData);
-//             ano.id = 0;
-//             return *this;
-//         }
+        ScriptState(const nlohmann::json &json)
+            : className(json["className"].get<std::string>()),
+              serializedData(json["data"]) {}
 
-//         ScriptState(vke_ds::id32_t id, const nlohmann::json &json)
-//             : id(id),
-//               className(json["className"].get<std::string>()),
-//               serializedData(json["data"].dump()) {}
+        nlohmann::json ToJSON() const
+        {
+            return {{"type", "script"},
+                    {"className", className},
+                    {"data", serializedData}};
+        }
 
-//         nlohmann::json ToJSON() const
-//         {
-//             nlohmann::json data = nlohmann::json::object();
-//             if (!serializedData.empty())
-//                 data = nlohmann::json::parse(serializedData);
+        std::string ToCSharp(entt::entity entity) const
+        {
+            nlohmann::json json = {
+                {"entity", (uint32_t)entity},
+                {"className", className},
+                {"data", serializedData}};
+            return json.dump();
+        }
 
-//             return {
-//                 {"type", "script"},
-//                 {"id", id},
-//                 {"className", className},
-//                 {"data", std::move(data)}};
-//         }
+        bool operator==(const ScriptState &ano) const
+        {
+            return className == ano.className;
+        }
 
-//         bool operator==(const ScriptState &ano) const
-//         {
-//             return id == ano.id && className == ano.className;
-//         }
+        bool operator!=(const ScriptState &ano) const
+        {
+            return !(*this == ano);
+        }
+    };
+}
 
-//         bool operator!=(const ScriptState &ano) const
-//         {
-//             return !(*this == ano);
-//         }
-//     };
-// }
-
-// #endif
+#endif

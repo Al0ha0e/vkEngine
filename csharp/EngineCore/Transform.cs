@@ -2,7 +2,7 @@ namespace vkEngine.EngineCore
 {
     public unsafe sealed class Transform
     {
-        private readonly UInt32 id;
+        private readonly UInt32 entity;
 
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> getLocalPosition;
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> setLocalPosition;
@@ -16,9 +16,9 @@ namespace vkEngine.EngineCore
         private static delegate* unmanaged[Cdecl]<UInt32, float, NVec3*, void> rotateGlobal;
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> scale;
 
-        public Transform(UInt32 id)
+        public Transform(UInt32 entity)
         {
-            this.id = id;
+            this.entity = entity;
         }
 
         internal static void RegisterNativeFunctions(NativeFunctions* functions)
@@ -36,25 +36,23 @@ namespace vkEngine.EngineCore
             scale = functions->ScaleTransform;
         }
 
-        public uint Id
+        public uint Entity
         {
-            get { return id; }
+            get { return entity; }
         }
 
         public NVec3 LocalPosition
         {
             get
             {
-                EnsureBound();
                 NVec3 value = default;
-                getLocalPosition(id, &value);
+                getLocalPosition(entity, &value);
                 return value;
             }
             set
             {
-                EnsureBound();
                 NVec3 nativeValue = value;
-                setLocalPosition(id, &nativeValue);
+                setLocalPosition(entity, &nativeValue);
             }
         }
 
@@ -62,16 +60,14 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 NQuat value = default;
-                getLocalRotation(id, &value);
+                getLocalRotation(entity, &value);
                 return value;
             }
             set
             {
-                EnsureBound();
                 NQuat nativeValue = value;
-                setLocalRotation(id, &nativeValue);
+                setLocalRotation(entity, &nativeValue);
             }
         }
 
@@ -79,60 +75,45 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 NVec3 value = default;
-                getLocalScale(id, &value);
+                getLocalScale(entity, &value);
                 return value;
             }
             set
             {
-                EnsureBound();
                 NVec3 nativeValue = value;
-                setLocalScale(id, &nativeValue);
+                setLocalScale(entity, &nativeValue);
             }
         }
 
         public void TranslateLocal(NVec3 delta)
         {
-            EnsureBound();
             NVec3 nativeValue = delta;
-            translateLocal(id, &nativeValue);
+            translateLocal(entity, &nativeValue);
         }
 
         public void TranslateGlobal(NVec3 delta)
         {
-            EnsureBound();
             NVec3 nativeValue = delta;
-            translateGlobal(id, &nativeValue);
+            translateGlobal(entity, &nativeValue);
         }
 
         public void RotateLocal(float radians, NVec3 axis)
         {
-            EnsureBound();
             NVec3 nativeAxis = axis;
-            rotateLocal(id, radians, &nativeAxis);
+            rotateLocal(entity, radians, &nativeAxis);
         }
 
         public void RotateGlobal(float radians, NVec3 axis)
         {
-            EnsureBound();
             NVec3 nativeAxis = axis;
-            rotateGlobal(id, radians, &nativeAxis);
+            rotateGlobal(entity, radians, &nativeAxis);
         }
 
         public void Scale(NVec3 scaleFactor)
         {
-            EnsureBound();
             NVec3 nativeScale = scaleFactor;
-            scale(id, &nativeScale);
-        }
-
-        private static void EnsureBound()
-        {
-            if (!NativeFunctionRegistry.IsRegistered)
-            {
-                throw new InvalidOperationException("Native transform functions have not been registered.");
-            }
+            scale(entity, &nativeScale);
         }
     }
 }

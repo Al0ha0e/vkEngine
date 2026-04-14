@@ -24,6 +24,11 @@ namespace vke_common
         vke_common::AssetHandle handle;
         std::string path;
         std::vector<std::string> layers;
+        entt::registry registry;
+        std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
+        vke_render::SceneLighting lighting;
+        SceneTransformSystem transformSystem;
+        std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptState>> csharpScriptStates;
 
         Scene(const Scene &) = delete;
         Scene &operator=(const Scene &) = delete;
@@ -78,8 +83,14 @@ namespace vke_common
             physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
                                                                                           std::function<void(void *, void *)>(physicsUpdateCallback));
 
+            std::vector<std::string> dataStrs;
+
+            for (auto &[entity, states] : csharpScriptStates)
+                for (auto &[className, state] : states)
+                    dataStrs.push_back(state.ToCSharp(entity));
+
             std::vector<const char *> dataPtrs;
-            for (auto &data : csharpScriptStates)
+            for (auto &data : dataStrs)
                 dataPtrs.push_back(data.c_str());
             ScriptManager::Load(dataPtrs.data(), dataPtrs.size());
             ScriptManager::Start();
@@ -147,14 +158,9 @@ namespace vke_common
 
             for (entt::entity ent : entitiesToBeRemoved)
                 registry.destroy(ent);
-        }
 
-        entt::registry registry;
-        std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
-        vke_render::SceneLighting lighting;
-        SceneTransformSystem transformSystem;
-        // std::unordered_map<vke_ds::id32_t, std::unordered_multimap<std::string, vke_component::ScriptState>> csharpScripts;
-        std::vector<std::string> csharpScriptStates;
+            // TODO maybe unload from C# (or C# unload call this func)
+        }
 
     private:
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> idAllocator;

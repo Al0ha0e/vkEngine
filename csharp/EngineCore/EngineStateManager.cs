@@ -20,21 +20,13 @@ namespace vkEngine.EngineCore
         {
             set
             {
-                EnsureBound();
                 setEngineState((int)value);
             }
         }
 
         public static void SetState(EngineState state)
         {
-            EnsureBound();
             setEngineState((int)state);
-        }
-
-        private static void EnsureBound()
-        {
-            if (!NativeFunctionRegistry.IsRegistered)
-                throw new InvalidOperationException("Native engine state functions have not been registered.");
         }
     }
 }

@@ -18,7 +18,7 @@ namespace vkEngine.EngineCore
     }
 
     [Flags]
-    internal enum ScriptLifecycleMask
+    public enum ScriptLifecycleMask
     {
         None = 0,
         Start = 1 << 0,
@@ -31,6 +31,7 @@ namespace vkEngine.EngineCore
     public static class SceneManager
     {
         private const string GameAssemblyName = "Game";
+        private static readonly HashSet<EntityScript> allScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> startScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> updateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> fixedUpdateScripts = new();
@@ -44,8 +45,13 @@ namespace vkEngine.EngineCore
 
         private sealed class ScriptLoadState
         {
-            public UInt32 Id { get; set; }
+            public UInt32 Entity { get; set; }
             public string ClassName { get; set; } = string.Empty;
+            public ScriptSerializedData Data { get; set; } = new();
+        }
+
+        private sealed class ScriptSerializedData
+        {
             public List<ScriptFieldState> Fields { get; set; } = new();
         }
 
@@ -81,9 +87,11 @@ namespace vkEngine.EngineCore
                 if (!typeof(EntityScript).IsAssignableFrom(scriptType))
                     throw new InvalidOperationException($"Script type '{state.ClassName}' does not inherit from EntityScript.");
 
-                var script = CreateScriptInstance(scriptType, state.Id);
-                ApplyFields(scriptType, script, state.Fields);
-                script.Register();
+                var entity = state.Entity;
+                var fields = state.Data.Fields;
+                var script = CreateScriptInstance(scriptType, entity);
+                ApplyFields(scriptType, script, fields);
+                Register(script);
             }
         }
 
@@ -115,6 +123,10 @@ namespace vkEngine.EngineCore
         public static void Unload()
         {
             Dispatch(unloadScripts, script => script.Unload());
+            var scripts = CollectAllScripts();
+            foreach (var script in scripts)
+                script.Dispose();
+            ClearScriptCollections();
             Console.WriteLine("SceneManager.Unload");
         }
 
@@ -131,9 +143,13 @@ namespace vkEngine.EngineCore
             };
         }
 
-        internal static void Register(EntityScript script, ScriptLifecycleMask mask)
+        internal static void Register(EntityScript script)
         {
-            if (script == null || mask == ScriptLifecycleMask.None)
+            if (script == null || !allScripts.Add(script))
+                return;
+
+            ScriptLifecycleMask mask = script.LifecycleMask;
+            if (mask == ScriptLifecycleMask.None)
                 return;
 
             if (mask.HasFlag(ScriptLifecycleMask.Start))
@@ -150,6 +166,8 @@ namespace vkEngine.EngineCore
 
         internal static void Unregister(EntityScript script)
         {
+            if (script == null || !allScripts.Remove(script))
+                return;
             Remove(script, startScripts);
             Remove(script, updateScripts);
             Remove(script, fixedUpdateScripts);
@@ -159,10 +177,10 @@ namespace vkEngine.EngineCore
 
         private static void Add(EntityScript script, Dictionary<UInt32, List<EntityScript>> map)
         {
-            if (!map.TryGetValue(script.EntityId, out var scripts))
+            if (!map.TryGetValue(script.Entity, out var scripts))
             {
                 scripts = new List<EntityScript>();
-                map.Add(script.EntityId, scripts);
+                map.Add(script.Entity, scripts);
             }
 
             foreach (var existing in scripts)
@@ -176,7 +194,7 @@ namespace vkEngine.EngineCore
 
         private static void Remove(EntityScript script, Dictionary<UInt32, List<EntityScript>> map)
         {
-            if (!map.TryGetValue(script.EntityId, out var scripts))
+            if (!map.TryGetValue(script.Entity, out var scripts))
                 return;
 
             for (int i = 0; i < scripts.Count; i++)
@@ -186,7 +204,7 @@ namespace vkEngine.EngineCore
 
                 scripts.RemoveAt(i);
                 if (scripts.Count == 0)
-                    map.Remove(script.EntityId);
+                    map.Remove(script.Entity);
                 return;
             }
         }
@@ -211,6 +229,21 @@ namespace vkEngine.EngineCore
             return scripts;
         }
 
+        private static List<EntityScript> CollectAllScripts()
+        {
+            return new List<EntityScript>(allScripts);
+        }
+
+        private static void ClearScriptCollections()
+        {
+            allScripts.Clear();
+            startScripts.Clear();
+            updateScripts.Clear();
+            fixedUpdateScripts.Clear();
+            lateUpdateScripts.Clear();
+            unloadScripts.Clear();
+        }
+
         private static Assembly GetGameAssembly()
         {
             if (gameAssembly != null)
@@ -221,7 +254,7 @@ namespace vkEngine.EngineCore
             return gameAssembly;
         }
 
-        private static EntityScript CreateScriptInstance(Type scriptType, UInt32 entityId)
+        private static EntityScript CreateScriptInstance(Type scriptType, UInt32 entity)
         {
             var ctor = scriptType.GetConstructor(
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
@@ -230,7 +263,7 @@ namespace vkEngine.EngineCore
                 modifiers: null)
                 ?? throw new InvalidOperationException($"Script type '{scriptType.FullName}' does not have a constructor with a single UInt32 entity id parameter.");
 
-            return (EntityScript)ctor.Invoke(new object[] { entityId });
+            return (EntityScript)ctor.Invoke(new object[] { entity });
         }
 
         private static void ApplyFields(Type scriptType, EntityScript script, List<ScriptFieldState> fields)

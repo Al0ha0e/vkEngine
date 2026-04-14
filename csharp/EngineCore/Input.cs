@@ -141,37 +141,31 @@ namespace vkEngine.EngineCore
 
         public static bool IsKeyDown(KeyCode key)
         {
-            EnsureBound();
             return isKeyDown((int)key) != 0;
         }
 
         public static bool IsKeyPressed(KeyCode key)
         {
-            EnsureBound();
             return isKeyPressed((int)key) != 0;
         }
 
         public static bool IsKeyReleased(KeyCode key)
         {
-            EnsureBound();
             return isKeyReleased((int)key) != 0;
         }
 
         public static bool IsMouseButtonDown(MouseButton button)
         {
-            EnsureBound();
             return isMouseButtonDown((int)button) != 0;
         }
 
         public static bool IsMouseButtonPressed(MouseButton button)
         {
-            EnsureBound();
             return isMouseButtonPressed((int)button) != 0;
         }
 
         public static bool IsMouseButtonReleased(MouseButton button)
         {
-            EnsureBound();
             return isMouseButtonReleased((int)button) != 0;
         }
 
@@ -179,7 +173,6 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 NVec2 value = default;
                 getMousePosition(&value);
                 return value;
@@ -190,7 +183,6 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 NVec2 value = default;
                 getMouseDelta(&value);
                 return value;
@@ -201,7 +193,6 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 NVec2 value = default;
                 getMouseScrollDelta(&value);
                 return value;
@@ -212,20 +203,12 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 return (CursorMode)getCursorMode();
             }
             set
             {
-                EnsureBound();
                 setCursorMode((int)value);
             }
-        }
-
-        private static void EnsureBound()
-        {
-            if (!NativeFunctionRegistry.IsRegistered)
-                throw new InvalidOperationException("Native input functions have not been registered.");
         }
     }
 }

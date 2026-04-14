@@ -20,24 +20,18 @@ namespace vkEngine.EngineCore
     public abstract class EntityScript : IDisposable, IScriptLifecycle
     {
         private readonly ScriptLifecycleMask lifecycleMask;
+        public ScriptLifecycleMask LifecycleMask { get { return lifecycleMask; } }
         private bool disposed;
 
         private static readonly Dictionary<Type, ScriptLifecycleMask> overrideMaskCache = new();
 
-        protected EntityScript(UInt32 entityId)
+        protected EntityScript(UInt32 entity)
         {
-            EntityId = entityId;
+            Entity = entity;
             lifecycleMask = GetOrAddLifecycleMask(GetType());
         }
 
-        public UInt32 EntityId { get; }
-
-        public void Register()
-        {
-            if (disposed || lifecycleMask == ScriptLifecycleMask.None)
-                return;
-            SceneManager.Register(this, lifecycleMask);
-        }
+        public UInt32 Entity { get; }
 
         public virtual void Start() { }
 

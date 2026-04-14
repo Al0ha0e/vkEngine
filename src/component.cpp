@@ -114,9 +114,8 @@ namespace vke_common
         }
         else if (type == "script")
         {
-            csharpScriptStates.push_back(component["data"].dump());
-            // vke_component::ScriptState scriptState(id, component);
-            // csharpScripts[id].emplace(scriptState.className, std::move(scriptState));
+            vke_component::ScriptState scriptState(component);
+            csharpScriptStates[entity].emplace(scriptState.className, std::move(scriptState));
         }
     }
 
@@ -145,12 +144,12 @@ namespace vke_common
         if (lighting.HasLight<vke_render::SpotLight>(entity))
             components.push_back(lighting.GetLight<vke_render::SpotLight>(entity).ToJSON());
 
-        // auto scriptIt = csharpScripts.find(id);
-        // if (scriptIt != csharpScripts.end())
-        // {
-        //     for (const auto &[className, scriptState] : scriptIt->second)
-        //         components.push_back(scriptState.ToJSON());
-        // }
+        auto scriptIt = csharpScriptStates.find(entity);
+        if (scriptIt != csharpScriptStates.end())
+        {
+            for (const auto &[className, scriptState] : scriptIt->second)
+                components.push_back(scriptState.ToJSON());
+        }
     }
 
 }

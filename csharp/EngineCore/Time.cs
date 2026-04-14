@@ -17,7 +17,6 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 return getTime();
             }
         }
@@ -26,7 +25,6 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 return getDeltaTime();
             }
         }
@@ -35,15 +33,8 @@ namespace vkEngine.EngineCore
         {
             get
             {
-                EnsureBound();
                 return getPreviousFrameTime();
             }
-        }
-
-        private static void EnsureBound()
-        {
-            if (!NativeFunctionRegistry.IsRegistered)
-                throw new InvalidOperationException("Native time functions have not been registered.");
         }
     }
 }
