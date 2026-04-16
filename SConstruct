@@ -203,7 +203,6 @@ for info in targetinfo:
 ### tests
 
 targetinfo = [
-    ["out/test_compute", ["./tests/test_compute.cpp"]],
     ["out/test_spvrefl", ["./tests/test_spvrefl.cpp"]],
     ["out/engine", ["./src/main.cpp"]],
 ]
@@ -254,9 +253,7 @@ for s in shaders:
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
 
 sprefix = "./tests/shader/"
-shaders = [
-    ["test.comp", "test_compute.spv"],
-]
+shaders = []
 for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")

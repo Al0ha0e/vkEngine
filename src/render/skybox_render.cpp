@@ -11,8 +11,11 @@ namespace vke_render
                                                             std::bind(&SkyboxRenderer::generateLUT, this,
                                                                       std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
-        vke_ds::id32_t lutResourceID = frameGraph.AddPermanentImageResource("skyLUT", skyLUT->textureImage, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                                            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
+        VkImage skyLUTImages[MAX_FRAMES_IN_FLIGHT];
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            skyLUTImages[i] = skyLUTs[i]->textureImage;
+        vke_ds::id32_t lutResourceID = frameGraph.AddPermanentImageResource("skyLUT", true, skyLUTImages, VK_IMAGE_ASPECT_COLOR_BIT, false,
+                                                                            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
         vke_ds::id32_t lutOutResourceNodeID = frameGraph.AllocResourceNode("outSkyLUT", false, lutResourceID);
 
         frameGraph.AddTaskNodeResourceRef(lutTaskID, false, 0, lutOutResourceNodeID,
@@ -132,13 +135,14 @@ namespace vke_render
         std::shared_ptr<ShaderModuleSet> skyLUTShader = vke_common::AssetManager::LoadComputeShaderUnique(vke_common::BUILTIN_COMPUTE_SHADER_SKYLUT_ID);
         skyLUTGenerationPipeline = std::make_unique<ComputePipeline>(std::move(skyLUTShader));
 
-        skyLUT = std::make_unique<Texture2D>(256, 128, VK_FORMAT_R8G8B8A8_UNORM,
-                                             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                             VK_IMAGE_LAYOUT_GENERAL,
-                                             VK_FILTER_LINEAR,
-                                             VK_FILTER_LINEAR,
-                                             VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             false);
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            skyLUTs[i] = std::make_unique<Texture2D>(256, 128, VK_FORMAT_R8G8B8A8_UNORM,
+                                                     VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                                     VK_IMAGE_LAYOUT_GENERAL,
+                                                     VK_FILTER_LINEAR,
+                                                     VK_FILTER_LINEAR,
+                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                     false);
         skyboxMaterial = vke_common::AssetManager::LoadMaterialUnique(vke_common::BUILTIN_MATERIAL_SKYBOX_ID);
         // skybox mesh
         std::vector<uint32_t> indices;
@@ -149,20 +153,27 @@ namespace vke_render
 
     void SkyboxRenderer::createDescriptorSet()
     {
-        skyBoxDescriptorSet = skyboxMaterial->shader->CreateDescriptorSet(1);
-        skyboxMaterial->UpdateDescriptorSet(skyBoxDescriptorSet);
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            skyBoxDescriptorSets[i] = skyboxMaterial->shader->CreateDescriptorSet(1);
+            skyboxMaterial->UpdateDescriptorSet(skyBoxDescriptorSets[i]);
+        }
 
         std::vector<VkWriteDescriptorSet> descriptorWrites(3);
-        // layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
-        VkDescriptorBufferInfo bufferInfo = atmosphereParamBuffer->GetDescriptorBufferInfo();
-        vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], skyBoxDescriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
-        // layout(set = 1, binding = 3) uniform sampler2D skyViewLUT;
-        VkDescriptorImageInfo imageInfo1{skyLUT->textureSampler, skyLUT->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        vke_render::ConstructDescriptorSetWrite(descriptorWrites[1], skyBoxDescriptorSet, 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo1);
-        // layout(set = 1, binding = 4, rgba8) uniform writeonly image2D skyViewImage;
-        VkDescriptorImageInfo imageInfo2{nullptr, skyLUT->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
-        vke_render::ConstructDescriptorSetWrite(descriptorWrites[2], skyBoxDescriptorSet, 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &imageInfo2);
-        vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            // layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
+            VkDescriptorBufferInfo bufferInfo = atmosphereParamBuffer->GetDescriptorBufferInfo();
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], skyBoxDescriptorSets[i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+            // layout(set = 1, binding = 3) uniform sampler2D skyViewLUT;
+            VkDescriptorImageInfo imageInfo1{skyLUTs[i]->textureSampler, skyLUTs[i]->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[1], skyBoxDescriptorSets[i], 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo1);
+            // layout(set = 1, binding = 4, rgba8) uniform writeonly image2D skyViewImage;
+            VkDescriptorImageInfo imageInfo2{nullptr, skyLUTs[i]->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[2], skyBoxDescriptorSets[i], 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &imageInfo2);
+            vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+        }
     }
 
     void SkyboxRenderer::Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
@@ -170,7 +181,7 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = (*context->colorImageViews)[imageIndex];
+        colorAttachmentInfo.imageView = context->colorImageViews[imageIndex];
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -179,7 +190,7 @@ namespace vke_render
         VkRenderingAttachmentInfo depthAttachmentInfo{};
         depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         depthAttachmentInfo.pNext = nullptr;
-        depthAttachmentInfo.imageView = context->depthImageView;
+        depthAttachmentInfo.imageView = context->depthImageViews[currentFrame];
         depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -210,7 +221,7 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], skyBoxDescriptorSet};
+        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], skyBoxDescriptorSets[currentFrame]};
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
@@ -224,7 +235,7 @@ namespace vke_render
     void SkyboxRenderer::generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
     {
         glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.04, 0, 0));
-        skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame], skyBoxDescriptorSet},
+        skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame], skyBoxDescriptorSets[currentFrame]},
                                            &sunLightDir, glm::ivec3(8, 4, 1));
     }
 }

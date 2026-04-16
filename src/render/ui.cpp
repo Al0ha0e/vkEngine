@@ -65,11 +65,11 @@ namespace vke_render
         vke_ds::id32_t uiOutColorResourceNodeID = frameGraph.AllocResourceNode("uiOutColor", false, colorAttachmentResourceID);
 
         vke_ds::id32_t glyphInstanceBufferResourceID = frameGraph.AddPermanentBufferResource("uiGlyphInstanceBuffer",
-                                                                                             glyphInstanceBuffer->GetDescriptorBufferInfo(),
+                                                                                             false,
+                                                                                             &(glyphInstanceBuffer->buffer), 0, glyphInstanceBuffer->bufferSize,
                                                                                              VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
-        vke_ds::id32_t glyphAtlasResourceID = frameGraph.AddPermanentImageResource("uiGlyphAtlas",
-                                                                                   font->atlasTexture->textureImage,
-                                                                                   VK_IMAGE_ASPECT_COLOR_BIT,
+        vke_ds::id32_t glyphAtlasResourceID = frameGraph.AddPermanentImageResource("uiGlyphAtlas", false, &(font->atlasTexture->textureImage),
+                                                                                   VK_IMAGE_ASPECT_COLOR_BIT, false,
                                                                                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                                                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -142,7 +142,7 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = (*context->colorImageViews)[imageIndex];
+        colorAttachmentInfo.imageView = context->colorImageViews[imageIndex];
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

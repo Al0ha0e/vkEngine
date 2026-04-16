@@ -23,17 +23,37 @@ namespace vke_render
     {
         uint32_t width;
         uint32_t height;
-        uint32_t imageCnt;
         VkFormat colorFormat;
         VkFormat depthFormat;
         VkImageLayout outColorLayout;
-        VkImage depthImage;
-        VkImageView depthImageView;
-        std::vector<VkImage> *colorImages;
-        std::vector<VkImageView> *colorImageViews;
+        VkImage depthImages[MAX_FRAMES_IN_FLIGHT];
+        VkImageView depthImageViews[MAX_FRAMES_IN_FLIGHT];
+        VkImage colorImages[MAX_FRAMES_IN_FLIGHT];
+        VkImageView colorImageViews[MAX_FRAMES_IN_FLIGHT];
         vke_common::EventHub<RenderContext> *resizeEventHub;
         std::function<uint32_t(uint32_t)> AcquireNextImage;
         std::function<void(uint32_t, uint32_t)> Present;
+
+        RenderContext() {}
+
+        RenderContext(uint32_t w, uint32_t h, VkFormat colorFormat,
+                      VkFormat depthFormat, VkImageLayout outColorLayout,
+                      VkImage *depthImgs, VkImageView *depthImgViews,
+                      VkImage *colorImgs, VkImageView *colorImgViews,
+                      vke_common::EventHub<RenderContext> *resizeEventHub,
+                      std::function<uint32_t(uint32_t)> AcquireNextImage,
+                      std::function<void(uint32_t, uint32_t)> Present)
+            : width(w), height(h), colorFormat(colorFormat), depthFormat(depthFormat), outColorLayout(outColorLayout),
+              resizeEventHub(resizeEventHub), AcquireNextImage(AcquireNextImage), Present(Present)
+        {
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            {
+                colorImages[i] = colorImgs[i];
+                colorImageViews[i] = colorImgViews[i];
+                depthImages[i] = depthImgs[i];
+                depthImageViews[i] = depthImgViews[i];
+            }
+        }
     };
 
     class RenderEnvironment
@@ -79,20 +99,13 @@ namespace vke_render
             instance->createCPUCommandQueue();
 
             vke_common::EventSystem::AddEventListener(vke_common::EVENT_WINDOW_RESIZE, instance, vke_common::EventCallback(OnWindowResize));
-            instance->rootRenderContext = RenderContext{
-                instance->swapChainExtent.width,
-                instance->swapChainExtent.height,
-                instance->imageCnt,
-                instance->swapChainImageFormat,
-                instance->depthFormat,
+            instance->rootRenderContext = RenderContext(
+                instance->swapChainExtent.width, instance->swapChainExtent.height,
+                instance->swapChainImageFormat, instance->depthFormat,
                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                instance->depthImage,
-                instance->depthImageView,
-                &(instance->swapChainImages),
-                &(instance->swapChainImageViews),
-                &(instance->resizeEventHub),
-                AcquireNextImage,
-                Present};
+                instance->depthImages, instance->depthImageViews,
+                instance->swapChainImages.data(), instance->swapChainImageViews.data(),
+                &(instance->resizeEventHub), AcquireNextImage, Present);
             return instance;
         }
 
@@ -467,9 +480,9 @@ namespace vke_render
         VkSwapchainKHR swapChain;
         std::vector<VkImage> swapChainImages;
         std::vector<VkImageView> swapChainImageViews;
-        VkImage depthImage;
-        VmaAllocation depthImageVmaAllocation;
-        VkImageView depthImageView;
+        VkImage depthImages[MAX_FRAMES_IN_FLIGHT];
+        VmaAllocation depthImageVmaAllocations[MAX_FRAMES_IN_FLIGHT];
+        VkImageView depthImageViews[MAX_FRAMES_IN_FLIGHT];
         RenderContext rootRenderContext;
 
     private:

@@ -64,13 +64,13 @@ namespace vke_render
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
 
     private:
-        VkDescriptorSet skyBoxDescriptorSet;
+        VkDescriptorSet skyBoxDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::unique_ptr<Mesh> skyboxMesh;
         std::unique_ptr<Material> skyboxMaterial;
         std::unique_ptr<ComputePipeline> skyLUTGenerationPipeline;
         std::unique_ptr<DeviceBuffer> atmosphereParamBuffer;
-        std::unique_ptr<Texture2D> skyLUT;
+        std::unique_ptr<Texture2D> skyLUTs[MAX_FRAMES_IN_FLIGHT];
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,

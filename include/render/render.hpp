@@ -23,7 +23,7 @@ namespace vke_render
         ~Renderer() {}
 
     public:
-        RenderContext context;
+        RenderContext *context;
         uint32_t currentFrame;
         uint32_t passcnt;
 
@@ -43,7 +43,7 @@ namespace vke_render
         {
             instance = new Renderer();
 
-            instance->context = *ctx;
+            instance->context = ctx;
             instance->currentFrame = 0;
             instance->passcnt = passes.size();
 

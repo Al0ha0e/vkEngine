@@ -235,7 +235,7 @@ namespace vke_render
         SceneLighting *sceneLighting;
 
         std::unique_ptr<DeviceBuffer> lightBuffers[(int)LightType::LIGHT_TYPE_CNT][MAX_FRAMES_IN_FLIGHT];
-        std::unique_ptr<DeviceBuffer> clusterBuffers[2];
+        std::unique_ptr<DeviceBuffer> clusterBuffers[2][MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<ComputePipeline> lightCullingTask;
 
         void init();

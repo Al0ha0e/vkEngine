@@ -36,7 +36,7 @@ namespace vke_render
     private:
         GBuffer *gbuffer;
         LightManager *lightManager;
-        VkDescriptorSet lightingDescriptorSet;
+        VkDescriptorSet lightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> lightingShader;
 

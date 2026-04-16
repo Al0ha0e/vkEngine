@@ -611,13 +611,17 @@ namespace vke_render
         swapChainExtent = extent;
 
         depthFormat = findDepthFormat();
-        CreateImage(extent.width, extent.height, depthFormat,
-                    VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1,
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &depthImage, &depthImageVmaAllocation, nullptr);
+
+        for (int i = 0; i < imageCnt; ++i)
+            CreateImage(extent.width, extent.height, depthFormat,
+                        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &depthImages[i], &depthImageVmaAllocations[i], nullptr);
+
         VkCommandBuffer tmpCmdBuffer = BeginSingleTimeCommands(commandPool);
-        MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, 1,
-                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
+        for (int i = 0; i < imageCnt; ++i)
+            MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImages[i], VK_IMAGE_ASPECT_DEPTH_BIT, 1,
+                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
         EndSingleTimeCommands(GetGraphicsQueue(), commandPool, tmpCmdBuffer);
     }
 
@@ -625,9 +629,11 @@ namespace vke_render
     {
         for (auto imageView : instance->swapChainImageViews)
             vkDestroyImageView(globalLogicalDevice, imageView, nullptr);
-
-        vkDestroyImageView(globalLogicalDevice, instance->depthImageView, nullptr);
-        vmaDestroyImage(instance->vmaAllocator, instance->depthImage, instance->depthImageVmaAllocation);
+        for (int i = 0; i < imageCnt; ++i)
+        {
+            vkDestroyImageView(globalLogicalDevice, instance->depthImageViews[i], nullptr);
+            vmaDestroyImage(instance->vmaAllocator, instance->depthImages[i], instance->depthImageVmaAllocations[i]);
+        }
 
         vkDestroySwapchainKHR(globalLogicalDevice, swapChain, nullptr);
     }
@@ -641,10 +647,13 @@ namespace vke_render
         createImageViews();
         rootRenderContext.width = swapChainExtent.width;
         rootRenderContext.height = swapChainExtent.height;
-        rootRenderContext.colorImages = &swapChainImages;
-        rootRenderContext.colorImageViews = &swapChainImageViews;
-        rootRenderContext.depthImage = depthImage;
-        rootRenderContext.depthImageView = depthImageView;
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            rootRenderContext.colorImages[i] = swapChainImages[i];
+            rootRenderContext.colorImageViews[i] = swapChainImageViews[i];
+            rootRenderContext.depthImages[i] = depthImages[i];
+            rootRenderContext.depthImageViews[i] = depthImageViews[i];
+        }
         resizeEventHub.DispatchEvent(&rootRenderContext);
         vkDeviceWaitIdle(globalLogicalDevice);
     }
@@ -654,8 +663,10 @@ namespace vke_render
         swapChainImageViews.resize(imageCnt);
 
         for (size_t i = 0; i < imageCnt; i++)
+        {
             swapChainImageViews[i] = RenderEnvironment::CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-        depthImageView = RenderEnvironment::CreateImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+            depthImageViews[i] = RenderEnvironment::CreateImageView(depthImages[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+        }
     }
 
     void RenderEnvironment::createCPUCommandQueue()

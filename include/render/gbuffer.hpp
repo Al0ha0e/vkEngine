@@ -50,12 +50,12 @@ namespace vke_render
 
         uint32_t width;
         uint32_t height;
-        VkImage images[GBUFFER_CNT];
-        VkImageView imageViews[GBUFFER_CNT];
+        VkImage images[GBUFFER_CNT][MAX_FRAMES_IN_FLIGHT];
+        VkImageView imageViews[GBUFFER_CNT][MAX_FRAMES_IN_FLIGHT];
         VkSampler sampler;
 
     private:
-        VmaAllocation gbufferImageVmaAllocations[GBUFFER_CNT];
+        VmaAllocation gbufferImageVmaAllocations[GBUFFER_CNT][MAX_FRAMES_IN_FLIGHT];
 
         void createImagesAndViews()
         {
@@ -63,29 +63,35 @@ namespace vke_render
                                            VK_IMAGE_USAGE_SAMPLED_BIT |
                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
             for (int i = 0; i < GBUFFER_CNT; ++i)
-                RenderEnvironment::CreateImage(width, height, gbufferFormats[i],
-                                               VK_IMAGE_TILING_OPTIMAL, usageFlags, 1,
-                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &images[i],
-                                               &gbufferImageVmaAllocations[i], nullptr);
+                for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                    RenderEnvironment::CreateImage(width, height, gbufferFormats[i],
+                                                   VK_IMAGE_TILING_OPTIMAL, usageFlags, 1,
+                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &images[i][j],
+                                                   &gbufferImageVmaAllocations[i][j], nullptr);
+
             RenderEnvironment *instance = RenderEnvironment::GetInstance();
             VkCommandBuffer tmpCmdBuffer = RenderEnvironment::BeginSingleTimeCommands(instance->commandPool);
             for (int i = 0; i < GBUFFER_CNT; ++i)
-                RenderEnvironment::MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                                        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, images[i], VK_IMAGE_ASPECT_COLOR_BIT, 1,
-                                                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                    RenderEnvironment::MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                                            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, images[i][j], VK_IMAGE_ASPECT_COLOR_BIT, 1,
+                                                            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
             RenderEnvironment::EndSingleTimeCommands(RenderEnvironment::GetGraphicsQueue(), instance->commandPool, tmpCmdBuffer);
+
             for (int i = 0; i < GBUFFER_CNT; ++i)
-                imageViews[i] = RenderEnvironment::CreateImageView(images[i], gbufferFormats[i], VK_IMAGE_ASPECT_COLOR_BIT);
+                for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                    imageViews[i][j] = RenderEnvironment::CreateImageView(images[i][j], gbufferFormats[i], VK_IMAGE_ASPECT_COLOR_BIT);
         }
 
         void cleanupImagesAndViews()
         {
             RenderEnvironment *env = RenderEnvironment::GetInstance();
             for (int i = 0; i < GBUFFER_CNT; ++i)
-            {
-                vkDestroyImageView(globalLogicalDevice, imageViews[i], nullptr);
-                vmaDestroyImage(env->vmaAllocator, images[i], gbufferImageVmaAllocations[i]);
-            }
+                for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                {
+                    vkDestroyImageView(globalLogicalDevice, imageViews[i][j], nullptr);
+                    vmaDestroyImage(env->vmaAllocator, images[i][j], gbufferImageVmaAllocations[i][j]);
+                }
         }
 
         void dispose()

@@ -11,8 +11,8 @@ namespace vke_render
         vke_ds::id32_t gbufferResourceNodeIDs[GBUFFER_CNT];
         for (int i = 0; i < GBUFFER_CNT; i++)
         {
-            gbufferResourceIDs[i] = frameGraph.AddPermanentImageResource("gbuffer" + std::to_string(i), gbuffer->images[i], VK_IMAGE_ASPECT_COLOR_BIT,
-                                                                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, std::nullopt, std::nullopt);
+            gbufferResourceIDs[i] = frameGraph.AddPermanentImageResource("gbuffer" + std::to_string(i), true, gbuffer->images[i], VK_IMAGE_ASPECT_COLOR_BIT, false,
+                                                                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
             blackboard["gbuffer" + std::to_string(i)] = gbufferResourceIDs[i];
             gbufferResourceNodeIDs[i] = frameGraph.AllocResourceNode("oriGBuffer" + std::to_string(i), false, gbufferResourceIDs[i]);
             currentResourceNodeID[gbufferResourceIDs[i]] = gbufferResourceNodeIDs[i];
@@ -88,7 +88,7 @@ namespace vke_render
             VkRenderingAttachmentInfo &colorAttachmentInfo = colorAttachmentInfos[i];
             colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
             colorAttachmentInfo.pNext = nullptr;
-            colorAttachmentInfo.imageView = gbuffer->imageViews[i];
+            colorAttachmentInfo.imageView = gbuffer->imageViews[i][currentFrame];
             colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
             colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -99,7 +99,7 @@ namespace vke_render
         VkRenderingAttachmentInfo depthAttachmentInfo{};
         depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         depthAttachmentInfo.pNext = nullptr;
-        depthAttachmentInfo.imageView = context->depthImageView;
+        depthAttachmentInfo.imageView = context->depthImageViews[currentFrame];
         depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -147,7 +147,8 @@ namespace vke_render
         for (int i = 0; i < GBUFFER_CNT; ++i)
         {
             ImageResource *resource = (ImageResource *)frameGraph.permanentResources[gbufferResourceIDs[i]].get();
-            resource->image = gbuffer->images[i];
+            for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                resource->images[j] = gbuffer->images[i][j];
         }
     }
 }

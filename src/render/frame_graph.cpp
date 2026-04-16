@@ -233,7 +233,8 @@ namespace vke_render
         VKE_LOG_INFO("-------------------------- END COMPILE-----------------------")
     }
 
-    void FrameGraph::syncResources(ResourceRef &ref, TaskNode &taskNode,
+    void FrameGraph::syncResources(const uint32_t currentFrame, const uint32_t imageIndex,
+                                   ResourceRef &ref, TaskNode &taskNode,
                                    bool &needQueueSubmit,
                                    std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                                    std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
@@ -255,7 +256,7 @@ namespace vke_render
                 layoutChanged = true;
                 // std::cout << "  FIRST IMAGE USE\n";
                 ImageResource *imageResource = (ImageResource *)resource.get();
-                VKE_LOG_DEBUG("FIRST IMAGE USE {} {}", imageResource->name, (void *)(imageResource->image))
+                VKE_LOG_DEBUG("FIRST IMAGE USE {} {}", imageResource->name, (void *)(imageResource->GetCurrentImage(currentFrame, imageIndex)))
                 imageMemoryBarriers.emplace_back();
                 VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -268,7 +269,7 @@ namespace vke_render
                 barrier.newLayout = ref.imageLayout;
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.image = imageResource->image;
+                barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                 barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                 barrier.subresourceRange.baseMipLevel = 0;
                 barrier.subresourceRange.levelCount = 1;
@@ -302,7 +303,7 @@ namespace vke_render
                     if (layoutChanged)
                         waitDstStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // prevent layout transfer conflict with prev write op in another queue
                     ImageResource *imageResource = (ImageResource *)resource.get();
-                    VKE_LOG_DEBUG("CROSS QUEUE IMAGE RECEIVE {} {}", imageResource->name, (void *)(imageResource->image))
+                    VKE_LOG_DEBUG("CROSS QUEUE IMAGE RECEIVE {} {}", imageResource->name, (void *)(imageResource->GetCurrentImage(currentFrame, imageIndex)))
                     imageMemoryBarriers.emplace_back();
                     VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -325,7 +326,7 @@ namespace vke_render
                         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                     }
-                    barrier.image = imageResource->image;
+                    barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                     barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                     barrier.subresourceRange.baseMipLevel = 0;
                     barrier.subresourceRange.levelCount = 1;
@@ -362,7 +363,7 @@ namespace vke_render
                         barrier.newLayout = ref.imageLayout;
                         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                        barrier.image = imageResource->image;
+                        barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                         barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                         barrier.subresourceRange.baseMipLevel = 0;
                         barrier.subresourceRange.levelCount = 1;
@@ -383,9 +384,9 @@ namespace vke_render
                         barrier.dstAccessMask = war ? VK_ACCESS_NONE : ref.accessMask;
                         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                        barrier.buffer = bufferResource->info.buffer;
-                        barrier.offset = bufferResource->info.offset;
-                        barrier.size = bufferResource->info.range;
+                        barrier.buffer = bufferResource->GetCurrentBuffer(currentFrame);
+                        barrier.offset = bufferResource->offset;
+                        barrier.size = bufferResource->size;
                     }
                 }
             }
@@ -395,7 +396,8 @@ namespace vke_render
         resource->prevUsedTask = &taskNode;
     }
 
-    void FrameGraph::endResourcesUse(ResourceRef &ref, TaskNode &taskNode,
+    void FrameGraph::endResourcesUse(const uint32_t currentFrame, const uint32_t imageIndex,
+                                     ResourceRef &ref, TaskNode &taskNode,
                                      bool &needQueueSubmit,
                                      std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                                      std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers)
@@ -413,7 +415,7 @@ namespace vke_render
                 crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
             {
                 ImageResource *imageResource = (ImageResource *)resource.get();
-                VKE_LOG_DEBUG("CROSS QUEUE IMAGE RELEASE {} {}", imageResource->name, (void *)(imageResource->image))
+                VKE_LOG_DEBUG("CROSS QUEUE IMAGE RELEASE {} {}", imageResource->name, (void *)(imageResource->GetCurrentImage(currentFrame, imageIndex)))
                 imageMemoryBarriers.emplace_back();
                 VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
                 barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -439,7 +441,7 @@ namespace vke_render
                     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 }
 
-                barrier.image = imageResource->image;
+                barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                 barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                 barrier.subresourceRange.baseMipLevel = 0;
                 barrier.subresourceRange.levelCount = 1;
@@ -467,7 +469,7 @@ namespace vke_render
                 barrier.newLayout = state.enImageLayout.value();
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.image = imageResource->image;
+                barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                 barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                 barrier.subresourceRange.baseMipLevel = 0;
                 barrier.subresourceRange.levelCount = 1;
@@ -549,7 +551,8 @@ namespace vke_render
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
-                syncResources(ref, taskNode, needQueueSubmit, bufferMemoryBarriers, imageMemoryBarriers,
+                syncResources(currentFrame, imageIndex, ref, taskNode, needQueueSubmit,
+                              bufferMemoryBarriers, imageMemoryBarriers,
                               waitSemaphoreMap, waitDstStageMask);
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
@@ -563,7 +566,8 @@ namespace vke_render
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
-                endResourcesUse(ref, taskNode, needQueueSubmit, bufferMemoryBarriers, imageMemoryBarriers);
+                endResourcesUse(currentFrame, imageIndex, ref, taskNode, needQueueSubmit,
+                                bufferMemoryBarriers, imageMemoryBarriers);
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
             dependencyInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
@@ -634,6 +638,11 @@ namespace vke_render
         }
         for (int i = 0; i < TASK_TYPE_CNT; i++)
             submitCntEstimates[i] = actualSubmitCnts[i];
+
+        for (auto &resource : permanentResources)
+            if (resource->framesInFlight)
+                resource->ResetPrev();
+
         semaphoreValueBase += orderedTasks.size();
     }
 }

@@ -194,6 +194,7 @@ namespace vke_render
         std::string name;
         vke_ds::id32_t resourceID;
         ResourceType resourceType;
+        bool framesInFlight;
         vke_ds::id32_t firstAccessTaskID;
         vke_ds::id32_t lastAccessTaskID;
         ResourceRef *prevUsedRef;
@@ -203,12 +204,14 @@ namespace vke_render
         TaskNode *tmpPrevUsedTask;
 
         RenderResource() : resourceID(0), resourceType(IMAGE_RESOURCE),
-                           firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
+                           firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false), framesInFlight(false) {}
         RenderResource(const ResourceType type) : resourceID(0), resourceType(type),
-                                                  firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
-        RenderResource(std::string &&name, const vke_ds::id32_t id, const ResourceType type)
-            : name(name), resourceID(id), resourceType(type),
+                                                  firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false), framesInFlight(false) {}
+        RenderResource(std::string &&name, const vke_ds::id32_t id, const ResourceType type, const bool framesInFlight)
+            : name(name), resourceID(id), resourceType(type), framesInFlight(framesInFlight),
               firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
+
+        uint32_t GetCurrentSubIdx(uint32_t currentFrame) { return framesInFlight ? currentFrame : 0; }
 
         void ResetTmpValues()
         {
@@ -217,27 +220,65 @@ namespace vke_render
             tmpPrevUsedRef = 0;
             tmpPrevUsedTask = 0;
         }
+
+        void ResetPrev()
+        {
+            prevUsedRef = nullptr;
+            prevUsedTask = nullptr;
+        }
     };
 
     class ImageResource : public RenderResource
     {
     public:
-        VkImage image;
         VkImageAspectFlags aspectMask;
+        bool dependOnSwapchain;
+        VkImage images[MAX_FRAMES_IN_FLIGHT];
+
         ImageResource()
-            : RenderResource(IMAGE_RESOURCE), image(nullptr), aspectMask(VK_IMAGE_ASPECT_NONE) {}
-        ImageResource(std::string &&name, const vke_ds::id32_t id, const VkImage image, const VkImageAspectFlags aspect)
-            : RenderResource(std::move(name), id, IMAGE_RESOURCE), image(image), aspectMask(aspect) { VKE_LOG_DEBUG("IMAGE RESOURCE {} {}", name, (void *)image) }
+            : RenderResource(IMAGE_RESOURCE), aspectMask(VK_IMAGE_ASPECT_NONE), dependOnSwapchain(false)
+        {
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+                images[i] = 0;
+        }
+        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight, VkImage *imgs,
+                      const VkImageAspectFlags aspect, const bool dependOnSwapchain)
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain)
+        {
+            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
+            for (int i = 0; i < cnt; ++i)
+                images[i] = imgs[i];
+
+            VKE_LOG_DEBUG("IMAGE RESOURCE {}", name)
+        }
+
+        VkImage GetCurrentImage(uint32_t currentFrame, uint32_t imageIndex) { return images[GetCurrentSubIdx(dependOnSwapchain ? imageIndex : currentFrame)]; }
     };
 
     class BufferResource : public RenderResource
     {
     public:
-        VkDescriptorBufferInfo info; // VkBuffer buffer; VkDeviceSize offset; VkDeviceSize range;
+        VkBuffer buffers[MAX_FRAMES_IN_FLIGHT];
+        VkDeviceSize offset;
+        VkDeviceSize size;
+
         BufferResource()
-            : RenderResource(BUFFER_RESOURCE) {}
-        BufferResource(std::string &&name, const vke_ds::id32_t id, const VkDescriptorBufferInfo info)
-            : RenderResource(std::move(name), id, BUFFER_RESOURCE), info(info) { VKE_LOG_DEBUG("BUFFER RESOURCE {} {}", name, (void *)(info.buffer)) }
+            : RenderResource(BUFFER_RESOURCE), offset(0), size(0)
+        {
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+                buffers[i] = 0;
+        }
+        BufferResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight,
+                       VkBuffer *buffs, const VkDeviceSize offset, const VkDeviceSize size)
+            : RenderResource(std::move(name), id, BUFFER_RESOURCE, framesInFlight), offset(offset), size(size)
+        {
+            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
+            for (int i = 0; i < cnt; ++i)
+                buffers[i] = buffs[i];
+            VKE_LOG_DEBUG("BUFFER RESOURCE {}", name)
+        }
+
+        VkBuffer GetCurrentBuffer(uint32_t currentFrame) { return buffers[GetCurrentSubIdx(currentFrame)]; }
     };
 
     struct PermanentResourceState
@@ -288,19 +329,22 @@ namespace vke_render
             return id;
         }
 
-        vke_ds::id32_t AddPermanentImageResource(std::string &&name, const VkImage image, const VkImageAspectFlags aspectMask,
+        vke_ds::id32_t AddPermanentImageResource(std::string &&name, const bool framesInFlight, VkImage *images, const VkImageAspectFlags aspectMask, const bool dependOnSwapchain,
                                                  const VkPipelineStageFlags2 stStage, const std::optional<VkImageLayout> stLayout, const std::optional<VkImageLayout> enLayout)
         {
             vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, image, aspectMask));
+            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, framesInFlight, images, aspectMask, dependOnSwapchain));
             permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
             return id;
         }
 
-        vke_ds::id32_t AddPermanentBufferResource(std::string &&name, const VkDescriptorBufferInfo info, const VkPipelineStageFlags2 stStage)
+        vke_ds::id32_t AddPermanentBufferResource(std::string &&name, const bool framesInFlight,
+                                                  VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size,
+                                                  const VkPipelineStageFlags2 stStage)
         {
             vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<BufferResource>(std::move(name), id, info));
+            permanentResources.push_back(std::make_unique<BufferResource>(std::move(name), id, framesInFlight,
+                                                                          buffers, offset, size));
             permanentResourceStates.emplace_back(stStage, std::nullopt, std::nullopt);
             return id;
         }
@@ -380,13 +424,15 @@ namespace vke_render
         std::vector<std::unique_ptr<std::atomic<bool>>> cpuSemaphores;
 
         void init();
-        void syncResources(ResourceRef &ref, TaskNode &taskNode,
+        void syncResources(const uint32_t currentFrame, const uint32_t imageIndex,
+                           ResourceRef &ref, TaskNode &taskNode,
                            bool &needQueueSubmit,
                            std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                            std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers,
                            std::map<VkSemaphore, uint64_t> &waitSemaphoreMap,
                            VkPipelineStageFlags2 &waitDstStageMask);
-        void endResourcesUse(ResourceRef &ref, TaskNode &taskNode,
+        void endResourcesUse(const uint32_t currentFrame, const uint32_t imageIndex,
+                             ResourceRef &ref, TaskNode &taskNode,
                              bool &needQueueSubmit,
                              std::vector<VkBufferMemoryBarrier2> &bufferMemoryBarriers,
                              std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers);

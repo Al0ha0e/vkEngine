@@ -66,9 +66,9 @@ namespace vke_render
                                        std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
         instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT);
-        colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", (*context.colorImages)[0], VK_IMAGE_ASPECT_COLOR_BIT,
+        colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", true, context->colorImages, VK_IMAGE_ASPECT_COLOR_BIT, true,
                                                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-        depthAttachmentResourceID = frameGraph->AddPermanentImageResource("depthAttachment", context.depthImage, VK_IMAGE_ASPECT_DEPTH_BIT,
+        depthAttachmentResourceID = frameGraph->AddPermanentImageResource("depthAttachment", true, context->depthImages, VK_IMAGE_ASPECT_DEPTH_BIT, false,
                                                                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
 
         frameGraph->AddTargetResource(colorAttachmentResourceID);
@@ -89,14 +89,17 @@ namespace vke_render
     void Renderer::recreate(RenderContext *ctx)
     {
         cleanup();
-        context = *ctx;
-        ((ImageResource *)frameGraph->permanentResources[depthAttachmentResourceID].get())->image = context.depthImage;
+        context = ctx;
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->images[i] = context->colorImages[i];
+            ((ImageResource *)frameGraph->permanentResources[depthAttachmentResourceID].get())->images[i] = context->depthImages[i];
+        }
     }
 
     void Renderer::render()
     {
-        uint32_t imageIndex = context.AcquireNextImage(currentFrame);
-        ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->image = (*context.colorImages)[imageIndex];
+        uint32_t imageIndex = context->AcquireNextImage(currentFrame);
 
         frameGraph->Sync(currentFrame);
 
@@ -113,7 +116,7 @@ namespace vke_render
             kv.second(currentFrame);
 
         frameGraph->Execute(currentFrame, imageIndex);
-        context.Present(currentFrame, imageIndex);
+        context->Present(currentFrame, imageIndex);
     }
 
     void Renderer::Update()

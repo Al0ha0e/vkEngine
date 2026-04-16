@@ -20,8 +20,9 @@ namespace vke_render
                 lightBuffers[i][j] = std::make_unique<DeviceBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
         for (int i = 0; i < 2; ++i)
-            clusterBuffers[i] = std::make_unique<DeviceBuffer>(CLUSTER_DIM_X * CLUSTER_DIM_Y * CLUSTER_DIM_Z * MAX_LIGHT_PER_CLUSTER * sizeof(uint32_t),
-                                                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+            for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+                clusterBuffers[i][j] = std::make_unique<DeviceBuffer>(CLUSTER_DIM_X * CLUSTER_DIM_Y * CLUSTER_DIM_Z * MAX_LIGHT_PER_CLUSTER * sizeof(uint32_t),
+                                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     }
 
     void LightManager::GetBindingInfos(std::vector<VkDescriptorSetLayoutBinding> &bindingInfos, DescriptorSetInfo &descriptorSetInfo)
@@ -65,7 +66,7 @@ namespace vke_render
 
         for (int i = (int)LightType::LIGHT_TYPE_CNT; i < totWriteCnt; ++i)
         {
-            bufferInfos[i] = clusterBuffers[i - (int)LightType::LIGHT_TYPE_CNT]->GetDescriptorBufferInfo();
+            bufferInfos[i] = clusterBuffers[i - (int)LightType::LIGHT_TYPE_CNT][id]->GetDescriptorBufferInfo();
             ConstructDescriptorSetWrite(descriptorSetWrites[i + 1], descriptorSet, i + 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &(bufferInfos[i]));
         }
     }
@@ -74,10 +75,21 @@ namespace vke_render
                                            std::map<std::string, vke_ds::id32_t> &blackboard,
                                            std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
-        vke_ds::id32_t pointLightBufferResourceID = frameGraph.AddPermanentBufferResource("pointLightBuffer",
-                                                                                          clusterBuffers[0]->GetDescriptorBufferInfo(), VK_PIPELINE_STAGE_NONE);
-        vke_ds::id32_t spotLightBufferResourceID = frameGraph.AddPermanentBufferResource("spotLightBuffer",
-                                                                                         clusterBuffers[1]->GetDescriptorBufferInfo(), VK_PIPELINE_STAGE_NONE);
+
+        VkBuffer pointLightBuffers[MAX_FRAMES_IN_FLIGHT];
+        VkBuffer spotLightBuffers[MAX_FRAMES_IN_FLIGHT];
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            pointLightBuffers[i] = clusterBuffers[0][i]->buffer;
+            spotLightBuffers[i] = clusterBuffers[1][i]->buffer;
+        }
+
+        vke_ds::id32_t pointLightBufferResourceID = frameGraph.AddPermanentBufferResource("pointLightBuffer", true,
+                                                                                          pointLightBuffers, 0, clusterBuffers[0][0]->bufferSize,
+                                                                                          VK_PIPELINE_STAGE_NONE);
+        vke_ds::id32_t spotLightBufferResourceID = frameGraph.AddPermanentBufferResource("spotLightBuffer", true,
+                                                                                         spotLightBuffers, 0, clusterBuffers[1][0]->bufferSize,
+                                                                                         VK_PIPELINE_STAGE_NONE);
         blackboard["pointLightClusterBuffer"] = pointLightBufferResourceID;
         blackboard["spotLightClusterBuffer"] = spotLightBufferResourceID;
 

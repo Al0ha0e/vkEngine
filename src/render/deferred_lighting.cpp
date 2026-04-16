@@ -42,17 +42,21 @@ namespace vke_render
 
     void DeferredLightingPass::createDescriptorSet()
     {
-        lightingDescriptorSet = lightingShader->CreateDescriptorSet(1);
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            lightingDescriptorSets[i] = lightingShader->CreateDescriptorSet(1);
 
         VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT];
         VkDescriptorImageInfo imageInfos[GBUFFER_CNT];
 
-        for (int i = 0; i < GBUFFER_CNT; ++i)
+        for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
         {
-            imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-            vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSet, i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
+            for (int i = 0; i < GBUFFER_CNT; ++i)
+            {
+                imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i][j], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+                vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSets[j], i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
+            }
+            vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
         }
-        vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
     }
 
     void DeferredLightingPass::createGraphicsPipeline()
@@ -84,7 +88,7 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = (*context->colorImageViews)[imageIndex];
+        colorAttachmentInfo.imageView = context->colorImageViews[imageIndex];
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -117,7 +121,7 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], lightingDescriptorSet};
+        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], lightingDescriptorSets[currentFrame]};
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
@@ -133,11 +137,14 @@ namespace vke_render
         VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT];
         VkDescriptorImageInfo imageInfos[GBUFFER_CNT];
 
-        for (int i = 0; i < GBUFFER_CNT; ++i)
+        for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
         {
-            imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-            vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSet, i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
+            for (int i = 0; i < GBUFFER_CNT; ++i)
+            {
+                imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i][j], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+                vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSets[j], i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
+            }
+            vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
         }
-        vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
     }
 }
