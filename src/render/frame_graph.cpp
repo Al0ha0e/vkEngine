@@ -35,7 +35,7 @@ namespace vke_render
 
     void FrameGraph::checkCrossQueue(ResourceRef &ref, TaskNode &taskNode)
     {
-        ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
+        ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
 
         if (resource->tmpPrevUsedTask != nullptr && resource->tmpPrevUsedTask->actualTaskType != taskNode.actualTaskType)
@@ -174,8 +174,6 @@ namespace vke_render
             }
         }
 
-        // TODO handle transient resources
-
         for (auto &resource : permanentResources)
             resource->ResetTmpValues();
 
@@ -227,6 +225,55 @@ namespace vke_render
                 ++cnt;
         }
 
+        // calculate transient memory usage
+        {
+            transientMemoryAllocationMap.clear();
+            transientMemorySimulator.Reset();
+
+            VkMemoryRequirements memoryReq;
+            for (auto taskID : orderedTasks)
+            {
+                TaskNode &taskNode = *taskNodes[taskID];
+                for (auto &ref : taskNode.resourceRefs)
+                {
+                    if (!ref.isTransient)
+                        continue;
+                    ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
+                    auto &resource = transientResources[resourceNode.resourceID];
+                    if (resource->firstAccessTaskID == taskID) // transient first access must be RENDER/COMPUTE TASK
+                    {
+                        VKE_FATAL_IF((taskNode.actualTaskType != RENDER_TASK) && (taskNode.actualTaskType != COMPUTE_TASK), "transient first access must be RENDER/COMPUTE TASK")
+                        if (resource->resourceType == IMAGE_RESOURCE)
+                        {
+                            ImageResource *imageResource = (ImageResource *)resource.get();
+                            vkGetImageMemoryRequirements(globalLogicalDevice, imageResource->images[0], &memoryReq);
+                        }
+                        else
+                        {
+                            BufferResource *bufferResource = (BufferResource *)resource.get();
+                            vkGetBufferMemoryRequirements(globalLogicalDevice, bufferResource->buffers[0], &memoryReq);
+                        }
+                        transientMemoryAllocationMap[resourceNode.resourceID] = transientMemorySimulator.PreAllocMemory(taskNode.actualTaskType, memoryReq);
+                    }
+                }
+
+                for (auto &ref : taskNode.resourceRefs)
+                {
+                    if (!ref.isTransient)
+                        continue;
+                    ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
+                    auto &resource = transientResources[resourceNode.resourceID];
+                    if (resource->lastAccessTaskID == taskID)
+                    {
+                        TransientMemoryAllocation &allocation = transientMemoryAllocationMap[resourceNode.resourceID];
+                        VKE_FATAL_IF(allocation.type != taskNode.actualTaskType, "transient resource must be de/allocated from the same queue")
+                        transientMemorySimulator.PreDeallocMemory(allocation);
+                    }
+                }
+            }
+            transientMemoryUpdateCnt = framesInFlight;
+        }
+
         VKE_LOG_INFO("orderedTask cnt {}", orderedTasks.size())
         for (auto taskID : orderedTasks)
             VKE_LOG_INFO("task id {}", taskID)
@@ -241,40 +288,84 @@ namespace vke_render
                                    std::map<VkSemaphore, uint64_t> &waitSemaphoreMap,
                                    VkPipelineStageFlags2 &waitDstStageMask)
     {
-        ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID == 0 ? ref.outResourceNodeID : ref.inResourceNodeID];
+        ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
         auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
         // std::cout << "----SYNC RESOURCE " << "TASK " << taskNode.name << " RESOURCE_NODE " << resourceNode.name << " RESOURCE " << resource->name << "\n";
         // std::cout << "resource prevUsedTask " << resource->prevUsedTask << " " << resource->prevUsedRef << "\n";
         bool layoutChanged = false;
-        if (!resourceNode.isTransient && resource->firstAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE &&
-            permanentResourceStates[resourceNode.resourceID].stImageLayout.has_value()) // first use of resource
+        if (resource->firstAccessTaskID == taskNode.taskID) // first use of resource
         {
-            PermanentResourceState &state = permanentResourceStates[resourceNode.resourceID];
-            if (state.stImageLayout.has_value() &&
-                state.stImageLayout.value() != ref.imageLayout)
+            if (resourceNode.isTransient)
             {
                 layoutChanged = true;
-                // std::cout << "  FIRST IMAGE USE\n";
-                ImageResource *imageResource = (ImageResource *)resource.get();
-                VKE_LOG_DEBUG("FIRST IMAGE USE {} {}", imageResource->name, (void *)(imageResource->GetCurrentImage(currentFrame, imageIndex)))
-                imageMemoryBarriers.emplace_back();
-                VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
-                barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-                barrier.pNext = nullptr;
-                barrier.srcStageMask = state.stStage;
-                barrier.srcAccessMask = VK_ACCESS_NONE;
-                barrier.dstStageMask = ref.stageMask;
-                barrier.dstAccessMask = ref.accessMask;
-                barrier.oldLayout = state.stImageLayout.value();
-                barrier.newLayout = ref.imageLayout;
-                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
-                barrier.subresourceRange.aspectMask = imageResource->aspectMask;
-                barrier.subresourceRange.baseMipLevel = 0;
-                barrier.subresourceRange.levelCount = 1;
-                barrier.subresourceRange.baseArrayLayer = 0;
-                barrier.subresourceRange.layerCount = 1;
+                if (resource->resourceType == IMAGE_RESOURCE)
+                {
+                    ImageResource *imageResource = (ImageResource *)resource.get();
+                    imageMemoryBarriers.emplace_back();
+                    VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
+                    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+                    barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+                    barrier.srcAccessMask = VK_ACCESS_2_NONE;
+                    barrier.dstStageMask = ref.stageMask;
+                    barrier.dstAccessMask = ref.accessMask;
+                    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                    barrier.newLayout = ref.imageLayout;
+                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
+                    barrier.subresourceRange.aspectMask = imageResource->aspectMask;
+                    barrier.subresourceRange.baseMipLevel = 0;
+                    barrier.subresourceRange.levelCount = 1;
+                    barrier.subresourceRange.baseArrayLayer = 0;
+                    barrier.subresourceRange.layerCount = 1;
+                }
+                else // BUFFER_RESOURCE
+                {
+                    BufferResource *bufferResource = (BufferResource *)resource.get();
+                    bufferMemoryBarriers.emplace_back();
+                    VkBufferMemoryBarrier2 &barrier = bufferMemoryBarriers.back();
+                    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+                    barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+                    barrier.srcAccessMask = VK_ACCESS_NONE;
+                    barrier.dstStageMask = ref.stageMask;
+                    barrier.dstAccessMask = ref.accessMask;
+                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.buffer = bufferResource->GetCurrentBuffer(currentFrame);
+                    barrier.offset = bufferResource->offset;
+                    barrier.size = bufferResource->size;
+                }
+            }
+            else if (resource->resourceType == IMAGE_RESOURCE &&
+                     permanentResourceStates[resourceNode.resourceID].stImageLayout.has_value())
+            {
+                PermanentResourceState &state = permanentResourceStates[resourceNode.resourceID];
+                if (state.stImageLayout.has_value() &&
+                    state.stImageLayout.value() != ref.imageLayout)
+                {
+                    layoutChanged = true;
+                    // std::cout << "  FIRST IMAGE USE\n";
+                    ImageResource *imageResource = (ImageResource *)resource.get();
+                    VKE_LOG_DEBUG("FIRST IMAGE USE {} {}", imageResource->name, (void *)(imageResource->GetCurrentImage(currentFrame, imageIndex)))
+                    imageMemoryBarriers.emplace_back();
+                    VkImageMemoryBarrier2 &barrier = imageMemoryBarriers.back();
+                    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+                    barrier.pNext = nullptr;
+                    barrier.srcStageMask = state.stStage;
+                    barrier.srcAccessMask = VK_ACCESS_NONE;
+                    barrier.dstStageMask = ref.stageMask;
+                    barrier.dstAccessMask = ref.accessMask;
+                    barrier.oldLayout = state.stImageLayout.value();
+                    barrier.newLayout = ref.imageLayout;
+                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
+                    barrier.subresourceRange.aspectMask = imageResource->aspectMask;
+                    barrier.subresourceRange.baseMipLevel = 0;
+                    barrier.subresourceRange.levelCount = 1;
+                    barrier.subresourceRange.baseArrayLayer = 0;
+                    barrier.subresourceRange.layerCount = 1;
+                }
             }
         }
         else if (resource->prevUsedTask != nullptr)
@@ -497,6 +588,45 @@ namespace vke_render
         }
     }
 
+    void FrameGraph::UpdateTransientMemory(const uint32_t currentFrame)
+    {
+        if (transientMemoryUpdateCnt == 0)
+            return;
+        --transientMemoryUpdateCnt;
+
+        RenderEnvironment *env = RenderEnvironment::GetInstance();
+
+        transientMemoryManager.Realloc(RENDER_TASK, currentFrame, transientMemorySimulator);
+        transientMemoryManager.Realloc(COMPUTE_TASK, currentFrame, transientMemorySimulator);
+
+        for (auto &kv : transientResources)
+        {
+            vke_ds::id32_t resourceID = kv.first;
+            RenderResource *resource = kv.second.get();
+
+            auto allocationIt = transientMemoryAllocationMap.find(resourceID);
+            if (allocationIt == transientMemoryAllocationMap.end())
+                continue;
+
+            const TransientMemoryAllocation &transientAllocation = allocationIt->second;
+            VmaAllocation poolAllocation = transientMemoryManager.GetPoolVmaAllocation(transientAllocation.type, currentFrame, transientAllocation.idx);
+            VkDeviceSize bindOffset = static_cast<VkDeviceSize>(transientAllocation.offset);
+
+            if (resource->resourceType == IMAGE_RESOURCE)
+            {
+                ImageResource *imageResource = (ImageResource *)resource;
+                VKE_VK_CHECK(vmaBindImageMemory2(env->vmaAllocator, poolAllocation, bindOffset, imageResource->images[currentFrame], nullptr),
+                             "failed to bind transient image memory!")
+            }
+            else
+            {
+                BufferResource *bufferResource = (BufferResource *)resource;
+                VKE_VK_CHECK(vmaBindBufferMemory2(env->vmaAllocator, poolAllocation, bindOffset, bufferResource->buffers[currentFrame], nullptr),
+                             "failed to bind transient buffer memory!")
+            }
+        }
+    }
+
     void FrameGraph::Execute(const uint32_t currentFrame, const uint32_t imageIndex)
     {
         VkCommandBuffer commandBuffers[TASK_TYPE_CNT] = {nullptr, nullptr, nullptr, nullptr};
@@ -642,6 +772,8 @@ namespace vke_render
         for (auto &resource : permanentResources)
             if (resource->framesInFlight)
                 resource->ResetPrev();
+        for (auto &[id, resource] : transientResources)
+            resource->ResetPrev();
 
         semaphoreValueBase += orderedTasks.size();
     }

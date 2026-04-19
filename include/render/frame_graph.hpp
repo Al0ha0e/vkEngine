@@ -4,6 +4,7 @@
 #include <render/environment.hpp>
 #include <render/command_pool.hpp>
 #include <render/semaphore_pool.hpp>
+#include <render/transient_memory.hpp>
 #include <ds/id_allocator.hpp>
 #include <logger.hpp>
 
@@ -76,6 +77,8 @@ namespace vke_render
             : isTransient(isTransient), inResourceNodeID(inResourceNodeID), outResourceNodeID(outResourceNodeID),
               accessMask(accessMask), stageMask(stageMask), imageLayout(layout),
               loadOp(loadOp), storeOp(storeOp), crossQueueRef(nullptr), crossQueueTask(nullptr) {}
+
+        vke_ds::id32_t GetResourceNodeID() { return inResourceNodeID == 0 ? outResourceNodeID : inResourceNodeID; }
     };
 
     enum TaskType
@@ -155,8 +158,8 @@ namespace vke_render
         }
 
         TaskNode(TaskNode &&ano)
-            : name(std::move(name)), taskID(ano.taskID), taskType(ano.taskType), actualTaskType(ano.actualTaskType),
-              valid(ano.valid), needQueueSubmit(needQueueSubmit), isFinalTask(isFinalTask), indeg(ano.indeg),
+            : name(std::move(ano.name)), taskID(ano.taskID), taskType(ano.taskType), actualTaskType(ano.actualTaskType),
+              valid(ano.valid), needQueueSubmit(ano.needQueueSubmit), isFinalTask(ano.isFinalTask), indeg(ano.indeg),
               lastSemaphoreValue(ano.lastSemaphoreValue), semaphoreValueOffset(ano.semaphoreValueOffset),
               lastSemaphore(ano.lastSemaphore), currentSemaphore(ano.currentSemaphore),
               resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)) {}
@@ -223,6 +226,7 @@ namespace vke_render
 
         void ResetPrev()
         {
+            prevWrite = false;
             prevUsedRef = nullptr;
             prevUsedTask = nullptr;
         }
@@ -304,7 +308,7 @@ namespace vke_render
         std::map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
 
         FrameGraph(const uint32_t framesInFlight)
-            : framesInFlight(framesInFlight), semaphoreValueBase(0), taskIDAllocator(1), resourceIDAllocator(1)
+            : framesInFlight(framesInFlight), semaphoreValueBase(0), taskIDAllocator(1), resourceIDAllocator(1), transientMemoryUpdateCnt(0)
         {
             init();
         }
@@ -346,6 +350,29 @@ namespace vke_render
             permanentResources.push_back(std::make_unique<BufferResource>(std::move(name), id, framesInFlight,
                                                                           buffers, offset, size));
             permanentResourceStates.emplace_back(stStage, std::nullopt, std::nullopt);
+            return id;
+        }
+
+        vke_ds::id32_t AddTransientResource(std::unique_ptr<RenderResource> &&resource)
+        {
+            VKE_FATAL_IF(!resource->framesInFlight, "transient resource must have frames in flight copies!")
+            vke_ds::id32_t id = transientResources.size();
+            resource->resourceID = id;
+            transientResources.emplace(id, std::move(resource));
+            return id;
+        }
+
+        vke_ds::id32_t AddTransientImageResource(std::string &&name, VkImage *images, const VkImageAspectFlags aspectMask)
+        {
+            vke_ds::id32_t id = transientResources.size();
+            transientResources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, images, aspectMask, false));
+            return id;
+        }
+
+        vke_ds::id32_t AddTransientBufferResource(std::string &&name, VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size)
+        {
+            vke_ds::id32_t id = transientResources.size();
+            transientResources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, true, buffers, offset, size));
             return id;
         }
 
@@ -410,6 +437,7 @@ namespace vke_render
         void Compile();
         void Sync(const uint32_t currentFrame);
         void Execute(const uint32_t currentFrame, const uint32_t imageIndex);
+        void UpdateTransientMemory(const uint32_t currentFrame);
 
     private:
         uint32_t framesInFlight;
@@ -421,6 +449,10 @@ namespace vke_render
         std::unique_ptr<SemaphorePool> semaphorePool;
         std::vector<vke_ds::id32_t> orderedTasks;
         VkFence fences[TASK_TYPE_CNT - 2][MAX_FRAMES_IN_FLIGHT];
+        TransientMemorySimulator<2> transientMemorySimulator;
+        TransientMemoryManager<2> transientMemoryManager;
+        std::unordered_map<vke_ds::id32_t, TransientMemoryAllocation> transientMemoryAllocationMap;
+        uint32_t transientMemoryUpdateCnt;
         std::vector<std::unique_ptr<std::atomic<bool>>> cpuSemaphores;
 
         void init();

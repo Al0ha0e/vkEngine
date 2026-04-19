@@ -185,6 +185,20 @@ namespace vke_render
                             buffer, vmaAllocation, vmaAllocationInfo);
         }
 
+        static void CreateBufferWithoutMemory(VkDeviceSize size, VkBufferCreateFlags flags, VkBufferUsageFlags usage, VkBuffer *buffer)
+        {
+            VkBufferCreateInfo bufferInfo{};
+            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            bufferInfo.flags = flags;
+            bufferInfo.size = size;
+            bufferInfo.usage = usage;
+            bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+            bufferInfo.queueFamilyIndexCount = instance->queueFamilyIndices.uniqueQueueFamilies.size();
+            bufferInfo.pQueueFamilyIndices = instance->queueFamilyIndices.uniqueQueueFamilies.data();
+
+            vkCreateBuffer(globalLogicalDevice, &bufferInfo, nullptr, buffer);
+        }
+
         static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0)
         {
             VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->commandPool);
@@ -222,6 +236,27 @@ namespace vke_render
             alloationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
             alloationCreateInfo.preferredFlags = properties;
             vmaCreateImage(instance->vmaAllocator, &imageInfo, &alloationCreateInfo, image, vmaAllocation, vmaAllocationInfo);
+        }
+
+        static void CreateImageWithoutMemory(uint32_t width, uint32_t height, VkFormat format,
+                                             VkImageTiling tiling, VkImageUsageFlags usage,
+                                             uint32_t mipLevelCnt, VkImage *image)
+        {
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.format = format;
+            imageInfo.extent.width = width;
+            imageInfo.extent.height = height;
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = mipLevelCnt;
+            imageInfo.arrayLayers = 1;
+            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.tiling = tiling;
+            imageInfo.usage = usage;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            vkCreateImage(globalLogicalDevice, &imageInfo, nullptr, image);
         }
 
         static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevelCnt = 1)

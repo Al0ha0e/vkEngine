@@ -103,6 +103,14 @@ namespace vke_render
 
         frameGraph->Sync(currentFrame);
 
+        if (frameGraphUpdated)
+        {
+            frameGraph->Compile();
+            frameGraphUpdated = false;
+        }
+
+        frameGraph->UpdateTransientMemory(currentFrame);
+
         if (cameraInfoUpdateCnt > 0)
         {
             VKE_LOG_DEBUG("CAM INFO UPD {}", cameraInfoUpdateCnt)
@@ -121,12 +129,6 @@ namespace vke_render
 
     void Renderer::Update()
     {
-
-        if (frameGraphUpdated)
-        {
-            frameGraph->Compile();
-            frameGraphUpdated = false;
-        }
         render();
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
