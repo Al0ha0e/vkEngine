@@ -413,6 +413,7 @@ namespace vke_render
     void RenderEnvironment::createVulkanMemoryAllocator()
     {
         VmaAllocatorCreateInfo allocatorCreateInfo = {};
+        allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
         allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_4;
         allocatorCreateInfo.physicalDevice = physicalDevice;
         allocatorCreateInfo.device = globalLogicalDevice;

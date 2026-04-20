@@ -187,6 +187,7 @@ namespace vke_render
             glm::vec2 extent(ctx->width, ctx->height);
             for (auto &subpass : instance->subPasses)
                 subpass->OnWindowResize(*instance->frameGraph, ctx);
+            instance->frameGraphUpdated = true;
             instance->resizeEventHub.DispatchEvent(&extent);
         }
 

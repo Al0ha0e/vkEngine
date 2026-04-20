@@ -8,24 +8,19 @@ namespace vke_render
                                           std::map<std::string, vke_ds::id32_t> &blackboard,
                                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
-        vke_ds::id32_t gbufferResourceNodeIDs[GBUFFER_CNT];
-        for (int i = 0; i < GBUFFER_CNT; i++)
-        {
-            gbufferResourceIDs[i] = frameGraph.AddPermanentImageResource("gbuffer" + std::to_string(i), true, gbuffer->images[i], VK_IMAGE_ASPECT_COLOR_BIT, false,
-                                                                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
-            blackboard["gbuffer" + std::to_string(i)] = gbufferResourceIDs[i];
-            gbufferResourceNodeIDs[i] = frameGraph.AllocResourceNode("oriGBuffer" + std::to_string(i), false, gbufferResourceIDs[i]);
-            currentResourceNodeID[gbufferResourceIDs[i]] = gbufferResourceNodeIDs[i];
-        }
+        gbuffer->RegisterFrameGraphResources(frameGraph);
 
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
 
         vke_ds::id32_t gbufferOutDepthResourceNodeID = frameGraph.AllocResourceNode("gbufferOutDepth", false, depthAttachmentResourceID);
-        vke_ds::id32_t gbufferTaskNodeID = frameGraph.AllocTaskNode("gbuffer pass", RENDER_TASK,
-                                                                    std::bind(&GBufferPass::Render, this,
-                                                                              std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        gbufferTaskNodeID = frameGraph.AllocTaskNode("gbuffer pass", RENDER_TASK,
+                                                     std::bind(&GBufferPass::Render, this,
+                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        frameGraph.SetTaskNodeTransientReadyCallback(gbufferTaskNodeID,
+                                                     std::bind(&GBufferPass::onTransientResourcesReady, this,
+                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
         for (int i = 0; i < GBUFFER_CNT; i++)
-            frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, false, 0, gbufferResourceNodeIDs[i],
+            frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, true, 0, gbuffer->GetResourceNodeID(i),
                                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                               VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                               VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
@@ -146,9 +141,14 @@ namespace vke_render
         gbuffer->Recreate(ctx->width, ctx->height);
         for (int i = 0; i < GBUFFER_CNT; ++i)
         {
-            ImageResource *resource = (ImageResource *)frameGraph.permanentResources[gbufferResourceIDs[i]].get();
+            ImageResource *resource = (ImageResource *)frameGraph.transientResources[gbuffer->GetResourceID(i)].get();
             for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
                 resource->images[j] = gbuffer->images[i][j];
         }
+    }
+
+    void GBufferPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    {
+        gbuffer->CreateImageViews(currentFrame);
     }
 }

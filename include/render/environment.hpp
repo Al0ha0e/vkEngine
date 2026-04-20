@@ -423,20 +423,32 @@ namespace vke_render
         {
             vkWaitForFences(globalLogicalDevice, 1, &instance->inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
             uint32_t imageIndex;
-            VkResult result = vkAcquireNextImageKHR(globalLogicalDevice,
-                                                    instance->swapChain,
-                                                    UINT64_MAX,
-                                                    instance->imageAvailableSemaphores[currentFrame],
-                                                    VK_NULL_HANDLE,
-                                                    &imageIndex);
-            if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            while (true)
             {
-                instance->recreateSwapChain();
-                instance->windowResized = false;
-                // return;
-            }
-            else
+                VkResult result = vkAcquireNextImageKHR(globalLogicalDevice,
+                                                        instance->swapChain,
+                                                        UINT64_MAX,
+                                                        instance->imageAvailableSemaphores[currentFrame],
+                                                        VK_NULL_HANDLE,
+                                                        &imageIndex);
+
+                if (result == VK_ERROR_OUT_OF_DATE_KHR)
+                {
+                    int width = 0, height = 0;
+                    glfwGetFramebufferSize(instance->window, &width, &height);
+                    while (width == 0 || height == 0)
+                    {
+                        glfwWaitEvents();
+                        glfwGetFramebufferSize(instance->window, &width, &height);
+                    }
+                    instance->recreateSwapChain();
+                    instance->windowResized = false;
+                    continue;
+                }
+
                 VKE_FATAL_IF(result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR, "failed to acquire swap chain image!")
+                break;
+            }
 
             vkResetFences(globalLogicalDevice, 1, &instance->inFlightFences[currentFrame]);
 
@@ -485,6 +497,13 @@ namespace vke_render
             VkResult result = vkQueuePresentKHR(instance->presentQueue, &presentInfo);
             if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || instance->windowResized)
             {
+                int width = 0, height = 0;
+                glfwGetFramebufferSize(instance->window, &width, &height);
+                while (width == 0 || height == 0)
+                {
+                    glfwWaitEvents();
+                    glfwGetFramebufferSize(instance->window, &width, &height);
+                }
                 instance->recreateSwapChain();
                 instance->windowResized = false;
             }

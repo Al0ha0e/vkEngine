@@ -204,6 +204,7 @@ namespace vke_render
     public:
         TransientMemoryAllocation PreAllocMemory(uint32_t type, const VkMemoryRequirements &req)
         {
+            VKE_LOG_DEBUG("TRY PREALLOC TTYPE {} MEMORY SIZE {} ALIGN {} MTYPE {}", type, req.size, req.alignment, req.memoryTypeBits)
             uint32_t idx;
             TransientMemoryAllocation ret;
             ret.type = type;
@@ -266,6 +267,7 @@ namespace vke_render
 
             auto &frameAllocations = poolAllocations[type][currentFrame];
             frameAllocations.resize(simulator.GetPoolCnt(type), nullptr);
+            VKE_LOG_DEBUG("TRANSIENT POOL TTYPE {} FRAME {} POOL_CNT {}", type, currentFrame, simulator.GetPoolCnt(type))
 
             for (uint32_t i = 0; i < simulator.GetPoolCnt(type); ++i)
             {
@@ -277,8 +279,11 @@ namespace vke_render
                 req.size = pool.GetTotalSize();
                 req.alignment = std::max<VkDeviceSize>(1, req.alignment);
 
+                VKE_LOG_DEBUG("TRY ALLOCATE TRANSIENT MEMORY SIZE {} ALIGN {} MTYPE {}", req.size, req.alignment, req.memoryTypeBits)
+
                 VmaAllocationCreateInfo allocationCreateInfo = {};
-                allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+                allocationCreateInfo.usage = VMA_MEMORY_USAGE_UNKNOWN;
+                allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
                 VKE_VK_CHECK(vmaAllocateMemory(RenderEnvironment::GetInstance()->vmaAllocator, &req, &allocationCreateInfo, &frameAllocations[i], nullptr),
                              "failed to allocate transient memory!")

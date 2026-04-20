@@ -60,12 +60,13 @@ namespace vke_render
     private:
         std::map<Material *, std::unique_ptr<RenderInfo>> renderInfoMap;
         GBuffer *gbuffer;
-        vke_ds::id32_t gbufferResourceIDs[GBUFFER_CNT];
+        vke_ds::id32_t gbufferTaskNodeID;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
         void createGraphicsPipeline(RenderInfo &renderInfo, bool isSkin);
+        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
     };
 }
 

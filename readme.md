@@ -62,7 +62,8 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 
 - **Frame Graph**:
   - [x] support for multiple queue families 
-  - [ ] transient resource allocation 
+  - [x] transient resource allocation 
+  - [ ] transient resource schedule optimize
 - **Rendering**:
   - [x] cluster-based deferred rendering & PBR 
   - [x] directional/spot/point lights

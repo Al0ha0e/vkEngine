@@ -625,6 +625,13 @@ namespace vke_render
                              "failed to bind transient buffer memory!")
             }
         }
+
+        for (auto taskID : orderedTasks)
+        {
+            TaskNode &taskNode = *taskNodes[taskID];
+            if (taskNode.transientReadyCallback)
+                taskNode.transientReadyCallback(taskNode, *this, currentFrame);
+        }
     }
 
     void FrameGraph::Execute(const uint32_t currentFrame, const uint32_t imageIndex)

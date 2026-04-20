@@ -11,9 +11,12 @@ namespace vke_render
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
 
         vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutColor", false, colorAttachmentResourceID);
-        vke_ds::id32_t lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
-                                                                     std::bind(&DeferredLightingPass::Render, this,
-                                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
+                                                      std::bind(&DeferredLightingPass::Render, this,
+                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
+        frameGraph.SetTaskNodeTransientReadyCallback(lightingTaskNodeID,
+                                                     std::bind(&DeferredLightingPass::onTransientResourcesReady, this,
+                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
         frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["pointLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -25,7 +28,7 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
 
         for (int i = 0; i < GBUFFER_CNT; i++)
-            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["gbuffer" + std::to_string(i)]], 0,
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, gbuffer->GetResourceNodeID(i), 0,
                                               VK_ACCESS_SHADER_READ_BIT,
                                               VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -40,23 +43,23 @@ namespace vke_render
         currentResourceNodeID[colorAttachmentResourceID] = lightingOutColorResourceNodeID;
     }
 
-    void DeferredLightingPass::createDescriptorSet()
+    void DeferredLightingPass::allocateDescriptorSet()
     {
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             lightingDescriptorSets[i] = lightingShader->CreateDescriptorSet(1);
+    }
 
+    void DeferredLightingPass::updateDescriptorSet(uint32_t currentFrame)
+    {
         VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT];
         VkDescriptorImageInfo imageInfos[GBUFFER_CNT];
 
-        for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
+        for (int i = 0; i < GBUFFER_CNT; ++i)
         {
-            for (int i = 0; i < GBUFFER_CNT; ++i)
-            {
-                imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i][j], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-                vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSets[j], i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
-            }
-            vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
+            imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSets[currentFrame], i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
         }
+        vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
     }
 
     void DeferredLightingPass::createGraphicsPipeline()
@@ -134,17 +137,10 @@ namespace vke_render
 
     void DeferredLightingPass::OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx)
     {
-        VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT];
-        VkDescriptorImageInfo imageInfos[GBUFFER_CNT];
+    }
 
-        for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
-        {
-            for (int i = 0; i < GBUFFER_CNT; ++i)
-            {
-                imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i][j], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-                vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSets[j], i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
-            }
-            vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
-        }
+    void DeferredLightingPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    {
+        updateDescriptorSet(currentFrame);
     }
 }

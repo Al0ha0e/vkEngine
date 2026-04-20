@@ -93,6 +93,7 @@ namespace vke_render
     class FrameGraph;
 
     using TaskNodeExecuteCallback = std::function<void(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)>;
+    using TaskNodeTransientReadyCallback = std::function<void(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)>;
 
     class TaskNode
     {
@@ -111,6 +112,7 @@ namespace vke_render
         VkSemaphore currentSemaphore;
         std::vector<ResourceRef> resourceRefs;
         TaskNodeExecuteCallback executeCallback;
+        TaskNodeTransientReadyCallback transientReadyCallback;
 
         TaskNode() : taskID(0), taskType(RENDER_TASK), valid(false),
                      needQueueSubmit(false), isFinalTask(false), indeg(0),
@@ -153,6 +155,7 @@ namespace vke_render
                 currentSemaphore = ano.currentSemaphore;
                 resourceRefs = std::move(ano.resourceRefs);
                 executeCallback = std::move(ano.executeCallback);
+                transientReadyCallback = std::move(ano.transientReadyCallback);
             }
             return *this;
         }
@@ -162,7 +165,8 @@ namespace vke_render
               valid(ano.valid), needQueueSubmit(ano.needQueueSubmit), isFinalTask(ano.isFinalTask), indeg(ano.indeg),
               lastSemaphoreValue(ano.lastSemaphoreValue), semaphoreValueOffset(ano.semaphoreValueOffset),
               lastSemaphore(ano.lastSemaphore), currentSemaphore(ano.currentSemaphore),
-              resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)) {}
+              resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)),
+              transientReadyCallback(std::move(ano.transientReadyCallback)) {}
 
         void AddResourceRef(const bool isTransient, const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
                             const VkAccessFlags2 accessMask, const VkPipelineStageFlags2 stageMask,
@@ -424,6 +428,11 @@ namespace vke_render
                 resourceNodes[inResourceNodeID]->dstTaskIDs.push_back(taskID);
             if (outResourceNodeID > 0)
                 resourceNodes[outResourceNodeID]->srcTaskID = taskID;
+        }
+
+        void SetTaskNodeTransientReadyCallback(const vke_ds::id32_t taskID, const TaskNodeTransientReadyCallback &callback)
+        {
+            taskNodes[taskID]->transientReadyCallback = callback;
         }
 
         void ClearTaskNodes() { taskNodes.clear(); }

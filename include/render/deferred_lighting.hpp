@@ -24,7 +24,7 @@ namespace vke_render
             gbuffer = GBuffer::GetInstance();
             lightingShader = vke_common::AssetManager::LoadVertFragShaderUnique(vke_common::BUILTIN_VFSHADER_DEFERRED_LIGHTING_ID);
             constructFrameGraph(frameGraph, blackboard, currentResourceNodeID);
-            createDescriptorSet();
+            allocateDescriptorSet();
             createGraphicsPipeline();
         }
 
@@ -39,12 +39,15 @@ namespace vke_render
         VkDescriptorSet lightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> lightingShader;
+        vke_ds::id32_t lightingTaskNodeID;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
-        void createDescriptorSet();
+        void allocateDescriptorSet();
+        void updateDescriptorSet(uint32_t currentFrame);
         void createGraphicsPipeline();
+        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
     };
 };
 
