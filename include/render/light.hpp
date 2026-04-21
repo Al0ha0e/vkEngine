@@ -103,15 +103,16 @@ namespace vke_render
     class SceneLighting
     {
     public:
-        bool dirty;
+        bool dirtyFlags[(int)LightType::LIGHT_TYPE_CNT];
         uint32_t lightCnts[(int)LightType::LIGHT_TYPE_CNT];
         std::unordered_map<entt::entity, vke_ds::id32_t> lightMaps[(int)LightType::LIGHT_TYPE_CNT];
         std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
 
-        SceneLighting() : dirty(true)
+        SceneLighting()
         {
             for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
             {
+                dirtyFlags[i] = 0;
                 lightCnts[i] = 0;
                 cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
             }
@@ -134,7 +135,7 @@ namespace vke_render
             std::construct_at(reinterpret_cast<T *>(cpuLightBuffers[typecode]->data) + id, std::forward<Args>(args)...);
 
             lightMaps[typecode][entity] = id;
-            dirty = true;
+            dirtyFlags[typecode] = true;
         }
 
         template <AllowedLightType T>
@@ -181,12 +182,14 @@ namespace vke_render
             ownerMaps[typecode].pop_back();
             --cnt;
             lightMap.erase(it);
-            dirty = true;
+            dirtyFlags[typecode] = true;
         }
 
+        template <AllowedLightType T>
         void MarkDirty()
         {
-            dirty = true;
+            const int typecode = (int)T::type;
+            dirtyFlags[typecode] = true;
         }
 
     private:

@@ -10,7 +10,10 @@ namespace vke_common
     {
         const EngineState state = vke_common::EngineStateManager::GetState();
         if (state == EngineState::Terminated)
+        {
+            Shutdown();
             return false;
+        }
 
         vke_common::TimeManager::Update();
 

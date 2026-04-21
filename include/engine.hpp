@@ -51,6 +51,11 @@ namespace vke_common
             return instance;
         }
 
+        static void Shutdown()
+        {
+            vke_render::Renderer::Shutdown();
+        }
+
         static void WaitIdle()
         {
             vke_render::Renderer::WaitIdle();

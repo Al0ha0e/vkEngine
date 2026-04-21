@@ -118,11 +118,20 @@ namespace vke_render
             return instance;
         }
 
+        static void Shutdown()
+        {
+            uint32_t imageIndex = instance->context->AcquireNextImage(instance->currentFrame);
+            instance->frameGraph->Sync(instance->currentFrame);
+        }
+
         static void WaitIdle()
         {
+            VKE_LOG_INFO("WAIT_IDLE0")
             vkDeviceWaitIdle(globalLogicalDevice);
+            VKE_LOG_INFO("WAIT_IDLE1")
             CPUCommandQueue *cpuQueue = (CPUCommandQueue *)RenderEnvironment::GetInstance()->commandQueues[CPU_QUEUE].get();
             cpuQueue->WaitIdle();
+            VKE_LOG_INFO("WAIT_IDLE2")
         }
 
         static void Dispose()

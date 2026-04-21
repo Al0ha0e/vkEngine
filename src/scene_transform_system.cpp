@@ -188,14 +188,14 @@ namespace vke_common
         {
             auto &light = lighting.GetLight<vke_render::DirectionalLight>(entity);
             light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
-            lighting.MarkDirty();
+            lighting.MarkDirty<vke_render::DirectionalLight>();
         }
 
         if (lighting.HasLight<vke_render::PointLight>(entity))
         {
             auto &light = lighting.GetLight<vke_render::PointLight>(entity);
             light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
-            lighting.MarkDirty();
+            lighting.MarkDirty<vke_render::PointLight>();
         }
 
         if (lighting.HasLight<vke_render::SpotLight>(entity))
@@ -203,7 +203,7 @@ namespace vke_common
             auto &light = lighting.GetLight<vke_render::SpotLight>(entity);
             light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
             light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
-            lighting.MarkDirty();
+            lighting.MarkDirty<vke_render::SpotLight>();
         }
 
         for (auto &child : transform.children)

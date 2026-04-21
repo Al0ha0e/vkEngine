@@ -124,14 +124,17 @@ namespace vke_render
 
     void LightManager::update(uint32_t currentFrame)
     {
-        if (sceneLighting != nullptr && sceneLighting->dirty)
+        if (sceneLighting == nullptr)
+            return;
+
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
         {
-            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            if (sceneLighting->dirtyFlags[i])
             {
                 lightCnts[i] = sceneLighting->lightCnts[i];
                 lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
+                sceneLighting->dirtyFlags[i] = false;
             }
-            sceneLighting->dirty = false;
         }
 
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
@@ -155,6 +158,7 @@ namespace vke_render
         }
 
         if (sceneLighting != nullptr)
-            sceneLighting->dirty = true;
+            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+                sceneLighting->dirtyFlags[i] = true;
     }
 }

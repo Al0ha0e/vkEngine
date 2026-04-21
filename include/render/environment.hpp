@@ -201,7 +201,7 @@ namespace vke_render
 
         static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0)
         {
-            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->commandPool);
+            VkCommandBuffer commandBuffer = BeginSingleTimeCommands(instance->transferCommandPool);
 
             VkBufferCopy copyRegion{};
             copyRegion.srcOffset = srcOffset;
@@ -209,7 +209,7 @@ namespace vke_render
             copyRegion.size = size;
             vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-            EndSingleTimeCommands(GetGraphicsQueue(), instance->commandPool, commandBuffer);
+            EndSingleTimeCommands((GPUCommandQueue *)GetQueueNotNull(TRANSFER_QUEUE), instance->transferCommandPool, commandBuffer);
         }
 
         static void CreateImage(uint32_t width, uint32_t height, VkFormat format,
@@ -381,8 +381,16 @@ namespace vke_render
             submitInfo.commandBufferInfoCount = 1;
             submitInfo.pCommandBufferInfos = &commandBufferInfo;
 
-            queue->Submit(1, &submitInfo, VK_NULL_HANDLE);
-            vkQueueWaitIdle(queue->queue);
+            VkFenceCreateInfo fenceInfo{};
+            fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+            VkFence submitFence = VK_NULL_HANDLE;
+            vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &submitFence);
+
+            queue->Submit(1, &submitInfo, submitFence);
+            vkWaitForFences(globalLogicalDevice, 1, &submitFence, VK_TRUE, UINT64_MAX);
+
+            vkDestroyFence(globalLogicalDevice, submitFence, nullptr);
 
             vkFreeCommandBuffers(globalLogicalDevice, commandPool, 1, &commandBuffer);
         }
