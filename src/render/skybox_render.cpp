@@ -136,12 +136,14 @@ namespace vke_render
         skyLUTGenerationPipeline = std::make_unique<ComputePipeline>(std::move(skyLUTShader));
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            skyLUTs[i] = std::make_unique<Texture2D>(256, 128, VK_FORMAT_R8G8B8A8_UNORM,
+            skyLUTs[i] = std::make_unique<Texture2D>(256, 128, VK_FORMAT_R16G16B16A16_SFLOAT,
                                                      VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
                                                      VK_IMAGE_LAYOUT_GENERAL,
                                                      VK_FILTER_LINEAR,
                                                      VK_FILTER_LINEAR,
                                                      VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                     VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                                     VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
                                                      false);
         skyboxMaterial = vke_common::AssetManager::LoadMaterialUnique(vke_common::BUILTIN_MATERIAL_SKYBOX_ID);
         // skybox mesh
@@ -169,7 +171,7 @@ namespace vke_render
             // layout(set = 1, binding = 3) uniform sampler2D skyViewLUT;
             VkDescriptorImageInfo imageInfo1{skyLUTs[i]->textureSampler, skyLUTs[i]->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             vke_render::ConstructDescriptorSetWrite(descriptorWrites[1], skyBoxDescriptorSets[i], 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo1);
-            // layout(set = 1, binding = 4, rgba8) uniform writeonly image2D skyViewImage;
+            // layout(set = 1, binding = 4, rgba16f) uniform writeonly image2D skyViewImage;
             VkDescriptorImageInfo imageInfo2{nullptr, skyLUTs[i]->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
             vke_render::ConstructDescriptorSetWrite(descriptorWrites[2], skyBoxDescriptorSets[i], 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &imageInfo2);
             vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
@@ -225,7 +227,7 @@ namespace vke_render
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
-        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.04, 0, 0));
+        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 2, 0, 0));
         vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(glm::vec4), &sunLightDir);
         skyboxMesh->Render(commandBuffer);
 
@@ -234,7 +236,7 @@ namespace vke_render
 
     void SkyboxRenderer::generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
     {
-        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 0.04, 0, 0));
+        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 2, 0, 0));
         skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame], skyBoxDescriptorSets[currentFrame]},
                                            &sunLightDir, glm::ivec3(8, 4, 1));
     }

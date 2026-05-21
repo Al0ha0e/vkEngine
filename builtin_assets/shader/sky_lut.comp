@@ -22,13 +22,13 @@ vec3 UVToViewDir(vec2 uv)
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main(){
     vec4 color = vec4(0, 0, 0, 1);
-    vec2 uv = vec2(float((gl_WorkGroupID.x << 5) + gl_LocalInvocationID.x) / 256.0, 
-                    float((gl_WorkGroupID.y << 5) + gl_LocalInvocationID.y) / 128.0);
+    ivec2 pixel = ivec2((gl_WorkGroupID.xy << 5) + gl_LocalInvocationID.xy);
+    vec2 uv = (vec2(pixel) + vec2(0.5)) / vec2(256.0, 128.0);
     vec3 viewDir = UVToViewDir(uv);
     
     float h = max(CameraInfo.viewPos.y - parameters.seaLevel, 1) + parameters.planetRadius;
     vec3 eyePos = vec3(0, h, 0);
 
     color.rgb = GetSkyView(eyePos, viewDir, mainLightDir.xyz, -1.0);
-    imageStore(skyViewImage, ivec2((gl_WorkGroupID.xy << 5) + gl_LocalInvocationID.xy), color);
+    imageStore(skyViewImage, pixel, color);
 }
