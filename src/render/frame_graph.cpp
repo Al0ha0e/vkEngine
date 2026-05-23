@@ -315,9 +315,9 @@ namespace vke_render
                     barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                     barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                     barrier.subresourceRange.baseMipLevel = 0;
-                    barrier.subresourceRange.levelCount = 1;
+                    barrier.subresourceRange.levelCount = imageResource->mipLevelCnt;
                     barrier.subresourceRange.baseArrayLayer = 0;
-                    barrier.subresourceRange.layerCount = 1;
+                    barrier.subresourceRange.layerCount = imageResource->layerCnt;
                 }
                 else // BUFFER_RESOURCE
                 {
@@ -362,9 +362,9 @@ namespace vke_render
                     barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                     barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                     barrier.subresourceRange.baseMipLevel = 0;
-                    barrier.subresourceRange.levelCount = 1;
+                    barrier.subresourceRange.levelCount = imageResource->mipLevelCnt;
                     barrier.subresourceRange.baseArrayLayer = 0;
-                    barrier.subresourceRange.layerCount = 1;
+                    barrier.subresourceRange.layerCount = imageResource->layerCnt;
                 }
             }
         }
@@ -420,9 +420,9 @@ namespace vke_render
                     barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                     barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                     barrier.subresourceRange.baseMipLevel = 0;
-                    barrier.subresourceRange.levelCount = 1;
+                    barrier.subresourceRange.levelCount = imageResource->mipLevelCnt;
                     barrier.subresourceRange.baseArrayLayer = 0;
-                    barrier.subresourceRange.layerCount = 1;
+                    barrier.subresourceRange.layerCount = imageResource->layerCnt;
                 }
             }
             else
@@ -457,9 +457,9 @@ namespace vke_render
                         barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                         barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                         barrier.subresourceRange.baseMipLevel = 0;
-                        barrier.subresourceRange.levelCount = 1;
+                        barrier.subresourceRange.levelCount = imageResource->mipLevelCnt;
                         barrier.subresourceRange.baseArrayLayer = 0;
-                        barrier.subresourceRange.layerCount = 1;
+                        barrier.subresourceRange.layerCount = imageResource->layerCnt;
                     }
                     else
                     {
@@ -502,7 +502,7 @@ namespace vke_render
             ResourceRef &crossQueueRef = *(ref.crossQueueRef);
             needQueueSubmit = true;
             if (resource->resourceType == IMAGE_RESOURCE &&
-                ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE &&
+                resource->prevWrite && // been set by sync resource
                 crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
             {
                 ImageResource *imageResource = (ImageResource *)resource.get();
@@ -518,9 +518,7 @@ namespace vke_render
                 barrier.oldLayout = ref.imageLayout;
                 barrier.newLayout = ref.imageLayout;
                 if (taskNode.actualTaskType != CPU_TASK &&
-                    ref.crossQueueTask->actualTaskType != CPU_TASK &&
-                    ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE &&
-                    crossQueueRef.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+                    ref.crossQueueTask->actualTaskType != CPU_TASK)
                 {
                     VKE_LOG_DEBUG("REAL CROSS QUEUE IMAGE RELEASE")
                     barrier.srcQueueFamilyIndex = queueFamilies[taskNode.actualTaskType];
@@ -535,9 +533,9 @@ namespace vke_render
                 barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                 barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                 barrier.subresourceRange.baseMipLevel = 0;
-                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.levelCount = imageResource->mipLevelCnt;
                 barrier.subresourceRange.baseArrayLayer = 0;
-                barrier.subresourceRange.layerCount = 1;
+                barrier.subresourceRange.layerCount = imageResource->layerCnt;
             }
         }
         else if (!resourceNode.isTransient && resource->lastAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE) // TODO final op 如何判断是最后一个？尤其是最后一个task是读的情况，此时没有任何对应的resourceNode.dstTaskIDs.size() == 0
@@ -563,9 +561,9 @@ namespace vke_render
                 barrier.image = imageResource->GetCurrentImage(currentFrame, imageIndex);
                 barrier.subresourceRange.aspectMask = imageResource->aspectMask;
                 barrier.subresourceRange.baseMipLevel = 0;
-                barrier.subresourceRange.levelCount = 1;
+                barrier.subresourceRange.levelCount = imageResource->mipLevelCnt;
                 barrier.subresourceRange.baseArrayLayer = 0;
-                barrier.subresourceRange.layerCount = 1;
+                barrier.subresourceRange.layerCount = imageResource->layerCnt;
             }
         }
     }

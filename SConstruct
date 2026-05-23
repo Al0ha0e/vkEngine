@@ -121,6 +121,7 @@ commonsrc = (
         "./src/loader.cpp",
         "./src/builtin.cpp",
         "./src/render/descriptor.cpp",
+        "./src/render/skybox.cpp",
         "./src/render/skybox_render.cpp",
         "./src/render/gbuffer_pass.cpp",
         "./src/render/deferred_lighting.cpp",
@@ -245,6 +246,7 @@ shaders = [
     ["skybox.frag", "skyfrag.spv"],
     ["skybox.vert", "skyvert.spv"],
     ["sky_lut.comp", "sky_lut.spv"],
+    ["ibl_lut.comp", "ibl_lut.spv"],
     ["light_cull.comp", "light_cull.spv"],
 ]
 
@@ -257,10 +259,3 @@ shaders = []
 for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
-
-cmds = [
-    "python ./tools/gen_transmittance_lut.py ./builtin_assets/texture/ ./builtin_assets/config/atmosphere_param.json"
-]
-for cmd in cmds:
-    print(cmd)
-    # os.system(cmd)

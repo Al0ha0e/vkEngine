@@ -10,15 +10,6 @@
 layout(location = 0) in vec3 Dir;
 layout(location = 0) out vec4 FragColor;
 
-const vec2 invAtan = vec2(0.1591, 0.3183);
-vec2 ViewDirToUV(vec3 v)
-{
-    vec2 uv = vec2(atan(v.z, v.x), asin(v.y));
-    uv *= invAtan;
-    uv += 0.5;
-    return uv;
-}
-
 vec3 GetSunDisk(vec3 eyePos, vec3 viewDir, vec3 lightDir)
 {
     // 计算入射光照
@@ -47,7 +38,7 @@ void main()
 {    
     vec4 color = vec4(0, 0, 0, 1);
     vec3 viewDir = normalize(Dir);
-    color.rgb += texture(skyViewLUT, ViewDirToUV(viewDir)).rgb;//SAMPLE_TEXTURE2D_X(_skyViewLut, sampler_LinearClamp, ViewDirToUV(viewDir)).rgb;
+    color.rgb += texture(skyViewLUT, viewDir).rgb;
 
     float h = max(CameraInfo.viewPos.y - parameters.seaLevel, 1) + parameters.planetRadius;
     vec3 eyePos = vec3(0, h, 0);

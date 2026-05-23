@@ -148,6 +148,14 @@ namespace vke_render
         }
     }
 
+    DirectionalLight *LightManager::GetSun()
+    {
+        if (sceneLighting == nullptr || sceneLighting->lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0)
+            return nullptr;
+
+        return reinterpret_cast<DirectionalLight *>(sceneLighting->cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
+    }
+
     void LightManager::BindSceneLighting(SceneLighting *lighting)
     {
         sceneLighting = lighting;

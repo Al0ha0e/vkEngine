@@ -230,6 +230,7 @@ namespace vke_render
             globalDescriptorSets = descriptorSet;
         }
 
+        DirectionalLight *GetSun();
         void BindSceneLighting(SceneLighting *lighting);
 
     private:

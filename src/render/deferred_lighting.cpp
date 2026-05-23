@@ -9,6 +9,10 @@ namespace vke_render
                                                    std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
     {
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
+        vke_ds::id32_t irradianceResourceID = blackboard.at("skyIrradianceLUT");
+        vke_ds::id32_t specularResourceID = blackboard.at("skySpecularLUT");
+        vke_ds::id32_t irradianceOutResourceNodeID = currentResourceNodeID[irradianceResourceID];
+        vke_ds::id32_t specularOutResourceNodeID = currentResourceNodeID[specularResourceID];
 
         vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutColor", false, colorAttachmentResourceID);
         lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
@@ -40,6 +44,18 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, irradianceOutResourceNodeID, 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, specularOutResourceNodeID, 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
         currentResourceNodeID[colorAttachmentResourceID] = lightingOutColorResourceNodeID;
     }
 
@@ -51,15 +67,29 @@ namespace vke_render
 
     void DeferredLightingPass::updateDescriptorSet(uint32_t currentFrame)
     {
-        VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT];
-        VkDescriptorImageInfo imageInfos[GBUFFER_CNT];
+        const uint32_t extraTextureCnt = 3;
+        VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT + extraTextureCnt];
+        VkDescriptorImageInfo imageInfos[GBUFFER_CNT + extraTextureCnt];
 
         for (int i = 0; i < GBUFFER_CNT; ++i)
         {
             imageInfos[i] = {gbuffer->sampler, gbuffer->imageViews[i][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
             vke_render::ConstructDescriptorSetWrite(descriptorWrites[i], lightingDescriptorSets[currentFrame], i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[i]));
         }
-        vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT, descriptorWrites, 0, nullptr);
+
+        CubeMap *skyIrradianceLUT = skyboxManager->GetSkyIrradianceLUT(currentFrame);
+        CubeMap *skySpecularLUT = skyboxManager->GetSkySpecularLUT(currentFrame);
+
+        imageInfos[GBUFFER_CNT] = {skyIrradianceLUT->sampler, skyIrradianceLUT->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT], lightingDescriptorSets[currentFrame], GBUFFER_CNT, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT]));
+
+        imageInfos[GBUFFER_CNT + 1] = {skySpecularLUT->sampler, skySpecularLUT->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT + 1], lightingDescriptorSets[currentFrame], GBUFFER_CNT + 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT + 1]));
+
+        imageInfos[GBUFFER_CNT + 2] = {brdfLUT->textureSampler, brdfLUT->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT + 2], lightingDescriptorSets[currentFrame], GBUFFER_CNT + 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT + 2]));
+
+        vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT + extraTextureCnt, descriptorWrites, 0, nullptr);
     }
 
     void DeferredLightingPass::createGraphicsPipeline()

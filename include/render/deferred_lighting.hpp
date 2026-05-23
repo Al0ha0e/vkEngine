@@ -1,6 +1,7 @@
 #ifndef LIGHTING_PASS_H
 #define LIGHTING_PASS_H
 
+#include <render/skybox.hpp>
 #include <render/gbuffer.hpp>
 #include <render/renderinfo.hpp>
 #include <render/subpass.hpp>
@@ -12,8 +13,8 @@ namespace vke_render
     class DeferredLightingPass : public RenderPassBase
     {
     public:
-        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager)
-            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager) {}
+        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager)
+            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager), skyboxManager(skyboxManager) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -23,6 +24,7 @@ namespace vke_render
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             gbuffer = GBuffer::GetInstance();
             lightingShader = vke_common::AssetManager::LoadVertFragShaderUnique(vke_common::BUILTIN_VFSHADER_DEFERRED_LIGHTING_ID);
+            brdfLUT = vke_common::AssetManager::LoadTexture2D(vke_common::BUILTIN_TEXTURE_BRDF_LUT_ID);
             constructFrameGraph(frameGraph, blackboard, currentResourceNodeID);
             allocateDescriptorSet();
             createGraphicsPipeline();
@@ -36,9 +38,11 @@ namespace vke_render
     private:
         GBuffer *gbuffer;
         LightManager *lightManager;
+        SkyboxManager *skyboxManager;
         VkDescriptorSet lightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> lightingShader;
+        std::shared_ptr<Texture2D> brdfLUT;
         vke_ds::id32_t lightingTaskNodeID;
 
         void constructFrameGraph(FrameGraph &frameGraph,

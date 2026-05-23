@@ -17,8 +17,12 @@ layout(set = 1, binding = 0) uniform sampler2D gBaseColor;   // BaseColor + Occl
 layout(set = 1, binding = 1) uniform sampler2D gNormal;  // Normal
 layout(set = 1, binding = 2) uniform sampler2D gMetalRough;   // Metallic + Roughness
 layout(set = 1, binding = 3) uniform sampler2D gLinearDepth;
+layout(set = 1, binding = 4) uniform samplerCube skyIrradianceLUT;
+layout(set = 1, binding = 5) uniform samplerCube skySpecularLUT;
+layout(set = 1, binding = 6) uniform sampler2D brdfLUT;
 
 const float PI = 3.14159265359;
+const float SKY_SPECULAR_ROUGHNESS_LEVELS = 6.0;
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness*roughness;
@@ -41,6 +45,9 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
 }
 vec3 fresnelSchlick(vec3 F0, float cosTheta) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+vec3 fresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness) {
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
 vec3 ReconstructViewPos(float depth)
@@ -83,6 +90,7 @@ void main()
     float depth = texture(gLinearDepth, vTexCoord).r;
 
     vec3 albedo = baseColorTex.rgb;
+    float occlusion = baseColorTex.a;
 
     float metallic = clamp(metalRough.r, 0.0, 1.0);
     float roughness = clamp(metalRough.g, 0.04, 1.0);
@@ -90,7 +98,8 @@ void main()
     vec3 N = normalize(normalTex.rgb * 2.0 - 1.0);
     vec3 viewPos = ReconstructViewPos(depth);
     vec2 ndc = vTexCoord * 2.0 - 1.0;
-    vec3 V = -normalize(vec3(ndc.x, -ndc.y, -1.0));
+    vec3 V = normalize(-viewPos);
+    float NdotV = max(dot(N, V), 0.0);
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
@@ -105,7 +114,6 @@ void main()
         vec3 L = normalize(-vViewSpaceLightDir);
         vec3 H = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
         float D = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
         vec3  F = fresnelSchlick(F0, max(dot(H, V), 0.0));
@@ -143,7 +151,6 @@ void main()
         attenuation *= attenuation;
         vec3 H = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
         float D = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
         vec3  F = fresnelSchlick(F0, max(dot(H, V), 0.0));
@@ -179,7 +186,6 @@ void main()
         attenuation *= cone;
         vec3 H = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
-        float NdotV = max(dot(N, V), 0.0);
         float D = DistributionGGX(N, H, roughness);
         float G = GeometrySmith(N, V, L, roughness);
         vec3  F = fresnelSchlick(F0, max(dot(H, V), 0.0));
@@ -191,9 +197,24 @@ void main()
         Lo += (kD * diffuse + spec) * radiance * NdotL * attenuation;
     }
 
+    mat3 viewToWorld = mat3(inverse(CameraInfo.view));
+    vec3 worldN = normalize(viewToWorld * N);
+    vec3 worldV = normalize(viewToWorld * V);
+    vec3 worldR = normalize(reflect(-worldV, worldN));
 
-    // small ambient fallback (no IBL)
-    vec3 ambient = albedo * 0.1; //* occlusion; // low ambient
+    vec3 F = fresnelSchlickRoughness(F0, NdotV, roughness);
+    vec3 kS = F;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+    vec3 irradiance = texture(skyIrradianceLUT, normalize(worldN)).rgb;
+    vec3 diffuseIBL = irradiance * albedo;
+
+    vec2 brdf = texture(brdfLUT, vec2(NdotV, roughness)).rg;
+    float lod = clamp(roughness, 0.0, 1.0) * (SKY_SPECULAR_ROUGHNESS_LEVELS - 1.0);
+    vec3 prefilteredColor = textureLod(skySpecularLUT, normalize(worldR), lod).rgb;
+    vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
+
+    vec3 ambient = (kD * diffuseIBL + specularIBL) * occlusion;
 
     vec3 color = Lo + ambient;
     vec3 mapped = ACESFilm(color);

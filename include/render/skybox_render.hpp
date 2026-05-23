@@ -1,53 +1,17 @@
 #ifndef SKYBOX_RENDER_H
 #define SKYBOX_RENDER_H
 
+#include <render/skybox.hpp>
 #include <render/renderinfo.hpp>
 #include <render/subpass.hpp>
-#include <nlohmann/json.hpp>
 
 namespace vke_render
 {
-    struct AtmosphereParameter
-    {
-        glm::vec4 sunLightColor;
-        float seaLevel;
-        float planetRadius;
-        float atmosphereHeight;
-        float sunLightIntensity;
-        float sunDiskAngle;
-        float rayleighScatteringScale;
-        float rayleighScatteringScalarHeight;
-        float mieScatteringScale;
-        float mieAnisotropy;
-        float mieScatteringScalarHeight;
-        float ozoneAbsorptionScale;
-        float ozoneLevelCenterHeight;
-        float ozoneLevelWidth;
-        float aerialPerspectiveDistance;
-
-        AtmosphereParameter() {}
-        AtmosphereParameter(const nlohmann::json &json)
-            : seaLevel(json["SeaLevel"]), planetRadius(json["PlanetRadius"]), atmosphereHeight(json["AtmosphereHeight"]),
-              sunLightIntensity(json["SunLightIntensity"]), sunDiskAngle(json["SunDiskAngle"]),
-              rayleighScatteringScale(json["RayleighScatteringScale"]), rayleighScatteringScalarHeight(json["RayleighScatteringScalarHeight"]),
-              mieScatteringScale(json["MieScatteringScale"]), mieAnisotropy(json["MieAnisotropy"]), mieScatteringScalarHeight(json["MieScatteringScalarHeight"]),
-              ozoneAbsorptionScale(json["OzoneAbsorptionScale"]), ozoneLevelCenterHeight(json["OzoneLevelCenterHeight"]), ozoneLevelWidth(json["OzoneLevelWidth"]),
-              aerialPerspectiveDistance(json["AerialPerspectiveDistance"])
-        {
-            auto &sunColor = json["SunLightColor"];
-            sunLightColor = glm::vec4(sunColor[0].get<float>(), sunColor[1].get<float>(), sunColor[2].get<float>(), 1.0);
-        }
-    };
-
     class SkyboxRenderer : public RenderPassBase
     {
     public:
-        AtmosphereParameter atmosphereParameter;
-
-        SkyboxRenderer(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets)
-            : RenderPassBase(SKYBOX_RENDERER, ctx, globalDescriptorSets) {}
-
-        ~SkyboxRenderer() {}
+        SkyboxRenderer(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, SkyboxManager *skyboxManager)
+            : RenderPassBase(SKYBOX_RENDERER, ctx, globalDescriptorSets), skyboxManager(skyboxManager) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -67,10 +31,8 @@ namespace vke_render
         VkDescriptorSet skyBoxDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::unique_ptr<Mesh> skyboxMesh;
-        std::unique_ptr<Material> skyboxMaterial;
-        std::unique_ptr<ComputePipeline> skyLUTGenerationPipeline;
-        std::unique_ptr<DeviceBuffer> atmosphereParamBuffer;
-        std::unique_ptr<Texture2D> skyLUTs[MAX_FRAMES_IN_FLIGHT];
+        std::shared_ptr<Material> skyboxMaterial;
+        SkyboxManager *skyboxManager;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
@@ -78,7 +40,6 @@ namespace vke_render
         void initResources();
         void createDescriptorSet();
         void createGraphicsPipeline();
-        void generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex);
     };
 }
 

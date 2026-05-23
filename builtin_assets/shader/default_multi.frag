@@ -20,7 +20,7 @@ layout(set = 1, binding = 0) uniform sampler2D textures[];
 void main() {
     // ===== Base Color & Occlusion =====
     vec4 baseColorTex = texture(textures[nonuniformEXT(textureIndices.x)], vTexCoord);
-    outBaseColor = vec4(baseColorTex.rgb, 0.0);
+    outBaseColor = vec4(baseColorTex.rgb, 1.0);
  
     // ===== Metallic + Roughness =====
     vec4 mrTex = texture(textures[nonuniformEXT(textureIndices.y)], vTexCoord);

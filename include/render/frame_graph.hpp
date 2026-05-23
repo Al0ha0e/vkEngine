@@ -240,18 +240,34 @@ namespace vke_render
     {
     public:
         VkImageAspectFlags aspectMask;
+        uint32_t mipLevelCnt;
+        uint32_t layerCnt;
         bool dependOnSwapchain;
         VkImage images[MAX_FRAMES_IN_FLIGHT];
 
         ImageResource()
-            : RenderResource(IMAGE_RESOURCE), aspectMask(VK_IMAGE_ASPECT_NONE), dependOnSwapchain(false)
+            : RenderResource(IMAGE_RESOURCE), aspectMask(VK_IMAGE_ASPECT_NONE), dependOnSwapchain(false),
+              mipLevelCnt(1), layerCnt(1)
         {
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 images[i] = 0;
         }
         ImageResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight, VkImage *imgs,
                       const VkImageAspectFlags aspect, const bool dependOnSwapchain)
-            : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain)
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
+              mipLevelCnt(1), layerCnt(1)
+        {
+            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
+            for (int i = 0; i < cnt; ++i)
+                images[i] = imgs[i];
+
+            VKE_LOG_DEBUG("IMAGE RESOURCE {}", name)
+        }
+
+        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight, VkImage *imgs,
+                      const VkImageAspectFlags aspect, uint32_t mipLevelCnt, uint32_t layerCnt, const bool dependOnSwapchain)
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
+              mipLevelCnt(mipLevelCnt), layerCnt(layerCnt)
         {
             int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
             for (int i = 0; i < cnt; ++i)
@@ -342,6 +358,16 @@ namespace vke_render
         {
             vke_ds::id32_t id = permanentResources.size();
             permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, framesInFlight, images, aspectMask, dependOnSwapchain));
+            permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
+            return id;
+        }
+
+        vke_ds::id32_t AddPermanentImageResource(std::string &&name, const bool framesInFlight, VkImage *images,
+                                                 const VkImageAspectFlags aspectMask, uint32_t mipLevelCnt, uint32_t layerCnt, const bool dependOnSwapchain,
+                                                 const VkPipelineStageFlags2 stStage, const std::optional<VkImageLayout> stLayout, const std::optional<VkImageLayout> enLayout)
+        {
+            vke_ds::id32_t id = permanentResources.size();
+            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, framesInFlight, images, aspectMask, mipLevelCnt, layerCnt, dependOnSwapchain));
             permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
             return id;
         }

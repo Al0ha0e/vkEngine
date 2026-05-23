@@ -1,6 +1,7 @@
 #ifndef RENDERER_H
 #define RENDERER_H
 
+#include <render/skybox.hpp>
 #include <render/gbuffer_pass.hpp>
 #include <render/deferred_lighting.hpp>
 #include <render/skybox_render.hpp>
@@ -61,6 +62,8 @@ namespace vke_render
             std::map<vke_ds::id32_t, vke_ds::id32_t> currentResourceNodeID;
             instance->constructFrameGraph(blackboard, currentResourceNodeID);
 
+            instance->skyboxManager = std::make_unique<SkyboxManager>(instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->lightManager.get());
+            instance->skyboxManager->ConstructFrameGraph(*(instance->frameGraph), blackboard, currentResourceNodeID);
             instance->lightManager->ConstructFrameGraph(*(instance->frameGraph), blackboard, currentResourceNodeID);
 
             int customPassID = 0;
@@ -87,7 +90,7 @@ namespace vke_render
                 }
                 case DEFERRED_LIGHTING_PASS:
                 {
-                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get());
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get());
                     lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(lightingPass));
@@ -95,7 +98,7 @@ namespace vke_render
                 }
                 case SKYBOX_RENDERER:
                 {
-                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
+                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->skyboxManager.get());
                     skyboxRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(skyboxRenderer));
@@ -211,6 +214,7 @@ namespace vke_render
         std::vector<std::unique_ptr<RenderPassBase>> subPasses;
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;
+        std::unique_ptr<SkyboxManager> skyboxManager;
 
         uint32_t cameraInfoUpdateCnt;
         CameraInfo hostCameraInfo;

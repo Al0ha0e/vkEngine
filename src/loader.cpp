@@ -68,13 +68,19 @@ namespace vke_common
     static inline std::unique_ptr<vke_render::Texture2D> loadTexture2D(const AssetHandle hdl, const TextureAsset &asset)
     {
         int texWidth, texHeight, texChannels;
-        stbi_uc *pixels = stbi_load(asset.path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        void *pixels = nullptr;
+        if (asset.format == VK_FORMAT_R16G16B16A16_UNORM)
+            pixels = stbi_load_16(asset.path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        else
+            pixels = stbi_load(asset.path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VKE_FATAL_IF(!pixels, "Failed to load texture image!")
 
-        return std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight,
-                                                       asset.format, asset.usage, asset.layout,
-                                                       asset.minFilter, asset.magFilter, asset.addressMode,
-                                                       asset.anisotropyEnable, asset.generateMipMap);
+        std::unique_ptr<vke_render::Texture2D> texture = std::make_unique<vke_render::Texture2D>(hdl, pixels, texWidth, texHeight,
+                                                                                                 asset.format, asset.usage, asset.layout,
+                                                                                                 asset.minFilter, asset.magFilter, asset.addressMode,
+                                                                                                 asset.anisotropyEnable, asset.generateMipMap);
+        stbi_image_free(pixels);
+        return texture;
     }
 
     std::unique_ptr<vke_render::Texture2D> AssetManager::LoadTexture2DUnique(const AssetHandle hdl)

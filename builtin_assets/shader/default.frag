@@ -12,7 +12,7 @@ layout(location = 3) out float outLinearDepth;
 layout(set = 1, binding = 0) uniform sampler2D uBaseColorTex;
 
 void main() {
-    outBaseColor = vec4(texture(uBaseColorTex, vTexCoord).rgb, 0);
+    outBaseColor = vec4(texture(uBaseColorTex, vTexCoord).rgb, 1.0);
     outNormal = vec4(normalize(vNormal) * 0.5 + 0.5, 0);
     outMetalRough = vec4(0.0);
     outLinearDepth = -vViewPos.z;

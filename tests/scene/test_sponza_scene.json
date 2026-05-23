@@ -1,6 +1,6 @@
 {
   "layers": ["default", "editor", "test"],
-  "maxid": 3,
+  "maxid": 4,
   "objects": [
     {
       "children": [],
@@ -29,18 +29,6 @@
               }
             ]
           }
-        },
-        {
-          "type": "directionalLight",
-          "dir": [-1, -1, 0],
-          "color": [1.0, 1.0, 1.0],
-          "intensity": 0.0
-        },
-        {
-          "type": "pointLight",
-          "color": [1, 1, 1],
-          "radius": 5,
-          "intensity": 0
         },
         {
           "type": "spotLight",
@@ -187,6 +175,26 @@
         "rot": [0.0, 0.0, 0.0, 1.0],
         "scl": [0.01, 0.01, 0.01]
       }
+    },
+    {
+      "id": 3,
+      "static": true,
+      "name": "sun_directional_light",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 0.0, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.6324555, 0.3162278, 0.0, 0.7071068]
+      },
+      "components": [
+        {
+          "type": "directionalLight",
+          "color": [1.0, 0.96, 0.9],
+          "intensity": 1.0
+        }
+      ],
+      "children": []
     }
   ]
 }

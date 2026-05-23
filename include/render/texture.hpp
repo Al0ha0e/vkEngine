@@ -35,7 +35,7 @@ namespace vke_render
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &textureImage,
                 &textureImageAllocation, nullptr);
 
-            size_t imageSize = texWidth * texHeight * 4;
+            size_t imageSize = static_cast<size_t>(texWidth) * static_cast<size_t>(texHeight) * getBytesPerPixel(format);
             HostCoherentBuffer stagingBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
             stagingBuffer.ToBuffer(0, pixels, imageSize);
 
@@ -245,6 +245,18 @@ namespace vke_render
             samplerInfo.maxLod = mipLevelCnt;
 
             VKE_VK_CHECK(vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &textureSampler), "Failed to create texture sampler!")
+        }
+
+        static size_t getBytesPerPixel(VkFormat format)
+        {
+            switch (format)
+            {
+            case VK_FORMAT_R16G16B16A16_UNORM:
+            case VK_FORMAT_R16G16B16A16_SFLOAT:
+                return 8;
+            default:
+                return 4;
+            }
         }
     };
 }

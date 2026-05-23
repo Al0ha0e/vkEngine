@@ -20,7 +20,7 @@ cd vkEngine
 conda create -n vkengine python=3.12
 conda activate vkengine
 pip install -r requirements.txt
-mkdir out
+python init_project.py
 scons
 ```
 
@@ -30,6 +30,8 @@ scons
 - build the test gameplay assembly under `tests/csharp`
 - run the reflection code generator for `GameConfig`
 - compile the builtin shaders
+
+`init_project.py` creates the local build/generated directories and generates the builtin LUT textures needed by the renderer.
 
 ## Run
 
@@ -67,8 +69,8 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 - **Rendering**:
   - [x] cluster-based deferred rendering & PBR 
   - [x] directional/spot/point lights
+  - [x] IBL
   - [ ] UI rendering
-  - [ ] IBL
   - [ ] shadow mapping 
 - **Scripting**:
   - [x] CoreCLR integration

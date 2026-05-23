@@ -1,5 +1,5 @@
 {
-  "maxid": 6,
+  "maxid": 7,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -22,12 +22,6 @@
           "height": 1080.0,
           "near": 0.01,
           "far": 1000.0
-        },
-        {
-          "type": "directionalLight",
-          "dir": [-1, -1, 0],
-          "color": [0.5, 0, 0],
-          "intensity": 1.5
         },
         {
           "type": "script",
@@ -64,12 +58,6 @@
           "type": "renderableObject",
           "material": 1,
           "mesh": 5
-        },
-        {
-          "type": "directionalLight",
-          "dir": [1, -1, 0],
-          "color": [0, 0, 0.5],
-          "intensity": 1.5
         }
       ],
       "children": [4]
@@ -136,6 +124,26 @@
           "type": "renderableObject",
           "material": 1,
           "mesh": 4
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 6,
+      "static": true,
+      "name": "sun_directional_light",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 0.0, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.6324555, 0.3162278, 0.0, 0.7071068]
+      },
+      "components": [
+        {
+          "type": "directionalLight",
+          "color": [1.0, 0.96, 0.9],
+          "intensity": 1.0
         }
       ],
       "children": []

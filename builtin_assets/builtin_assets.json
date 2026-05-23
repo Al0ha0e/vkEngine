@@ -22,6 +22,16 @@
     "anisotropy": false
   },
   {
+    "type": 0,
+    "id": 4,
+    "name": "BRDFLUT",
+    "path": "/builtin_assets/texture/brdf_lut.png",
+    "format": 91,
+    "addressMode": 2,
+    "anisotropy": false,
+    "genMipMap": false
+  },
+  {
     "type": 1,
     "id": 2,
     "name": "Cube",
@@ -98,6 +108,12 @@
     "id": 2,
     "name": "LightCuller",
     "path": "./builtin_assets/shader/light_cull.spv"
+  },
+  {
+    "type": 3,
+    "id": 3,
+    "name": "IBLLUTGenerator",
+    "path": "./builtin_assets/shader/ibl_lut.spv"
   },
   {
     "type": 4,

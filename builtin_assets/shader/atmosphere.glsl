@@ -32,8 +32,8 @@ layout(push_constant) uniform PushConstants{
 layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
 layout(set = 1, binding = 1) uniform sampler2D transmittanceLUT;
 layout(set = 1, binding = 2) uniform sampler2D multiScatteringLUT;
-layout(set = 1, binding = 3) uniform sampler2D skyViewLUT;
-layout(set = 1, binding = 4, rgba16f) writeonly uniform image2D skyViewImage;
+layout(set = 1, binding = 3) uniform samplerCube skyViewLUT;
+layout(set = 1, binding = 4, rgba16f) writeonly uniform imageCube skyViewImage;
 
 float RayIntersectSphere(vec3 center, float radius, vec3 rayStart, vec3 rayDir)
 {
