@@ -4,6 +4,7 @@
 #include <entt/entity/registry.hpp>
 #include <ds/id_allocator.hpp>
 #include <asset.hpp>
+#include <component.hpp>
 #include <script.hpp>
 #include <gameobject.hpp>
 #include <component/transform.hpp>
@@ -12,6 +13,7 @@
 #include <component/renderable_object.hpp>
 #include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
+#include <component/character_controller.hpp>
 #include <scene_transform_system.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -78,6 +80,7 @@ namespace vke_common
             loadView.operator()<vke_component::RenderableObject>();
             loadView.operator()<vke_component::SkeletonAnimator>();
             loadView.operator()<vke_component::RigidBody>();
+            loadView.operator()<vke_component::CharacterController>();
             vke_render::Renderer::GetInstance()->lightManager->BindSceneLighting(&lighting);
 
             physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
@@ -114,6 +117,7 @@ namespace vke_common
                     view.template get<T>(entity).UnloadFromEngine();
             };
 
+            unloadView.operator()<vke_component::CharacterController>();
             unloadView.operator()<vke_component::RigidBody>();
             unloadView.operator()<vke_component::SkeletonAnimator>();
             unloadView.operator()<vke_component::RenderableObject>();
@@ -140,6 +144,8 @@ namespace vke_common
         {
             return registry.valid(entity) ? registry.get<GameObject>(entity).id : 0;
         }
+
+        bool HasComponent(entt::entity entity, ComponentType componentType) const;
 
         void RemoveObject(entt::entity entity)
         {

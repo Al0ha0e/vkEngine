@@ -33,6 +33,10 @@ namespace vke_interop
     using GetDeltaTimeFn = float(VKE_INTEROP_CDECL *)();
     using GetPreviousFrameTimeFn = float(VKE_INTEROP_CDECL *)();
     using SetEngineStateFn = void(VKE_INTEROP_CDECL *)(int32_t);
+    using HasComponentFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, int32_t);
+    using SetCharacterControllerVelocityFn = void(VKE_INTEROP_CDECL *)(uint32_t, const Vector3<float> *);
+    using GetCharacterControllerVelocityFn = void(VKE_INTEROP_CDECL *)(uint32_t, Vector3<float> *);
+    using IsCharacterControllerGroundedFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t);
 
     struct NativeFunctions
     {
@@ -62,6 +66,10 @@ namespace vke_interop
         GetDeltaTimeFn GetDeltaTime;
         GetPreviousFrameTimeFn GetPreviousFrameTime;
         SetEngineStateFn SetEngineState;
+        HasComponentFn HasComponent;
+        SetCharacterControllerVelocityFn SetCharacterControllerVelocity;
+        GetCharacterControllerVelocityFn GetCharacterControllerVelocity;
+        IsCharacterControllerGroundedFn IsCharacterControllerGrounded;
     };
 }
 

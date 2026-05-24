@@ -1,5 +1,6 @@
 #include <script.hpp>
 #include <component/transform.hpp>
+#include <component/character_controller.hpp>
 #include <input.hpp>
 #include <time.hpp>
 #include <engine_state.hpp>
@@ -192,6 +193,49 @@ namespace vke_interop
     {
         vke_common::EngineStateManager::SetState(static_cast<vke_common::EngineState>(state));
     }
+
+    static int32_t VKE_INTEROP_CDECL HasComponent(uint32_t entity, int32_t componentType)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        if (scene == nullptr)
+            return 0;
+
+        entt::entity ent = GetEntity(scene, entity);
+        return scene->HasComponent(ent, static_cast<vke_common::ComponentType>(componentType)) ? 1 : 0;
+    }
+
+    static vke_component::CharacterController *GetCharacterController(vke_common::Scene *scene, uint32_t entity)
+    {
+        entt::entity ent = GetEntity(scene, entity);
+        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::CharacterController>(ent))
+            return nullptr;
+
+        return &scene->registry.get<vke_component::CharacterController>(ent);
+    }
+
+    static void VKE_INTEROP_CDECL SetCharacterControllerVelocity(uint32_t entity, const Vector3<float> *velocity)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::CharacterController *controller = GetCharacterController(scene, entity);
+        if (controller == nullptr)
+            return;
+
+        controller->SetDesiredVelocity(ToGlm(*velocity));
+    }
+
+    static void VKE_INTEROP_CDECL GetCharacterControllerVelocity(uint32_t entity, Vector3<float> *velocity)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::CharacterController *controller = GetCharacterController(scene, entity);
+        *velocity = controller == nullptr ? Vector3<float>{0.0f, 0.0f, 0.0f} : ToInterop(controller->GetLinearVelocity());
+    }
+
+    static int32_t VKE_INTEROP_CDECL IsCharacterControllerGrounded(uint32_t entity)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::CharacterController *controller = GetCharacterController(scene, entity);
+        return controller != nullptr && controller->IsGrounded() ? 1 : 0;
+    }
 }
 
 namespace vke_common
@@ -225,7 +269,11 @@ namespace vke_common
             &vke_interop::GetTime,
             &vke_interop::GetDeltaTime,
             &vke_interop::GetPreviousFrameTime,
-            &vke_interop::SetEngineState};
+            &vke_interop::SetEngineState,
+            &vke_interop::HasComponent,
+            &vke_interop::SetCharacterControllerVelocity,
+            &vke_interop::GetCharacterControllerVelocity,
+            &vke_interop::IsCharacterControllerGrounded};
         csharpExports.registerNativeFunctions(&nativeFunctions);
     }
 }

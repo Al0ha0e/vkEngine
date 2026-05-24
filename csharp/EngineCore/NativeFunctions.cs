@@ -31,6 +31,10 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<float> GetDeltaTime;
         public delegate* unmanaged[Cdecl]<float> GetPreviousFrameTime;
         public delegate* unmanaged[Cdecl]<Int32, void> SetEngineState;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> HasComponent;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> SetCharacterControllerVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetCharacterControllerVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> IsCharacterControllerGrounded;
     }
 
     public static class NativeFunctionRegistry
@@ -46,6 +50,8 @@ namespace vkEngine.EngineCore
             Input.RegisterNativeFunctions(functions);
             Time.RegisterNativeFunctions(functions);
             EngineStateManager.RegisterNativeFunctions(functions);
+            EntityScript.RegisterNativeFunctions(functions);
+            CharacterController.RegisterNativeFunctions(functions);
         }
     }
 }

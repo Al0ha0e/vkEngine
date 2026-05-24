@@ -4,6 +4,20 @@ using System.Reflection;
 
 namespace vkEngine.EngineCore
 {
+    public enum ComponentType
+    {
+        Transform = 0,
+        Camera = 1,
+        RenderableObject = 2,
+        SkeletonAnimator = 3,
+        RigidBody = 4,
+        CharacterController = 5,
+        DirectionalLight = 6,
+        PointLight = 7,
+        SpotLight = 8,
+        Script = 9
+    }
+
     public interface IScriptLifecycle
     {
         void Start();
@@ -17,13 +31,19 @@ namespace vkEngine.EngineCore
         void Unload();
     }
 
-    public abstract class EntityScript : IDisposable, IScriptLifecycle
+    public abstract unsafe class EntityScript : IDisposable, IScriptLifecycle
     {
         private readonly ScriptLifecycleMask lifecycleMask;
         public ScriptLifecycleMask LifecycleMask { get { return lifecycleMask; } }
         private bool disposed;
+        private static unsafe delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> hasComponent;
 
         private static readonly Dictionary<Type, ScriptLifecycleMask> overrideMaskCache = new();
+        private static readonly Dictionary<Type, ComponentType> componentTypeMap = new()
+        {
+            [typeof(Transform)] = ComponentType.Transform,
+            [typeof(CharacterController)] = ComponentType.CharacterController
+        };
 
         protected EntityScript(UInt32 entity)
         {
@@ -32,6 +52,24 @@ namespace vkEngine.EngineCore
         }
 
         public UInt32 Entity { get; }
+
+        internal static unsafe void RegisterNativeFunctions(NativeFunctions* functions)
+        {
+            hasComponent = functions->HasComponent;
+        }
+
+        public unsafe bool HasComponent(ComponentType componentType)
+        {
+            return hasComponent(Entity, (Int32)componentType) != 0;
+        }
+
+        public bool HasComponent<T>()
+        {
+            if (!componentTypeMap.TryGetValue(typeof(T), out ComponentType componentType))
+                throw new NotSupportedException($"Component type '{typeof(T).FullName}' is not registered for native queries.");
+
+            return HasComponent(componentType);
+        }
 
         public virtual void Start() { }
 

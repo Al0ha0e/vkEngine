@@ -2,8 +2,6 @@
 #define SCENE_TRANSFORM_SYSTEM_H
 
 #include <component/transform.hpp>
-#include <component/camera.hpp>
-#include <component/rigidbody.hpp>
 #include <render/light.hpp>
 #include <entt/entity/registry.hpp>
 #include <unordered_map>

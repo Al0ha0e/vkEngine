@@ -1,5 +1,5 @@
 {
-  "maxid": 5,
+  "maxid": 7,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -9,7 +9,7 @@
       "layer": 1,
       "parent": 0,
       "transform": {
-        "pos": [-5.791734, 0.468531, 13.128233],
+        "pos": [0.0, 1.15, 8.0],
         "scl": [1.0, 1.0, 1.0],
         "rot": [-0.090626, -0.067783, -0.006184, 0.993539]
       },
@@ -35,9 +35,24 @@
               {
                 "name": "RotateSpeed",
                 "val": 2.0
+              },
+              {
+                "name": "JumpSpeed",
+                "val": 5.0
               }
             ]
           }
+        },
+        {
+          "type": "characterController",
+          "layer": 1,
+          "mass": 70.0,
+          "maxStrength": 2500.0,
+          "maxSlopeAngle": 50.0,
+          "predictiveContactDistance": 0.1,
+          "characterPadding": 0.02,
+          "createInnerBody": true,
+          "shape": { "type": 2, "radius": 0.35, "halfHeight": 0.6 }
         }
       ],
       "children": []
@@ -122,6 +137,62 @@
           "friction": 0.1,
           "restitution": 0.1,
           "shape": { "type": 0, "radius": 1.0 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 5,
+      "static": true,
+      "name": "controller_wall",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, -0.6, 3.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 1
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 0,
+          "layer": 0,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "shape": { "type": 1, "halfExtent": [2.0, 1.2, 0.25] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 6,
+      "static": true,
+      "name": "controller_step",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-3.0, -1.55, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 1
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 0,
+          "layer": 0,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "shape": { "type": 1, "halfExtent": [1.0, 0.45, 1.0] }
         }
       ],
       "children": []

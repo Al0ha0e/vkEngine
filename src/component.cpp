@@ -2,6 +2,7 @@
 #include <component/renderable_object.hpp>
 #include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
+#include <component/character_controller.hpp>
 #include <component/script.hpp>
 #include <scene.hpp>
 
@@ -25,6 +26,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::SkeletonAnimator>(entity))
             registry.get<vke_component::SkeletonAnimator>(entity).UnloadFromEngine();
+
+        if (registry.all_of<vke_component::CharacterController>(entity))
+            registry.get<vke_component::CharacterController>(entity).UnloadFromEngine();
 
         if (registry.all_of<vke_component::RigidBody>(entity))
             registry.get<vke_component::RigidBody>(entity).UnloadFromEngine();
@@ -55,6 +59,20 @@ namespace vke_common
             scene.transformSystem.SetGlobalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
             scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
         }
+
+        const float deltaTime = vke_physics::PhysicsManager::GetInstance()->stepTime;
+        auto characterView = scene.registry.view<Transform, vke_component::CharacterController>();
+        for (auto &&[entity, transform, controller] : characterView.each())
+        {
+            controller.Update(deltaTime);
+            if (controller.character == nullptr)
+                continue;
+
+            JPH::RVec3 position = controller.character->GetPosition();
+            JPH::Quat rotation = controller.character->GetRotation();
+            scene.transformSystem.SetGlobalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
+            scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
+        }
     }
 
     void Scene::loadComponent(const vke_ds::id32_t id, const entt::entity entity,
@@ -78,6 +96,10 @@ namespace vke_common
         else if (type == "rigidbody")
         {
             registry.emplace<vke_component::RigidBody>(entity, transform, component);
+        }
+        else if (type == "characterController")
+        {
+            registry.emplace<vke_component::CharacterController>(entity, transform, component);
         }
         else if (type == "directionalLight")
         {
@@ -119,6 +141,38 @@ namespace vke_common
         }
     }
 
+    bool Scene::HasComponent(entt::entity entity, ComponentType componentType) const
+    {
+        if (!registry.valid(entity))
+            return false;
+
+        switch (componentType)
+        {
+        case ComponentType::Transform:
+            return registry.all_of<vke_common::Transform>(entity);
+        case ComponentType::Camera:
+            return registry.all_of<vke_component::Camera>(entity);
+        case ComponentType::RenderableObject:
+            return registry.all_of<vke_component::RenderableObject>(entity);
+        case ComponentType::SkeletonAnimator:
+            return registry.all_of<vke_component::SkeletonAnimator>(entity);
+        case ComponentType::RigidBody:
+            return registry.all_of<vke_component::RigidBody>(entity);
+        case ComponentType::CharacterController:
+            return registry.all_of<vke_component::CharacterController>(entity);
+        case ComponentType::DirectionalLight:
+            return lighting.HasLight<vke_render::DirectionalLight>(entity);
+        case ComponentType::PointLight:
+            return lighting.HasLight<vke_render::PointLight>(entity);
+        case ComponentType::SpotLight:
+            return lighting.HasLight<vke_render::SpotLight>(entity);
+        case ComponentType::Script:
+            return csharpScriptStates.find(entity) != csharpScriptStates.end();
+        default:
+            return false;
+        }
+    }
+
     void Scene::componentToJSON(const vke_ds::id32_t id, nlohmann::json &components)
     {
         const entt::entity entity = idToEntity[id];
@@ -134,6 +188,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::RigidBody>(entity))
             components.push_back(registry.get<vke_component::RigidBody>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::CharacterController>(entity))
+            components.push_back(registry.get<vke_component::CharacterController>(entity).ToJSON());
 
         if (lighting.HasLight<vke_render::DirectionalLight>(entity))
             components.push_back(lighting.GetLight<vke_render::DirectionalLight>(entity).ToJSON());

@@ -209,6 +209,16 @@ namespace vke_physics
             return instance->physics_system.GetBodyInterface();
         }
 
+        static JPH::PhysicsSystem &GetPhysicsSystem()
+        {
+            return instance->physics_system;
+        }
+
+        static JPH::TempAllocator &GetTempAllocator()
+        {
+            return *instance->tempAllocator;
+        }
+
     private:
         void init();
         void dispose();
