@@ -192,6 +192,7 @@ namespace vke_render
             DescriptorSetPoolInfo poolInfo(MAX_SET_CNT, std::move(descriptorCntMap));
             VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
             instance->descriptorSetPools[pool] = std::move(poolInfo);
+            instance->descriptorSetPools[pool].UpdateForAllocate(info);
             return instance->allocateDescriptorSet(pool, &(info.layout), info.variableDescriptorCnt);
         }
 
