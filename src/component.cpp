@@ -60,7 +60,7 @@ namespace vke_common
             scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
         }
 
-        const float deltaTime = vke_physics::PhysicsManager::GetInstance()->stepTime;
+        const float deltaTime = vke_physics::PhysicsManager::GetConfig().stepTime;
         auto characterView = scene.registry.view<Transform, vke_component::CharacterController>();
         for (auto &&[entity, transform, controller] : characterView.each())
         {

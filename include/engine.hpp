@@ -17,10 +17,12 @@ namespace vke_common
     {
     private:
         static Engine *instance;
-        Engine() {}
+        Engine() : fixedUpdateAccumulator(0.0f) {}
         ~Engine() {}
         Engine(const Engine &);
         Engine &operator=(const Engine);
+
+        float fixedUpdateAccumulator;
 
     public:
         static Engine *GetInstance()
@@ -30,6 +32,7 @@ namespace vke_common
         }
 
         static Engine *Init(GLFWwindow *window,
+                            const GameConfig &gameConfig,
                             vke_render::RenderContext *ctx,
                             std::vector<vke_render::PassType> &passes,
                             std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
@@ -41,7 +44,7 @@ namespace vke_common
             EngineStateManager::Init();
             vke_render::RenderEnvironment::Init(window);
             AssetManager::Init();
-            vke_physics::PhysicsManager::Init();
+            vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
             vke_render::DescriptorSetAllocator::Init();
             if (ctx == nullptr)
                 ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
@@ -83,6 +86,8 @@ namespace vke_common
         }
 
         bool Update();
+
+        void FixedUpdate();
 
         void MainLoop();
     };

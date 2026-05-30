@@ -5,6 +5,10 @@ namespace TestProj;
 
 public sealed class TestCameraScript : EntityScript
 {
+    private const float RaycastMaxDistance = 100.0f;
+    private const float RaycastOriginOffset = 0.75f;
+    private const float RaycastImpulse = 30.0f;
+
     public float MoveSpeed = 2.5f;
     public float RotateSpeed = 1.0f;
     public float JumpSpeed = 5.0f;
@@ -20,9 +24,8 @@ public sealed class TestCameraScript : EntityScript
     {
         Console.WriteLine(
             $"TestCameraScript.Start entity={Entity} MoveSpeed={MoveSpeed} RotateSpeed={RotateSpeed}");
-        transform = new Transform(Entity);
-        if (HasComponent<CharacterController>())
-            characterController = new CharacterController(Entity);
+        transform = GetComponent<Transform>();
+        characterController = GetComponent<CharacterController>();
         Input.CursorMode = CursorMode.Disabled;
     }
 
@@ -94,6 +97,9 @@ public sealed class TestCameraScript : EntityScript
             transform.RotateGlobal(-mouseDelta.x * rotateStep, new NVec3(0f, 1f, 0f));
         if (mouseDelta.y != 0f)
             transform.RotateLocal(-mouseDelta.y * rotateStep, new NVec3(1f, 0f, 0f));
+
+        if (Input.IsMouseButtonPressed(MouseButton.Left))
+            ShootRaycastImpulse();
     }
 
     public override void Unload()
@@ -110,6 +116,29 @@ public sealed class TestCameraScript : EntityScript
         return right * local.x + forward * -local.z;
     }
 
+    private void ShootRaycastImpulse()
+    {
+        if (transform == null)
+            return;
+
+        NVec3 direction = Normalize(Rotate(transform.LocalRotation, new NVec3(0f, 0f, -1f)));
+        if (direction.x == 0f && direction.y == 0f && direction.z == 0f)
+            return;
+
+        NVec3 origin = transform.LocalPosition + direction * RaycastOriginOffset;
+        if (!Physics.Raycast(origin, direction, RaycastMaxDistance, out RaycastHit hit))
+            return;
+
+        if (hit.Entity == UInt32.MaxValue)
+            return;
+
+        Console.WriteLine(
+            $"Raycast hit entity={hit.Entity} bodyID={hit.BodyID} subShapeID={hit.SubShapeID} point={hit.Point} normal={hit.Normal} distance={hit.Distance} fraction={hit.Fraction}");
+
+        RigidBody rigidBody = new(hit.Entity);
+        rigidBody.AddImpulseAtPoint(direction * RaycastImpulse, hit.Point);
+    }
+
     private static NVec3 Rotate(NQuat q, NVec3 v)
     {
         NVec3 u = new(q.x, q.y, q.z);
@@ -121,6 +150,12 @@ public sealed class TestCameraScript : EntityScript
     {
         float length = MathF.Sqrt(v.x * v.x + v.z * v.z);
         return length > 0.0001f ? new NVec3(v.x / length, 0f, v.z / length) : NVec3.Zero;
+    }
+
+    private static NVec3 Normalize(NVec3 v)
+    {
+        float length = MathF.Sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+        return length > 0.0001f ? v / length : NVec3.Zero;
     }
 
     private static float Dot(NVec3 left, NVec3 right)

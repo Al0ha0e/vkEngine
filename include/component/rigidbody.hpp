@@ -15,20 +15,25 @@ namespace vke_component
         JPH::BodyCreationSettings settings;
         float friction;
         float restitution;
+        bool hasMassOverride;
+        float mass;
 
         RigidBody(const vke_common::Transform &transform,
                   JPH::EMotionType motionType,
                   JPH::ObjectLayer layer,
                   float friction, float restitution,
                   std::shared_ptr<vke_physics::PhyscisShape> &shape)
-            : friction(friction), restitution(restitution), shape(shape)
+            : shape(shape), friction(friction), restitution(restitution), hasMassOverride(false), mass(0.0f)
         {
             init(transform, motionType, layer);
         }
 
         RigidBody(const vke_common::Transform &transform,
                   const nlohmann::json &json)
-            : friction(json["friction"]), restitution(json["restitution"]), shape(new vke_physics::PhyscisShape(json["shape"]))
+            : shape(new vke_physics::PhyscisShape(json["shape"])),
+              friction(json["friction"]), restitution(json["restitution"]),
+              hasMassOverride(json.contains("mass")),
+              mass(hasMassOverride ? json["mass"].get<float>() : 0.0f)
         {
             init(transform, json["motionType"], json["layer"]);
         }
@@ -61,6 +66,8 @@ namespace vke_component
                 {"friction", friction},
                 {"restitution", restitution},
                 {"shape", shape->ToJSON()}};
+            if (hasMassOverride)
+                ret["mass"] = mass;
             return ret;
         }
 
@@ -79,6 +86,11 @@ namespace vke_component
                                                  JPH::RVec3(position.x, position.y, position.z),
                                                  JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
                                                  motionType, layer);
+            if (hasMassOverride)
+            {
+                settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
+                settings.mMassPropertiesOverride.mMass = mass;
+            }
         }
     };
 }

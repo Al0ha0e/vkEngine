@@ -25,10 +25,22 @@ namespace vke_common
         }
 
         vke_common::ScriptManager::GetInstance()->Update();
-        vke_physics::PhysicsManager::Update();
+        fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
+        const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
+        while (fixedUpdateAccumulator >= fixedStepTime)
+        {
+            FixedUpdate();
+            fixedUpdateAccumulator -= fixedStepTime;
+        }
         vke_render::Renderer::GetInstance()->Update();
         vke_common::InputManager::EndFrame();
         return true;
+    }
+
+    void Engine::FixedUpdate()
+    {
+        vke_common::ScriptManager::FixedUpdate();
+        vke_physics::PhysicsManager::FixedUpdate();
     }
 
     void Engine::MainLoop()

@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
 
     GLFWwindow *window = initWindow(gameConfig->windowWidth, gameConfig->windowHeight);
-    vke_common::Engine *engine = vke_common::Engine::Init(window, nullptr, passes, customPasses);
+    vke_common::Engine *engine = vke_common::Engine::Init(window, *gameConfig, nullptr, passes, customPasses);
 
     vke_common::AssetManager::LoadAssetLUT(gameConfig->assetLUTPath);
     auto scene = vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);

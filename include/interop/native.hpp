@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <interop/interop.hpp>
 #include <interop/math.hpp>
+#include <interop/physics.hpp>
 
 namespace vke_interop
 {
@@ -70,6 +71,56 @@ namespace vke_interop
         SetCharacterControllerVelocityFn SetCharacterControllerVelocity;
         GetCharacterControllerVelocityFn GetCharacterControllerVelocity;
         IsCharacterControllerGroundedFn IsCharacterControllerGrounded;
+        GetRigidBodyBodyIDFn GetRigidBodyBodyID;
+        ActivateBodyFn ActivateBody;
+        DeactivateBodyFn DeactivateBody;
+        IsBodyActiveFn IsBodyActive;
+        SetBodyObjectLayerFn SetBodyObjectLayer;
+        GetBodyObjectLayerFn GetBodyObjectLayer;
+        SetBodyRestitutionFn SetBodyRestitution;
+        GetBodyRestitutionFn GetBodyRestitution;
+        SetBodyFrictionFn SetBodyFriction;
+        GetBodyFrictionFn GetBodyFriction;
+        SetBodyGravityFactorFn SetBodyGravityFactor;
+        GetBodyGravityFactorFn GetBodyGravityFactor;
+        GetBodyCenterOfMassPositionFn GetBodyCenterOfMassPosition;
+        MoveKinematicBodyFn MoveKinematicBody;
+        SetBodyLinearAndAngularVelocityFn SetBodyLinearAndAngularVelocity;
+        GetBodyLinearAndAngularVelocityFn GetBodyLinearAndAngularVelocity;
+        SetBodyLinearVelocityFn SetBodyLinearVelocity;
+        GetBodyLinearVelocityFn GetBodyLinearVelocity;
+        AddBodyLinearVelocityFn AddBodyLinearVelocity;
+        AddBodyLinearAndAngularVelocityFn AddBodyLinearAndAngularVelocity;
+        SetBodyAngularVelocityFn SetBodyAngularVelocity;
+        GetBodyAngularVelocityFn GetBodyAngularVelocity;
+        GetBodyPointVelocityFn GetBodyPointVelocity;
+        AddBodyForceFn AddBodyForce;
+        AddBodyForceAtPointFn AddBodyForceAtPoint;
+        AddBodyTorqueFn AddBodyTorque;
+        AddBodyForceAndTorqueFn AddBodyForceAndTorque;
+        AddBodyImpulseFn AddBodyImpulse;
+        AddBodyImpulseAtPointFn AddBodyImpulseAtPoint;
+        AddBodyAngularImpulseFn AddBodyAngularImpulse;
+        ApplyBodyBuoyancyImpulseFn ApplyBodyBuoyancyImpulse;
+        SetBodyMotionTypeFn SetBodyMotionType;
+        GetBodyMotionTypeFn GetBodyMotionType;
+        SetBodyMotionQualityFn SetBodyMotionQuality;
+        GetBodyMotionQualityFn GetBodyMotionQuality;
+        GetPhysicsObjectLayerCountFn GetPhysicsObjectLayerCount;
+        GetPhysicsBroadPhaseLayerCountFn GetPhysicsBroadPhaseLayerCount;
+        AddPhysicsObjectLayerFn AddPhysicsObjectLayer;
+        AddPhysicsBroadPhaseLayerFn AddPhysicsBroadPhaseLayer;
+        SetPhysicsObjectLayerBroadPhaseLayerFn SetPhysicsObjectLayerBroadPhaseLayer;
+        GetPhysicsObjectLayerBroadPhaseLayerFn GetPhysicsObjectLayerBroadPhaseLayer;
+        SetPhysicsObjectLayerCollisionFn SetPhysicsObjectLayerCollision;
+        GetPhysicsObjectLayerCollisionFn GetPhysicsObjectLayerCollision;
+        SetPhysicsObjectVsBroadPhaseLayerCollisionFn SetPhysicsObjectVsBroadPhaseLayerCollision;
+        GetPhysicsObjectVsBroadPhaseLayerCollisionFn GetPhysicsObjectVsBroadPhaseLayerCollision;
+        PhysicsRaycastFn PhysicsRaycast;
+        PhysicsRaycastAllFn PhysicsRaycastAll;
+        PhysicsCollidePointFn PhysicsCollidePoint;
+        PhysicsCollideShapeFn PhysicsCollideShape;
+        PhysicsCastShapeFn PhysicsCastShape;
     };
 }
 

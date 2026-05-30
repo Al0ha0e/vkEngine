@@ -35,6 +35,56 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> SetCharacterControllerVelocity;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetCharacterControllerVelocity;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> IsCharacterControllerGrounded;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetRigidBodyBodyID;
+        public delegate* unmanaged[Cdecl]<UInt32, void> ActivateBody;
+        public delegate* unmanaged[Cdecl]<UInt32, void> DeactivateBody;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> IsBodyActive;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, void> SetBodyObjectLayer;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetBodyObjectLayer;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> SetBodyRestitution;
+        public delegate* unmanaged[Cdecl]<UInt32, float> GetBodyRestitution;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> SetBodyFriction;
+        public delegate* unmanaged[Cdecl]<UInt32, float> GetBodyFriction;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> SetBodyGravityFactor;
+        public delegate* unmanaged[Cdecl]<UInt32, float> GetBodyGravityFactor;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetBodyCenterOfMassPosition;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NQuat*, float, void> MoveKinematicBody;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> SetBodyLinearAndAngularVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> GetBodyLinearAndAngularVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> SetBodyLinearVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetBodyLinearVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> AddBodyLinearVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> AddBodyLinearAndAngularVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> SetBodyAngularVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetBodyAngularVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> GetBodyPointVelocity;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, Int32, void> AddBodyForce;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, Int32, void> AddBodyForceAtPoint;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, Int32, void> AddBodyTorque;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, Int32, void> AddBodyForceAndTorque;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> AddBodyImpulse;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> AddBodyImpulseAtPoint;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> AddBodyAngularImpulse;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, float, float, float, NVec3*, NVec3*, float, Int32> ApplyBodyBuoyancyImpulse;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, void> SetBodyMotionType;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> GetBodyMotionType;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, void> SetBodyMotionQuality;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> GetBodyMotionQuality;
+        public delegate* unmanaged[Cdecl]<UInt32> GetPhysicsObjectLayerCount;
+        public delegate* unmanaged[Cdecl]<UInt32> GetPhysicsBroadPhaseLayerCount;
+        public delegate* unmanaged[Cdecl]<byte*, UInt32, UInt32> AddPhysicsObjectLayer;
+        public delegate* unmanaged[Cdecl]<byte*, UInt32> AddPhysicsBroadPhaseLayer;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, void> SetPhysicsObjectLayerBroadPhaseLayer;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetPhysicsObjectLayerBroadPhaseLayer;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> SetPhysicsObjectLayerCollision;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetPhysicsObjectLayerCollision;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> SetPhysicsObjectVsBroadPhaseLayerCollision;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetPhysicsObjectVsBroadPhaseLayerCollision;
+        public delegate* unmanaged[Cdecl]<NVec3*, NVec3*, float, UInt32, UInt32, RaycastHit*, Int32> PhysicsRaycast;
+        public delegate* unmanaged[Cdecl]<NVec3*, NVec3*, float, UInt32, UInt32, RaycastHit*, UInt32, UInt32> PhysicsRaycastAll;
+        public delegate* unmanaged[Cdecl]<NVec3*, UInt32, UInt32, CollidePointHit*, UInt32, UInt32> PhysicsCollidePoint;
+        public delegate* unmanaged[Cdecl]<Int32, void*, NVec3*, NQuat*, NVec3*, UInt32, UInt32, CollideShapeHit*, UInt32, UInt32> PhysicsCollideShape;
+        public delegate* unmanaged[Cdecl]<Int32, void*, NVec3*, NQuat*, NVec3*, NVec3*, float, UInt32, UInt32, ShapeCastHit*, UInt32, UInt32> PhysicsCastShape;
     }
 
     public static class NativeFunctionRegistry
@@ -52,6 +102,8 @@ namespace vkEngine.EngineCore
             EngineStateManager.RegisterNativeFunctions(functions);
             EntityScript.RegisterNativeFunctions(functions);
             CharacterController.RegisterNativeFunctions(functions);
+            RigidBody.RegisterNativeFunctions(functions);
+            Physics.RegisterNativeFunctions(functions);
         }
     }
 }

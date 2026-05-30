@@ -39,7 +39,7 @@ USE_AVX2 = True
 USE_AVX = True
 USE_FMADD = False
 CROSS_PLATFORM_DETERMINISTIC = True
-OBJECT_LAYER_BITS = 0
+OBJECT_LAYER_BITS = 32
 DEBUG = False
 
 jolt_ccflags = []
@@ -141,6 +141,7 @@ commonsrc = (
         "./src/input.cpp",
         "./src/time.cpp",
         "./src/logger.cpp",
+        "./src/physics/physics_config.cpp",
         "./src/physics/physics.cpp",
         "./src/script.cpp",
         "./third_party/spirv_reflect/spirv_reflect.cpp",
@@ -148,6 +149,7 @@ commonsrc = (
         "./third_party/stb/stb_image.cpp",
         "./third_party/tinygltf/tiny_gltf.cpp",
         "./src/interop/native.cpp",
+        "./src/interop/physics.cpp",
     ]
     + generated_files
 )

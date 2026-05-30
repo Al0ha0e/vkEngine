@@ -4,6 +4,7 @@
 #include <common.hpp>
 #include <cstdint>
 #include <nlohmann/json.hpp>
+#include <physics/physics_config.hpp>
 #include <reflect.hpp>
 
 namespace vke_common
@@ -22,12 +23,17 @@ namespace vke_common
         REFLECT_FIELD(std::string, assetLUTPath);
         REFLECT_FIELD(std::string, defaultScenePath);
         REFLECT_FIELD(std::string, gameScriptPath);
+        vke_physics::PhysicsConfig physicsConfig;
+        nlohmann::json sourceJSON;
 
         GameConfig() : windowWidth(800), windowHeight(600),
-                       assetLUTPath(), defaultScenePath(), gameScriptPath() {}
+                       assetLUTPath(), defaultScenePath(), gameScriptPath(), physicsConfig() {}
         GameConfig(const nlohmann::json &json)
         {
+            sourceJSON = json;
             loadJSON(json);
+            if (json.contains("physicsConfig"))
+                physicsConfig.LoadJSON(json["physicsConfig"]);
         }
 
         static GameConfig *GetInstance()

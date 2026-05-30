@@ -1,5 +1,5 @@
 {
-  "maxid": 7,
+  "maxid": 21,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -60,27 +60,27 @@
     {
       "id": 2,
       "static": true,
-      "name": "plane",
+      "name": "playground_floor",
       "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, -2.0, 0.0],
-        "scl": [1.0, 1.0, 1.0],
+        "scl": [30.0, 0.2, 30.0],
         "rot": [0.0, 0.0, 0.0, 1.0]
       },
       "components": [
         {
           "type": "renderableObject",
           "material": 1,
-          "mesh": 1
+          "mesh": 2
         },
         {
           "type": "rigidbody",
           "motionType": 0,
           "layer": 0,
-          "friction": 0.1,
-          "restitution": 0.1,
-          "shape": { "type": 1, "halfExtent": [10.0, 0.2, 10.0] }
+          "friction": 0.5,
+          "restitution": 0.0,
+          "shape": { "type": 1, "halfExtent": [30.0, 0.2, 30.0] }
         }
       ],
       "children": []
@@ -88,27 +88,28 @@
     {
       "id": 3,
       "static": false,
-      "name": "sphere",
+      "name": "box_stack_base",
       "layer": 0,
       "parent": 0,
       "transform": {
-        "pos": [0.0, 2, 0.0],
-        "scl": [1.0, 1.0, 1.0],
+        "pos": [-3.0, -1.35, -1.0],
+        "scl": [1.0, 0.45, 0.85],
         "rot": [0.0, 0.0, 0.0, 1.0]
       },
       "components": [
         {
           "type": "renderableObject",
           "material": 1,
-          "mesh": 3
+          "mesh": 2
         },
         {
           "type": "rigidbody",
           "motionType": 2,
           "layer": 1,
-          "friction": 0.1,
-          "restitution": 0.1,
-          "shape": { "type": 0, "radius": 1.0 }
+          "friction": 0.45,
+          "restitution": 0.0,
+          "mass": 8.0,
+          "shape": { "type": 1, "halfExtent": [1.0, 0.45, 0.85] }
         }
       ],
       "children": []
@@ -116,12 +117,70 @@
     {
       "id": 4,
       "static": false,
-      "name": "sphere",
+      "name": "box_stack_mid",
       "layer": 0,
       "parent": 0,
       "transform": {
-        "pos": [0.2, 5, 0.0],
-        "scl": [1.0, 1.0, 1.0],
+        "pos": [-2.8, -0.55, -1.1],
+        "scl": [0.75, 0.3, 1.05],
+        "rot": [0.0, 0.258819, 0.0, 0.965926]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.35,
+          "restitution": 0.0,
+          "mass": 6.0,
+          "shape": { "type": 1, "halfExtent": [0.75, 0.3, 1.05] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 5,
+      "static": false,
+      "name": "box_stack_top",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-3.15, 0.05, -1.0],
+        "scl": [0.45, 0.35, 0.45],
+        "rot": [0.0, -0.173648, 0.0, 0.984808]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.35,
+          "restitution": 0.0,
+          "mass": 3.0,
+          "shape": { "type": 1, "halfExtent": [0.45, 0.35, 0.45] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 6,
+      "static": false,
+      "name": "sphere_large",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [1.5, -1.2, -2.5],
+        "scl": [0.6, 0.6, 0.6],
         "rot": [0.0, 0.0, 0.0, 1.0]
       },
       "components": [
@@ -134,65 +193,416 @@
           "type": "rigidbody",
           "motionType": 2,
           "layer": 1,
-          "friction": 0.1,
-          "restitution": 0.1,
-          "shape": { "type": 0, "radius": 1.0 }
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 5.0,
+          "shape": { "type": 0, "radius": 0.6 }
         }
       ],
       "children": []
     },
     {
-      "id": 5,
-      "static": true,
-      "name": "controller_wall",
+      "id": 7,
+      "static": false,
+      "name": "sphere_small",
       "layer": 0,
       "parent": 0,
       "transform": {
-        "pos": [0.0, -0.6, 3.0],
-        "scl": [1.0, 1.0, 1.0],
+        "pos": [2.4, 0.15, -2.1],
+        "scl": [0.45, 0.45, 0.45],
         "rot": [0.0, 0.0, 0.0, 1.0]
       },
       "components": [
         {
           "type": "renderableObject",
           "material": 1,
-          "mesh": 1
+          "mesh": 3
         },
         {
           "type": "rigidbody",
-          "motionType": 0,
-          "layer": 0,
-          "friction": 0.4,
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
           "restitution": 0.0,
-          "shape": { "type": 1, "halfExtent": [2.0, 1.2, 0.25] }
+          "mass": 2.0,
+          "shape": { "type": 0, "radius": 0.45 }
         }
       ],
       "children": []
     },
     {
-      "id": 6,
-      "static": true,
-      "name": "controller_step",
+      "id": 8,
+      "static": false,
+      "name": "sphere_medium",
       "layer": 0,
       "parent": 0,
       "transform": {
-        "pos": [-3.0, -1.55, 0.0],
-        "scl": [1.0, 1.0, 1.0],
+        "pos": [0.8, -0.25, -1.7],
+        "scl": [0.4, 0.4, 0.4],
         "rot": [0.0, 0.0, 0.0, 1.0]
       },
       "components": [
         {
           "type": "renderableObject",
           "material": 1,
-          "mesh": 1
+          "mesh": 3
         },
         {
           "type": "rigidbody",
-          "motionType": 0,
-          "layer": 0,
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 2.5,
+          "shape": { "type": 0, "radius": 0.4 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 9,
+      "static": false,
+      "name": "cylinder_tall",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [4.0, -1.1, 0.5],
+        "scl": [0.4, 0.7, 0.4],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "mass": 7.0,
+          "shape": { "type": 3, "radius": 0.4, "halfHeight": 0.7 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 10,
+      "static": false,
+      "name": "cylinder_wide",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [3.35, -0.85, 0.45],
+        "scl": [0.65, 0.25, 0.65],
+        "rot": [0.0, 0.382683, 0.0, 0.92388]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "mass": 6.5,
+          "shape": { "type": 3, "radius": 0.65, "halfHeight": 0.25 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 11,
+      "static": false,
+      "name": "cylinder_short",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [4.6, -0.25, 0.35],
+        "scl": [0.35, 0.3, 0.35],
+        "rot": [0.0, -0.258819, 0.0, 0.965926]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.45,
+          "restitution": 0.0,
+          "mass": 3.5,
+          "shape": { "type": 3, "radius": 0.35, "halfHeight": 0.3 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 12,
+      "static": false,
+      "name": "long_box_bridge",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-0.5, -1.4, 3.0],
+        "scl": [1.45, 0.35, 0.35],
+        "rot": [0.0, 0.130526, 0.0, 0.991445]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
           "friction": 0.4,
           "restitution": 0.0,
-          "shape": { "type": 1, "halfExtent": [1.0, 0.45, 1.0] }
+          "mass": 9.0,
+          "shape": { "type": 1, "halfExtent": [1.45, 0.35, 0.35] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 13,
+      "static": false,
+      "name": "cube_left",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-1.8, -1.35, 3.15],
+        "scl": [0.45, 0.45, 0.45],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "mass": 4.0,
+          "shape": { "type": 1, "halfExtent": [0.45, 0.45, 0.45] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 14,
+      "static": false,
+      "name": "cube_right",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [1.2, -1.45, 2.7],
+        "scl": [0.35, 0.35, 0.35],
+        "rot": [0.0, 0.422618, 0.0, 0.906308]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "mass": 2.0,
+          "shape": { "type": 1, "halfExtent": [0.35, 0.35, 0.35] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 15,
+      "static": false,
+      "name": "sphere_on_bridge",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-0.3, -0.75, 3.0],
+        "scl": [0.35, 0.35, 0.35],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 1.5,
+          "shape": { "type": 0, "radius": 0.35 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 16,
+      "static": false,
+      "name": "scatter_box_a",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-6.0, -1.4, 1.5],
+        "scl": [0.35, 0.45, 0.7],
+        "rot": [0.0, -0.34202, 0.0, 0.939693]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "mass": 5.5,
+          "shape": { "type": 1, "halfExtent": [0.35, 0.45, 0.7] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 17,
+      "static": false,
+      "name": "scatter_box_b",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [6.0, -1.55, -2.5],
+        "scl": [0.75, 0.25, 0.4],
+        "rot": [0.0, 0.608761, 0.0, 0.793353]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.35,
+          "restitution": 0.0,
+          "mass": 5.0,
+          "shape": { "type": 1, "halfExtent": [0.75, 0.25, 0.4] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 18,
+      "static": false,
+      "name": "scatter_cylinder",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [6.5, -1.4, 1.8],
+        "scl": [0.4, 0.45, 0.4],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.45,
+          "restitution": 0.0,
+          "mass": 4.5,
+          "shape": { "type": 3, "radius": 0.4, "halfHeight": 0.45 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 19,
+      "static": false,
+      "name": "scatter_sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-5.2, -1.45, -3.4],
+        "scl": [0.35, 0.35, 0.35],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 1.5,
+          "shape": { "type": 0, "radius": 0.35 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 20,
+      "static": false,
+      "name": "small_cube_top",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [3.8, 0.0, 0.4],
+        "scl": [0.3, 0.3, 0.3],
+        "rot": [0.0, 0.087156, 0.0, 0.996195]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.35,
+          "restitution": 0.0,
+          "mass": 1.0,
+          "shape": { "type": 1, "halfExtent": [0.3, 0.3, 0.3] }
         }
       ],
       "children": []

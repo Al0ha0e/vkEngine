@@ -44,6 +44,11 @@ namespace vkEngine.EngineCore
             [typeof(Transform)] = ComponentType.Transform,
             [typeof(CharacterController)] = ComponentType.CharacterController
         };
+        private static readonly Dictionary<ComponentType, Type> componentRuntimeTypeMap = new()
+        {
+            [ComponentType.Transform] = typeof(Transform),
+            [ComponentType.CharacterController] = typeof(CharacterController)
+        };
 
         protected EntityScript(UInt32 entity)
         {
@@ -69,6 +74,36 @@ namespace vkEngine.EngineCore
                 throw new NotSupportedException($"Component type '{typeof(T).FullName}' is not registered for native queries.");
 
             return HasComponent(componentType);
+        }
+
+        public T? GetComponent<T>() where T : class
+        {
+            return (T?)GetComponent(typeof(T));
+        }
+
+        public object? GetComponent(Type componentType)
+        {
+            if (componentType == null)
+                throw new ArgumentNullException(nameof(componentType));
+
+            if (!componentTypeMap.TryGetValue(componentType, out ComponentType nativeComponentType))
+                throw new NotSupportedException($"Component type '{componentType.FullName}' is not registered for native queries.");
+
+            if (!HasComponent(nativeComponentType))
+                return null;
+
+            return CreateComponent(componentType);
+        }
+
+        public object? GetComponent(ComponentType componentType)
+        {
+            if (!componentRuntimeTypeMap.TryGetValue(componentType, out Type? runtimeType))
+                throw new NotSupportedException($"Component type '{componentType}' is not registered for managed access.");
+
+            if (!HasComponent(componentType))
+                return null;
+
+            return CreateComponent(runtimeType);
         }
 
         public virtual void Start() { }
@@ -134,6 +169,15 @@ namespace vkEngine.EngineCore
             if (method == null)
                 return false;
             return method.GetBaseDefinition().DeclaringType != method.DeclaringType;
+        }
+
+        private object CreateComponent(Type componentType)
+        {
+            ConstructorInfo? ctor = componentType.GetConstructor(new[] { typeof(UInt32) });
+            if (ctor == null)
+                throw new NotSupportedException($"Component type '{componentType.FullName}' must define a public constructor with a UInt32 entity parameter.");
+
+            return ctor.Invoke(new object[] { Entity });
         }
     }
 }

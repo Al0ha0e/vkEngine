@@ -99,6 +99,11 @@ namespace vke_common
             instance->csharpExports.sceneManagerFunctions.update();
         }
 
+        static void FixedUpdate()
+        {
+            instance->csharpExports.sceneManagerFunctions.fixedUpdate();
+        }
+
         static void Unload()
         {
             instance->csharpExports.sceneManagerFunctions.unload();

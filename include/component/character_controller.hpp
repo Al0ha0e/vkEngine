@@ -32,7 +32,7 @@ namespace vke_component
                             const nlohmann::json &json)
             : shape(new vke_physics::PhyscisShape(json["shape"])),
               settings(new JPH::CharacterVirtualSettings()),
-              layer(json.value("layer", (int)vke_physics::Layers::MOVING)),
+              layer(json.value("layer", (int)vke_physics::DefaultObjectLayers::MOVING)),
               desiredVelocity(JPH::Vec3::sZero()), verticalVelocity(0.0f)
         {
             settings->mMass = json.value("mass", settings->mMass);
@@ -92,9 +92,9 @@ namespace vke_component
                 return;
 
             const JPH::Vec3 gravity = vke_physics::PhysicsManager::GetPhysicsSystem().GetGravity();
+            verticalVelocity += gravity.GetY() * deltaTime;
             if (character->IsSupported() && verticalVelocity < 0.0f)
                 verticalVelocity = 0.0f;
-            verticalVelocity += gravity.GetY() * deltaTime;
 
             JPH::Vec3 velocity(desiredVelocity.GetX(),
                                desiredVelocity.GetY() + verticalVelocity,
