@@ -1,4 +1,5 @@
 #include <component/rigidbody.hpp>
+#include <component/sensor.hpp>
 #include <interop/physics.hpp>
 #include <physics/physics.hpp>
 #include <physics/shape.hpp>
@@ -99,6 +100,16 @@ namespace vke_interop
             return JPH::BodyID::cInvalidBodyID;
 
         return scene->registry.get<vke_component::RigidBody>(ent).bodyID.GetIndexAndSequenceNumber();
+    }
+
+    uint32_t VKE_INTEROP_CDECL GetSensorBodyID(uint32_t entity)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        entt::entity ent = GetEntity(scene, entity);
+        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::Sensor>(ent))
+            return JPH::BodyID::cInvalidBodyID;
+
+        return scene->registry.get<vke_component::Sensor>(ent).bodyID.GetIndexAndSequenceNumber();
     }
 
     void VKE_INTEROP_CDECL ActivateBody(uint32_t bodyID)
@@ -338,64 +349,85 @@ namespace vke_interop
         return config.objectVsBroadPhaseLayerPairs[objectLayer][broadPhaseLayer] ? 1 : 0;
     }
 
-    static uint32_t FindEntityByBodyID(uint32_t bodyID)
+    static ContactEvent ToInterop(const vke_physics::ContactEvent &event)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        if (scene == nullptr)
-            return UINT32_MAX;
+        return ContactEvent{
+            static_cast<int32_t>(event.type),
+            event.entity1,
+            event.entity2,
+            event.bodyID1.GetIndexAndSequenceNumber(),
+            event.bodyID2.GetIndexAndSequenceNumber(),
+            event.subShapeID1.GetValue(),
+            event.subShapeID2.GetValue(),
+            Vector3<float>{static_cast<float>(event.point1.GetX()), static_cast<float>(event.point1.GetY()), static_cast<float>(event.point1.GetZ())},
+            Vector3<float>{static_cast<float>(event.point2.GetX()), static_cast<float>(event.point2.GetY()), static_cast<float>(event.point2.GetZ())},
+            ToInterop(event.normal),
+            event.penetrationDepth,
+            event.isSensor ? 1 : 0};
+    }
 
-        JPH::BodyID target(bodyID);
-        auto view = scene->registry.view<vke_component::RigidBody>();
-        for (auto &&[entity, rigidbody] : view.each())
-        {
-            if (rigidbody.bodyID == target)
-                return static_cast<uint32_t>(entity);
-        }
+    uint32_t VKE_INTEROP_CDECL GetPhysicsContactEventCount()
+    {
+        return vke_physics::PhysicsManager::GetContactEventCount();
+    }
 
-        return UINT32_MAX;
+    uint32_t VKE_INTEROP_CDECL GetPhysicsContactEvents(ContactEvent *events, uint32_t maxEvents)
+    {
+        if (events == nullptr || maxEvents == 0)
+            return 0;
+
+        std::vector<vke_physics::ContactEvent> physicsEvents(maxEvents);
+        const uint32_t eventCount = vke_physics::PhysicsManager::GetContactEvents(physicsEvents.data(), maxEvents);
+        for (uint32_t i = 0; i < eventCount; ++i)
+            events[i] = ToInterop(physicsEvents[i]);
+
+        return eventCount;
     }
 
     static RaycastHit ToInterop(const vke_physics::RaycastHit &hit)
     {
         const uint32_t bodyID = hit.bodyID.GetIndexAndSequenceNumber();
         return RaycastHit{
-            FindEntityByBodyID(bodyID),
+            hit.entity,
             bodyID,
             hit.subShapeID.GetValue(),
             Vector3<float>{static_cast<float>(hit.point.GetX()), static_cast<float>(hit.point.GetY()), static_cast<float>(hit.point.GetZ())},
             ToInterop(hit.normal),
             hit.distance,
-            hit.fraction};
+            hit.fraction,
+            hit.isSensor ? 1 : 0};
     }
 
     static CollidePointHit ToInterop(const vke_physics::CollidePointHit &hit)
     {
         const uint32_t bodyID = hit.bodyID.GetIndexAndSequenceNumber();
         return CollidePointHit{
-            FindEntityByBodyID(bodyID),
+            hit.entity,
             bodyID,
-            hit.subShapeID.GetValue()};
+            hit.subShapeID.GetValue(),
+            hit.isSensor ? 1 : 0};
     }
 
     static CollideShapeHit ToInterop(const vke_physics::CollideShapeHit &hit)
     {
         const uint32_t bodyID = hit.bodyID.GetIndexAndSequenceNumber();
         return CollideShapeHit{
-            FindEntityByBodyID(bodyID),
+            hit.entity,
             bodyID,
             hit.subShapeID1.GetValue(),
             hit.subShapeID2.GetValue(),
             ToInterop(hit.contactPointOn1),
             ToInterop(hit.contactPointOn2),
             ToInterop(hit.penetrationAxis),
-            hit.penetrationDepth};
+            hit.penetrationDepth,
+            hit.isSensor ? 1 : 0};
     }
 
     static ShapeCastHit ToInterop(const vke_physics::ShapeCastHit &hit)
     {
         const uint32_t bodyID = hit.bodyID.GetIndexAndSequenceNumber();
         return ShapeCastHit{
-            FindEntityByBodyID(bodyID),
+            hit.entity,
             bodyID,
             hit.subShapeID1.GetValue(),
             hit.subShapeID2.GetValue(),
@@ -405,7 +437,8 @@ namespace vke_interop
             hit.penetrationDepth,
             hit.distance,
             hit.fraction,
-            hit.isBackFaceHit ? 1 : 0};
+            hit.isBackFaceHit ? 1 : 0,
+            hit.isSensor ? 1 : 0};
     }
 
     int32_t VKE_INTEROP_CDECL PhysicsRaycast(const Vector3<float> *origin, const Vector3<float> *direction, float maxDistance, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask, RaycastHit *hit)

@@ -12,11 +12,12 @@ namespace vke_common
         RenderableObject = 2,
         SkeletonAnimator = 3,
         RigidBody = 4,
-        CharacterController = 5,
-        DirectionalLight = 6,
-        PointLight = 7,
-        SpotLight = 8,
-        Script = 9
+        Sensor = 5,
+        CharacterController = 6,
+        DirectionalLight = 7,
+        PointLight = 8,
+        SpotLight = 9,
+        Script = 10
     };
 }
 

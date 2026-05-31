@@ -11,11 +11,12 @@ namespace vkEngine.EngineCore
         RenderableObject = 2,
         SkeletonAnimator = 3,
         RigidBody = 4,
-        CharacterController = 5,
-        DirectionalLight = 6,
-        PointLight = 7,
-        SpotLight = 8,
-        Script = 9
+        Sensor = 5,
+        CharacterController = 6,
+        DirectionalLight = 7,
+        PointLight = 8,
+        SpotLight = 9,
+        Script = 10
     }
 
     public interface IScriptLifecycle
@@ -42,11 +43,15 @@ namespace vkEngine.EngineCore
         private static readonly Dictionary<Type, ComponentType> componentTypeMap = new()
         {
             [typeof(Transform)] = ComponentType.Transform,
+            [typeof(RigidBody)] = ComponentType.RigidBody,
+            [typeof(Sensor)] = ComponentType.Sensor,
             [typeof(CharacterController)] = ComponentType.CharacterController
         };
         private static readonly Dictionary<ComponentType, Type> componentRuntimeTypeMap = new()
         {
             [ComponentType.Transform] = typeof(Transform),
+            [ComponentType.RigidBody] = typeof(RigidBody),
+            [ComponentType.Sensor] = typeof(Sensor),
             [ComponentType.CharacterController] = typeof(CharacterController)
         };
 

@@ -10,7 +10,9 @@
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Physics/Collision/Shape/SubShapeID.h>
+#include <Jolt/Physics/Collision/Shape/SubShapeIDPair.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 
 #include <common.hpp>
@@ -19,34 +21,42 @@
 #include <physics/physics_config.hpp>
 #include <vector>
 #include <functional>
+#include <mutex>
+#include <unordered_map>
 
 namespace vke_physics
 {
     struct RaycastHit
     {
         JPH::BodyID bodyID;
+        uint32_t entity;
         JPH::SubShapeID subShapeID;
         JPH::RVec3 point;
         JPH::Vec3 normal;
         float distance;
         float fraction;
+        bool isSensor;
     };
 
     struct CollidePointHit
     {
         JPH::BodyID bodyID;
+        uint32_t entity;
         JPH::SubShapeID subShapeID;
+        bool isSensor;
     };
 
     struct CollideShapeHit
     {
         JPH::BodyID bodyID;
+        uint32_t entity;
         JPH::SubShapeID subShapeID1;
         JPH::SubShapeID subShapeID2;
         JPH::Vec3 contactPointOn1;
         JPH::Vec3 contactPointOn2;
         JPH::Vec3 penetrationAxis;
         float penetrationDepth;
+        bool isSensor;
     };
 
     struct ShapeCastHit : public CollideShapeHit
@@ -54,6 +64,29 @@ namespace vke_physics
         float fraction;
         float distance;
         bool isBackFaceHit;
+    };
+
+    enum class ContactEventType : int32_t
+    {
+        Added = 0,
+        Persisted = 1,
+        Removed = 2
+    };
+
+    struct ContactEvent
+    {
+        ContactEventType type;
+        JPH::BodyID bodyID1;
+        JPH::BodyID bodyID2;
+        uint32_t entity1;
+        uint32_t entity2;
+        JPH::SubShapeID subShapeID1;
+        JPH::SubShapeID subShapeID2;
+        JPH::RVec3 point1;
+        JPH::RVec3 point2;
+        JPH::Vec3 normal;
+        float penetrationDepth;
+        bool isSensor;
     };
 
     class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter
@@ -166,7 +199,6 @@ namespace vke_physics
         uint32_t mMask;
     };
 
-    // An example contact listener
     class ContactListener : public JPH::ContactListener
     {
     public:
@@ -177,20 +209,11 @@ namespace vke_physics
             return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
         }
 
-        virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override
-        {
-            // VKE_LOG_INFO("A contact was added")
-        }
+        virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override;
 
-        virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override
-        {
-            // VKE_LOG_INFO("A contact was persisted")
-        }
+        virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override;
 
-        virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override
-        {
-            // VKE_LOG_INFO("A contact was removed")
-        }
+        virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override;
     };
 
     class BodyActivationListener : public JPH::BodyActivationListener
@@ -198,12 +221,12 @@ namespace vke_physics
     public:
         virtual void OnBodyActivated(const JPH::BodyID &inBodyID, uint64_t inBodyUserData) override
         {
-            VKE_LOG_INFO("A body got activated")
+            // VKE_LOG_INFO("A body got activated")
         }
 
         virtual void OnBodyDeactivated(const JPH::BodyID &inBodyID, uint64_t inBodyUserData) override
         {
-            VKE_LOG_INFO("A body went to sleep")
+            // VKE_LOG_INFO("A body went to sleep")
         }
     };
 
@@ -255,12 +278,12 @@ namespace vke_physics
 
         static JPH::BodyInterface &GetBodyInterface()
         {
-            return instance->physics_system.GetBodyInterface();
+            return instance->physicsSystem.GetBodyInterface();
         }
 
         static JPH::PhysicsSystem &GetPhysicsSystem()
         {
-            return instance->physics_system;
+            return instance->physicsSystem;
         }
 
         static JPH::TempAllocator &GetTempAllocator()
@@ -323,6 +346,26 @@ namespace vke_physics
             return instance->castShape(shape, scale, position, rotation, direction, maxDistance, outHits, maxHits, broadPhaseLayerMask, objectLayerMask);
         }
 
+        static void RecordContactEvent(ContactEventType type, const JPH::Body &body1, const JPH::Body &body2, const JPH::ContactManifold &manifold, const JPH::ContactSettings &settings)
+        {
+            instance->recordContactEvent(type, body1, body2, manifold, settings);
+        }
+
+        static void RecordContactRemoved(const JPH::SubShapeIDPair &subShapePair)
+        {
+            instance->recordContactRemoved(subShapePair);
+        }
+
+        static uint32_t GetContactEventCount()
+        {
+            return instance->getContactEventCount();
+        }
+
+        static uint32_t GetContactEvents(ContactEvent *outEvents, uint32_t maxEvents)
+        {
+            return instance->getContactEvents(outEvents, maxEvents);
+        }
+
     private:
         void init();
         void dispose();
@@ -332,17 +375,26 @@ namespace vke_physics
         uint32_t collidePoint(JPH::RVec3Arg point, CollidePointHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
         uint32_t collideShape(const JPH::Shape *shape, JPH::Vec3Arg scale, JPH::RVec3Arg position, JPH::QuatArg rotation, CollideShapeHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
         uint32_t castShape(const JPH::Shape *shape, JPH::Vec3Arg scale, JPH::RVec3Arg position, JPH::QuatArg rotation, JPH::Vec3Arg direction, float maxDistance, ShapeCastHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
+        void recordContactEvent(ContactEventType type, const JPH::Body &body1, const JPH::Body &body2, const JPH::ContactManifold &manifold, const JPH::ContactSettings &settings);
+        void recordContactRemoved(const JPH::SubShapeIDPair &subShapePair);
+        uint32_t getContactEventCount();
+        uint32_t getContactEvents(ContactEvent *outEvents, uint32_t maxEvents);
 
         PhysicsConfig config;
         std::unique_ptr<JPH::TempAllocatorImpl> tempAllocator;
         std::unique_ptr<JPH::JobSystemThreadPool> jobSystem;
-        BPLayerInterfaceImpl broad_phase_layer_interface;
-        ObjectVsBroadPhaseLayerFilterImpl object_vs_broadphase_layer_filter;
-        ObjectLayerPairFilterImpl object_vs_object_layer_filter;
-        BodyActivationListener body_activation_listener;
-        ContactListener contact_listener;
-        JPH::PhysicsSystem physics_system;
+        BPLayerInterfaceImpl broadPhaseLayerInterface;
+        ObjectVsBroadPhaseLayerFilterImpl objectVsBroadphaseLayerFilter;
+        ObjectLayerPairFilterImpl objectVsObjectLayerFilter;
+        BodyActivationListener bodyActivationListener;
+        ContactListener contactListener;
+        JPH::PhysicsSystem physicsSystem;
         vke_common::EventHub<void> updates;
+        std::mutex contactEventsTailMutex;
+        std::vector<ContactEvent> contactEvents;
+        uint64_t contactEventsReadIndex = 0;
+        uint64_t contactEventsTailIndex = 0;
+        std::unordered_map<JPH::SubShapeIDPair, ContactEvent> activeContacts;
     };
 }
 

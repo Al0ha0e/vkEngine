@@ -1,6 +1,7 @@
 #include <scene_transform_system.hpp>
 #include <component/camera.hpp>
 #include <component/rigidbody.hpp>
+#include <component/sensor.hpp>
 #include <component/character_controller.hpp>
 #include <logger.hpp>
 #include <vector>
@@ -186,6 +187,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::RigidBody>(entity))
             registry.get<vke_component::RigidBody>(entity).OnTransformed(transform);
+
+        if (registry.all_of<vke_component::Sensor>(entity))
+            registry.get<vke_component::Sensor>(entity).OnTransformed(transform);
 
         if (registry.all_of<vke_component::CharacterController>(entity))
             registry.get<vke_component::CharacterController>(entity).OnTransformed(transform);

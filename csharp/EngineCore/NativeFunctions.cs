@@ -36,6 +36,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetCharacterControllerVelocity;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> IsCharacterControllerGrounded;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetRigidBodyBodyID;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetSensorBodyID;
         public delegate* unmanaged[Cdecl]<UInt32, void> ActivateBody;
         public delegate* unmanaged[Cdecl]<UInt32, void> DeactivateBody;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> IsBodyActive;
@@ -80,6 +81,8 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetPhysicsObjectLayerCollision;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> SetPhysicsObjectVsBroadPhaseLayerCollision;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetPhysicsObjectVsBroadPhaseLayerCollision;
+        public delegate* unmanaged[Cdecl]<UInt32> GetPhysicsContactEventCount;
+        public delegate* unmanaged[Cdecl]<NativeContactEvent*, UInt32, UInt32> GetPhysicsContactEvents;
         public delegate* unmanaged[Cdecl]<NVec3*, NVec3*, float, UInt32, UInt32, RaycastHit*, Int32> PhysicsRaycast;
         public delegate* unmanaged[Cdecl]<NVec3*, NVec3*, float, UInt32, UInt32, RaycastHit*, UInt32, UInt32> PhysicsRaycastAll;
         public delegate* unmanaged[Cdecl]<NVec3*, UInt32, UInt32, CollidePointHit*, UInt32, UInt32> PhysicsCollidePoint;
@@ -103,6 +106,7 @@ namespace vkEngine.EngineCore
             EntityScript.RegisterNativeFunctions(functions);
             CharacterController.RegisterNativeFunctions(functions);
             RigidBody.RegisterNativeFunctions(functions);
+            Sensor.RegisterNativeFunctions(functions);
             Physics.RegisterNativeFunctions(functions);
         }
     }

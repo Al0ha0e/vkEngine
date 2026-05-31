@@ -13,6 +13,7 @@
 #include <component/renderable_object.hpp>
 #include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
+#include <component/sensor.hpp>
 #include <component/character_controller.hpp>
 #include <scene_transform_system.hpp>
 #include <unordered_map>
@@ -79,7 +80,12 @@ namespace vke_common
             loadView.operator()<vke_component::Camera>();
             loadView.operator()<vke_component::RenderableObject>();
             loadView.operator()<vke_component::SkeletonAnimator>();
-            loadView.operator()<vke_component::RigidBody>();
+            auto rigidBodyView = registry.view<vke_component::RigidBody>();
+            for (auto entity : rigidBodyView)
+                rigidBodyView.get<vke_component::RigidBody>(entity).LoadToEngine(static_cast<uint32_t>(entity));
+            auto sensorView = registry.view<vke_component::Sensor>();
+            for (auto entity : sensorView)
+                sensorView.get<vke_component::Sensor>(entity).LoadToEngine(static_cast<uint32_t>(entity));
             loadView.operator()<vke_component::CharacterController>();
             vke_render::Renderer::GetInstance()->lightManager->BindSceneLighting(&lighting);
 
@@ -118,6 +124,7 @@ namespace vke_common
             };
 
             unloadView.operator()<vke_component::CharacterController>();
+            unloadView.operator()<vke_component::Sensor>();
             unloadView.operator()<vke_component::RigidBody>();
             unloadView.operator()<vke_component::SkeletonAnimator>();
             unloadView.operator()<vke_component::RenderableObject>();

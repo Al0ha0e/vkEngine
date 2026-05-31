@@ -16,6 +16,7 @@ namespace vke_interop
         Vector3<float> Normal;
         float Distance;
         float Fraction;
+        int32_t IsSensor;
     };
 
     struct NativeSphereShape
@@ -58,6 +59,7 @@ namespace vke_interop
         uint32_t Entity;
         uint32_t BodyID;
         uint32_t SubShapeID;
+        int32_t IsSensor;
     };
 
     struct CollideShapeHit
@@ -70,6 +72,7 @@ namespace vke_interop
         Vector3<float> ContactPointOnBody;
         Vector3<float> PenetrationAxis;
         float PenetrationDepth;
+        int32_t IsSensor;
     };
 
     struct ShapeCastHit
@@ -85,9 +88,27 @@ namespace vke_interop
         float Distance;
         float Fraction;
         int32_t IsBackFaceHit;
+        int32_t IsSensor;
+    };
+
+    struct ContactEvent
+    {
+        int32_t Type;
+        uint32_t Entity1;
+        uint32_t Entity2;
+        uint32_t BodyID1;
+        uint32_t BodyID2;
+        uint32_t SubShapeID1;
+        uint32_t SubShapeID2;
+        Vector3<float> Point1;
+        Vector3<float> Point2;
+        Vector3<float> Normal;
+        float PenetrationDepth;
+        int32_t IsSensor;
     };
 
     using GetRigidBodyBodyIDFn = uint32_t(VKE_INTEROP_CDECL *)(uint32_t);
+    using GetSensorBodyIDFn = uint32_t(VKE_INTEROP_CDECL *)(uint32_t);
     using ActivateBodyFn = void(VKE_INTEROP_CDECL *)(uint32_t);
     using DeactivateBodyFn = void(VKE_INTEROP_CDECL *)(uint32_t);
     using IsBodyActiveFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t);
@@ -132,6 +153,8 @@ namespace vke_interop
     using GetPhysicsObjectLayerCollisionFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint32_t);
     using SetPhysicsObjectVsBroadPhaseLayerCollisionFn = void(VKE_INTEROP_CDECL *)(uint32_t, uint32_t, int32_t);
     using GetPhysicsObjectVsBroadPhaseLayerCollisionFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint32_t);
+    using GetPhysicsContactEventCountFn = uint32_t(VKE_INTEROP_CDECL *)();
+    using GetPhysicsContactEventsFn = uint32_t(VKE_INTEROP_CDECL *)(ContactEvent *, uint32_t);
     using PhysicsRaycastFn = int32_t(VKE_INTEROP_CDECL *)(const Vector3<float> *, const Vector3<float> *, float, uint32_t, uint32_t, RaycastHit *);
     using PhysicsRaycastAllFn = uint32_t(VKE_INTEROP_CDECL *)(const Vector3<float> *, const Vector3<float> *, float, uint32_t, uint32_t, RaycastHit *, uint32_t);
     using PhysicsCollidePointFn = uint32_t(VKE_INTEROP_CDECL *)(const Vector3<float> *, uint32_t, uint32_t, CollidePointHit *, uint32_t);
@@ -139,6 +162,7 @@ namespace vke_interop
     using PhysicsCastShapeFn = uint32_t(VKE_INTEROP_CDECL *)(int32_t, const void *, const Vector3<float> *, const Quaternion<float> *, const Vector3<float> *, const Vector3<float> *, float, uint32_t, uint32_t, ShapeCastHit *, uint32_t);
 
     uint32_t VKE_INTEROP_CDECL GetRigidBodyBodyID(uint32_t entity);
+    uint32_t VKE_INTEROP_CDECL GetSensorBodyID(uint32_t entity);
     void VKE_INTEROP_CDECL ActivateBody(uint32_t bodyID);
     void VKE_INTEROP_CDECL DeactivateBody(uint32_t bodyID);
     int32_t VKE_INTEROP_CDECL IsBodyActive(uint32_t bodyID);
@@ -183,6 +207,8 @@ namespace vke_interop
     int32_t VKE_INTEROP_CDECL GetPhysicsObjectLayerCollision(uint32_t layer1, uint32_t layer2);
     void VKE_INTEROP_CDECL SetPhysicsObjectVsBroadPhaseLayerCollision(uint32_t objectLayer, uint32_t broadPhaseLayer, int32_t shouldCollide);
     int32_t VKE_INTEROP_CDECL GetPhysicsObjectVsBroadPhaseLayerCollision(uint32_t objectLayer, uint32_t broadPhaseLayer);
+    uint32_t VKE_INTEROP_CDECL GetPhysicsContactEventCount();
+    uint32_t VKE_INTEROP_CDECL GetPhysicsContactEvents(ContactEvent *events, uint32_t maxEvents);
     int32_t VKE_INTEROP_CDECL PhysicsRaycast(const Vector3<float> *origin, const Vector3<float> *direction, float maxDistance, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask, RaycastHit *hit);
     uint32_t VKE_INTEROP_CDECL PhysicsRaycastAll(const Vector3<float> *origin, const Vector3<float> *direction, float maxDistance, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask, RaycastHit *hits, uint32_t maxHits);
     uint32_t VKE_INTEROP_CDECL PhysicsCollidePoint(const Vector3<float> *point, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask, CollidePointHit *hits, uint32_t maxHits);

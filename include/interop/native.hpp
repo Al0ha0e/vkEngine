@@ -72,6 +72,7 @@ namespace vke_interop
         GetCharacterControllerVelocityFn GetCharacterControllerVelocity;
         IsCharacterControllerGroundedFn IsCharacterControllerGrounded;
         GetRigidBodyBodyIDFn GetRigidBodyBodyID;
+        GetSensorBodyIDFn GetSensorBodyID;
         ActivateBodyFn ActivateBody;
         DeactivateBodyFn DeactivateBody;
         IsBodyActiveFn IsBodyActive;
@@ -116,6 +117,8 @@ namespace vke_interop
         GetPhysicsObjectLayerCollisionFn GetPhysicsObjectLayerCollision;
         SetPhysicsObjectVsBroadPhaseLayerCollisionFn SetPhysicsObjectVsBroadPhaseLayerCollision;
         GetPhysicsObjectVsBroadPhaseLayerCollisionFn GetPhysicsObjectVsBroadPhaseLayerCollision;
+        GetPhysicsContactEventCountFn GetPhysicsContactEventCount;
+        GetPhysicsContactEventsFn GetPhysicsContactEvents;
         PhysicsRaycastFn PhysicsRaycast;
         PhysicsRaycastAllFn PhysicsRaycastAll;
         PhysicsCollidePointFn PhysicsCollidePoint;

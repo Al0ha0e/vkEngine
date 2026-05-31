@@ -13,6 +13,7 @@ namespace vkEngine.EngineCore
         public NVec3 Normal;
         public float Distance;
         public float Fraction;
+        public Int32 IsSensor;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -21,6 +22,7 @@ namespace vkEngine.EngineCore
         public UInt32 Entity;
         public UInt32 BodyID;
         public UInt32 SubShapeID;
+        public Int32 IsSensor;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -34,6 +36,7 @@ namespace vkEngine.EngineCore
         public NVec3 ContactPointOnBody;
         public NVec3 PenetrationAxis;
         public float PenetrationDepth;
+        public Int32 IsSensor;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -50,6 +53,47 @@ namespace vkEngine.EngineCore
         public float Distance;
         public float Fraction;
         public Int32 IsBackFaceHit;
+        public Int32 IsSensor;
+    }
+
+    public enum ContactEventType
+    {
+        Added = 0,
+        Persisted = 1,
+        Removed = 2
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct NativeContactEvent
+    {
+        public Int32 Type;
+        public UInt32 Entity1;
+        public UInt32 Entity2;
+        public UInt32 BodyID1;
+        public UInt32 BodyID2;
+        public UInt32 SubShapeID1;
+        public UInt32 SubShapeID2;
+        public NVec3 Point1;
+        public NVec3 Point2;
+        public NVec3 Normal;
+        public float PenetrationDepth;
+        public Int32 IsSensor;
+    }
+
+    public struct ContactEvent
+    {
+        public ContactEventType Type;
+        public UInt32 SelfEntity;
+        public UInt32 OtherEntity;
+        public UInt32 SelfBodyID;
+        public UInt32 OtherBodyID;
+        public UInt32 SelfSubShapeID;
+        public UInt32 OtherSubShapeID;
+        public NVec3 SelfPoint;
+        public NVec3 OtherPoint;
+        public NVec3 Normal;
+        public float PenetrationDepth;
+        public bool IsSensor;
     }
 
     public static unsafe class Physics
@@ -72,6 +116,8 @@ namespace vkEngine.EngineCore
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> getObjectLayerCollision;
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> setObjectVsBroadPhaseLayerCollision;
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> getObjectVsBroadPhaseLayerCollision;
+        private static delegate* unmanaged[Cdecl]<UInt32> getContactEventCount;
+        private static delegate* unmanaged[Cdecl]<NativeContactEvent*, UInt32, UInt32> getContactEvents;
         private static delegate* unmanaged[Cdecl]<NVec3*, NVec3*, float, UInt32, UInt32, RaycastHit*, Int32> raycast;
         private static delegate* unmanaged[Cdecl]<NVec3*, NVec3*, float, UInt32, UInt32, RaycastHit*, UInt32, UInt32> raycastAll;
         private static delegate* unmanaged[Cdecl]<NVec3*, UInt32, UInt32, CollidePointHit*, UInt32, UInt32> collidePoint;
@@ -90,6 +136,8 @@ namespace vkEngine.EngineCore
             getObjectLayerCollision = functions->GetPhysicsObjectLayerCollision;
             setObjectVsBroadPhaseLayerCollision = functions->SetPhysicsObjectVsBroadPhaseLayerCollision;
             getObjectVsBroadPhaseLayerCollision = functions->GetPhysicsObjectVsBroadPhaseLayerCollision;
+            getContactEventCount = functions->GetPhysicsContactEventCount;
+            getContactEvents = functions->GetPhysicsContactEvents;
             raycast = functions->PhysicsRaycast;
             raycastAll = functions->PhysicsRaycastAll;
             collidePoint = functions->PhysicsCollidePoint;
@@ -168,6 +216,66 @@ namespace vkEngine.EngineCore
         public static bool GetObjectVsBroadPhaseLayerCollision(UInt32 objectLayer, UInt32 broadPhaseLayer)
         {
             return getObjectVsBroadPhaseLayerCollision(objectLayer, broadPhaseLayer) != 0;
+        }
+
+        public static NativeContactEvent[] PollContactEvents()
+        {
+            UInt32 eventCount = getContactEventCount();
+            if (eventCount == 0)
+                return Array.Empty<NativeContactEvent>();
+
+            NativeContactEvent[] events = new NativeContactEvent[eventCount];
+            UInt32 written;
+            fixed (NativeContactEvent* nativeEvents = events)
+            {
+                written = getContactEvents(nativeEvents, eventCount);
+            }
+
+            if (written == events.Length)
+                return events;
+
+            Array.Resize(ref events, (int)written);
+            return events;
+        }
+
+        public static void DispatchContactEvents()
+        {
+            foreach (NativeContactEvent nativeEvent in PollContactEvents())
+            {
+                DispatchContactEvent(nativeEvent, true);
+                DispatchContactEvent(nativeEvent, false);
+            }
+        }
+
+        private static void DispatchContactEvent(NativeContactEvent nativeEvent, bool firstBody)
+        {
+            UInt32 bodyID = firstBody ? nativeEvent.BodyID1 : nativeEvent.BodyID2;
+            ContactEvent contactEvent = ToContactEvent(nativeEvent, firstBody);
+            RigidBody.TryDispatchContactEvent(bodyID, contactEvent);
+            Sensor.TryDispatchContactEvent(bodyID, contactEvent);
+        }
+
+        private static ContactEvent ToContactEvent(NativeContactEvent nativeEvent, bool firstBody)
+        {
+            NVec3 normal = nativeEvent.Normal;
+            if (!firstBody)
+                normal = new NVec3(-normal.x, -normal.y, -normal.z);
+
+            return new ContactEvent
+            {
+                Type = (ContactEventType)nativeEvent.Type,
+                SelfEntity = firstBody ? nativeEvent.Entity1 : nativeEvent.Entity2,
+                OtherEntity = firstBody ? nativeEvent.Entity2 : nativeEvent.Entity1,
+                SelfBodyID = firstBody ? nativeEvent.BodyID1 : nativeEvent.BodyID2,
+                OtherBodyID = firstBody ? nativeEvent.BodyID2 : nativeEvent.BodyID1,
+                SelfSubShapeID = firstBody ? nativeEvent.SubShapeID1 : nativeEvent.SubShapeID2,
+                OtherSubShapeID = firstBody ? nativeEvent.SubShapeID2 : nativeEvent.SubShapeID1,
+                SelfPoint = firstBody ? nativeEvent.Point1 : nativeEvent.Point2,
+                OtherPoint = firstBody ? nativeEvent.Point2 : nativeEvent.Point1,
+                Normal = normal,
+                PenetrationDepth = nativeEvent.PenetrationDepth,
+                IsSensor = nativeEvent.IsSensor != 0
+            };
         }
 
         public static bool Raycast(NVec3 origin, NVec3 direction, float maxDistance, out RaycastHit hit, UInt32 broadPhaseLayerMask = AllLayers, UInt32 objectLayerMask = AllLayers)

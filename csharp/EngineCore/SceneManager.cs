@@ -110,6 +110,7 @@ namespace vkEngine.EngineCore
         [UnmanagedCallersOnly]
         public static void FixedUpdate()
         {
+            Physics.DispatchContactEvents();
             Dispatch(fixedUpdateScripts, script => script.FixedUpdate());
         }
 
@@ -126,6 +127,8 @@ namespace vkEngine.EngineCore
             var scripts = CollectAllScripts();
             foreach (var script in scripts)
                 script.Dispose();
+            RigidBody.ClearRegistered();
+            Sensor.ClearRegistered();
             ClearScriptCollections();
             Console.WriteLine("SceneManager.Unload");
         }

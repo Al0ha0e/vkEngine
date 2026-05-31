@@ -1,5 +1,5 @@
 {
-  "maxid": 21,
+  "maxid": 23,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -603,6 +603,75 @@
           "restitution": 0.0,
           "mass": 1.0,
           "shape": { "type": 1, "halfExtent": [0.3, 0.3, 0.3] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 21,
+      "static": false,
+      "name": "large_contact_logger_cube",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 3.0, -5.0],
+        "scl": [2.0, 2.0, 2.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "mass": 40.0,
+          "shape": { "type": 1, "halfExtent": [2.0, 2.0, 2.0] }
+        },
+        {
+          "type": "script",
+          "className": "TestProj.ContactLoggerScript",
+          "data": {
+            "fields": []
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 22,
+      "static": true,
+      "name": "large_static_sensor_sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [7.0, -0.5, 3.5],
+        "scl": [2.0, 2.0, 2.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "sensor",
+          "isStatic": true,
+          "layer": 0,
+          "shape": { "type": 0, "radius": 2.0 }
+        },
+        {
+          "type": "script",
+          "className": "TestProj.ContactLoggerScript",
+          "data": {
+            "fields": []
+          }
         }
       ],
       "children": []

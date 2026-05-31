@@ -40,8 +40,9 @@ namespace vke_component
 
         ~RigidBody() {}
 
-        void LoadToEngine()
+        void LoadToEngine(uint32_t entity = 0)
         {
+            settings.mUserData = static_cast<uint64_t>(entity);
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
             interface.SetFriction(bodyID, friction);

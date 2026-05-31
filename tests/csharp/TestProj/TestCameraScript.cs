@@ -132,10 +132,18 @@ public sealed class TestCameraScript : EntityScript
         if (hit.Entity == UInt32.MaxValue)
             return;
 
+        bool hitSensor = hit.IsSensor != 0;
         Console.WriteLine(
-            $"Raycast hit entity={hit.Entity} bodyID={hit.BodyID} subShapeID={hit.SubShapeID} point={hit.Point} normal={hit.Normal} distance={hit.Distance} fraction={hit.Fraction}");
+            $"Raycast hit entity={hit.Entity} bodyID={hit.BodyID} subShapeID={hit.SubShapeID} isSensor={hitSensor} point={hit.Point} normal={hit.Normal} distance={hit.Distance} fraction={hit.Fraction}");
 
-        RigidBody rigidBody = new(hit.Entity);
+        if (hitSensor)
+        {
+            Sensor sensor = new(hit.Entity, hit.BodyID);
+            Console.WriteLine($"Raycast hit sensor entity={sensor.Entity} bodyID={sensor.BodyID}; impulse skipped.");
+            return;
+        }
+
+        RigidBody rigidBody = new(hit.Entity, hit.BodyID);
         rigidBody.AddImpulseAtPoint(direction * RaycastImpulse, hit.Point);
     }
 

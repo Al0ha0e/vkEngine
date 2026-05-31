@@ -2,6 +2,7 @@
 #include <component/renderable_object.hpp>
 #include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
+#include <component/sensor.hpp>
 #include <component/character_controller.hpp>
 #include <component/script.hpp>
 #include <scene.hpp>
@@ -30,6 +31,9 @@ namespace vke_common
         if (registry.all_of<vke_component::CharacterController>(entity))
             registry.get<vke_component::CharacterController>(entity).UnloadFromEngine();
 
+        if (registry.all_of<vke_component::Sensor>(entity))
+            registry.get<vke_component::Sensor>(entity).UnloadFromEngine();
+
         if (registry.all_of<vke_component::RigidBody>(entity))
             registry.get<vke_component::RigidBody>(entity).UnloadFromEngine();
 
@@ -53,8 +57,17 @@ namespace vke_common
             JPH::RVec3 position;
             JPH::Quat rotation;
             interface.GetPositionAndRotation(rigidbody.bodyID, position, rotation);
-            JPH::RVec3 cpos;
-            cpos = interface.GetCenterOfMassPosition(rigidbody.bodyID);
+
+            scene.transformSystem.SetGlobalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
+            scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
+        }
+
+        auto sensorView = scene.registry.view<Transform, vke_component::Sensor>();
+        for (auto &&[entity, transform, sensor] : sensorView.each())
+        {
+            JPH::RVec3 position;
+            JPH::Quat rotation;
+            interface.GetPositionAndRotation(sensor.bodyID, position, rotation);
 
             scene.transformSystem.SetGlobalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
             scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
@@ -96,6 +109,10 @@ namespace vke_common
         else if (type == "rigidbody")
         {
             registry.emplace<vke_component::RigidBody>(entity, transform, component);
+        }
+        else if (type == "sensor")
+        {
+            registry.emplace<vke_component::Sensor>(entity, transform, component);
         }
         else if (type == "characterController")
         {
@@ -158,6 +175,8 @@ namespace vke_common
             return registry.all_of<vke_component::SkeletonAnimator>(entity);
         case ComponentType::RigidBody:
             return registry.all_of<vke_component::RigidBody>(entity);
+        case ComponentType::Sensor:
+            return registry.all_of<vke_component::Sensor>(entity);
         case ComponentType::CharacterController:
             return registry.all_of<vke_component::CharacterController>(entity);
         case ComponentType::DirectionalLight:
@@ -188,6 +207,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::RigidBody>(entity))
             components.push_back(registry.get<vke_component::RigidBody>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::Sensor>(entity))
+            components.push_back(registry.get<vke_component::Sensor>(entity).ToJSON());
 
         if (registry.all_of<vke_component::CharacterController>(entity))
             components.push_back(registry.get<vke_component::CharacterController>(entity).ToJSON());
