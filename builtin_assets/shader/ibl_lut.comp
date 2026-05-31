@@ -10,7 +10,7 @@ const float SKY_IBL_RADIANCE_SCALE = 1.0;//0.12;
 const uint IRRADIANCE_CUBE_SIZE = 64u;
 const uint SPECULAR_CUBE_SIZE = 128u;
 const uint SPECULAR_MIP_LEVELS = 6u;
-const uint IRRADIANCE_SAMPLE_CNT = 64u;
+const uint IRRADIANCE_SAMPLE_CNT = 1024u;
 const uint SPECULAR_SAMPLE_CNT = 128u;
 
 vec3 FaceUVToViewDir(uint face, vec2 uv)
