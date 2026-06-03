@@ -2,20 +2,29 @@
 #define SEMAPHORE_POOL_H
 
 #include <render/environment.hpp>
+#include <algorithm>
 
 namespace vke_render
 {
     class SemaphorePool
     {
     public:
-        std::vector<VkSemaphore> semaphores;
+        struct SemaphoreState
+        {
+            VkSemaphore semaphore;
+            uint64_t value;
+
+            SemaphoreState() : semaphore(nullptr), value(0) {}
+        };
+
+        std::vector<SemaphoreState> semaphores;
         uint32_t allocatedCnt;
 
         SemaphorePool() : allocatedCnt(0) {}
         ~SemaphorePool()
         {
-            for (auto semaphore : semaphores)
-                vkDestroySemaphore(globalLogicalDevice, semaphore, nullptr);
+            for (auto &semaphore : semaphores)
+                vkDestroySemaphore(globalLogicalDevice, semaphore.semaphore, nullptr);
         }
         SemaphorePool &operator=(const SemaphorePool &) = delete;
         SemaphorePool(const SemaphorePool &) = delete;
@@ -36,11 +45,26 @@ namespace vke_render
             ano.allocatedCnt = 0;
         }
 
-        VkSemaphore AllocateSemaphore()
+        VkSemaphore AllocateSemaphore(uint64_t &value)
         {
             if (allocatedCnt == semaphores.size())
                 PreAllocateSemaphore(1);
-            return semaphores[allocatedCnt++];
+            SemaphoreState &state = semaphores[allocatedCnt++];
+            state.value += 1;
+            value = state.value;
+            return state.semaphore;
+        }
+
+        void SetValue(const VkSemaphore semaphore, const uint64_t value)
+        {
+            for (SemaphoreState &state : semaphores)
+            {
+                if (state.semaphore == semaphore)
+                {
+                    state.value = std::max(state.value, value);
+                    return;
+                }
+            }
         }
 
         void PreAllocateSemaphore(uint32_t cnt)
@@ -57,7 +81,7 @@ namespace vke_render
                 uint32_t prevSize = semaphores.size();
                 semaphores.resize(cnt + allocatedCnt);
                 for (int i = prevSize; i < semaphores.size(); i++)
-                    vkCreateSemaphore(globalLogicalDevice, &semaphoreCreateInfo, nullptr, semaphores.data() + i);
+                    vkCreateSemaphore(globalLogicalDevice, &semaphoreCreateInfo, nullptr, &semaphores[i].semaphore);
             }
         }
 

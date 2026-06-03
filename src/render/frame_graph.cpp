@@ -30,7 +30,28 @@ namespace vke_render
         for (int j = 0; j < framesInFlight; j++)
             commandPools[CPU_TASK].push_back(std::make_unique<CPUCommandPool>());
 
-        semaphorePool = std::make_unique<SemaphorePool>();
+        for (int j = 0; j < framesInFlight; j++)
+            semaphorePools[j] = std::make_unique<SemaphorePool>();
+    }
+
+    void FrameGraph::ensureTaskSemaphore(const uint32_t currentFrame, TaskNode &taskNode)
+    {
+        if (taskNode.HasCurrentSemaphore())
+            return;
+
+        SemaphorePool &semaphorePool = *semaphorePools[currentFrame];
+        taskNode.currentSemaphore = semaphorePool.AllocateSemaphore(taskNode.currentSemaphoreValue);
+    }
+
+    bool FrameGraph::assignNextTaskSemaphore(const uint32_t currentFrame, TaskNode &taskNode, TaskNode &nextTaskNode)
+    {
+        if (nextTaskNode.HasCurrentSemaphore())
+            return false;
+
+        nextTaskNode.currentSemaphore = taskNode.currentSemaphore;
+        nextTaskNode.currentSemaphoreValue = taskNode.currentSemaphoreValue + 1;
+        semaphorePools[currentFrame]->SetValue(nextTaskNode.currentSemaphore, nextTaskNode.currentSemaphoreValue);
+        return true;
     }
 
     void FrameGraph::checkCrossQueue(ResourceRef &ref, TaskNode &taskNode)
@@ -54,7 +75,6 @@ namespace vke_render
     {
         VKE_LOG_INFO("-------------------------- BEGIN COMPILE-----------------------")
         orderedTasks.clear();
-        semaphorePool->Reset();
         std::set<vke_ds::id32_t> visited;
         std::queue<vke_ds::id32_t> taskQueue;
 
@@ -139,14 +159,6 @@ namespace vke_render
             taskQueue.pop();
             orderedTasks.push_back(node.taskID);
 
-            if (node.currentSemaphore == nullptr)
-            {
-                node.currentSemaphore = semaphorePool->AllocateSemaphore();
-                node.semaphoreValueOffset = 1;
-            }
-
-            bool allocateNext = true;
-
             for (auto &ref : node.resourceRefs)
             {
                 if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
@@ -158,13 +170,6 @@ namespace vke_render
                         TaskNode &dstNode = *taskNodes[dstTaskID];
                         if (dstNode.valid)
                         {
-                            if (allocateNext && dstNode.currentSemaphore == nullptr)
-                            {
-                                allocateNext = false;
-                                dstNode.currentSemaphore = node.currentSemaphore;
-                                dstNode.semaphoreValueOffset = node.semaphoreValueOffset + 1;
-                            }
-
                             dstNode.indeg--;
                             if (dstNode.indeg == 0)
                                 taskQueue.push(dstTaskID);
@@ -379,11 +384,14 @@ namespace vke_render
                 needQueueSubmit = true;
                 waitDstStageMask |= ref.stageMask;
 
-                auto it = waitSemaphoreMap.find(prevUsedTask.lastSemaphore);
+                VKE_FATAL_IF(!prevUsedTask.HasCurrentSemaphore() && !prevUsedTask.HasLastSemaphore(), "cross queue wait without previous semaphore")
+                VkSemaphore prevSemaphore = prevUsedTask.HasCurrentSemaphore() ? prevUsedTask.currentSemaphore : prevUsedTask.lastSemaphore;
+                const uint64_t prevSemaphoreValue = prevUsedTask.HasCurrentSemaphore() ? prevUsedTask.currentSemaphoreValue : prevUsedTask.lastSemaphoreValue;
+                auto it = waitSemaphoreMap.find(prevSemaphore);
                 if (it == waitSemaphoreMap.end())
-                    waitSemaphoreMap[prevUsedTask.lastSemaphore] = prevUsedTask.lastSemaphoreValue;
+                    waitSemaphoreMap[prevSemaphore] = prevSemaphoreValue;
                 else
-                    waitSemaphoreMap[prevUsedTask.lastSemaphore] = std::max(it->second, prevUsedTask.lastSemaphoreValue);
+                    waitSemaphoreMap[prevSemaphore] = std::max(it->second, prevSemaphoreValue);
 
                 if (resource->resourceType == IMAGE_RESOURCE &&
                     ((resource->prevWrite && ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD) ||
@@ -634,6 +642,10 @@ namespace vke_render
 
     void FrameGraph::Execute(const uint32_t currentFrame, const uint32_t imageIndex)
     {
+        semaphorePools[currentFrame]->Reset();
+        for (auto taskID : orderedTasks)
+            taskNodes[taskID]->ResetCurrentSemaphore();
+
         VkCommandBuffer commandBuffers[TASK_TYPE_CNT] = {nullptr, nullptr, nullptr, nullptr};
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -703,6 +715,33 @@ namespace vke_render
             for (auto &ref : taskNode.resourceRefs)
                 endResourcesUse(currentFrame, imageIndex, ref, taskNode, needQueueSubmit,
                                 bufferMemoryBarriers, imageMemoryBarriers);
+
+            if (needQueueSubmit)
+            {
+                ensureTaskSemaphore(currentFrame, taskNode);
+                bool nextAllocated = false;
+                for (auto &ref : taskNode.resourceRefs)
+                {
+                    if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
+                    {
+                        vke_ds::id32_t resourceNodeID = ref.outResourceNodeID;
+                        ResourceNode &resourceNode = *resourceNodes[resourceNodeID];
+                        for (auto dstTaskID : resourceNode.dstTaskIDs)
+                        {
+                            TaskNode &dstTaskNode = *taskNodes[dstTaskID];
+                            if (!dstTaskNode.valid || dstTaskNode.HasCurrentSemaphore())
+                                continue;
+
+                            nextAllocated = assignNextTaskSemaphore(currentFrame, taskNode, dstTaskNode);
+                            if (nextAllocated)
+                                break;
+                        }
+                    }
+                    if (nextAllocated)
+                        break;
+                }
+            }
+
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
             dependencyInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
@@ -731,7 +770,7 @@ namespace vke_render
                 submitInfo.waitSemaphoreInfoCount = waitSemaphoreMap.size();
                 submitInfo.pWaitSemaphoreInfos = waitSemaphoreInfos.data();
 
-                uint64_t signalSemaphoreValue = taskNode.semaphoreValueOffset + semaphoreValueBase;
+                uint64_t signalSemaphoreValue = taskNode.currentSemaphoreValue;
                 signalSemaphoreInfo.semaphore = taskNode.currentSemaphore;
                 signalSemaphoreInfo.value = signalSemaphoreValue;
 
@@ -768,7 +807,7 @@ namespace vke_render
                 waitSemaphoreMap.clear();
                 waitSemaphoreInfos.clear();
                 taskNode.lastSemaphore = taskNode.currentSemaphore;
-                taskNode.lastSemaphoreValue = taskNode.semaphoreValueOffset + semaphoreValueBase;
+                taskNode.lastSemaphoreValue = taskNode.currentSemaphoreValue;
             }
         }
         for (int i = 0; i < TASK_TYPE_CNT; i++)
@@ -779,7 +818,5 @@ namespace vke_render
                 resource->ResetPrev();
         for (auto &[id, resource] : transientResources)
             resource->ResetPrev();
-
-        semaphoreValueBase += orderedTasks.size();
     }
 }
