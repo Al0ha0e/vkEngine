@@ -8,6 +8,7 @@
 
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 namespace vke_render
 {
@@ -19,6 +20,8 @@ namespace vke_render
         float aspect;
         glm::mat4 view;
         glm::mat4 projection;
+        glm::mat4 invView;
+        glm::mat4 invProjection;
         glm::vec4 viewPos;
 
         CameraInfo() = default;
@@ -26,11 +29,13 @@ namespace vke_render
         CameraInfo(float near, float far, float fov, float aspect,
                    glm::mat4 view, glm::mat4 projection, glm::vec3 viewPos)
             : near(near), far(far), fov(fov), aspect(aspect),
-              view(view), projection(projection), viewPos(viewPos, 1.0) {}
+              view(view), projection(projection),
+              invView(glm::inverse(view)), invProjection(glm::inverse(projection)),
+              viewPos(viewPos, 1.0) {}
 
         CameraInfo(float near, float far, float fov, float aspect)
             : near(near), far(far), fov(fov), aspect(aspect),
-              view(0), projection(0), viewPos(0) {}
+              view(0), projection(0), invView(0), invProjection(0), viewPos(0) {}
     };
 }
 

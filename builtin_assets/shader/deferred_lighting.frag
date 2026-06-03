@@ -54,7 +54,7 @@ vec3 fresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness) {
 vec3 ReconstructViewPos(float depth)
 {
     vec2 ndc = vTexCoord * 2.0 - 1.0;
-    vec4 ray = inverse(CameraInfo.projection) * vec4(ndc, 1.0, 1.0);
+    vec4 ray = CameraInfo.invProjection * vec4(ndc, 1.0, 1.0);
     vec3 viewRay = ray.xyz / ray.w;
     float t = depth / -viewRay.z;
     return viewRay * t;
@@ -149,7 +149,7 @@ void main()
     vec3 viewPos = ReconstructViewPos(depth);
     vec2 ndc = vTexCoord * 2.0 - 1.0;
     vec3 V = normalize(-viewPos);
-    mat4 invView = inverse(CameraInfo.view);
+    mat4 invView = CameraInfo.invView;
     mat3 viewToWorld = mat3(invView);
     vec3 worldPos = (invView * vec4(viewPos, 1.0)).xyz;
     vec3 worldN = normalize(viewToWorld * N);

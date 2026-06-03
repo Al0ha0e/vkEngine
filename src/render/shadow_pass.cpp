@@ -62,10 +62,9 @@ namespace vke_render
             glm::vec3(farHalfWidth, farHalfHeight, -farClip),
         };
 
-        glm::mat4 invView = glm::inverse(cam.view);
         std::array<glm::vec3, 8> worldCorners;
         for (uint32_t i = 0; i < viewCorners.size(); ++i)
-            worldCorners[i] = glm::vec3(invView * glm::vec4(viewCorners[i], 1.0f));
+            worldCorners[i] = glm::vec3(cam.invView * glm::vec4(viewCorners[i], 1.0f));
         return worldCorners;
     }
 

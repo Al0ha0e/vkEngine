@@ -5,6 +5,7 @@
 #include <render/buffer.hpp>
 #include <event.hpp>
 #include <component/transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 #ifdef _MINWINDEF_
 #undef near
@@ -76,6 +77,7 @@ namespace vke_component
             const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
             cameraInfo.viewPos = glm::vec4(position, 0.0f);
             cameraInfo.view = glm::lookAt(position, position + gfront, gup);
+            cameraInfo.invView = glm::inverse(cameraInfo.view);
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -87,6 +89,7 @@ namespace vke_component
             cameraInfo.aspect = width / height;
             cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
             cameraInfo.projection[1][1] *= -1;
+            cameraInfo.invProjection = glm::inverse(cameraInfo.projection);
             if (vke_render::Renderer::GetInstance()->currentCamera == id)
                 updateCameraInfo();
         }
@@ -111,6 +114,8 @@ namespace vke_component
             cameraInfo.view = glm::lookAt(position, position + gfront, gup);
             cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
             cameraInfo.projection[1][1] *= -1;
+            cameraInfo.invView = glm::inverse(cameraInfo.view);
+            cameraInfo.invProjection = glm::inverse(cameraInfo.projection);
         }
 
         void onCameraSelected()
