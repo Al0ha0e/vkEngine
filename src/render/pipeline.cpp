@@ -61,12 +61,25 @@ namespace vke_render
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-        rasterizer.depthBiasEnable = VK_FALSE;
-        rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-        rasterizer.depthBiasClamp = 0.0f;          // Optional
-        rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+
+        if (pipelineInfo.pRasterizationState != nullptr)
+        {
+            rasterizer.cullMode = pipelineInfo.pRasterizationState->cullMode;
+            rasterizer.frontFace = pipelineInfo.pRasterizationState->frontFace;
+            rasterizer.depthBiasEnable = pipelineInfo.pRasterizationState->depthBiasEnable;
+            rasterizer.depthBiasConstantFactor = pipelineInfo.pRasterizationState->depthBiasConstantFactor;
+            rasterizer.depthBiasClamp = pipelineInfo.pRasterizationState->depthBiasClamp;
+            rasterizer.depthBiasSlopeFactor = pipelineInfo.pRasterizationState->depthBiasSlopeFactor;
+        }
+        else
+        {
+            rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+            rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+            rasterizer.depthBiasEnable = VK_FALSE;
+            rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+            rasterizer.depthBiasClamp = 0.0f;          // Optional
+            rasterizer.depthBiasSlopeFactor = 0.0f;    // Optional
+        }
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;

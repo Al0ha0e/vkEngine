@@ -3,6 +3,7 @@
 
 #include <render/skybox.hpp>
 #include <render/gbuffer_pass.hpp>
+#include <render/shadow_pass.hpp>
 #include <render/deferred_lighting.hpp>
 #include <render/skybox_render.hpp>
 #include <render/ui.hpp>
@@ -88,9 +89,21 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(gbufferPass));
                     break;
                 }
+                case SHADOW_PASS:
+                {
+                    std::unique_ptr<ShadowPass> shadowPass = std::make_unique<ShadowPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->lightManager.get(), &instance->hostCameraInfo);
+                    shadowPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[SHADOW_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(shadowPass));
+                    break;
+                }
                 case DEFERRED_LIGHTING_PASS:
                 {
-                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get());
+                    ShadowPass *shadowPass = nullptr;
+                    auto shadowPassIt = instance->subPassMap.find(SHADOW_PASS);
+                    if (shadowPassIt != instance->subPassMap.end())
+                        shadowPass = static_cast<ShadowPass *>(instance->subPasses[shadowPassIt->second].get());
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get(), shadowPass);
                     lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(lightingPass));
@@ -123,8 +136,6 @@ namespace vke_render
 
         static void Shutdown()
         {
-            uint32_t imageIndex = instance->context->AcquireNextImage(instance->currentFrame);
-            instance->frameGraph->Sync(instance->currentFrame);
         }
 
         static void WaitIdle()
@@ -191,6 +202,14 @@ namespace vke_render
         static GBufferPass *GetGBufferPass()
         {
             return static_cast<GBufferPass *>(instance->subPasses[instance->subPassMap[GBUFFER_PASS]].get());
+        }
+
+        static ShadowPass *GetShadowPass()
+        {
+            auto it = instance->subPassMap.find(SHADOW_PASS);
+            if (it == instance->subPassMap.end())
+                return nullptr;
+            return static_cast<ShadowPass *>(instance->subPasses[it->second].get());
         }
 
         static void OnWindowResize(void *listener, RenderContext *ctx)

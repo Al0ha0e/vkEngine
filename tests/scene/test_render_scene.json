@@ -1,0 +1,428 @@
+{
+  "maxid": 15,
+  "layers": ["default", "editor", "test"],
+  "objects": [
+    {
+      "id": 1,
+      "static": true,
+      "name": "scene_cam",
+      "layer": 1,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 1.15, 8.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.090626, -0.067783, -0.006184, 0.993539]
+      },
+      "components": [
+        {
+          "type": "camera",
+          "id": 1,
+          "fov": 70.0,
+          "width": 1920.0,
+          "height": 1080.0,
+          "near": 0.01,
+          "far": 1000.0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.TestCameraScript",
+          "data": {
+            "fields": [
+              {
+                "name": "MoveSpeed",
+                "val": 4.0
+              },
+              {
+                "name": "RotateSpeed",
+                "val": 2.0
+              },
+              {
+                "name": "JumpSpeed",
+                "val": 5.0
+              }
+            ]
+          }
+        },
+        {
+          "type": "characterController",
+          "layer": 1,
+          "mass": 70.0,
+          "maxStrength": 2500.0,
+          "maxSlopeAngle": 50.0,
+          "predictiveContactDistance": 0.1,
+          "characterPadding": 0.02,
+          "createInnerBody": true,
+          "shape": { "type": 2, "radius": 0.35, "halfHeight": 0.6 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 2,
+      "static": true,
+      "name": "sun_directional_light",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 0.0, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.6324555, 0.3162278, 0.0, 0.7071068]
+      },
+      "components": [
+        {
+          "type": "directionalLight",
+          "color": [1.0, 0.96, 0.9],
+          "intensity": 1.0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 3,
+      "static": true,
+      "name": "ground",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, -2.0, 0.0],
+        "scl": [36.0, 0.18, 28.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 0,
+          "layer": 0,
+          "friction": 0.55,
+          "restitution": 0.0,
+          "shape": { "type": 1, "halfExtent": [36.0, 0.18, 28.0] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 4,
+      "static": false,
+      "name": "large_box",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-4.2, -1.2, -1.4],
+        "scl": [1.2, 0.6, 0.8],
+        "rot": [0.0, 0.258819, 0.0, 0.965926]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.45,
+          "restitution": 0.0,
+          "mass": 9.0,
+          "shape": { "type": 1, "halfExtent": [1.2, 0.6, 0.8] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 5,
+      "static": false,
+      "name": "small_cube",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-2.3, -1.35, -0.5],
+        "scl": [0.45, 0.45, 0.45],
+        "rot": [0.0, -0.130526, 0.0, 0.991445]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "mass": 3.0,
+          "shape": { "type": 1, "halfExtent": [0.45, 0.45, 0.45] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 6,
+      "static": false,
+      "name": "thin_box",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [1.3, -1.45, 1.8],
+        "scl": [1.5, 0.3, 0.45],
+        "rot": [0.0, 0.382683, 0.0, 0.92388]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "mass": 6.0,
+          "shape": { "type": 1, "halfExtent": [1.5, 0.3, 0.45] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 7,
+      "static": false,
+      "name": "large_sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [3.0, -1.15, -1.8],
+        "scl": [0.85, 0.85, 0.85],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 5.0,
+          "shape": { "type": 0, "radius": 0.85 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 8,
+      "static": false,
+      "name": "medium_sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [4.5, -1.35, 0.6],
+        "scl": [0.55, 0.55, 0.55],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 2.5,
+          "shape": { "type": 0, "radius": 0.55 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 9,
+      "static": false,
+      "name": "small_sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-0.5, -1.55, -2.4],
+        "scl": [0.35, 0.35, 0.35],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.0,
+          "mass": 1.5,
+          "shape": { "type": 0, "radius": 0.35 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 10,
+      "static": false,
+      "name": "tall_cylinder",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-5.8, -1.2, 2.3],
+        "scl": [0.45, 0.8, 0.45],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "mass": 6.0,
+          "shape": { "type": 3, "radius": 0.45, "halfHeight": 0.8 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 11,
+      "static": false,
+      "name": "wide_cylinder",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-3.6, -1.55, 3.0],
+        "scl": [0.8, 0.28, 0.8],
+        "rot": [0.0, 0.5, 0.0, 0.866025]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "mass": 4.0,
+          "shape": { "type": 3, "radius": 0.8, "halfHeight": 0.28 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 12,
+      "static": false,
+      "name": "short_cylinder",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [5.8, -1.55, 2.6],
+        "scl": [0.38, 0.32, 0.38],
+        "rot": [0.0, -0.258819, 0.0, 0.965926]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 4
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "mass": 3.0,
+          "shape": { "type": 3, "radius": 0.38, "halfHeight": 0.32 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 13,
+      "static": false,
+      "name": "box_stack_bottom",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, -1.35, -4.2],
+        "scl": [0.8, 0.45, 0.8],
+        "rot": [0.0, 0.087156, 0.0, 0.996195]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.45,
+          "restitution": 0.0,
+          "mass": 5.0,
+          "shape": { "type": 1, "halfExtent": [0.8, 0.45, 0.8] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 14,
+      "static": false,
+      "name": "box_stack_top",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.2, -0.55, -4.25],
+        "scl": [0.48, 0.35, 0.48],
+        "rot": [0.0, -0.173648, 0.0, 0.984808]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.0,
+          "mass": 2.0,
+          "shape": { "type": 1, "halfExtent": [0.48, 0.35, 0.48] }
+        }
+      ],
+      "children": []
+    }
+  ]
+}

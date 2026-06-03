@@ -24,6 +24,8 @@ namespace vke_component
         std::shared_ptr<vke_common::Skeleton> skeleton;
         std::shared_ptr<vke_common::Animation> animation;
         std::unique_ptr<vke_render::RenderUnit> renderUnit;
+        std::unique_ptr<vke_render::RenderUnit> shadowRenderUnit;
+        bool castsShadow;
 
         SkeletonAnimator(
             const vke_common::Transform &transform,
@@ -31,12 +33,13 @@ namespace vke_component
             std::shared_ptr<const vke_render::Mesh> &mesh,
             std::shared_ptr<vke_common::Skeleton> &skeleton,
             std::shared_ptr<vke_common::Animation> &animation)
-            : material(mat), skeleton(skeleton), animation(animation)
+            : material(mat), skeleton(skeleton), animation(animation), castsShadow(true), shadowRenderID(0)
         {
             init(transform, mesh);
         }
 
         SkeletonAnimator(const vke_common::Transform &transform, const nlohmann::json &json)
+            : castsShadow(json.contains("castsShadow") ? json["castsShadow"].get<bool>() : true), shadowRenderID(0)
         {
             material = vke_common::AssetManager::LoadMaterial(json["material"]);
             std::shared_ptr<const vke_render::Mesh> mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
@@ -51,6 +54,12 @@ namespace vke_component
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
+            if (castsShadow)
+            {
+                vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
+                if (shadowPass != nullptr)
+                    shadowRenderID = shadowPass->AddUnit(shadowRenderUnit.get(), true);
+            }
             renderer->AddRenderUpdateCallback(renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
         }
 
@@ -58,6 +67,13 @@ namespace vke_component
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
+            if (castsShadow && shadowRenderID != 0)
+            {
+                vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
+                if (shadowPass != nullptr)
+                    shadowPass->RemoveUnit(shadowRenderID);
+                shadowRenderID = 0;
+            }
             renderer->RemoveRenderUpdateCallback(renderID);
         }
 
@@ -68,7 +84,8 @@ namespace vke_component
                 {"material", material->handle},
                 {"mesh", renderUnit->mesh->handle},
                 {"skeleton", skeleton->handle},
-                {"animation", animation->handle}};
+                {"animation", animation->handle},
+                {"castsShadow", castsShadow}};
             return ret;
         }
 
@@ -79,6 +96,7 @@ namespace vke_component
 
     private:
         vke_ds::id64_t renderID;
+        vke_ds::id64_t shadowRenderID;
 
         void init(const vke_common::Transform &transform, std::shared_ptr<const vke_render::Mesh> &mesh)
         {
@@ -124,7 +142,8 @@ namespace vke_component
                 vkUpdateDescriptorSets(vke_render::globalLogicalDevice, 1, &descriptorSetWrite, 0, nullptr);
             }
 
-            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, sizeof(glm::mat4), descriptorSets[0]);
+            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)), descriptorSets[0]);
+            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)), descriptorSets[0]);
 
             const auto &names = skeleton->skeleton.joint_names();
             for (auto &n : names)
@@ -171,6 +190,7 @@ namespace vke_component
                 for (int j = 0; j < 4; ++j)
                     ozz::math::StorePtrU(skinningMatrices[i].cols[j], bufferp + (i << 4) + (j << 2));
             renderUnit->perUnitDescriptorSet = descriptorSets[currentFrame];
+            shadowRenderUnit->perUnitDescriptorSet = descriptorSets[currentFrame];
         }
 
         float timeRatio;

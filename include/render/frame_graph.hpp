@@ -399,6 +399,15 @@ namespace vke_render
             return id;
         }
 
+        vke_ds::id32_t AddTransientImageResource(std::string &&name, VkImage *images,
+                                                 const VkImageAspectFlags aspectMask,
+                                                 uint32_t mipLevelCnt, uint32_t layerCnt)
+        {
+            vke_ds::id32_t id = transientResources.size();
+            transientResources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, images, aspectMask, mipLevelCnt, layerCnt, false));
+            return id;
+        }
+
         vke_ds::id32_t AddTransientBufferResource(std::string &&name, VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size)
         {
             vke_ds::id32_t id = transientResources.size();

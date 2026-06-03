@@ -10,6 +10,7 @@ namespace vke_render
     {
         CUSTOM_RENDERER,
         GBUFFER_PASS,
+        SHADOW_PASS,
         DEFERRED_LIGHTING_PASS,
         SKYBOX_RENDERER,
         UI_RENDERER

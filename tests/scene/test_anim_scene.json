@@ -1,5 +1,5 @@
 {
-  "maxid": 4,
+  "maxid": 5,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -80,6 +80,26 @@
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
           "intensity": 1.0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 4,
+      "static": true,
+      "name": "ground",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, -0.04, 0.0],
+        "scl": [8.0, 0.08, 5.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
         }
       ],
       "children": []

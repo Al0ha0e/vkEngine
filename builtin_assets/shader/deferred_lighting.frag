@@ -4,6 +4,8 @@
 
 #include "camera.glsl"
 #include "light.glsl"
+#define SHADOW_DIRECTIONAL_ONLY
+#include "shadow.glsl"
 
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 outColor;
@@ -23,7 +25,6 @@ layout(set = 1, binding = 6) uniform sampler2D brdfLUT;
 
 const float PI = 3.14159265359;
 const float SKY_SPECULAR_ROUGHNESS_LEVELS = 6.0;
-
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness*roughness;
     float a2 = a*a;
@@ -82,6 +83,55 @@ vec3 ACESFilm(vec3 x)
     return clamp((x*(a*x+b))/(x*(c*x+d)+e),0.0,1.0);
 }
 
+uint SelectDirectionalShadowCascade(float viewDepth, vec4 cascadeSplits)
+{
+    uint cascadeIndex = 0u;
+    if (viewDepth > cascadeSplits.x) cascadeIndex = 1u;
+    if (viewDepth > cascadeSplits.y) cascadeIndex = 2u;
+    if (viewDepth > cascadeSplits.z) cascadeIndex = 3u;
+    return cascadeIndex;
+}
+
+float SampleDirectionalShadow(uint lightIndex, vec3 worldPos, vec3 worldNormal, vec3 lightDir, float viewDepth)
+{
+    DirectionalShadowInfo shadowInfo = DirectionalShadows.shadows[0];
+    if (shadowInfo.lightIndex.x == 0xFFFFFFFFu || shadowInfo.lightIndex.x != lightIndex)
+        return 1.0;
+
+    uint cascadeIndex = SelectDirectionalShadowCascade(viewDepth, shadowInfo.cascadeSplits);
+    float NdotL = max(dot(worldNormal, lightDir), 0.0);
+    const float NORMAL_BIAS_TEXELS = 4.5;
+    const float DEPTH_BIAS_MIN = 0.0005;
+    const float DEPTH_BIAS_SLOPE = 0.0005;
+    float normalOffset = shadowInfo.cascadeTexelSizes[int(cascadeIndex)] * NORMAL_BIAS_TEXELS;
+    vec3 shadowWorldPos = worldPos + worldNormal * normalOffset;
+    vec4 lightClip = shadowInfo.lightViewProj[cascadeIndex] * vec4(shadowWorldPos, 1.0);
+    vec3 shadowCoord = lightClip.xyz / lightClip.w;
+    vec2 uv = shadowCoord.xy * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || shadowCoord.z < 0.0 || shadowCoord.z > 1.0)
+        return 1.0;
+
+    float bias = max(DEPTH_BIAS_SLOPE * (1.0 - NdotL), DEPTH_BIAS_MIN);
+    const int pcfRadius = 2;//cascadeIndex == 0u ? 3 : 1;
+    const float PCF_TEXEL_RADIUS = 1.2;
+    vec2 texelSize = 1.0 / vec2(textureSize(DirectionalShadowMaps[0], 0).xy);
+    float visibility = 0.0;
+    float weightSum = 0.0;
+    for (int x = -pcfRadius; x <= pcfRadius; ++x)
+    {
+        for (int y = -pcfRadius; y <= pcfRadius; ++y)
+        {
+            vec2 sampleOffset = vec2(x, y) * texelSize * PCF_TEXEL_RADIUS;
+            float weight = (float(pcfRadius + 1) - abs(float(x))) * (float(pcfRadius + 1) - abs(float(y)));
+            visibility += texture(DirectionalShadowMaps[0],
+                                  vec4(uv + sampleOffset,
+                                       float(cascadeIndex), shadowCoord.z - bias)) * weight;
+            weightSum += weight;
+        }
+    }
+    return visibility / weightSum;
+}
+
 void main()
 {
     vec4 baseColorTex = texture(gBaseColor, vTexCoord);
@@ -99,6 +149,12 @@ void main()
     vec3 viewPos = ReconstructViewPos(depth);
     vec2 ndc = vTexCoord * 2.0 - 1.0;
     vec3 V = normalize(-viewPos);
+    mat4 invView = inverse(CameraInfo.view);
+    mat3 viewToWorld = mat3(invView);
+    vec3 worldPos = (invView * vec4(viewPos, 1.0)).xyz;
+    vec3 worldN = normalize(viewToWorld * N);
+    vec3 worldV = normalize(viewToWorld * V);
+    vec3 worldR = normalize(reflect(-worldV, worldN));
     float NdotV = max(dot(N, V), 0.0);
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
@@ -122,7 +178,9 @@ void main()
         vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
         vec3 diffuse = albedo / PI;
         vec3 radiance = light.colorWithIntensity.rgb * light.colorWithIntensity.w;
-        Lo += (kD * diffuse + spec) * radiance * NdotL;
+        vec3 worldLightDir = normalize(-light.direction.xyz);
+        float shadow = SampleDirectionalShadow(i, worldPos, worldN, worldLightDir, -viewPos.z);
+        Lo += (kD * diffuse + spec) * radiance * NdotL * shadow;
     }
 
     // ---------------------------
@@ -196,11 +254,6 @@ void main()
         vec3 radiance = light.colorWithIntensity.rgb * light.colorWithIntensity.w;
         Lo += (kD * diffuse + spec) * radiance * NdotL * attenuation;
     }
-
-    mat3 viewToWorld = mat3(inverse(CameraInfo.view));
-    vec3 worldN = normalize(viewToWorld * N);
-    vec3 worldV = normalize(viewToWorld * V);
-    vec3 worldR = normalize(reflect(-worldV, worldN));
 
     vec3 F = fresnelSchlickRoughness(F0, NdotV, roughness);
     vec3 kS = F;

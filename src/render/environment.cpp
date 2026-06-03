@@ -451,34 +451,6 @@ namespace vke_render
         }
     }
 
-    void RenderEnvironment::createSyncObjects()
-    {
-        imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-
-        VkSemaphoreCreateInfo semaphoreInfo{};
-        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        VkFenceCreateInfo fenceInfo{};
-        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            VKE_FATAL_IF(vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-                             vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-                             vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS,
-                         "Failed to create synchronization objects for a frame!")
-        }
-
-        VkSemaphoreTypeCreateInfo timelineInfo{};
-        timelineInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-        timelineInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-        timelineInfo.initialValue = 0;
-        semaphoreInfo.pNext = &timelineInfo;
-    }
-
     static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
     {
         for (const auto &availableFormat : availableFormats)
@@ -624,6 +596,39 @@ namespace vke_render
                                  VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImages[i], VK_IMAGE_ASPECT_DEPTH_BIT, 1,
                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
         EndSingleTimeCommands(GetGraphicsQueue(), commandPool, tmpCmdBuffer);
+    }
+
+    void RenderEnvironment::createSyncObjects()
+    {
+        imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        renderFinishedSemaphores.resize(imageCnt);
+        inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            VKE_FATAL_IF(vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+                             vkCreateFence(globalLogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS,
+                         "Failed to create synchronization objects for a frame!")
+        }
+
+        for (int i = 0; i < imageCnt; i++)
+        {
+            VKE_FATAL_IF(vkCreateSemaphore(globalLogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS,
+                         "Failed to create synchronization objects for a frame!")
+        }
+
+        VkSemaphoreTypeCreateInfo timelineInfo{};
+        timelineInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
+        timelineInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+        timelineInfo.initialValue = 0;
+        semaphoreInfo.pNext = &timelineInfo;
     }
 
     void RenderEnvironment::cleanupSwapChain()

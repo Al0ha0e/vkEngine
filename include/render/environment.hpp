@@ -93,8 +93,8 @@ namespace vke_render
             instance->createLogicalDevice();
             instance->createVulkanMemoryAllocator();
             instance->createCommandPool();
-            instance->createSyncObjects();
             instance->createSwapChain();
+            instance->createSyncObjects();
             instance->createImageViews();
             instance->createCPUCommandQueue();
 
@@ -114,9 +114,11 @@ namespace vke_render
             ((CPUCommandQueue *)(instance->commandQueues[CPU_QUEUE].get()))->Stop();
             instance->cleanupSwapChain();
 
-            for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-            {
+            for (int i = 0; i < instance->imageCnt; ++i)
                 vkDestroySemaphore(globalLogicalDevice, instance->renderFinishedSemaphores[i], nullptr);
+
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+            {
                 vkDestroySemaphore(globalLogicalDevice, instance->imageAvailableSemaphores[i], nullptr);
                 vkDestroyFence(globalLogicalDevice, instance->inFlightFences[i], nullptr);
             }
@@ -240,7 +242,7 @@ namespace vke_render
 
         static void CreateImageWithoutMemory(uint32_t width, uint32_t height, VkFormat format,
                                              VkImageTiling tiling, VkImageUsageFlags usage,
-                                             uint32_t mipLevelCnt, VkImage *image)
+                                             uint32_t mipLevelCnt, VkImage *image, uint32_t arrayLayers = 1)
         {
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -250,7 +252,7 @@ namespace vke_render
             imageInfo.extent.height = height;
             imageInfo.extent.depth = 1;
             imageInfo.mipLevels = mipLevelCnt;
-            imageInfo.arrayLayers = 1;
+            imageInfo.arrayLayers = arrayLayers;
             imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
             imageInfo.tiling = tiling;
             imageInfo.usage = usage;
@@ -259,18 +261,20 @@ namespace vke_render
             vkCreateImage(globalLogicalDevice, &imageInfo, nullptr, image);
         }
 
-        static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevelCnt = 1)
+        static VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags,
+                                           uint32_t mipLevelCnt = 1, uint32_t baseArrayLayer = 0,
+                                           uint32_t layerCnt = 1, VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D)
         {
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.image = image;
-            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.viewType = viewType;
             viewInfo.format = format;
             viewInfo.subresourceRange.aspectMask = aspectFlags;
             viewInfo.subresourceRange.baseMipLevel = 0;
             viewInfo.subresourceRange.levelCount = mipLevelCnt;
-            viewInfo.subresourceRange.baseArrayLayer = 0;
-            viewInfo.subresourceRange.layerCount = 1;
+            viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
+            viewInfo.subresourceRange.layerCount = layerCnt;
 
             VkImageView imageView;
             VKE_VK_CHECK(vkCreateImageView(globalLogicalDevice, &viewInfo, nullptr, &imageView), "failed to create texture image view!")
@@ -481,7 +485,7 @@ namespace vke_render
         {
             VkSemaphoreSubmitInfo signalSemaphoreInfo{};
             signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-            signalSemaphoreInfo.semaphore = instance->renderFinishedSemaphores[currentFrame];
+            signalSemaphoreInfo.semaphore = instance->renderFinishedSemaphores[imageIndex];
             signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
             VkSubmitInfo2 submitInfo{};
@@ -495,7 +499,7 @@ namespace vke_render
             presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
             presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = &(instance->renderFinishedSemaphores[currentFrame]);
+            presentInfo.pWaitSemaphores = &(instance->renderFinishedSemaphores[imageIndex]);
 
             VkSwapchainKHR swapChains[] = {instance->swapChain};
             presentInfo.swapchainCount = 1;

@@ -16,6 +16,7 @@ int main(int argc, char **argv)
     const vke_common::GameConfig *gameConfig = vke_common::GameConfig::GetInstance();
 
     std::vector<vke_render::PassType> passes = {
+        vke_render::SHADOW_PASS,
         vke_render::GBUFFER_PASS,
         vke_render::DEFERRED_LIGHTING_PASS,
         vke_render::SKYBOX_RENDERER,

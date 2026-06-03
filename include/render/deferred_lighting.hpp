@@ -6,6 +6,7 @@
 #include <render/renderinfo.hpp>
 #include <render/subpass.hpp>
 #include <render/light.hpp>
+#include <render/shadow_pass.hpp>
 #include <asset.hpp>
 
 namespace vke_render
@@ -13,8 +14,8 @@ namespace vke_render
     class DeferredLightingPass : public RenderPassBase
     {
     public:
-        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager)
-            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager), skyboxManager(skyboxManager) {}
+        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager, ShadowPass *shadowPass)
+            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager), skyboxManager(skyboxManager), shadowPass(shadowPass) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -39,7 +40,9 @@ namespace vke_render
         GBuffer *gbuffer;
         LightManager *lightManager;
         SkyboxManager *skyboxManager;
+        ShadowPass *shadowPass;
         VkDescriptorSet lightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
+        VkDescriptorSet shadowDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> lightingShader;
         std::shared_ptr<Texture2D> brdfLUT;

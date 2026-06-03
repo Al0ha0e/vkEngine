@@ -98,6 +98,20 @@
     "fragPath": "/builtin_assets/shader/text_frag.spv"
   },
   {
+    "type": 2,
+    "id": 7,
+    "name": "ShadowShader",
+    "path": "/builtin_assets/shader/shadow_vert.spv",
+    "fragPath": "/builtin_assets/shader/shadow_frag.spv"
+  },
+  {
+    "type": 2,
+    "id": 8,
+    "name": "ShadowSkinShader",
+    "path": "/builtin_assets/shader/shadow_skin_vert.spv",
+    "fragPath": "/builtin_assets/shader/shadow_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",

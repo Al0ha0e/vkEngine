@@ -38,6 +38,14 @@ namespace vke_render
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                               VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
 
+        auto shadowMapNodeIt = blackboard.find("directionalShadowMap0OutNode");
+        if (shadowMapNodeIt != blackboard.end())
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, shadowMapNodeIt->second, 0,
+                                              VK_ACCESS_SHADER_READ_BIT,
+                                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                              VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
         frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], lightingOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -62,7 +70,10 @@ namespace vke_render
     void DeferredLightingPass::allocateDescriptorSet()
     {
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
             lightingDescriptorSets[i] = lightingShader->CreateDescriptorSet(1);
+            shadowDescriptorSets[i] = lightingShader->CreateDescriptorSet(2);
+        }
     }
 
     void DeferredLightingPass::updateDescriptorSet(uint32_t currentFrame)
@@ -90,6 +101,16 @@ namespace vke_render
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT + 2], lightingDescriptorSets[currentFrame], GBUFFER_CNT + 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT + 2]));
 
         vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT + extraTextureCnt, descriptorWrites, 0, nullptr);
+
+        VkWriteDescriptorSet shadowDescriptorWrites[2];
+        VkDescriptorImageInfo shadowImageInfo;
+        VkDescriptorBufferInfo shadowBufferInfo = shadowPass->GetDirectionalShadowBufferInfo(currentFrame);
+        vke_render::ConstructDescriptorSetWrite(shadowDescriptorWrites[0], shadowDescriptorSets[currentFrame], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &shadowBufferInfo);
+
+        shadowImageInfo = {shadowPass->GetShadowMapSampler(), shadowPass->GetDirectionalShadowMapView(currentFrame), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        vke_render::ConstructDescriptorSetWrite(shadowDescriptorWrites[1], shadowDescriptorSets[currentFrame], 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &shadowImageInfo);
+
+        vkUpdateDescriptorSets(globalLogicalDevice, 2, shadowDescriptorWrites, 0, nullptr);
     }
 
     void DeferredLightingPass::createGraphicsPipeline()
@@ -154,10 +175,10 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], lightingDescriptorSets[currentFrame]};
+        VkDescriptorSet descriptorSets[3] = {globalDescriptorSets[currentFrame], lightingDescriptorSets[currentFrame], shadowDescriptorSets[currentFrame]};
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
+                                renderPipeline->pipelineLayout, 0, 3, descriptorSets, 0, nullptr);
 
         vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0,
                            sizeof(uint32_t), &(lightManager->lightCnts[(int)LightType::DIRECTIONAL_LIGHT]));
