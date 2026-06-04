@@ -63,7 +63,7 @@ namespace vke_render
     }
 
     void Renderer::constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
-                                       std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                                       CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
         instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT);
         colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", true, context->colorImages, VK_IMAGE_ASPECT_COLOR_BIT, true,
@@ -80,21 +80,24 @@ namespace vke_render
         vke_ds::id32_t oriColorResourceNodeID = frameGraph->AllocResourceNode("oriColor", false, colorAttachmentResourceID);
         vke_ds::id32_t oriDepthResourceNodeID = frameGraph->AllocResourceNode("oriDepth", false, depthAttachmentResourceID);
 
-        currentResourceNodeID[colorAttachmentResourceID] = oriColorResourceNodeID;
-        currentResourceNodeID[depthAttachmentResourceID] = oriDepthResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][colorAttachmentResourceID] = oriColorResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][depthAttachmentResourceID] = oriDepthResourceNodeID;
+        hdrColorManager = std::make_unique<HDRColorManager>(context);
+        hdrColorManager->ConstructFrameGraph(*frameGraph, blackboard, currentResourceNodeID);
     }
 
     void Renderer::cleanup() {}
 
     void Renderer::recreate(RenderContext *ctx)
     {
-        cleanup();
         context = ctx;
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
             ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->images[i] = context->colorImages[i];
             ((ImageResource *)frameGraph->permanentResources[depthAttachmentResourceID].get())->images[i] = context->depthImages[i];
         }
+
+        hdrColorManager->OnWindowResize(*frameGraph, context);
     }
 
     void Renderer::render()

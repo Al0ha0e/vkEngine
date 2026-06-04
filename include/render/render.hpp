@@ -5,7 +5,9 @@
 #include <render/gbuffer_pass.hpp>
 #include <render/shadow_pass.hpp>
 #include <render/deferred_lighting.hpp>
+#include <render/tone_mapping.hpp>
 #include <render/skybox_render.hpp>
+#include <render/hdr_color.hpp>
 #include <render/ui.hpp>
 #include <render/light.hpp>
 #include <render/camera.hpp>
@@ -60,7 +62,7 @@ namespace vke_render
             instance->initDescriptorSet();
 
             std::map<std::string, vke_ds::id32_t> blackboard;
-            std::map<vke_ds::id32_t, vke_ds::id32_t> currentResourceNodeID;
+            CurrentResourceNodeIDMaps currentResourceNodeID;
             instance->constructFrameGraph(blackboard, currentResourceNodeID);
 
             instance->skyboxManager = std::make_unique<SkyboxManager>(instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->lightManager.get());
@@ -103,7 +105,7 @@ namespace vke_render
                     auto shadowPassIt = instance->subPassMap.find(SHADOW_PASS);
                     if (shadowPassIt != instance->subPassMap.end())
                         shadowPass = static_cast<ShadowPass *>(instance->subPasses[shadowPassIt->second].get());
-                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get(), shadowPass);
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get(), instance->hdrColorManager.get(), shadowPass);
                     lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(lightingPass));
@@ -111,10 +113,18 @@ namespace vke_render
                 }
                 case SKYBOX_RENDERER:
                 {
-                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->skyboxManager.get());
+                    std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->skyboxManager.get(), instance->hdrColorManager.get());
                     skyboxRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(skyboxRenderer));
+                    break;
+                }
+                case TONE_MAPPING_PASS:
+                {
+                    std::unique_ptr<ToneMappingPass> toneMappingPass = std::make_unique<ToneMappingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->hdrColorManager.get());
+                    toneMappingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[TONE_MAPPING_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(toneMappingPass));
                     break;
                 }
                 case UI_RENDERER:
@@ -234,6 +244,7 @@ namespace vke_render
         std::map<PassType, int> subPassMap;
         std::unique_ptr<FrameGraph> frameGraph;
         std::unique_ptr<SkyboxManager> skyboxManager;
+        std::unique_ptr<HDRColorManager> hdrColorManager;
 
         uint32_t cameraInfoUpdateCnt;
         CameraInfo hostCameraInfo;
@@ -245,7 +256,7 @@ namespace vke_render
 
         void initDescriptorSet();
         void constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
+                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
         void cleanup();
         void recreate(RenderContext *ctx);
         void render();

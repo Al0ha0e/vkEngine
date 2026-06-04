@@ -73,7 +73,7 @@ namespace vke_render
 
     void LightManager::ConstructFrameGraph(FrameGraph &frameGraph,
                                            std::map<std::string, vke_ds::id32_t> &blackboard,
-                                           std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                                           CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
 
         VkBuffer pointLightBuffers[MAX_FRAMES_IN_FLIGHT];
@@ -110,8 +110,8 @@ namespace vke_render
                                           VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
-        currentResourceNodeID[pointLightBufferResourceID] = outPointLightBufferResourceNodeID;
-        currentResourceNodeID[spotLightBufferResourceID] = outSpotLightBufferResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][pointLightBufferResourceID] = outPointLightBufferResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][spotLightBufferResourceID] = outSpotLightBufferResourceNodeID;
     }
 
     void LightManager::cullLights(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)

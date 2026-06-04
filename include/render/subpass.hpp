@@ -5,7 +5,6 @@
 
 namespace vke_render
 {
-
     enum PassType
     {
         CUSTOM_RENDERER,
@@ -13,6 +12,7 @@ namespace vke_render
         SHADOW_PASS,
         DEFERRED_LIGHTING_PASS,
         SKYBOX_RENDERER,
+        TONE_MAPPING_PASS,
         UI_RENDERER
     };
 
@@ -35,7 +35,7 @@ namespace vke_render
         virtual void Init(int subpassID,
                           FrameGraph &frameGraph,
                           std::map<std::string, vke_ds::id32_t> &blackboard,
-                          std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                          CurrentResourceNodeIDMaps &currentResourceNodeID)
         {
             this->subpassID = subpassID;
         }

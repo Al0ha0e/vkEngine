@@ -10,7 +10,7 @@ namespace vke_render
 
     void SkyboxManager::constructFrameGraph(FrameGraph &frameGraph,
                                             std::map<std::string, vke_ds::id32_t> &blackboard,
-                                            std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                                            CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
         vke_ds::id32_t lutTaskID = frameGraph.AllocTaskNode("gen sky lut", COMPUTE_TASK,
                                                             std::bind(&SkyboxManager::generateLUT, this,
@@ -67,9 +67,9 @@ namespace vke_render
         blackboard["skyLUT"] = lutResourceID;
         blackboard["skyIrradianceLUT"] = irradianceResourceID;
         blackboard["skySpecularLUT"] = specularResourceID;
-        currentResourceNodeID[lutResourceID] = lutOutResourceNodeID;
-        currentResourceNodeID[irradianceResourceID] = irradianceOutResourceNodeID;
-        currentResourceNodeID[specularResourceID] = specularOutResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][lutResourceID] = lutOutResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][irradianceResourceID] = irradianceOutResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][specularResourceID] = specularOutResourceNodeID;
     }
 
     void SkyboxManager::initResources()

@@ -112,6 +112,13 @@
     "fragPath": "/builtin_assets/shader/shadow_frag.spv"
   },
   {
+    "type": 2,
+    "id": 9,
+    "name": "ToneMappingShader",
+    "path": "/builtin_assets/shader/tone_mapping_vert.spv",
+    "fragPath": "/builtin_assets/shader/tone_mapping_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",

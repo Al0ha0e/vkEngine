@@ -6,7 +6,7 @@ namespace vke_render
 
     void GBufferPass::constructFrameGraph(FrameGraph &frameGraph,
                                           std::map<std::string, vke_ds::id32_t> &blackboard,
-                                          std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                                          CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
         gbuffer->RegisterFrameGraphResources(frameGraph);
 
@@ -26,13 +26,13 @@ namespace vke_render
                                               VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, false, currentResourceNodeID[depthAttachmentResourceID], gbufferOutDepthResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][depthAttachmentResourceID], gbufferOutDepthResourceNodeID,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[depthAttachmentResourceID] = gbufferOutDepthResourceNodeID;
+        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][depthAttachmentResourceID] = gbufferOutDepthResourceNodeID;
     }
 
     static const std::vector<uint32_t> noskinVertexAttributeSizes = {sizeof(vke_render::Vertex::pos), sizeof(vke_render::Vertex::normal),

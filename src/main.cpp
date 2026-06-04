@@ -20,6 +20,7 @@ int main(int argc, char **argv)
         vke_render::GBUFFER_PASS,
         vke_render::DEFERRED_LIGHTING_PASS,
         vke_render::SKYBOX_RENDERER,
+        vke_render::TONE_MAPPING_PASS,
         vke_render::UI_RENDERER};
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
 

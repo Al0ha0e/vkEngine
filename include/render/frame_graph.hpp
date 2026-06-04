@@ -10,6 +10,12 @@
 
 namespace vke_render
 {
+    const uint32_t PERMANENT_RESOURCE_NODE_MAP = 0;
+    const uint32_t TRANSIENT_RESOURCE_NODE_MAP = 1;
+
+    using ResourceNodeIDMap = std::map<vke_ds::id32_t, vke_ds::id32_t>;
+    using CurrentResourceNodeIDMaps = ResourceNodeIDMap[2];
+
     class ResourceNode
     {
     public:

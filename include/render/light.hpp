@@ -218,7 +218,7 @@ namespace vke_render
 
         void ConstructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
+                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
 
         void Update(uint32_t currentFrame)
         {

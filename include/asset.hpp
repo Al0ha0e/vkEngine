@@ -39,6 +39,7 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_TEXT_ID = 6;
     const AssetHandle BUILTIN_VFSHADER_SHADOW_ID = 7;
     const AssetHandle BUILTIN_VFSHADER_SHADOW_SKIN_ID = 8;
+    const AssetHandle BUILTIN_VFSHADER_TONE_MAPPING_ID = 9;
 
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
     const AssetHandle BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID = 2;

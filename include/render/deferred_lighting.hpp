@@ -7,6 +7,7 @@
 #include <render/subpass.hpp>
 #include <render/light.hpp>
 #include <render/shadow_pass.hpp>
+#include <render/hdr_color.hpp>
 #include <asset.hpp>
 
 namespace vke_render
@@ -14,13 +15,14 @@ namespace vke_render
     class DeferredLightingPass : public RenderPassBase
     {
     public:
-        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager, ShadowPass *shadowPass)
-            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager), skyboxManager(skyboxManager), shadowPass(shadowPass) {}
+        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager, HDRColorManager *hdrColorManager, ShadowPass *shadowPass)
+            : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager), skyboxManager(skyboxManager),
+              hdrColorManager(hdrColorManager), shadowPass(shadowPass) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID) override
+                  CurrentResourceNodeIDMaps &currentResourceNodeID) override
         {
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             gbuffer = GBuffer::GetInstance();
@@ -40,6 +42,7 @@ namespace vke_render
         GBuffer *gbuffer;
         LightManager *lightManager;
         SkyboxManager *skyboxManager;
+        HDRColorManager *hdrColorManager;
         ShadowPass *shadowPass;
         VkDescriptorSet lightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         VkDescriptorSet shadowDescriptorSets[MAX_FRAMES_IN_FLIGHT];
@@ -50,7 +53,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID);
+                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
         void allocateDescriptorSet();
         void updateDescriptorSet(uint32_t currentFrame);
         void createGraphicsPipeline();

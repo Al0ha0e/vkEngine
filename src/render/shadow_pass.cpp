@@ -128,7 +128,7 @@ namespace vke_render
     void ShadowPass::Init(int subpassID,
                           FrameGraph &frameGraph,
                           std::map<std::string, vke_ds::id32_t> &blackboard,
-                          std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                          CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
         RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
 
@@ -174,7 +174,7 @@ namespace vke_render
 
     void ShadowPass::constructFrameGraph(FrameGraph &frameGraph,
                                          std::map<std::string, vke_ds::id32_t> &blackboard,
-                                         std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                                         CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
         shadowMapResourceID = frameGraph.AddTransientImageResource("directionalShadowMap0", shadowMapImages, VK_IMAGE_ASPECT_DEPTH_BIT, 1, DIRECTIONAL_SHADOW_CASCADE_CNT);
         shadowMapResourceNodeID = frameGraph.AllocResourceNode("directionalShadowMap0", true, shadowMapResourceID);
@@ -182,6 +182,7 @@ namespace vke_render
 
         blackboard["directionalShadowMap0"] = shadowMapResourceID;
         blackboard["directionalShadowMap0OutNode"] = shadowMapOutResourceNodeID; // TODO no out node
+        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][shadowMapResourceID] = shadowMapResourceNodeID;
 
         shadowTaskNodeID = frameGraph.AllocTaskNode("shadow pass", RENDER_TASK,
                                                     std::bind(&ShadowPass::Render, this,
@@ -197,6 +198,7 @@ namespace vke_render
                                           VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
         frameGraph.AddTargetResource(shadowMapResourceID);
+        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][shadowMapResourceID] = shadowMapOutResourceNodeID;
     }
 
     void ShadowPass::createImages()

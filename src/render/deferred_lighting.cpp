@@ -3,18 +3,18 @@
 
 namespace vke_render
 {
-
     void DeferredLightingPass::constructFrameGraph(FrameGraph &frameGraph,
                                                    std::map<std::string, vke_ds::id32_t> &blackboard,
-                                                   std::map<vke_ds::id32_t, vke_ds::id32_t> &currentResourceNodeID)
+                                                   CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
-        vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
         vke_ds::id32_t irradianceResourceID = blackboard.at("skyIrradianceLUT");
         vke_ds::id32_t specularResourceID = blackboard.at("skySpecularLUT");
-        vke_ds::id32_t irradianceOutResourceNodeID = currentResourceNodeID[irradianceResourceID];
-        vke_ds::id32_t specularOutResourceNodeID = currentResourceNodeID[specularResourceID];
+        vke_ds::id32_t irradianceOutResourceNodeID = currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][irradianceResourceID];
+        vke_ds::id32_t specularOutResourceNodeID = currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][specularResourceID];
 
-        vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutColor", false, colorAttachmentResourceID);
+        vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
+        vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutHDRColor", true, hdrColorResourceID);
+
         lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
                                                       std::bind(&DeferredLightingPass::Render, this,
                                                                 std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
@@ -22,11 +22,11 @@ namespace vke_render
                                                      std::bind(&DeferredLightingPass::onTransientResourcesReady, this,
                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["pointLightClusterBuffer"]], 0,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][blackboard["pointLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[blackboard["spotLightClusterBuffer"]], 0,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][blackboard["spotLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
@@ -46,7 +46,7 @@ namespace vke_render
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[colorAttachmentResourceID], lightingOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, 0, lightingOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
@@ -64,7 +64,7 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        currentResourceNodeID[colorAttachmentResourceID] = lightingOutColorResourceNodeID;
+        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID] = lightingOutColorResourceNodeID;
     }
 
     void DeferredLightingPass::allocateDescriptorSet()
@@ -119,7 +119,8 @@ namespace vke_render
         pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
         pipelineRenderingCreateInfo.pNext = nullptr;
         pipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        pipelineRenderingCreateInfo.pColorAttachmentFormats = &(context->colorFormat);
+        static constexpr VkFormat hdrFormat = HDRColorManager::HDR_COLOR_FORMAT;
+        pipelineRenderingCreateInfo.pColorAttachmentFormats = &hdrFormat;
         pipelineRenderingCreateInfo.depthAttachmentFormat = context->depthFormat;
 
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
@@ -142,11 +143,11 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = context->colorImageViews[imageIndex];
+        colorAttachmentInfo.imageView = hdrColorManager->GetImageView(currentFrame);
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachmentInfo.clearValue.color = {{1.0f, 0.5f, 0.3f, 1.0f}};
+        colorAttachmentInfo.clearValue.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
         colorAttachmentInfo.resolveMode = VK_RESOLVE_MODE_NONE;
 
         VkRenderingInfo renderingInfo{};
@@ -192,6 +193,7 @@ namespace vke_render
 
     void DeferredLightingPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
     {
+        hdrColorManager->CreateImageView(currentFrame);
         updateDescriptorSet(currentFrame);
     }
 }
