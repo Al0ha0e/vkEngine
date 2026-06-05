@@ -119,6 +119,13 @@
     "fragPath": "/builtin_assets/shader/tone_mapping_frag.spv"
   },
   {
+    "type": 2,
+    "id": 10,
+    "name": "BloomShader",
+    "path": "/builtin_assets/shader/bloom_vert.spv",
+    "fragPath": "/builtin_assets/shader/bloom_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",

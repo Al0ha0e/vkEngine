@@ -105,7 +105,7 @@ namespace vke_render
                                 &toneMappingDescriptorSets[currentFrame], 0, nullptr);
 
         vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL,
-                           0, sizeof(ToneMappingConstants), &constants);
+                           0, sizeof(ToneMappingConfig), &constants);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
         vkCmdEndRendering(commandBuffer);
@@ -114,8 +114,8 @@ namespace vke_render
     void ToneMappingPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
     {
         VkDescriptorImageInfo hdrColorImageInfo = {
-            hdrColorManager->sampler,
-            hdrColorManager->GetImageView(currentFrame),
+            inputSampler,
+            inputImageViewGetter(currentFrame),
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
         VkWriteDescriptorSet descriptorWrite{};

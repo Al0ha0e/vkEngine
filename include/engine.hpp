@@ -48,7 +48,7 @@ namespace vke_common
             vke_render::DescriptorSetAllocator::Init();
             if (ctx == nullptr)
                 ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
-            vke_render::Renderer::Init(ctx, passes, customPasses);
+            vke_render::Renderer::Init(ctx, passes, customPasses, gameConfig.renderConfig);
             ScriptManager::Init();
             SceneManager::Init();
             return instance;

@@ -3,5 +3,17 @@
   "windowHeight": 1080,
   "assetLUTPath": "./tests/scene/test_anim_desc.json",
   "defaultScenePath": "./tests/scene/test_anim_scene.json",
-  "gameScriptPath": "./tests/csharp/Game.dll"
+  "gameScriptPath": "./tests/csharp/Game.dll",
+  "renderConfig": {
+    "bloom": {
+      "threshold": 1.0,
+      "intensity": 0.35,
+      "radius": 1.0,
+      "knee": 0.25
+    },
+    "toneMapping": {
+      "exposure": 1.0,
+      "toneMappingMode": 0
+    }
+  }
 }

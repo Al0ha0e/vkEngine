@@ -5,6 +5,7 @@
 #include <render/gbuffer_pass.hpp>
 #include <render/shadow_pass.hpp>
 #include <render/deferred_lighting.hpp>
+#include <render/bloom.hpp>
 #include <render/tone_mapping.hpp>
 #include <render/skybox_render.hpp>
 #include <render/hdr_color.hpp>
@@ -43,7 +44,8 @@ namespace vke_render
 
         static Renderer *Init(RenderContext *ctx,
                               std::vector<PassType> &passes,
-                              std::vector<std::unique_ptr<RenderPassBase>> &customPasses)
+                              std::vector<std::unique_ptr<RenderPassBase>> &customPasses,
+                              const RenderConfig &renderConfig)
         {
             instance = new Renderer();
 
@@ -119,9 +121,26 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(skyboxRenderer));
                     break;
                 }
+                case BLOOM_PASS:
+                {
+                    const nlohmann::json &bloomConfigJSON = renderConfig.sourceJSON.value("bloom", nlohmann::json::object());
+                    std::unique_ptr<BloomPass> bloomPass = std::make_unique<BloomPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->hdrColorManager.get(), bloomConfigJSON);
+                    bloomPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[BLOOM_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(bloomPass));
+                    break;
+                }
                 case TONE_MAPPING_PASS:
                 {
-                    std::unique_ptr<ToneMappingPass> toneMappingPass = std::make_unique<ToneMappingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->hdrColorManager.get());
+                    const nlohmann::json &toneMappingConfigJSON = renderConfig.sourceJSON.value("toneMapping", nlohmann::json::object());
+                    std::unique_ptr<ToneMappingPass> toneMappingPass = std::make_unique<ToneMappingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->hdrColorManager.get(), toneMappingConfigJSON);
+                    auto bloomPassIt = instance->subPassMap.find(BLOOM_PASS);
+                    if (bloomPassIt != instance->subPassMap.end())
+                    {
+                        BloomPass *bloomPass = static_cast<BloomPass *>(instance->subPasses[bloomPassIt->second].get());
+                        toneMappingPass->SetInput(bloomPass->GetOutputSampler(),
+                                                  [bloomPass](uint32_t currentFrame) { return bloomPass->GetOutputImageView(currentFrame); });
+                    }
                     toneMappingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[TONE_MAPPING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(toneMappingPass));
