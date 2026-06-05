@@ -18,6 +18,7 @@ int main(int argc, char **argv)
     std::vector<vke_render::PassType> passes = {
         vke_render::SHADOW_PASS,
         vke_render::GBUFFER_PASS,
+        vke_render::SSAO_PASS,
         vke_render::DEFERRED_LIGHTING_PASS,
         vke_render::SKYBOX_RENDERER,
         vke_render::BLOOM_PASS,

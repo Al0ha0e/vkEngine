@@ -6,10 +6,16 @@
   "gameScriptPath": "./tests/csharp/Game.dll",
   "renderConfig": {
     "bloom": {
-      "threshold": 1.0,
+      "threshold": 0.9,
       "intensity": 0.35,
       "radius": 1.0,
       "knee": 0.25
+    },
+    "ssao": {
+      "radius": 0.35,
+      "bias": 0.025,
+      "intensity": 0.85,
+      "power": 1.15
     },
     "toneMapping": {
       "exposure": 1.0,

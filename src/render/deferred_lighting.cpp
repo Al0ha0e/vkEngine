@@ -3,6 +3,12 @@
 
 namespace vke_render
 {
+    struct DeferredLightingConstants
+    {
+        uint32_t directionalLightCnt;
+        uint32_t useSSAO;
+    };
+
     void DeferredLightingPass::constructFrameGraph(FrameGraph &frameGraph,
                                                    std::map<std::string, vke_ds::id32_t> &blackboard,
                                                    CurrentResourceNodeIDMaps &currentResourceNodeID)
@@ -52,6 +58,14 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
+        auto ssaoIt = blackboard.find("ssao");
+        if (ssaoIt != blackboard.end())
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][ssaoIt->second], 0,
+                                              VK_ACCESS_SHADER_READ_BIT,
+                                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                              VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
         frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, irradianceOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -78,7 +92,7 @@ namespace vke_render
 
     void DeferredLightingPass::updateDescriptorSet(uint32_t currentFrame)
     {
-        const uint32_t extraTextureCnt = 3;
+        const uint32_t extraTextureCnt = 4;
         VkWriteDescriptorSet descriptorWrites[GBUFFER_CNT + extraTextureCnt];
         VkDescriptorImageInfo imageInfos[GBUFFER_CNT + extraTextureCnt];
 
@@ -99,6 +113,11 @@ namespace vke_render
 
         imageInfos[GBUFFER_CNT + 2] = {brdfLUT->textureSampler, brdfLUT->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT + 2], lightingDescriptorSets[currentFrame], GBUFFER_CNT + 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT + 2]));
+
+        VkSampler ambientOcclusionSampler = ssaoSampler != VK_NULL_HANDLE ? ssaoSampler : defaultOcclusionTexture->textureSampler;
+        VkImageView ambientOcclusionView = ssaoImageViewGetter ? ssaoImageViewGetter(currentFrame) : defaultOcclusionTexture->textureImageView;
+        imageInfos[GBUFFER_CNT + 3] = {ambientOcclusionSampler, ambientOcclusionView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT + 3], lightingDescriptorSets[currentFrame], GBUFFER_CNT + 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT + 3]));
 
         vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT + extraTextureCnt, descriptorWrites, 0, nullptr);
 
@@ -181,8 +200,11 @@ namespace vke_render
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 3, descriptorSets, 0, nullptr);
 
+        DeferredLightingConstants constants{
+            lightManager->lightCnts[(int)LightType::DIRECTIONAL_LIGHT],
+            ssaoImageViewGetter ? 1u : 0u};
         vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0,
-                           sizeof(uint32_t), &(lightManager->lightCnts[(int)LightType::DIRECTIONAL_LIGHT]));
+                           sizeof(DeferredLightingConstants), &constants);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         vkCmdEndRendering(commandBuffer);
     }

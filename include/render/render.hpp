@@ -4,6 +4,7 @@
 #include <render/skybox.hpp>
 #include <render/gbuffer_pass.hpp>
 #include <render/shadow_pass.hpp>
+#include <render/ssao.hpp>
 #include <render/deferred_lighting.hpp>
 #include <render/bloom.hpp>
 #include <render/tone_mapping.hpp>
@@ -101,6 +102,15 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(shadowPass));
                     break;
                 }
+                case SSAO_PASS:
+                {
+                    const nlohmann::json &ssaoConfigJSON = renderConfig.sourceJSON.value("ssao", nlohmann::json::object());
+                    std::unique_ptr<SSAOPass> ssaoPass = std::make_unique<SSAOPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], ssaoConfigJSON);
+                    ssaoPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    instance->subPassMap[SSAO_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(ssaoPass));
+                    break;
+                }
                 case DEFERRED_LIGHTING_PASS:
                 {
                     ShadowPass *shadowPass = nullptr;
@@ -108,6 +118,13 @@ namespace vke_render
                     if (shadowPassIt != instance->subPassMap.end())
                         shadowPass = static_cast<ShadowPass *>(instance->subPasses[shadowPassIt->second].get());
                     std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get(), instance->hdrColorManager.get(), shadowPass);
+                    auto ssaoPassIt = instance->subPassMap.find(SSAO_PASS);
+                    if (ssaoPassIt != instance->subPassMap.end())
+                    {
+                        SSAOPass *ssaoPass = static_cast<SSAOPass *>(instance->subPasses[ssaoPassIt->second].get());
+                        lightingPass->SetSSAOInput(ssaoPass->GetOutputSampler(),
+                                                   [ssaoPass](uint32_t currentFrame) { return ssaoPass->GetOutputImageView(currentFrame); });
+                    }
                     lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(lightingPass));

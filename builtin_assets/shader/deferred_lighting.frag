@@ -12,6 +12,7 @@ layout(location = 0) out vec4 outColor;
 
 layout(push_constant) uniform Constants {
     uint directionalLightCnt;
+    uint useSSAO;
 } constants;
 
 // GBuffer0: BaseColor + Occlusion
@@ -22,6 +23,7 @@ layout(set = 1, binding = 3) uniform sampler2D gLinearDepth;
 layout(set = 1, binding = 4) uniform samplerCube skyIrradianceLUT;
 layout(set = 1, binding = 5) uniform samplerCube skySpecularLUT;
 layout(set = 1, binding = 6) uniform sampler2D brdfLUT;
+layout(set = 1, binding = 7) uniform sampler2D ssaoMap;
 
 const float PI = 3.14159265359;
 const float SKY_SPECULAR_ROUGHNESS_LEVELS = 6.0;
@@ -131,6 +133,7 @@ void main()
 
     vec3 albedo = baseColorTex.rgb;
     float occlusion = baseColorTex.a;
+    float ssao = constants.useSSAO != 0u ? texture(ssaoMap, vTexCoord).r : 1.0;
 
     float metallic = clamp(metalRough.r, 0.0, 1.0);
     float roughness = clamp(metalRough.g, 0.04, 1.0);
@@ -257,7 +260,7 @@ void main()
     vec3 prefilteredColor = textureLod(skySpecularLUT, normalize(worldR), lod).rgb;
     vec3 specularIBL = prefilteredColor * (F * brdf.x + brdf.y);
 
-    vec3 ambient = (kD * diffuseIBL + specularIBL) * occlusion;
+    vec3 ambient = (kD * diffuseIBL + specularIBL) * occlusion * ssao;
 
     vec3 color = Lo + ambient;
     outColor = vec4(color, 1.0);

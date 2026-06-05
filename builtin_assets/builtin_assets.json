@@ -115,15 +115,29 @@
     "type": 2,
     "id": 9,
     "name": "ToneMappingShader",
-    "path": "/builtin_assets/shader/tone_mapping_vert.spv",
+    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
     "fragPath": "/builtin_assets/shader/tone_mapping_frag.spv"
   },
   {
     "type": 2,
     "id": 10,
     "name": "BloomShader",
-    "path": "/builtin_assets/shader/bloom_vert.spv",
+    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
     "fragPath": "/builtin_assets/shader/bloom_frag.spv"
+  },
+  {
+    "type": 2,
+    "id": 11,
+    "name": "SSAOShader",
+    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "/builtin_assets/shader/ssao_frag.spv"
+  },
+  {
+    "type": 2,
+    "id": 12,
+    "name": "SSAOBlurShader",
+    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "/builtin_assets/shader/ssao_blur_frag.spv"
   },
   {
     "type": 3,

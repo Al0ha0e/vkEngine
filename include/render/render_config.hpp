@@ -52,10 +52,36 @@ namespace vke_render
         }
     };
 
+    struct SSAOConfig
+    {
+        float radius = 0.1f;
+        float bias = 0.025f;
+        float intensity = 0.6f;
+        float power = 1.0f;
+
+        SSAOConfig() = default;
+        explicit SSAOConfig(const nlohmann::json &json)
+        {
+            LoadJSON(json);
+        }
+
+        void LoadJSON(const nlohmann::json &json)
+        {
+            if (json.is_null())
+                return;
+
+            radius = json.value("radius", radius);
+            bias = json.value("bias", bias);
+            intensity = json.value("intensity", intensity);
+            power = json.value("power", power);
+        }
+    };
+
     struct RenderConfig
     {
         BloomConfig bloom;
         ToneMappingConfig toneMapping;
+        SSAOConfig ssao;
         nlohmann::json sourceJSON = nlohmann::json::object();
 
         RenderConfig() = default;
@@ -72,6 +98,7 @@ namespace vke_render
 
             bloom.LoadJSON(json.value("bloom", nlohmann::json::object()));
             toneMapping.LoadJSON(json.value("toneMapping", nlohmann::json::object()));
+            ssao.LoadJSON(json.value("ssao", nlohmann::json::object()));
         }
     };
 }

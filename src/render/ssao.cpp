@@ -1,0 +1,301 @@
+#include <render/ssao.hpp>
+
+namespace vke_render
+{
+    SSAOPass::~SSAOPass()
+    {
+        cleanupImageViews();
+        cleanupImages();
+        if (sampler != VK_NULL_HANDLE)
+            vkDestroySampler(globalLogicalDevice, sampler, nullptr);
+    }
+
+    void SSAOPass::constructFrameGraph(FrameGraph &frameGraph,
+                                       std::map<std::string, vke_ds::id32_t> &blackboard,
+                                       CurrentResourceNodeIDMaps &currentResourceNodeID)
+    {
+        ssaoRawResourceID = frameGraph.AddTransientImageResource("ssaoRaw", rawImages, VK_IMAGE_ASPECT_COLOR_BIT);
+        ssaoResourceID = frameGraph.AddTransientImageResource("ssao", images, VK_IMAGE_ASPECT_COLOR_BIT);
+        blackboard["ssao"] = ssaoResourceID;
+        vke_ds::id32_t ssaoRawOutResourceNodeID = frameGraph.AllocResourceNode("ssaoRawOut", true, ssaoRawResourceID);
+        vke_ds::id32_t ssaoBlurOutResourceNodeID = frameGraph.AllocResourceNode("ssaoBlurOut", true, ssaoResourceID);
+
+        ssaoTaskNodeID = frameGraph.AllocTaskNode("ssao", RENDER_TASK,
+                                                  std::bind(&SSAOPass::Render, this,
+                                                            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                                                            std::placeholders::_4, std::placeholders::_5));
+        frameGraph.SetTaskNodeTransientReadyCallback(ssaoTaskNodeID,
+                                                     std::bind(&SSAOPass::onSSAORawResourcesReady, this,
+                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        ssaoBlurTaskNodeID = frameGraph.AllocTaskNode("ssao blur", RENDER_TASK,
+                                                      std::bind(&SSAOPass::Render, this,
+                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
+                                                                std::placeholders::_4, std::placeholders::_5));
+        frameGraph.SetTaskNodeTransientReadyCallback(ssaoBlurTaskNodeID,
+                                                     std::bind(&SSAOPass::onSSAOBlurResourcesReady, this,
+                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+
+        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, true, gbuffer->GetResourceNodeID(1), 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, true, gbuffer->GetResourceNodeID(3), 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, true, 0, ssaoRawOutResourceNodeID,
+                                          VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, ssaoRawOutResourceNodeID, 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, gbuffer->GetResourceNodeID(1), 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, gbuffer->GetResourceNodeID(3), 0,
+                                          VK_ACCESS_SHADER_READ_BIT,
+                                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, 0, ssaoBlurOutResourceNodeID,
+                                          VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                          VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
+                                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][ssaoResourceID] = ssaoBlurOutResourceNodeID;
+    }
+
+    void SSAOPass::allocateDescriptorSet()
+    {
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            ssaoDescriptorSets[i] = ssaoShader->CreateDescriptorSet(1);
+            ssaoBlurDescriptorSets[i] = ssaoBlurShader->CreateDescriptorSet(1);
+        }
+    }
+
+    void SSAOPass::createGraphicsPipeline()
+    {
+        VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
+        pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+        pipelineRenderingCreateInfo.pNext = nullptr;
+        pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+        static constexpr VkFormat ssaoFormat = SSAO_FORMAT;
+        pipelineRenderingCreateInfo.pColorAttachmentFormats = &ssaoFormat;
+        pipelineRenderingCreateInfo.depthAttachmentFormat = VK_FORMAT_UNDEFINED;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencil{};
+        depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencil.depthTestEnable = VK_FALSE;
+        depthStencil.depthWriteEnable = VK_FALSE;
+        depthStencil.depthBoundsTestEnable = VK_FALSE;
+        depthStencil.stencilTestEnable = VK_FALSE;
+
+        VkGraphicsPipelineCreateInfo ssaoPipelineInfo{};
+        ssaoPipelineInfo.pNext = &pipelineRenderingCreateInfo;
+        ssaoPipelineInfo.pDepthStencilState = &depthStencil;
+
+        VkGraphicsPipelineCreateInfo blurPipelineInfo{};
+        blurPipelineInfo.pNext = &pipelineRenderingCreateInfo;
+        blurPipelineInfo.pDepthStencilState = &depthStencil;
+
+        std::vector<uint32_t> vertexAttributeSizes;
+        renderPipeline = std::make_unique<GraphicsPipeline>(ssaoShader, vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, ssaoPipelineInfo);
+        blurPipeline = std::make_unique<GraphicsPipeline>(ssaoBlurShader, vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, blurPipelineInfo);
+    }
+
+    void SSAOPass::Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
+    {
+        if (node.taskID == ssaoBlurTaskNodeID)
+        {
+            renderFullscreen(commandBuffer, currentFrame, imageViews[currentFrame], blurPipeline.get(),
+                             ssaoBlurDescriptorSets[currentFrame], 1.0f);
+            return;
+        }
+
+        renderFullscreen(commandBuffer, currentFrame, rawImageViews[currentFrame], renderPipeline.get(),
+                         ssaoDescriptorSets[currentFrame], 1.0f);
+    }
+
+    void SSAOPass::renderFullscreen(VkCommandBuffer commandBuffer, uint32_t currentFrame, VkImageView outputImageView,
+                                    GraphicsPipeline *pipeline, VkDescriptorSet descriptorSet, const float clearValue)
+    {
+        VkRenderingAttachmentInfo colorAttachmentInfo{};
+        colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        colorAttachmentInfo.pNext = nullptr;
+        colorAttachmentInfo.imageView = outputImageView;
+        colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentInfo.clearValue.color = {{clearValue, clearValue, clearValue, 1.0f}};
+        colorAttachmentInfo.resolveMode = VK_RESOLVE_MODE_NONE;
+
+        VkRenderingInfo renderingInfo{};
+        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        renderingInfo.pNext = nullptr;
+        renderingInfo.renderArea = {{0, 0}, {context->width, context->height}};
+        renderingInfo.layerCount = 1;
+        renderingInfo.colorAttachmentCount = 1;
+        renderingInfo.pColorAttachments = &colorAttachmentInfo;
+        renderingInfo.pDepthAttachment = nullptr;
+
+        vkCmdBeginRendering(commandBuffer, &renderingInfo);
+        pipeline->Bind(commandBuffer);
+
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(context->width);
+        viewport.height = static_cast<float>(context->height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = {context->width, context->height};
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+        VkDescriptorSet descriptorSets[2] = {globalDescriptorSets[currentFrame], descriptorSet};
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
+
+        vkCmdPushConstants(commandBuffer, pipeline->pipelineLayout, VK_SHADER_STAGE_ALL,
+                           0, sizeof(SSAOConfig), &constants);
+        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+        vkCmdEndRendering(commandBuffer);
+    }
+
+    void SSAOPass::onSSAORawResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    {
+        createImageView(currentFrame);
+
+        VkDescriptorImageInfo imageInfos[2] = {
+            {gbuffer->sampler, gbuffer->imageViews[1][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {gbuffer->sampler, gbuffer->imageViews[3][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}};
+
+        VkWriteDescriptorSet descriptorWrites[2];
+        ConstructDescriptorSetWrite(descriptorWrites[0], ssaoDescriptorSets[currentFrame], 0,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfos[0]);
+        ConstructDescriptorSetWrite(descriptorWrites[1], ssaoDescriptorSets[currentFrame], 1,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfos[1]);
+        vkUpdateDescriptorSets(globalLogicalDevice, 2, descriptorWrites, 0, nullptr);
+    }
+
+    void SSAOPass::onSSAOBlurResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    {
+        createImageView(currentFrame);
+
+        VkDescriptorImageInfo imageInfos[3] = {
+            {sampler, rawImageViews[currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {gbuffer->sampler, gbuffer->imageViews[1][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {gbuffer->sampler, gbuffer->imageViews[3][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}};
+
+        VkWriteDescriptorSet descriptorWrites[3];
+        ConstructDescriptorSetWrite(descriptorWrites[0], ssaoBlurDescriptorSets[currentFrame], 0,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfos[0]);
+        ConstructDescriptorSetWrite(descriptorWrites[1], ssaoBlurDescriptorSets[currentFrame], 1,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfos[1]);
+        ConstructDescriptorSetWrite(descriptorWrites[2], ssaoBlurDescriptorSets[currentFrame], 2,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfos[2]);
+        vkUpdateDescriptorSets(globalLogicalDevice, 3, descriptorWrites, 0, nullptr);
+    }
+
+    void SSAOPass::createImages()
+    {
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
+                                                        SSAO_FORMAT, VK_IMAGE_TILING_OPTIMAL,
+                                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                                            VK_IMAGE_USAGE_SAMPLED_BIT |
+                                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+                                                        1, &images[i]);
+            RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
+                                                        SSAO_FORMAT, VK_IMAGE_TILING_OPTIMAL,
+                                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                                            VK_IMAGE_USAGE_SAMPLED_BIT |
+                                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
+                                                        1, &rawImages[i]);
+        }
+    }
+
+    void SSAOPass::cleanupImages()
+    {
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            if (images[i] != VK_NULL_HANDLE)
+            {
+                vkDestroyImage(globalLogicalDevice, images[i], nullptr);
+                images[i] = VK_NULL_HANDLE;
+            }
+            if (rawImages[i] != VK_NULL_HANDLE)
+            {
+                vkDestroyImage(globalLogicalDevice, rawImages[i], nullptr);
+                rawImages[i] = VK_NULL_HANDLE;
+            }
+        }
+    }
+
+    void SSAOPass::createImageView(uint32_t currentFrame)
+    {
+        if (imageViews[currentFrame] != VK_NULL_HANDLE)
+            vkDestroyImageView(globalLogicalDevice, imageViews[currentFrame], nullptr);
+        imageViews[currentFrame] = RenderEnvironment::CreateImageView(images[currentFrame], SSAO_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+        if (rawImageViews[currentFrame] != VK_NULL_HANDLE)
+            vkDestroyImageView(globalLogicalDevice, rawImageViews[currentFrame], nullptr);
+        rawImageViews[currentFrame] = RenderEnvironment::CreateImageView(rawImages[currentFrame], SSAO_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
+
+    void SSAOPass::cleanupImageViews()
+    {
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+        {
+            if (imageViews[i] != VK_NULL_HANDLE)
+            {
+                vkDestroyImageView(globalLogicalDevice, imageViews[i], nullptr);
+                imageViews[i] = VK_NULL_HANDLE;
+            }
+            if (rawImageViews[i] != VK_NULL_HANDLE)
+            {
+                vkDestroyImageView(globalLogicalDevice, rawImageViews[i], nullptr);
+                rawImageViews[i] = VK_NULL_HANDLE;
+            }
+        }
+    }
+
+    void SSAOPass::createSampler()
+    {
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+        samplerInfo.maxAnisotropy = 1.0f;
+
+        VKE_VK_CHECK(vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &sampler), "failed to create ssao sampler!")
+    }
+}

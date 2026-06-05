@@ -11,6 +11,12 @@
       "radius": 1.0,
       "knee": 0.25
     },
+    "ssao": {
+      "radius": 0.2,
+      "bias": 0.025,
+      "intensity": 0.8,
+      "power": 1.0
+    },
     "toneMapping": {
       "exposure": 1.0,
       "toneMappingMode": 0
