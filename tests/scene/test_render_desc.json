@@ -1,1 +1,65 @@
-[]
+[
+  {
+    "type": 2,
+    "id": 1024,
+    "name": "MaterialConstantShader",
+    "path": "./tests/shader/material_constant_vert.spv",
+    "fragPath": "./tests/shader/material_constant_frag.spv"
+  },
+  {
+    "type": 4,
+    "id": 1024,
+    "name": "RedMetalMaterial",
+    "path": "",
+    "shader": 1024,
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      { "name": "baseColor", "offset": 64, "component_cnt": 4, "component_type": "float", "data": [0.8, 0.08, 0.04, 1.0] },
+      { "name": "metallic", "offset": 80, "component_cnt": 1, "component_type": "float", "data": [0.9] },
+      { "name": "roughness", "offset": 84, "component_cnt": 1, "component_type": "float", "data": [0.18] }
+    ]
+  },
+  {
+    "type": 4,
+    "id": 1025,
+    "name": "BlueRoughMaterial",
+    "path": "",
+    "shader": 1024,
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      { "name": "baseColor", "offset": 64, "component_cnt": 4, "component_type": "float", "data": [0.04, 0.2, 0.85, 1.0] },
+      { "name": "metallic", "offset": 80, "component_cnt": 1, "component_type": "float", "data": [0.05] },
+      { "name": "roughness", "offset": 84, "component_cnt": 1, "component_type": "float", "data": [0.82] }
+    ]
+  },
+  {
+    "type": 4,
+    "id": 1026,
+    "name": "GoldMaterial",
+    "path": "",
+    "shader": 1024,
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      { "name": "baseColor", "offset": 64, "component_cnt": 4, "component_type": "float", "data": [1.0, 0.55, 0.08, 1.0] },
+      { "name": "metallic", "offset": 80, "component_cnt": 1, "component_type": "float", "data": [1.0] },
+      { "name": "roughness", "offset": 84, "component_cnt": 1, "component_type": "float", "data": [0.32] }
+    ]
+  },
+  {
+    "type": 4,
+    "id": 1027,
+    "name": "GreenMatteMaterial",
+    "path": "",
+    "shader": 1024,
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      { "name": "baseColor", "offset": 64, "component_cnt": 4, "component_type": "float", "data": [0.06, 0.65, 0.2, 1.0] },
+      { "name": "metallic", "offset": 80, "component_cnt": 1, "component_type": "float", "data": [0.0] },
+      { "name": "roughness", "offset": 84, "component_cnt": 1, "component_type": "float", "data": [0.58] }
+    ]
+  }
+]

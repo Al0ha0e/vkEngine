@@ -1,8 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define VKE_DEBUG
-
 #ifdef VKE_DEBUG
 const bool DEBUG_MODE = true;
 #else

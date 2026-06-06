@@ -169,6 +169,8 @@ namespace vke_common
         for (auto tex : asset.textures)
             mat->textures.push_back(AssetManager::LoadTexture2D(tex));
         mat->textureBindingInfos = asset.textureBindingInfos;
+        mat->pushConstantInfos = asset.pushConstantInfos;
+        mat->pushConstantData = asset.pushConstantData;
 
         return std::unique_ptr<vke_render::Material>(mat);
     }

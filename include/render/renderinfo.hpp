@@ -8,16 +8,6 @@
 
 namespace vke_render
 {
-    struct PushConstantInfo
-    {
-        uint32_t size;
-        uint32_t offset;
-        const void *pValues;
-
-        PushConstantInfo() : offset(0), size(0), pValues(nullptr) {}
-        PushConstantInfo(const uint32_t size, const void *pValues, const uint32_t offset = 0) : size(size), offset(offset), pValues(pValues) {}
-    };
-
     struct RenderUnit
     {
         std::shared_ptr<const Mesh> mesh;
@@ -27,8 +17,8 @@ namespace vke_render
 
         RenderUnit() = default;
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, const void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr)
-            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues)), perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr, bool constantIsFloat = true)
+            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues, constantIsFloat)), perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet) {}
 
         RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)
             : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())), perUnitDescriptorSet(descriptorSet) {}
@@ -150,6 +140,8 @@ namespace vke_render
                     1,
                     &commonDescriptorSet,
                     0, nullptr);
+
+            material->SetPushConstants(commandBuffer, renderPipeline->pipelineLayout);
             for (auto &unit : units)
                 unit.second->Render(commandBuffer, renderPipeline->pipelineLayout, setcnt);
         }

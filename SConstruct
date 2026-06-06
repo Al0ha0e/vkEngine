@@ -120,7 +120,9 @@ cpppath = [
 ]
 cpppath.append("./third_party/freetype/include")
 cppdefines = ["JSON_NOEXCEPTION", "SPDLOG_NO_EXCEPTIONS"]
-if not DEBUG:
+if DEBUG:
+    cppdefines.append("VKE_DEBUG")
+else:
     cppdefines.append("NDEBUG")
 commonsrc = (
     joltObjs
@@ -280,7 +282,10 @@ for s in shaders:
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
 
 sprefix = "./tests/shader/"
-shaders = []
+shaders = [
+    ["material_constant.vert", "material_constant_vert.spv"],
+    ["material_constant.frag", "material_constant_frag.spv"],
+]
 for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")

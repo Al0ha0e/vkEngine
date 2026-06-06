@@ -3,6 +3,7 @@
 
 #include <render/shader.hpp>
 #include <render/texture.hpp>
+#include <render/push_constant.hpp>
 
 namespace vke_render
 {
@@ -30,6 +31,8 @@ namespace vke_render
         std::shared_ptr<ShaderModuleSet> shader;
         std::vector<std::shared_ptr<Texture2D>> textures;
         std::shared_ptr<std::vector<TextureBindingInfo>> textureBindingInfos;
+        std::shared_ptr<std::vector<PushConstantInfo>> pushConstantInfos;
+        std::shared_ptr<std::vector<std::unique_ptr<uint32_t[]>>> pushConstantData;
 
         void UpdateDescriptorSet(VkDescriptorSet descriptorSet)
         {
@@ -49,6 +52,14 @@ namespace vke_render
                                                         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, infop, bindingInfo.offset, bindingInfo.cnt);
             }
             vkUpdateDescriptorSets(globalLogicalDevice, writes.size(), writes.data(), 0, nullptr);
+        }
+
+        void SetPushConstants(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout)
+        {
+            if (pushConstantInfos == nullptr)
+                return;
+            for (auto &info : *pushConstantInfos)
+                vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, info.offset, info.size, info.pValues);
         }
     };
 }

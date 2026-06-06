@@ -119,7 +119,7 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": 1,
+          "material": 1024,
           "mesh": 2
         },
         {
@@ -206,7 +206,7 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": 1,
+          "material": 1026,
           "mesh": 3
         },
         {
@@ -293,7 +293,7 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": 1,
+          "material": 1025,
           "mesh": 4
         },
         {
@@ -380,7 +380,7 @@
       "components": [
         {
           "type": "renderableObject",
-          "material": 1,
+          "material": 1027,
           "mesh": 2
         },
         {

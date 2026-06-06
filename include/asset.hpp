@@ -12,6 +12,8 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <cstring>
+#include <stdexcept>
 #include <unordered_map>
 
 namespace vke_common
@@ -231,6 +233,8 @@ namespace vke_common
         AssetHandle shader;
         std::vector<AssetHandle> textures;
         std::shared_ptr<std::vector<vke_render::TextureBindingInfo>> textureBindingInfos;
+        std::shared_ptr<std::vector<vke_render::PushConstantInfo>> pushConstantInfos;
+        std::shared_ptr<std::vector<std::unique_ptr<uint32_t[]>>> pushConstantData;
 
         MaterialAsset() {}
 
@@ -244,25 +248,102 @@ namespace vke_common
             auto &bindingInfos = json["bindingInfos"];
             for (auto &bindingInfo : bindingInfos)
                 textureBindingInfos->emplace_back(bindingInfo["binding"], bindingInfo["offset"], bindingInfo["cnt"]);
+
+            pushConstantInfos = std::make_shared<std::vector<vke_render::PushConstantInfo>>();
+            pushConstantData = std::make_shared<std::vector<std::unique_ptr<uint32_t[]>>>();
+            if (!json.contains("pushConstantInfos"))
+                return;
+
+            auto &constantInfos = json["pushConstantInfos"];
+            pushConstantData->reserve(constantInfos.size());
+            pushConstantInfos->reserve(constantInfos.size());
+            for (auto &constantInfo : constantInfos)
+            {
+                const uint32_t componentCnt = constantInfo["component_cnt"];
+                const std::string componentType = constantInfo["component_type"];
+                const auto &data = constantInfo["data"];
+                if (data.size() != componentCnt)
+                    throw std::invalid_argument("push constant data size does not match component_cnt");
+                if (componentType != "float" && componentType != "int")
+                    throw std::invalid_argument("push constant component_type must be \"float\" or \"int\"");
+
+                const bool isFloat = componentType == "float";
+                auto constantData = std::make_unique<uint32_t[]>(componentCnt);
+                pushConstantInfos->emplace_back(
+                    componentCnt * sizeof(uint32_t),
+                    constantData.get(),
+                    isFloat,
+                    constantInfo["offset"]);
+
+                const uint32_t valueCnt = pushConstantInfos->back().size / sizeof(uint32_t);
+                for (uint32_t i = 0; i < valueCnt; ++i)
+                {
+                    if (pushConstantInfos->back().isFloat)
+                    {
+                        const float value = data[i].get<float>();
+                        std::memcpy(&constantData[i], &value, sizeof(value));
+                    }
+                    else
+                    {
+                        const int32_t value = data[i].get<int32_t>();
+                        std::memcpy(&constantData[i], &value, sizeof(value));
+                    }
+                }
+                pushConstantData->emplace_back(std::move(constantData));
+            }
         }
 
         DEFAULT_CONSTRUCTOR2(MaterialAsset)
 
         std::string toJSON()
         {
-            std::string ret = ", \"shader\": " + std::to_string(shader);
-            ret += ", \"textures\": [ ";
-            for (auto texture : textures)
-                ret += std::to_string(texture) + ",";
-            ret[ret.length() - 1] = ']';
-            ret += ", \"bindingInfos\":[";
-            for (auto &bindingInfo : (*textureBindingInfos))
+            nlohmann::json texturesJSON = textures;
+            nlohmann::json bindingInfosJSON = nlohmann::json::array();
+            if (textureBindingInfos != nullptr)
             {
-                ret += "\n{\"binding\":" + std::to_string(bindingInfo.binding) + ",";
-                ret += "\"offset\":" + std::to_string(bindingInfo.offset) + ",";
-                ret += "\"cnt\":" + std::to_string(bindingInfo.cnt) + "},";
+                for (const auto &bindingInfo : *textureBindingInfos)
+                    bindingInfosJSON.push_back({
+                        {"binding", bindingInfo.binding},
+                        {"offset", bindingInfo.offset},
+                        {"cnt", bindingInfo.cnt}});
             }
-            ret[ret.length() - 1] = ']';
+
+            nlohmann::json pushConstantInfosJSON = nlohmann::json::array();
+            if (pushConstantInfos != nullptr)
+            {
+                for (size_t constantIndex = 0; constantIndex < pushConstantInfos->size(); ++constantIndex)
+                {
+                    const auto &info = (*pushConstantInfos)[constantIndex];
+                    const uint32_t componentCnt = info.size / sizeof(uint32_t);
+                    nlohmann::json data = nlohmann::json::array();
+                    for (uint32_t i = 0; i < componentCnt; ++i)
+                    {
+                        if (info.isFloat)
+                        {
+                            float value;
+                            std::memcpy(&value, static_cast<const uint32_t *>(info.pValues) + i, sizeof(value));
+                            data.push_back(value);
+                        }
+                        else
+                        {
+                            int32_t value;
+                            std::memcpy(&value, static_cast<const uint32_t *>(info.pValues) + i, sizeof(value));
+                            data.push_back(value);
+                        }
+                    }
+                    pushConstantInfosJSON.push_back({
+                        {"name", "constant_" + std::to_string(constantIndex)},
+                        {"offset", info.offset},
+                        {"component_cnt", componentCnt},
+                        {"component_type", info.isFloat ? "float" : "int"},
+                        {"data", std::move(data)}});
+                }
+            }
+
+            std::string ret = ", \"shader\": " + std::to_string(shader);
+            ret += ", \"textures\": " + texturesJSON.dump();
+            ret += ", \"bindingInfos\": " + bindingInfosJSON.dump();
+            ret += ", \"pushConstantInfos\": " + pushConstantInfosJSON.dump();
             return ret;
         }
     };

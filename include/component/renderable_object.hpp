@@ -85,8 +85,8 @@ namespace vke_component
         {
             renderUnit = textureIndices.size() == 0 ? std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)))
                                                     : std::make_unique<vke_render::RenderUnit>(mesh,
-                                                                                               std::vector<vke_render::PushConstantInfo>{vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::mat4)), &transform.model, 0),
-                                                                                                                                         vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::ivec4)), textureIndices.data(), static_cast<uint32_t>(sizeof(glm::mat4)))},
+                                                                                               std::vector<vke_render::PushConstantInfo>{vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::mat4)), &transform.model, true, 0),
+                                                                                                                                         vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::ivec4)), textureIndices.data(), false, static_cast<uint32_t>(sizeof(glm::mat4)))},
                                                                                                1);
             shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)));
         }
