@@ -1,4 +1,7 @@
 # vkEngine 
+
+![](./docs/imgs/sponza.jpg)
+
 vkEngine is a toy game engine currently in development. 
 It uses [Vulkan](https://www.lunarg.com/vulkan-sdk/) as the rendering backend, integrates [JoltPhysics](https://github.com/jrouwe/JoltPhysics) for real-time physics simulation, and embeds [CoreCLR](https://github.com/dotnet/runtime) as the scripting runtime for C#. 
 
@@ -42,6 +45,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 ./out/engine.exe ./tests/cfg/test_jolt.json
 ./out/engine.exe ./tests/cfg/test_anim.json
 ./out/engine.exe ./tests/cfg/test_env.json
+./out/engine.exe ./tests/cfg/test_render.json
 ```
 
 ## Third Party Libraries 
@@ -70,8 +74,23 @@ The build will produce `out/engine.exe`. The executable expects a single game co
   - [x] cluster-based deferred rendering & PBR 
   - [x] directional/spot/point lights
   - [x] IBL
+  - [x] SSAO
+  - [x] post-processing: bloom, tone mapping
+  - [x] directional light CSM with PCF
   - [ ] UI rendering
-  - [ ] shadow mapping 
+  - [ ] spot and point light shadows
+- **Physics**:
+  - [x] rigidbody
+  - [x] collision detection
+  - [x] spatial queries
+  - [x] character controller
+  - [ ] constraints
+- **Animation**:
+  - [x] animation sampling
+  - [x] GPU skinning
+  - [ ] blending
+  - [ ] IK
 - **Scripting**:
   - [x] CoreCLR integration
+  - [x] script lifecycle
   - [ ] python-based preprocessing tool to generate metadata 

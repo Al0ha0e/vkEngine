@@ -90,7 +90,16 @@ if USE_AVX:
 #########################
 
 env = Environment(
-    CC="cl", CCFLAGS=["/std:c++23preview", "/EHs-", "/O2", "/utf-8"] + jolt_ccflags
+    CC="cl",
+    CXX="cl",
+    CCFLAGS=[
+        "/std:c++23preview",
+        "/EHs-",
+        "/O2",
+        "/utf-8",
+        "/MDd" if DEBUG else "/MD",
+    ]
+    + jolt_ccflags,
 )
 
 SConscript(["csharp/Sconscript", "tests/csharp/Sconscript"])
@@ -101,7 +110,7 @@ ozzObjs = SConscript(["third_party/ozz/Sconscript"], exports=["env"])
 freetypeObjs = SConscript(["third_party/freetype/Sconscript"], exports=["env"])
 
 
-libs = ["msvcrtd", "libcmt", "Gdi32", "shell32", "user32", "vulkan-1"] + selflibs
+libs = ["Gdi32", "shell32", "user32", "vulkan-1"] + selflibs
 libpath = ["./libs", "D:/VulkanSDK/Lib"]
 cpppath = [
     "./include",
@@ -110,7 +119,9 @@ cpppath = [
     "./third_party/",
 ]
 cpppath.append("./third_party/freetype/include")
-cppdefines = ["JSON_NOEXCEPTION", "SPDLOG_NO_EXCEPTIONS"]  # ['NDEBUG']
+cppdefines = ["JSON_NOEXCEPTION", "SPDLOG_NO_EXCEPTIONS"]
+if not DEBUG:
+    cppdefines.append("NDEBUG")
 commonsrc = (
     joltObjs
     + ozzObjs

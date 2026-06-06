@@ -94,7 +94,7 @@ namespace vke_common
         {
             logger = spdlog::stdout_color_mt("vkEngine");
 #ifdef VKE_DEBUG
-            logger->set_level(spdlog::level::debug);
+            // logger->set_level(spdlog::level::debug);
 #endif
         }
     };
