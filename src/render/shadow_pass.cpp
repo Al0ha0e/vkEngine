@@ -36,11 +36,11 @@ namespace vke_render
         uint32_t cascadeIndex;
     };
 
-    static float CalculateCascadeSplit(float cameraNear, float clipRange, float cameraFar, float splitProgress)
+    static float CalculateCascadeSplit(float cameraNear, float clipRange, float cameraFar, float splitProgress, float splitLambda)
     {
         float logSplit = cameraNear * std::pow(cameraFar / cameraNear, splitProgress);
         float uniformSplit = cameraNear + clipRange * splitProgress;
-        return DIRECTIONAL_SHADOW_SPLIT_LAMBDA * logSplit + (1.0f - DIRECTIONAL_SHADOW_SPLIT_LAMBDA) * uniformSplit;
+        return splitLambda * logSplit + (1.0f - splitLambda) * uniformSplit;
     }
 
     static std::array<glm::vec3, 8> CalculateCascadeCorners(const CameraInfo &cam, float nearClip, float farClip)
@@ -104,7 +104,7 @@ namespace vke_render
                 vkDestroyImageView(globalLogicalDevice, shadowMapImageViews[i], nullptr);
                 shadowMapImageViews[i] = VK_NULL_HANDLE;
             }
-            for (uint32_t cascade = 0; cascade < DIRECTIONAL_SHADOW_CASCADE_CNT; ++cascade)
+            for (uint32_t cascade = 0; cascade < MAX_DIRECTIONAL_SHADOW_CASCADE_CNT; ++cascade)
             {
                 if (shadowCascadeImageViews[i][cascade] != VK_NULL_HANDLE)
                 {
@@ -176,7 +176,7 @@ namespace vke_render
                                          std::map<std::string, vke_ds::id32_t> &blackboard,
                                          CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
-        shadowMapResourceID = frameGraph.AddTransientImageResource("directionalShadowMap0", shadowMapImages, VK_IMAGE_ASPECT_DEPTH_BIT, 1, DIRECTIONAL_SHADOW_CASCADE_CNT);
+        shadowMapResourceID = frameGraph.AddTransientImageResource("directionalShadowMap0", shadowMapImages, VK_IMAGE_ASPECT_DEPTH_BIT, 1, config.cascadeCnt);
         shadowMapResourceNodeID = frameGraph.AllocResourceNode("directionalShadowMap0", true, shadowMapResourceID);
         vke_ds::id32_t shadowMapOutResourceNodeID = frameGraph.AllocResourceNode("directionalShadowMap0Out", true, shadowMapResourceID);
 
@@ -205,9 +205,9 @@ namespace vke_render
     {
         VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            RenderEnvironment::CreateImageWithoutMemory(DIRECTIONAL_SHADOW_MAP_SIZE, DIRECTIONAL_SHADOW_MAP_SIZE,
+            RenderEnvironment::CreateImageWithoutMemory(config.mapSize, config.mapSize,
                                                         context->depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                                                        usageFlags, 1, &shadowMapImages[i], DIRECTIONAL_SHADOW_CASCADE_CNT);
+                                                        usageFlags, 1, &shadowMapImages[i], config.cascadeCnt);
     }
 
     void ShadowPass::createImageViews(uint32_t currentFrame)
@@ -216,8 +216,8 @@ namespace vke_render
             vkDestroyImageView(globalLogicalDevice, shadowMapImageViews[currentFrame], nullptr);
         shadowMapImageViews[currentFrame] = RenderEnvironment::CreateImageView(shadowMapImages[currentFrame], context->depthFormat,
                                                                                VK_IMAGE_ASPECT_DEPTH_BIT, 1, 0,
-                                                                               DIRECTIONAL_SHADOW_CASCADE_CNT, VK_IMAGE_VIEW_TYPE_2D_ARRAY);
-        for (uint32_t cascade = 0; cascade < DIRECTIONAL_SHADOW_CASCADE_CNT; ++cascade)
+                                                                               config.cascadeCnt, VK_IMAGE_VIEW_TYPE_2D_ARRAY);
+        for (uint32_t cascade = 0; cascade < config.cascadeCnt; ++cascade)
         {
             if (shadowCascadeImageViews[currentFrame][cascade] != VK_NULL_HANDLE)
                 vkDestroyImageView(globalLogicalDevice, shadowCascadeImageViews[currentFrame][cascade], nullptr);
@@ -321,10 +321,9 @@ namespace vke_render
 
         const CameraInfo &cam = *cameraInfo;
         const float cameraNear = std::max(cam.near, 0.01f);
-        const float cameraFar = std::max(cameraNear + 0.01f, std::min(cam.far, DIRECTIONAL_SHADOW_MAX_DISTANCE));
+        const float cameraFar = std::max(cameraNear + 0.01f, std::min(cam.far, config.maxDistance));
         const float clipRange = cameraFar - cameraNear;
 
-        float cascadeEnds[DIRECTIONAL_SHADOW_CASCADE_CNT];
         float lastSplitDist = 0.0f;
         glm::vec3 up = std::abs(glm::dot(lightDir, glm::vec3(0.0f, 1.0f, 0.0f))) > 0.98f
                            ? glm::vec3(0.0f, 0.0f, 1.0f)
@@ -333,11 +332,14 @@ namespace vke_render
         glm::vec3 lightUp = glm::normalize(glm::cross(lightRight, lightDir));
 
         directionalShadowInfo.lightIndex = glm::uvec4(0, 0, 0, 0);
+        directionalShadowInfo.cascadeCnt = glm::uvec4(config.cascadeCnt, 0, 0, 0);
+        directionalShadowInfo.cascadeSplits = glm::vec4(0.0f);
+        directionalShadowInfo.cascadeTexelSizes = glm::vec4(0.0f);
 
-        for (uint32_t cascade = 0; cascade < DIRECTIONAL_SHADOW_CASCADE_CNT; ++cascade)
+        for (uint32_t cascade = 0; cascade < config.cascadeCnt; ++cascade)
         {
-            float p = static_cast<float>(cascade + 1) / static_cast<float>(DIRECTIONAL_SHADOW_CASCADE_CNT);
-            float split = CalculateCascadeSplit(cameraNear, clipRange, cameraFar, p);
+            float p = static_cast<float>(cascade + 1) / static_cast<float>(config.cascadeCnt);
+            float split = CalculateCascadeSplit(cameraNear, clipRange, cameraFar, p, config.splitLambda);
             float splitDist = (split - cameraNear) / clipRange;
             float nearClip = cameraNear + clipRange * lastSplitDist;
             float farClip = cameraNear + clipRange * splitDist;
@@ -350,7 +352,7 @@ namespace vke_render
 
             float radius = CalculateStableCascadeRadius(cam.fov, cam.aspect, nearClip, farClip);
 
-            float worldUnitsPerTexel = (radius * 2.0f) / static_cast<float>(DIRECTIONAL_SHADOW_MAP_SIZE);
+            float worldUnitsPerTexel = (radius * 2.0f) / static_cast<float>(config.mapSize);
             directionalShadowInfo.cascadeTexelSizes[cascade] = worldUnitsPerTexel;
             float centerRight = glm::dot(center, lightRight);
             float centerUp = glm::dot(center, lightUp);
@@ -359,21 +361,20 @@ namespace vke_render
             glm::vec3 snappedCenter = center +
                                       lightRight * (snappedRight - centerRight) +
                                       lightUp * (snappedUp - centerUp);
-            float lightDistance = radius + DIRECTIONAL_SHADOW_DEPTH_MARGIN;
+            float lightDistance = radius + config.depthMargin;
             glm::mat4 lightView = glm::lookAt(snappedCenter - lightDir * lightDistance,
                                               snappedCenter, lightUp);
 
             float lightNear = 0.0f;
-            float lightFar = lightDistance + radius + DIRECTIONAL_SHADOW_DEPTH_MARGIN;
+            float lightFar = lightDistance + radius + config.depthMargin;
             glm::mat4 lightProj = glm::ortho(-radius, radius, -radius, radius, lightNear, lightFar);
             lightProj[1][1] *= -1.0f;
 
-            cascadeEnds[cascade] = split;
+            directionalShadowInfo.cascadeSplits[cascade] = split;
             directionalShadowInfo.lightViewProj[cascade] = lightProj * lightView;
             lastSplitDist = splitDist;
         }
 
-        directionalShadowInfo.cascadeSplits = glm::vec4(cascadeEnds[0], cascadeEnds[1], cascadeEnds[2], cascadeEnds[3]);
         shadowInfoBuffers[currentFrame].ToBuffer(0, &directionalShadowInfo, sizeof(DirectionalShadowInfoCPU));
     }
 
@@ -386,18 +387,18 @@ namespace vke_render
             VkViewport viewport{};
             viewport.x = 0.0f;
             viewport.y = 0.0f;
-            viewport.width = static_cast<float>(DIRECTIONAL_SHADOW_MAP_SIZE);
-            viewport.height = static_cast<float>(DIRECTIONAL_SHADOW_MAP_SIZE);
+            viewport.width = static_cast<float>(config.mapSize);
+            viewport.height = static_cast<float>(config.mapSize);
             viewport.minDepth = 0.0f;
             viewport.maxDepth = 1.0f;
             vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
             VkRect2D scissor{};
             scissor.offset = {0, 0};
-            scissor.extent = {DIRECTIONAL_SHADOW_MAP_SIZE, DIRECTIONAL_SHADOW_MAP_SIZE};
+            scissor.extent = {config.mapSize, config.mapSize};
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            for (uint32_t cascade = 0; cascade < DIRECTIONAL_SHADOW_CASCADE_CNT; ++cascade)
+            for (uint32_t cascade = 0; cascade < config.cascadeCnt; ++cascade)
             {
                 VkRenderingAttachmentInfo depthAttachmentInfo{};
                 depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -412,7 +413,7 @@ namespace vke_render
                 VkRenderingInfo renderingInfo{};
                 renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
                 renderingInfo.pNext = nullptr;
-                renderingInfo.renderArea = {{0, 0}, {DIRECTIONAL_SHADOW_MAP_SIZE, DIRECTIONAL_SHADOW_MAP_SIZE}};
+                renderingInfo.renderArea = {{0, 0}, {config.mapSize, config.mapSize}};
                 renderingInfo.layerCount = 1;
                 renderingInfo.colorAttachmentCount = 0;
                 renderingInfo.pColorAttachments = nullptr;

@@ -75,12 +75,14 @@ uint GetClusterIndex(vec3 viewPos)
          + clusterZ * CLUSTER_DIM_X * CLUSTER_DIM_Y;
 }
 
-uint SelectDirectionalShadowCascade(float viewDepth, vec4 cascadeSplits)
+uint SelectDirectionalShadowCascade(float viewDepth, vec4 cascadeSplits, uint cascadeCnt)
 {
     uint cascadeIndex = 0u;
-    if (viewDepth > cascadeSplits.x) cascadeIndex = 1u;
-    if (viewDepth > cascadeSplits.y) cascadeIndex = 2u;
-    if (viewDepth > cascadeSplits.z) cascadeIndex = 3u;
+    for (uint cascade = 1u; cascade < cascadeCnt; ++cascade)
+    {
+        if (viewDepth > cascadeSplits[cascade - 1u])
+            cascadeIndex = cascade;
+    }
     return cascadeIndex;
 }
 
@@ -90,7 +92,7 @@ float SampleDirectionalShadow(uint lightIndex, vec3 worldPos, vec3 worldNormal, 
     if (shadowInfo.lightIndex.x == 0xFFFFFFFFu || shadowInfo.lightIndex.x != lightIndex)
         return 1.0;
 
-    uint cascadeIndex = SelectDirectionalShadowCascade(viewDepth, shadowInfo.cascadeSplits);
+    uint cascadeIndex = SelectDirectionalShadowCascade(viewDepth, shadowInfo.cascadeSplits, shadowInfo.cascadeCnt.x);
     float NdotL = max(dot(worldNormal, lightDir), 0.0);
     const float NORMAL_BIAS_TEXELS = 4.5;
     const float DEPTH_BIAS_MIN = 0.0005;

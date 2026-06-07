@@ -96,7 +96,9 @@ namespace vke_render
                 }
                 case SHADOW_PASS:
                 {
-                    std::unique_ptr<ShadowPass> shadowPass = std::make_unique<ShadowPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->lightManager.get(), &instance->hostCameraInfo);
+                    std::unique_ptr<ShadowPass> shadowPass = std::make_unique<ShadowPass>(
+                        ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
+                        instance->lightManager.get(), &instance->hostCameraInfo, renderConfig.directionalShadow);
                     shadowPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SHADOW_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(shadowPass));

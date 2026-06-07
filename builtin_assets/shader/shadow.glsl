@@ -2,7 +2,7 @@
 #define SHADOW_H
 
 #define MAX_DIRECTIONAL_LIGHT_SHADOW_CNT 1
-#define DIRECTIONAL_SHADOW_CASCADE_CNT 4
+#define MAX_DIRECTIONAL_SHADOW_CASCADE_CNT 4
 #define MAX_SPOT_LIGHT_SHADOW_CNT 32
 #define MAX_POINT_LIGHT_SHADOW_CNT 8
 
@@ -15,7 +15,8 @@
 struct DirectionalShadowInfo
 {
     uvec4 lightIndex; // x: directional light index
-    mat4 lightViewProj[DIRECTIONAL_SHADOW_CASCADE_CNT];
+    uvec4 cascadeCnt; // x: active cascade cnt
+    mat4 lightViewProj[MAX_DIRECTIONAL_SHADOW_CASCADE_CNT];
     vec4 cascadeSplits;
     vec4 cascadeTexelSizes;
 };

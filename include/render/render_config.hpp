@@ -1,11 +1,14 @@
 #ifndef RENDER_CONFIG_H
 #define RENDER_CONFIG_H
 
+#include <common.hpp>
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
 namespace vke_render
 {
+    constexpr uint32_t MAX_DIRECTIONAL_SHADOW_CASCADE_CNT = 4;
+
     struct BloomConfig
     {
         float threshold = 1.0f;
@@ -77,11 +80,41 @@ namespace vke_render
         }
     };
 
+    struct DirectionalShadowConfig
+    {
+        uint32_t mapSize = 4096;
+        uint32_t cascadeCnt = MAX_DIRECTIONAL_SHADOW_CASCADE_CNT;
+        float maxDistance = 180.0f;
+        float splitLambda = 0.75f;
+        float depthMargin = 60.0f;
+
+        DirectionalShadowConfig() = default;
+        explicit DirectionalShadowConfig(const nlohmann::json &json)
+        {
+            LoadJSON(json);
+        }
+
+        void LoadJSON(const nlohmann::json &json)
+        {
+            if (json.is_null())
+                return;
+
+            mapSize = json.value("mapSize", mapSize);
+            cascadeCnt = json.value("cascadeCnt", cascadeCnt);
+            VKE_FATAL_IF(cascadeCnt < 1 || cascadeCnt > MAX_DIRECTIONAL_SHADOW_CASCADE_CNT,
+                         "Directional shadow cascade cnt must be between 1 and {}", MAX_DIRECTIONAL_SHADOW_CASCADE_CNT)
+            maxDistance = json.value("maxDistance", maxDistance);
+            splitLambda = json.value("splitLambda", splitLambda);
+            depthMargin = json.value("depthMargin", depthMargin);
+        }
+    };
+
     struct RenderConfig
     {
         BloomConfig bloom;
         ToneMappingConfig toneMapping;
         SSAOConfig ssao;
+        DirectionalShadowConfig directionalShadow;
         nlohmann::json sourceJSON = nlohmann::json::object();
 
         RenderConfig() = default;
@@ -99,6 +132,7 @@ namespace vke_render
             bloom.LoadJSON(json.value("bloom", nlohmann::json::object()));
             toneMapping.LoadJSON(json.value("toneMapping", nlohmann::json::object()));
             ssao.LoadJSON(json.value("ssao", nlohmann::json::object()));
+            directionalShadow.LoadJSON(json.value("directionalShadow", nlohmann::json::object()));
         }
     };
 }
