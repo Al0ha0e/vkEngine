@@ -1,4 +1,5 @@
 *.exe
+*.o
 *.obj
 *.dblite
 *.spv
@@ -15,3 +16,4 @@ src/generated/*
 vkEngine.sln
 
 tests/from_source2
+tools/out

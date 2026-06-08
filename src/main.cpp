@@ -2,9 +2,12 @@
 
 GLFWwindow *initWindow(int width, int height)
 {
-    glfwInit();
+    VKE_FATAL_IF(!glfwInit(), "Failed to initialize GLFW")
+    VKE_FATAL_IF(!glfwVulkanSupported(), "GLFW reports that Vulkan is not supported by the current platform")
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    return glfwCreateWindow(width, height, "Vulkan window", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(width, height, "Vulkan window", nullptr, nullptr);
+    VKE_FATAL_IF(window == nullptr, "Failed to create GLFW window")
+    return window;
 }
 
 int main(int argc, char **argv)

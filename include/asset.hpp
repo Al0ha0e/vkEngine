@@ -260,10 +260,8 @@ namespace vke_common
                 const uint32_t componentCnt = constantInfo["component_cnt"];
                 const std::string componentType = constantInfo["component_type"];
                 const auto &data = constantInfo["data"];
-                if (data.size() != componentCnt)
-                    throw std::invalid_argument("push constant data size does not match component_cnt");
-                if (componentType != "float" && componentType != "int")
-                    throw std::invalid_argument("push constant component_type must be \"float\" or \"int\"");
+                VKE_FATAL_IF(data.size() != componentCnt, "push constant data size does not match component_cnt")
+                VKE_FATAL_IF(componentType != "float" && componentType != "int", "push constant component_type must be \"float\" or \"int\"")
 
                 const bool isFloat = componentType == "float";
                 auto constantData = std::make_unique<uint32_t[]>(componentCnt);

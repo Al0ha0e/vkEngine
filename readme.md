@@ -2,6 +2,8 @@
 
 ![](./docs/imgs/sponza.jpg)
 
+> This branch provides experimental support for Linux. The Linux build path is still being validated and may require small local adjustments depending on the distribution, driver, compiler, and SDK layout.
+
 vkEngine is a toy game engine currently in development. 
 It uses [Vulkan](https://www.lunarg.com/vulkan-sdk/) as the rendering backend, integrates [JoltPhysics](https://github.com/jrouwe/JoltPhysics) for real-time physics simulation, and embeds [CoreCLR](https://github.com/dotnet/runtime) as the scripting runtime for C#. 
 
@@ -9,20 +11,36 @@ The project is primarily intended as a platform for experimenting with graphics 
 
 ## Requirements 
 
-- Windows 10/11 
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) (with C++23 support)  
-- [Miniconda/Anaconda](https://docs.conda.io/) 
-- [VulkanSDK](https://www.lunarg.com/vulkan-sdk/) >= 1.4 
-- [.NET SDK 9.0](https://dotnet.microsoft.com/) 
+- Linux x86_64
+- A C++23-capable compiler, such as recent GCC or Clang
+- [Miniconda/Anaconda](https://docs.conda.io/)
+- [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) >= 1.4, including `glslc`
+- A Vulkan-capable GPU driver
+- [.NET SDK 9.0](https://dotnet.microsoft.com/)
+- `glfw` and `assimp` development libraries, available from conda-forge or your system package manager
+
+## Environment Setup
+
+The build script looks for third-party headers and libraries in the active conda environment, the Vulkan SDK, and the .NET installation. A typical conda-based setup is:
+
+```bash
+git clone --recursive https://github.com/Al0ha0e/vkEngine.git
+cd vkEngine
+
+conda create -n vkengine python=3.12
+conda activate vkengine
+conda install -c conda-forge glfw assimp
+pip install -r requirements.txt
+
+export VULKAN_SDK=$HOME/VulkanSDK/<version>/x86_64
+export DOTNET_ROOT=$HOME/.dotnet
+```
+
+If Vulkan or .NET are installed in different locations, adjust `VULKAN_SDK` and `DOTNET_ROOT` accordingly. `SConstruct` can also discover Vulkan under `~/VulkanSDK/*/x86_64` and .NET under `~/.dotnet`.
 
 ## Build
 
-``` bash
-git clone --recursive https://github.com/Al0ha0e/vkEngine.git
-cd vkEngine
-conda create -n vkengine python=3.12
-conda activate vkengine
-pip install -r requirements.txt
+```bash
 python init_project.py
 scons
 ```
@@ -38,14 +56,14 @@ scons
 
 ## Run
 
-The build will produce `out/engine.exe`. The executable expects a single game config json:
+The Linux build will produce `out/engine`. The executable expects a single game config json:
 
-```
-./out/engine.exe ./tests/cfg/test_sponza.json
-./out/engine.exe ./tests/cfg/test_jolt.json
-./out/engine.exe ./tests/cfg/test_anim.json
-./out/engine.exe ./tests/cfg/test_env.json
-./out/engine.exe ./tests/cfg/test_render.json
+```bash
+./out/engine ./tests/cfg/test_sponza.json
+./out/engine ./tests/cfg/test_jolt.json
+./out/engine ./tests/cfg/test_anim.json
+./out/engine ./tests/cfg/test_env.json
+./out/engine ./tests/cfg/test_render.json
 ```
 
 ## Third Party Libraries 

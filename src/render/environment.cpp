@@ -94,7 +94,39 @@ namespace vke_render
         VKE_VK_CHECK(glfwCreateWindowSurface(vkinstance, window, nullptr, &surface), "Failed to create window surface!")
     }
 
-    static bool checkQueueFamily(VkPhysicalDevice pdevice)
+    static const char *DeviceTypeName(VkPhysicalDeviceType type)
+    {
+        switch (type)
+        {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return "discrete";
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return "integrated";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return "virtual";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            return "cpu";
+        default:
+            return "other";
+        }
+    }
+
+    static int64_t DeviceTypeScore(VkPhysicalDeviceType type)
+    {
+        switch (type)
+        {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return 4'000'000'000'000;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return 3'000'000'000'000;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return 2'000'000'000'000;
+        default:
+            return 1'000'000'000'000;
+        }
+    }
+
+    static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pdevice, VkSurfaceKHR surface)
     {
         uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
@@ -104,52 +136,48 @@ namespace vke_render
 
         VKE_LOG_INFO("Queue Family Cnt {}", queueFamilyCount);
 
-        bool hasGraphicsQueue = false, hasComputeQueue = false, hasTransferQueue = false, hasPresentQueue = false;
+        QueueFamilyIndices indices;
+        int i = 0;
         for (const auto &queueFamily : queueFamilyProperties)
         {
             VKE_LOG_INFO("Queue Family Flags {} Cnt {}", queueFamily.queueFlags, queueFamily.queueCount);
-            hasGraphicsQueue |= queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT;
-            hasComputeQueue |= queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT;
-            hasTransferQueue |= queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT;
-            hasPresentQueue |= queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT;
+            if (!indices.graphicsAndComputeFamily.has_value() &&
+                (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
+                (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                indices.graphicsAndComputeFamily = i;
+            else if (!indices.computeOnlyFamily.has_value() &&
+                     (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                indices.computeOnlyFamily = i;
+            else if (!indices.transferOnlyFamily.has_value() &&
+                     (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT))
+                indices.transferOnlyFamily = i;
+
+            if (!indices.presentFamily.has_value())
+            {
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, surface, &presentSupport);
+                if (presentSupport)
+                    indices.presentFamily = i;
+            }
+            i++;
         }
-        if (hasGraphicsQueue && hasComputeQueue && hasTransferQueue && hasPresentQueue)
-            return true;
-        return false;
+        if (indices.isComplete())
+            indices.getUniqueQueueFamilies();
+        return indices;
+    }
+
+    static bool checkQueueFamily(VkPhysicalDevice pdevice, VkSurfaceKHR surface)
+    {
+        QueueFamilyIndices indices = findQueueFamilies(pdevice, surface);
+        return indices.graphicsAndComputeFamily.has_value() &&
+               indices.presentFamily.has_value() &&
+               (indices.computeOnlyFamily.has_value() || indices.graphicsAndComputeFamily.has_value()) &&
+               (indices.transferOnlyFamily.has_value() || indices.graphicsAndComputeFamily.has_value());
     }
 
     void RenderEnvironment::setQueueFamilies(VkPhysicalDevice pdevice)
     {
-        std::vector<VkQueueFamilyProperties> queueFamilyProperties;
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
-        queueFamilyProperties.resize(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilyProperties.data());
-
-        int i = 0;
-        for (const auto &queueFamily : queueFamilyProperties)
-        {
-            if (!queueFamilyIndices.graphicsAndComputeFamily.has_value() &&
-                (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-                (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
-                queueFamilyIndices.graphicsAndComputeFamily = i;
-            else if (!queueFamilyIndices.computeOnlyFamily.has_value() &&
-                     (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
-                queueFamilyIndices.computeOnlyFamily = i;
-            else if (!queueFamilyIndices.transferOnlyFamily.has_value() &&
-                     (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT))
-                queueFamilyIndices.transferOnlyFamily = i;
-
-            if (!queueFamilyIndices.presentFamily.has_value() && (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
-            {
-                VkBool32 presentSupport = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, instance->surface, &presentSupport);
-                if (presentSupport)
-                    queueFamilyIndices.presentFamily = i;
-            }
-            i++;
-        }
-        queueFamilyIndices.getUniqueQueueFamilies();
+        queueFamilyIndices = findQueueFamilies(pdevice, surface);
     }
 
     const std::vector<const char *> deviceExtensions =
@@ -178,6 +206,14 @@ namespace vke_render
 
     bool RenderEnvironment::isDeviceSuitable(VkPhysicalDevice pdevice)
     {
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(pdevice, &properties);
+        if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+        {
+            VKE_LOG_INFO("skip cpu vulkan device {}", properties.deviceName);
+            return false;
+        }
+
         bool extensionsSupported = checkDeviceExtensionSupport(pdevice);
 
         bool swapChainAdequate = false;
@@ -201,7 +237,7 @@ namespace vke_render
         vkGetPhysicalDeviceFeatures2(pdevice, &supportedFeatures2);
         VkPhysicalDeviceFeatures &supportedFeatures = supportedFeatures2.features;
 
-        return checkQueueFamily(pdevice) &&
+        return checkQueueFamily(pdevice, surface) &&
                extensionsSupported &&
                swapChainAdequate &&
                supportedFeatures.samplerAnisotropy &&
@@ -258,11 +294,13 @@ namespace vke_render
             if (isDeviceSuitable(device))
                 candidates.push_back(device);
 
-        uint64_t maxTotMemory = 0, maxLocalMemory = 0;
-        VkPhysicalDevice bestDevice;
+        int64_t bestScore = -1;
+        VkPhysicalDevice bestDevice = VK_NULL_HANDLE;
 
         for (auto device : candidates)
         {
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(device, &properties);
             VkPhysicalDeviceMemoryProperties memoryProperties;
             vkGetPhysicalDeviceMemoryProperties(device, &memoryProperties);
 
@@ -277,27 +315,22 @@ namespace vke_render
             }
             VKE_LOG_INFO("TOT MEMORY SIZE {} LOCAL MEMORY  {}", totMemory * 1.0f / (1024.0 * 1024.0 * 1024.0), localMemory);
 
-            if (localMemory > maxLocalMemory)
+            int64_t score = DeviceTypeScore(properties.deviceType) + static_cast<int64_t>(localMemory / (1024 * 1024));
+            VKE_LOG_INFO("candidate device {} type {} score {}", properties.deviceName, DeviceTypeName(properties.deviceType), score);
+            if (score > bestScore)
             {
-                maxLocalMemory = localMemory;
-                maxTotMemory = totMemory;
-                bestDevice = device;
-            }
-            else if (localMemory == maxLocalMemory && totMemory > maxTotMemory)
-            {
-                maxLocalMemory = localMemory;
-                maxTotMemory = totMemory;
+                bestScore = score;
                 bestDevice = device;
             }
         }
 
-        if (candidates.size())
+        if (bestDevice != VK_NULL_HANDLE)
         {
             VKE_LOG_INFO("FIND {} DEVICES", candidates.size());
             physicalDevice = bestDevice;
             setQueueFamilies(physicalDevice);
             vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-            VKE_LOG_INFO(std::string(physicalDeviceProperties.deviceName));
+            VKE_LOG_INFO("selected device {} type {}", physicalDeviceProperties.deviceName, DeviceTypeName(physicalDeviceProperties.deviceType));
             // exit(0);
         }
         else

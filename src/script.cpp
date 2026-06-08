@@ -9,20 +9,31 @@
 #define LOAD_LIBRARY(path) LoadLibraryW(path)
 #define GET_PROC_ADDRESS(lib, name) GetProcAddress((HMODULE)lib, name)
 #define LIB_HANDLE HMODULE
+#define PATH_TO_CHAR_T(path) std::wstring(path.begin(), path.end())
 #else
 #include <dlfcn.h>
+#include <limits.h>
 #define LOAD_LIBRARY(path) dlopen(path, RTLD_LAZY | RTLD_LOCAL)
 #define GET_PROC_ADDRESS(lib, name) dlsym(lib, name)
 #define LIB_HANDLE void *
+#define MAX_PATH PATH_MAX
+#define PATH_TO_CHAR_T(path) path
 #endif
 
 namespace vke_common
 {
     const std::string EngineCSharpPath = std::string(REL_DIR) + "/csharp";
+#ifdef _WIN32
     static const char_t *ENGINE_CORE_CSHARP_CONFIG_PATH = REL_DIR_W L"/csharp/EngineCore.runtimeconfig.json";
     static const char_t *ENGINE_CORE_CSHARP_ASSEMBLY_PATH = REL_DIR_W L"/csharp/EngineCore.dll";
     static const char_t *CSHARP_TYPE_NAME = L"vkEngine.EngineCore.EntryPoint, EngineCore";
     static const char_t *CSHARP_GET_EXPORTS_METHOD_NAME = L"GetCSharpExports";
+#else
+    static const char_t *ENGINE_CORE_CSHARP_CONFIG_PATH = REL_DIR "/csharp/EngineCore.runtimeconfig.json";
+    static const char_t *ENGINE_CORE_CSHARP_ASSEMBLY_PATH = REL_DIR "/csharp/EngineCore.dll";
+    static const char_t *CSHARP_TYPE_NAME = "vkEngine.EngineCore.EntryPoint, EngineCore";
+    static const char_t *CSHARP_GET_EXPORTS_METHOD_NAME = "GetCSharpExports";
+#endif
 
     typedef void(CORECLR_DELEGATE_CALLTYPE *CSharpSideGetExportsFunction)(CSharpExports *);
 
@@ -90,7 +101,10 @@ namespace vke_common
 
         std::string &gameAssemblyPath = GameConfig::GetInstance()->gameScriptPath;
         if (gameAssemblyPath.length() > 0)
-            functionPointers.loadAssembly(std::wstring(gameAssemblyPath.begin(), gameAssemblyPath.end()).c_str(), nullptr, nullptr);
+        {
+            auto gameAssemblyPathNative = PATH_TO_CHAR_T(gameAssemblyPath);
+            functionPointers.loadAssembly(gameAssemblyPathNative.c_str(), nullptr, nullptr);
+        }
 
         getCSharpExports();
         int rc = csharpExports.init();
