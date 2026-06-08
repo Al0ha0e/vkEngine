@@ -8,12 +8,11 @@
 
 struct AtmosphereParameter
 {
-    vec4 sunLightColor;
     float seaLevel;
     float planetRadius;
     float atmosphereHeight;
-    float sunLightIntensity;
     float sunDiskAngle;
+    float sunLightIntensityFactor;
     float rayleighScatteringScale;
     float rayleighScatteringScalarHeight;
     float mieScatteringScale;
@@ -23,17 +22,34 @@ struct AtmosphereParameter
     float ozoneLevelCenterHeight;
     float ozoneLevelWidth;
     float aerialPerspectiveDistance;
+    float aerialPerspectiveScale;
 };
 
+#ifndef ATMOSPHERE_NO_PUSH_CONSTANT
 layout(push_constant) uniform PushConstants{
     vec4 mainLightDir;
+    vec4 mainLightColorIntensity;
 };
+#endif
 
-layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
-layout(set = 1, binding = 1) uniform sampler2D transmittanceLUT;
-layout(set = 1, binding = 2) uniform sampler2D multiScatteringLUT;
-layout(set = 1, binding = 3) uniform samplerCube skyViewLUT;
-layout(set = 1, binding = 4, rgba16f) writeonly uniform imageCube skyViewImage;
+#ifndef ATMOSPHERE_DESCRIPTOR_SET
+#define ATMOSPHERE_DESCRIPTOR_SET 1
+#endif
+
+layout (std430, set = ATMOSPHERE_DESCRIPTOR_SET, binding = 0) uniform UBO { AtmosphereParameter parameters; };
+layout(set = ATMOSPHERE_DESCRIPTOR_SET, binding = 1) uniform sampler2D transmittanceLUT;
+
+#ifndef ATMOSPHERE_CORE_ONLY
+
+layout(set = ATMOSPHERE_DESCRIPTOR_SET, binding = 2) uniform sampler2D multiScatteringLUT;
+
+#ifndef ATMOSPHERE_NO_SKYVIEW_DESCRIPTORS
+
+layout(set = ATMOSPHERE_DESCRIPTOR_SET, binding = 3) uniform samplerCube skyViewLUT;
+layout(set = ATMOSPHERE_DESCRIPTOR_SET, binding = 4, rgba16f) writeonly uniform imageCube skyViewImage;
+
+#endif //ifndef ATMOSPHERE_NO_SKYVIEW_DESCRIPTORS
+#endif //ifndef ATMOSPHERE_CORE_ONLY
 
 float RayIntersectSphere(vec3 center, float radius, vec3 rayStart, vec3 rayDir)
 {
@@ -60,7 +76,7 @@ vec3 RayleighCoefficient(float h)
     const vec3 sigma = vec3(5.802, 13.558, 33.1) * 1e-6;
     float H_R = parameters.rayleighScatteringScalarHeight;
     float rho_h = exp(-(h / H_R));
-    return sigma * rho_h;
+    return sigma * rho_h * parameters.rayleighScatteringScale;
 }
 
 float RayleiPhase(float cos_theta)
@@ -73,7 +89,7 @@ vec3 MieCoefficient(float h)
     const vec3 sigma = (3.996 * 1e-6).xxx;
     float H_M = parameters.mieScatteringScalarHeight;
     float rho_h = exp(-(h / H_M));
-    return sigma * rho_h;
+    return sigma * rho_h * parameters.mieScatteringScale;
 }
 
 float MiePhase(float cos_theta)
@@ -102,7 +118,7 @@ vec3 OzoneAbsorption(float h)
     float center = parameters.ozoneLevelCenterHeight;
     float width = parameters.ozoneLevelWidth;
     float rho = max(0, 1.0 - (abs(h - center) / width));
-    return sigma_lambda * rho;
+    return sigma_lambda * rho * parameters.ozoneAbsorptionScale;
 }
 
 // ------------------------------------------------------------------------- //
@@ -146,10 +162,15 @@ vec3 TransmittanceToAtmosphere(vec3 p, vec3 dir)
     float r = length(p);
 
     vec2 uv = GetTransmittanceLutUv(bottomRadius, topRadius, cos_theta, r);
+#ifdef ATMOSPHERE_EXPLICIT_LOD
+    return textureLod(transmittanceLUT, uv, 0.0).rgb;
+#else
     return texture(transmittanceLUT, uv).rgb;
+#endif
 }
 
 // 读取多重散射查找表
+#ifndef ATMOSPHERE_CORE_ONLY
 vec3 GetMultiScattering(vec3 p, vec3 lightDir)
 {
     float h = length(p) - parameters.planetRadius;
@@ -177,7 +198,8 @@ vec3 GetSkyView(vec3 eyePos, vec3 viewDir, vec3 lightDir, float maxDis)
 
     float ds = dis / float(N_SAMPLE);
     vec3 p = eyePos + (viewDir * ds) * 0.5;
-    vec3 sunLuminance = parameters.sunLightColor.xyz * parameters.sunLightIntensity;
+    vec3 sunLuminance = mainLightColorIntensity.rgb * mainLightColorIntensity.w *
+                        parameters.sunLightIntensityFactor;
     vec3 opticalDepth = vec3(0, 0, 0);
 
     for(int i=0; i<N_SAMPLE; i++)
@@ -205,5 +227,6 @@ vec3 GetSkyView(vec3 eyePos, vec3 viewDir, vec3 lightDir, float maxDis)
 
     return color;
 }
+#endif
 
 #endif

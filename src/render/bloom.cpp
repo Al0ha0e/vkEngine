@@ -127,8 +127,8 @@ namespace vke_render
         createImageView(currentFrame);
 
         VkDescriptorImageInfo hdrColorImageInfo = {
-            hdrColorManager->sampler,
-            hdrColorManager->GetImageView(currentFrame),
+            inputSampler,
+            inputImageViewGetter(currentFrame),
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
         VkWriteDescriptorSet descriptorWrite{};

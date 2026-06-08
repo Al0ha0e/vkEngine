@@ -691,7 +691,7 @@
         {
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
-          "intensity": 1.0
+          "intensity": 2.5
         }
       ],
       "children": []

@@ -1,6 +1,5 @@
 #ifndef ASSET_H
 #define ASSET_H
-
 #include <render/material.hpp>
 #include <render/mesh.hpp>
 #include <animation.hpp>
@@ -23,9 +22,7 @@ namespace vke_common
     const AssetHandle CUSTOM_ASSET_ID_ST = 1024;
 
     const AssetHandle BUILTIN_TEXTURE_DEFAULT_ID = 1;
-    const AssetHandle BUILTIN_TEXTURE_TLUT_ID = 2;
-    const AssetHandle BUILTIN_TEXTURE_SLUT_ID = 3;
-    const AssetHandle BUILTIN_TEXTURE_BRDF_LUT_ID = 4;
+    const AssetHandle BUILTIN_TEXTURE_BRDF_LUT_ID = 2;
 
     const AssetHandle BUILTIN_MESH_PLANE_ID = 1;
     const AssetHandle BUILTIN_MESH_CUBE_ID = 2;
@@ -45,10 +42,11 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_BLOOM_ID = 10;
     const AssetHandle BUILTIN_VFSHADER_SSAO_ID = 11;
     const AssetHandle BUILTIN_VFSHADER_SSAO_BLUR_ID = 12;
-
+    const AssetHandle BUILTIN_VFSHADER_ATMOSPHERE_ID = 13;
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
     const AssetHandle BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID = 2;
     const AssetHandle BUILTIN_COMPUTE_SHADER_IBL_LUT_ID = 3;
+    const AssetHandle BUILTIN_COMPUTE_SHADER_ATMOSPHERE_LUT_ID = 4;
 
     const AssetHandle BUILTIN_MATERIAL_DEFAULT_ID = 1;
     const AssetHandle BUILTIN_MATERIAL_SKYBOX_ID = 2;

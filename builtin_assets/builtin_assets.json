@@ -8,22 +8,6 @@
   {
     "type": 0,
     "id": 2,
-    "name": "TransmitanceLUT",
-    "path": "/builtin_assets/texture/transmitance_lut.png",
-    "addressMode": 2,
-    "anisotropy": false
-  },
-  {
-    "type": 0,
-    "id": 3,
-    "name": "ScatteringLUT",
-    "path": "/builtin_assets/texture/scattering_lut.png",
-    "addressMode": 2,
-    "anisotropy": false
-  },
-  {
-    "type": 0,
-    "id": 4,
     "name": "BRDFLUT",
     "path": "/builtin_assets/texture/brdf_lut.png",
     "format": 91,
@@ -140,6 +124,13 @@
     "fragPath": "/builtin_assets/shader/ssao_blur_frag.spv"
   },
   {
+    "type": 2,
+    "id": 13,
+    "name": "AtmospherePostShader",
+    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "/builtin_assets/shader/atmosphere_post_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",
@@ -158,6 +149,12 @@
     "path": "./builtin_assets/shader/ibl_lut.spv"
   },
   {
+    "type": 3,
+    "id": 4,
+    "name": "AtmosphereLUTGenerator",
+    "path": "./builtin_assets/shader/atmosphere_lut.spv"
+  },
+  {
     "type": 4,
     "id": 1,
     "name": "DefaultMaterial",
@@ -172,11 +169,8 @@
     "name": "SkyboxMaterial",
     "path": "",
     "shader": 2,
-    "textures": [2, 3],
-    "bindingInfos": [
-      { "binding": 1, "offset": 0, "cnt": 1 },
-      { "binding": 2, "offset": 0, "cnt": 1 }
-    ]
+    "textures": [],
+    "bindingInfos": []
   },
   {
     "type": 8,

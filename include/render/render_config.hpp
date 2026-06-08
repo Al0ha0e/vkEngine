@@ -9,6 +9,53 @@ namespace vke_render
 {
     constexpr uint32_t MAX_DIRECTIONAL_SHADOW_CASCADE_CNT = 4;
 
+    struct AtmosphereParameter
+    {
+        float seaLevel = 0.0f;
+        float planetRadius = 6360000.0f;
+        float atmosphereHeight = 60000.0f;
+        float sunDiskAngle = 2.0f;
+        float sunLightIntensityFactor = 1.0f;
+        float rayleighScatteringScale = 1.0f;
+        float rayleighScatteringScalarHeight = 8000.0f;
+        float mieScatteringScale = 1.0f;
+        float mieAnisotropy = 0.8f;
+        float mieScatteringScalarHeight = 1200.0f;
+        float ozoneAbsorptionScale = 1.0f;
+        float ozoneLevelCenterHeight = 25000.0f;
+        float ozoneLevelWidth = 15000.0f;
+        float aerialPerspectiveDistance = 32000.0f;
+        float aerialPerspectiveScale = 1.0f;
+
+        AtmosphereParameter() = default;
+        explicit AtmosphereParameter(const nlohmann::json &json)
+        {
+            LoadJSON(json);
+        }
+
+        void LoadJSON(const nlohmann::json &json)
+        {
+            if (json.is_null())
+                return;
+
+            seaLevel = json.value("seaLevel", seaLevel);
+            planetRadius = json.value("planetRadius", planetRadius);
+            atmosphereHeight = json.value("atmosphereHeight", atmosphereHeight);
+            sunDiskAngle = json.value("sunDiskAngle", sunDiskAngle);
+            sunLightIntensityFactor = json.value("sunLightIntensityFactor", sunLightIntensityFactor);
+            rayleighScatteringScale = json.value("rayleighScatteringScale", rayleighScatteringScale);
+            rayleighScatteringScalarHeight = json.value("rayleighScatteringScalarHeight", rayleighScatteringScalarHeight);
+            mieScatteringScale = json.value("mieScatteringScale", mieScatteringScale);
+            mieAnisotropy = json.value("mieAnisotropy", mieAnisotropy);
+            mieScatteringScalarHeight = json.value("mieScatteringScalarHeight", mieScatteringScalarHeight);
+            ozoneAbsorptionScale = json.value("ozoneAbsorptionScale", ozoneAbsorptionScale);
+            ozoneLevelCenterHeight = json.value("ozoneLevelCenterHeight", ozoneLevelCenterHeight);
+            ozoneLevelWidth = json.value("ozoneLevelWidth", ozoneLevelWidth);
+            aerialPerspectiveDistance = json.value("aerialPerspectiveDistance", aerialPerspectiveDistance);
+            aerialPerspectiveScale = json.value("aerialPerspectiveScale", aerialPerspectiveScale);
+        }
+    };
+
     struct BloomConfig
     {
         float threshold = 1.0f;
@@ -115,6 +162,7 @@ namespace vke_render
         ToneMappingConfig toneMapping;
         SSAOConfig ssao;
         DirectionalShadowConfig directionalShadow;
+        AtmosphereParameter atmosphere;
         nlohmann::json sourceJSON = nlohmann::json::object();
 
         RenderConfig() = default;
@@ -133,6 +181,7 @@ namespace vke_render
             toneMapping.LoadJSON(json.value("toneMapping", nlohmann::json::object()));
             ssao.LoadJSON(json.value("ssao", nlohmann::json::object()));
             directionalShadow.LoadJSON(json.value("directionalShadow", nlohmann::json::object()));
+            atmosphere.LoadJSON(json.value("atmosphere", nlohmann::json::object()));
         }
     };
 }

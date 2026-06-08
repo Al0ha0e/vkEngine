@@ -4,48 +4,26 @@
 #include <render/cubemap.hpp>
 #include <render/frame_graph.hpp>
 #include <render/light.hpp>
+#include <render/render_config.hpp>
 #include <render/renderinfo.hpp>
-#include <nlohmann/json.hpp>
+#include <render/texture.hpp>
 
 namespace vke_render
 {
-    struct AtmosphereParameter
+    struct AtmospherePushConstants
     {
-        glm::vec4 sunLightColor;
-        float seaLevel;
-        float planetRadius;
-        float atmosphereHeight;
-        float sunLightIntensity;
-        float sunDiskAngle;
-        float rayleighScatteringScale;
-        float rayleighScatteringScalarHeight;
-        float mieScatteringScale;
-        float mieAnisotropy;
-        float mieScatteringScalarHeight;
-        float ozoneAbsorptionScale;
-        float ozoneLevelCenterHeight;
-        float ozoneLevelWidth;
-        float aerialPerspectiveDistance;
-
-        AtmosphereParameter() {}
-        AtmosphereParameter(const nlohmann::json &json)
-            : seaLevel(json["SeaLevel"]), planetRadius(json["PlanetRadius"]), atmosphereHeight(json["AtmosphereHeight"]),
-              sunLightIntensity(json["SunLightIntensity"]), sunDiskAngle(json["SunDiskAngle"]),
-              rayleighScatteringScale(json["RayleighScatteringScale"]), rayleighScatteringScalarHeight(json["RayleighScatteringScalarHeight"]),
-              mieScatteringScale(json["MieScatteringScale"]), mieAnisotropy(json["MieAnisotropy"]), mieScatteringScalarHeight(json["MieScatteringScalarHeight"]),
-              ozoneAbsorptionScale(json["OzoneAbsorptionScale"]), ozoneLevelCenterHeight(json["OzoneLevelCenterHeight"]), ozoneLevelWidth(json["OzoneLevelWidth"]),
-              aerialPerspectiveDistance(json["AerialPerspectiveDistance"])
-        {
-            auto &sunColor = json["SunLightColor"];
-            sunLightColor = glm::vec4(sunColor[0].get<float>(), sunColor[1].get<float>(), sunColor[2].get<float>(), 1.0);
-        }
+        glm::vec4 mainLightDir;
+        glm::vec4 mainLightColorIntensity;
     };
 
     class SkyboxManager
     {
     public:
-        SkyboxManager(VkDescriptorSet *globalDescriptorSets, LightManager *lightManager)
-            : globalDescriptorSets(globalDescriptorSets), lightManager(lightManager)
+        SkyboxManager(VkDescriptorSet *globalDescriptorSets, LightManager *lightManager,
+                      const AtmosphereParameter &atmosphereParameter)
+            : globalDescriptorSets(globalDescriptorSets),
+              lightManager(lightManager),
+              atmosphereParameter(atmosphereParameter)
         {
             initResources();
             createDescriptorSet();
@@ -61,11 +39,13 @@ namespace vke_render
         CubeMap *GetSkyLUT(uint32_t currentFrame) { return skyLUTs[currentFrame].get(); }
         CubeMap *GetSkyIrradianceLUT(uint32_t currentFrame) { return skyIrradianceLUTs[currentFrame].get(); }
         CubeMap *GetSkySpecularLUT(uint32_t currentFrame) { return skySpecularLUTs[currentFrame].get(); }
+        Texture2D *GetTransmittanceLUT() { return transmittanceLUT.get(); }
+        Texture2D *GetScatteringLUT() { return scatteringLUT.get(); }
         DeviceBuffer *GetAtmosphereParamBuffer() { return atmosphereParamBuffer.get(); }
-        const glm::vec4 &GetSunLightDir()
+        const AtmospherePushConstants &GetAtmospherePushConstants()
         {
-            updateSunLightDir();
-            return sunLightDir;
+            updateAtmospherePushConstants();
+            return atmospherePushConstants;
         }
 
     private:
@@ -73,15 +53,23 @@ namespace vke_render
         static constexpr uint32_t SKY_VIEW_CUBE_SIZE = 256;
         static constexpr uint32_t SKY_SPECULAR_CUBE_SIZE = 128;
         static constexpr uint32_t SKY_SPECULAR_MIP_LEVELS = 6;
+        static constexpr uint32_t TRANSMITTANCE_LUT_WIDTH = 256;
+        static constexpr uint32_t TRANSMITTANCE_LUT_HEIGHT = 64;
+        static constexpr uint32_t SCATTERING_LUT_SIZE = 32;
 
         VkDescriptorSet *globalDescriptorSets;
         LightManager *lightManager;
-        glm::vec4 sunLightDir = glm::normalize(glm::vec4(1, 2, 0, 0));
+        AtmospherePushConstants atmospherePushConstants{
+            glm::normalize(glm::vec4(1, 2, 0, 0)),
+            glm::vec4(1.0f, 1.0f, 1.0f, 7.4f)};
         AtmosphereParameter atmosphereParameter;
         std::unique_ptr<ComputePipeline> skyLUTGenerationPipeline;
         std::unique_ptr<ComputePipeline> iblLUTGenerationPipeline;
+        std::unique_ptr<ComputePipeline> atmosphereLUTGenerationPipeline;
         std::shared_ptr<Material> skyboxMaterial;
         std::unique_ptr<DeviceBuffer> atmosphereParamBuffer;
+        std::unique_ptr<Texture2D> transmittanceLUT;
+        std::unique_ptr<Texture2D> scatteringLUT;
         std::unique_ptr<CubeMap> skyLUTs[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<CubeMap> skyIrradianceLUTs[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<CubeMap> skySpecularLUTs[MAX_FRAMES_IN_FLIGHT];
@@ -93,7 +81,8 @@ namespace vke_render
                                  CurrentResourceNodeIDMaps &currentResourceNodeID);
         void initResources();
         void createDescriptorSet();
-        void updateSunLightDir();
+        void updateAtmospherePushConstants();
+        void generateAtmosphereLUTs();
         void generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex);
         void generateIBLLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex);
     };

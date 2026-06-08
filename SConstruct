@@ -140,6 +140,7 @@ commonsrc = (
         "./src/render/shadow_pass.cpp",
         "./src/render/ssao.cpp",
         "./src/render/deferred_lighting.cpp",
+        "./src/render/atmosphere_pass.cpp",
         "./src/render/bloom.cpp",
         "./src/render/tone_mapping.cpp",
         "./src/render/shader.cpp",
@@ -271,6 +272,7 @@ shaders = [
     ["fullscreen_triangle.vert", "fullscreen_triangle_vert.spv"],
     ["ssao.frag", "ssao_frag.spv"],
     ["ssao_blur.frag", "ssao_blur_frag.spv"],
+    ["atmosphere_post.frag", "atmosphere_post_frag.spv"],
     ["bloom.frag", "bloom_frag.spv"],
     ["tone_mapping.frag", "tone_mapping_frag.spv"],
     ["text.frag", "text_frag.spv"],
@@ -281,6 +283,7 @@ shaders = [
     ["skybox.frag", "skyfrag.spv"],
     ["skybox.vert", "skyvert.spv"],
     ["sky_lut.comp", "sky_lut.spv"],
+    ["atmosphere_lut.comp", "atmosphere_lut.spv"],
     ["ibl_lut.comp", "ibl_lut.spv"],
     ["light_cull.comp", "light_cull.spv"],
 ]

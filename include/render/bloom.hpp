@@ -6,6 +6,7 @@
 #include <render/hdr_color.hpp>
 #include <render/render_config.hpp>
 #include <asset.hpp>
+#include <functional>
 
 namespace vke_render
 {
@@ -15,6 +16,8 @@ namespace vke_render
         BloomPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, HDRColorManager *hdrColorManager, const nlohmann::json &configJSON)
             : RenderPassBase(BLOOM_PASS, ctx, globalDescriptorSets),
               hdrColorManager(hdrColorManager),
+              inputSampler(hdrColorManager->sampler),
+              inputImageViewGetter([hdrColorManager](uint32_t currentFrame) { return hdrColorManager->GetImageView(currentFrame); }),
               sampler(VK_NULL_HANDLE),
               bloomHdrColorResourceID(0),
               constants(configJSON)
@@ -56,12 +59,19 @@ namespace vke_render
 
         VkSampler GetOutputSampler() const { return sampler; }
         VkImageView GetOutputImageView(uint32_t currentFrame) const { return imageViews[currentFrame]; }
+        void SetInput(VkSampler inputSampler, std::function<VkImageView(uint32_t)> imageViewGetter)
+        {
+            this->inputSampler = inputSampler;
+            inputImageViewGetter = std::move(imageViewGetter);
+        }
 
     private:
         VkDescriptorSet bloomDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> bloomShader;
         HDRColorManager *hdrColorManager;
+        VkSampler inputSampler;
+        std::function<VkImageView(uint32_t)> inputImageViewGetter;
         VkSampler sampler;
         VkImage images[MAX_FRAMES_IN_FLIGHT];
         VkImageView imageViews[MAX_FRAMES_IN_FLIGHT];

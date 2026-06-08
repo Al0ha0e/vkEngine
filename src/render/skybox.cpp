@@ -74,11 +74,27 @@ namespace vke_render
 
     void SkyboxManager::initResources()
     {
-        const auto &paramJSON = vke_common::AssetManager::LoadJSON(std::string(REL_DIR) + "/builtin_assets/config/atmosphere_param.json");
-        atmosphereParameter = AtmosphereParameter(paramJSON);
         atmosphereParamBuffer = std::make_unique<DeviceBuffer>(sizeof(AtmosphereParameter), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
         atmosphereParamBuffer->ToBuffer(0, &atmosphereParameter, sizeof(AtmosphereParameter));
 
+        transmittanceLUT = std::make_unique<Texture2D>(
+            TRANSMITTANCE_LUT_WIDTH, TRANSMITTANCE_LUT_HEIGHT,
+            VK_FORMAT_R16G16B16A16_SFLOAT,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+            VK_IMAGE_LAYOUT_GENERAL,
+            VK_FILTER_LINEAR, VK_FILTER_LINEAR,
+            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, false);
+        scatteringLUT = std::make_unique<Texture2D>(
+            SCATTERING_LUT_SIZE, SCATTERING_LUT_SIZE,
+            VK_FORMAT_R16G16B16A16_SFLOAT,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+            VK_IMAGE_LAYOUT_GENERAL,
+            VK_FILTER_LINEAR, VK_FILTER_LINEAR,
+            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, false);
+
+        std::shared_ptr<ShaderModuleSet> atmosphereLUTShader =
+            vke_common::AssetManager::LoadComputeShaderUnique(vke_common::BUILTIN_COMPUTE_SHADER_ATMOSPHERE_LUT_ID);
+        atmosphereLUTGenerationPipeline = std::make_unique<ComputePipeline>(std::move(atmosphereLUTShader));
         std::shared_ptr<ShaderModuleSet> skyLUTShader = vke_common::AssetManager::LoadComputeShaderUnique(vke_common::BUILTIN_COMPUTE_SHADER_SKYLUT_ID);
         skyLUTGenerationPipeline = std::make_unique<ComputePipeline>(std::move(skyLUTShader));
         std::shared_ptr<ShaderModuleSet> iblLUTShader = vke_common::AssetManager::LoadComputeShaderUnique(vke_common::BUILTIN_COMPUTE_SHADER_IBL_LUT_ID);
@@ -113,6 +129,8 @@ namespace vke_render
                                                            false,
                                                            SKY_SPECULAR_MIP_LEVELS);
         }
+
+        generateAtmosphereLUTs();
     }
 
     void SkyboxManager::createDescriptorSet()
@@ -126,14 +144,18 @@ namespace vke_render
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            VkWriteDescriptorSet skyDescriptorWrites[3];
+            VkWriteDescriptorSet skyDescriptorWrites[5];
             VkDescriptorBufferInfo bufferInfo = atmosphereParamBuffer->GetDescriptorBufferInfo();
             vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[0], skyLUTDescriptorSets[i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+            VkDescriptorImageInfo transmittanceInfo{transmittanceLUT->textureSampler, transmittanceLUT->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[1], skyLUTDescriptorSets[i], 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &transmittanceInfo);
+            VkDescriptorImageInfo scatteringInfo{scatteringLUT->textureSampler, scatteringLUT->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[2], skyLUTDescriptorSets[i], 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &scatteringInfo);
             VkDescriptorImageInfo skyReadInfo{skyLUTs[i]->sampler, skyLUTs[i]->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-            vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[1], skyLUTDescriptorSets[i], 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &skyReadInfo);
+            vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[3], skyLUTDescriptorSets[i], 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &skyReadInfo);
             VkDescriptorImageInfo skyWriteInfo{nullptr, skyLUTs[i]->imageView, VK_IMAGE_LAYOUT_GENERAL};
-            vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[2], skyLUTDescriptorSets[i], 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &skyWriteInfo);
-            vkUpdateDescriptorSets(globalLogicalDevice, 3, skyDescriptorWrites, 0, nullptr);
+            vke_render::ConstructDescriptorSetWrite(skyDescriptorWrites[4], skyLUTDescriptorSets[i], 4, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &skyWriteInfo);
+            vkUpdateDescriptorSets(globalLogicalDevice, 5, skyDescriptorWrites, 0, nullptr);
 
             VkWriteDescriptorSet iblDescriptorWrites[3];
             VkDescriptorImageInfo skyViewInfo{skyLUTs[i]->sampler, skyLUTs[i]->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
@@ -149,17 +171,95 @@ namespace vke_render
         }
     }
 
-    void SkyboxManager::updateSunLightDir()
+    void SkyboxManager::generateAtmosphereLUTs()
+    {
+        VkDescriptorSet descriptorSet = atmosphereLUTGenerationPipeline->shader->CreateDescriptorSet(0);
+        VkDescriptorBufferInfo parameterInfo = atmosphereParamBuffer->GetDescriptorBufferInfo();
+        VkDescriptorImageInfo transmittanceSampleInfo{
+            transmittanceLUT->textureSampler, transmittanceLUT->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
+        VkDescriptorImageInfo transmittanceStorageInfo{
+            VK_NULL_HANDLE, transmittanceLUT->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
+        VkDescriptorImageInfo scatteringStorageInfo{
+            VK_NULL_HANDLE, scatteringLUT->textureImageView, VK_IMAGE_LAYOUT_GENERAL};
+        VkWriteDescriptorSet writes[4];
+        ConstructDescriptorSetWrite(writes[0], descriptorSet, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &parameterInfo);
+        ConstructDescriptorSetWrite(writes[1], descriptorSet, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &transmittanceSampleInfo);
+        ConstructDescriptorSetWrite(writes[2], descriptorSet, 2, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &transmittanceStorageInfo);
+        ConstructDescriptorSetWrite(writes[3], descriptorSet, 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &scatteringStorageInfo);
+        vkUpdateDescriptorSets(globalLogicalDevice, 4, writes, 0, nullptr);
+
+        RenderEnvironment *environment = RenderEnvironment::GetInstance();
+        VkCommandBuffer commandBuffer = RenderEnvironment::BeginSingleTimeCommands(environment->commandPool);
+
+        uint32_t pass = 0;
+        atmosphereLUTGenerationPipeline->Dispatch(
+            commandBuffer, std::vector<VkDescriptorSet>{descriptorSet}, &pass,
+            glm::ivec3((TRANSMITTANCE_LUT_WIDTH + 7) / 8, (TRANSMITTANCE_LUT_HEIGHT + 7) / 8, 1));
+
+        VkImageMemoryBarrier transmittanceBarrier{};
+        transmittanceBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        transmittanceBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        transmittanceBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        transmittanceBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+        transmittanceBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        transmittanceBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        transmittanceBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        transmittanceBarrier.image = transmittanceLUT->textureImage;
+        transmittanceBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        transmittanceBarrier.subresourceRange.baseMipLevel = 0;
+        transmittanceBarrier.subresourceRange.levelCount = 1;
+        transmittanceBarrier.subresourceRange.baseArrayLayer = 0;
+        transmittanceBarrier.subresourceRange.layerCount = 1;
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &transmittanceBarrier);
+
+        pass = 1;
+        atmosphereLUTGenerationPipeline->Dispatch(
+            commandBuffer, std::vector<VkDescriptorSet>{descriptorSet}, &pass,
+            glm::ivec3((SCATTERING_LUT_SIZE + 7) / 8, (SCATTERING_LUT_SIZE + 7) / 8, 1));
+
+        RenderEnvironment::MakeLayoutTransition(
+            commandBuffer, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            transmittanceLUT->textureImage, VK_IMAGE_ASPECT_COLOR_BIT, 1,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+        RenderEnvironment::MakeLayoutTransition(
+            commandBuffer, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+            VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            scatteringLUT->textureImage, VK_IMAGE_ASPECT_COLOR_BIT, 1,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+        RenderEnvironment::EndSingleTimeCommands(
+            RenderEnvironment::GetGraphicsQueue(), environment->commandPool, commandBuffer);
+    }
+
+    void SkyboxManager::updateAtmospherePushConstants()
     {
         DirectionalLight *sun = lightManager == nullptr ? nullptr : lightManager->GetSun();
-        sunLightDir = sun == nullptr ? DEFAULT_SUN_LIGHT_DIR : -glm::normalize(sun->direction);
+        if (sun == nullptr)
+        {
+            atmospherePushConstants.mainLightDir = DEFAULT_SUN_LIGHT_DIR;
+            atmospherePushConstants.mainLightColorIntensity = glm::vec4(1.0f, 1.0f, 1.0f, 7.4f);
+            return;
+        }
+
+        atmospherePushConstants.mainLightDir = -glm::normalize(sun->direction);
+        atmospherePushConstants.mainLightColorIntensity = sun->colorWithIntensity;
     }
 
     void SkyboxManager::generateLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)
     {
-        updateSunLightDir();
+        updateAtmospherePushConstants();
         skyLUTGenerationPipeline->Dispatch(commandBuffer, std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame], skyLUTDescriptorSets[currentFrame]},
-                                           &sunLightDir, glm::ivec3((SKY_VIEW_CUBE_SIZE + 31) / 32, (SKY_VIEW_CUBE_SIZE + 31) / 32, 6));
+                                           &atmospherePushConstants, glm::ivec3((SKY_VIEW_CUBE_SIZE + 31) / 32, (SKY_VIEW_CUBE_SIZE + 31) / 32, 6));
     }
 
     void SkyboxManager::generateIBLLUT(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)

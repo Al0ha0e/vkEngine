@@ -129,17 +129,29 @@ namespace vke_render
             skyboxMaterial->UpdateDescriptorSet(skyBoxDescriptorSets[i]);
         }
 
-        std::vector<VkWriteDescriptorSet> descriptorWrites(2);
+        std::vector<VkWriteDescriptorSet> descriptorWrites(4);
 
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
             // layout (std430, set = 1, binding = 0) uniform UBO { AtmosphereParameter parameters; };
             VkDescriptorBufferInfo bufferInfo = skyboxManager->GetAtmosphereParamBuffer()->GetDescriptorBufferInfo();
             vke_render::ConstructDescriptorSetWrite(descriptorWrites[0], skyBoxDescriptorSets[i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+            Texture2D *transmittanceLUT = skyboxManager->GetTransmittanceLUT();
+            VkDescriptorImageInfo transmittanceInfo{
+                transmittanceLUT->textureSampler,
+                transmittanceLUT->textureImageView,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[1], skyBoxDescriptorSets[i], 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &transmittanceInfo);
+            Texture2D *scatteringLUT = skyboxManager->GetScatteringLUT();
+            VkDescriptorImageInfo scatteringInfo{
+                scatteringLUT->textureSampler,
+                scatteringLUT->textureImageView,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[2], skyBoxDescriptorSets[i], 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &scatteringInfo);
             // layout(set = 1, binding = 3) uniform samplerCube skyViewLUT;
             CubeMap *skyLUT = skyboxManager->GetSkyLUT(i);
             VkDescriptorImageInfo imageInfo1{skyLUT->sampler, skyLUT->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-            vke_render::ConstructDescriptorSetWrite(descriptorWrites[1], skyBoxDescriptorSets[i], 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo1);
+            vke_render::ConstructDescriptorSetWrite(descriptorWrites[3], skyBoxDescriptorSets[i], 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfo1);
             vkUpdateDescriptorSets(globalLogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
         }
     }
@@ -193,8 +205,9 @@ namespace vke_render
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 2, descriptorSets, 0, nullptr);
-        const glm::vec4 &sunLightDir = skyboxManager->GetSunLightDir();
-        vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(glm::vec4), &sunLightDir);
+        const AtmospherePushConstants &pushConstants = skyboxManager->GetAtmospherePushConstants();
+        vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL,
+                           0, sizeof(AtmospherePushConstants), &pushConstants);
         skyboxMesh->Render(commandBuffer);
 
         vkCmdEndRendering(commandBuffer);

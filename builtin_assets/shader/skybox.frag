@@ -15,7 +15,8 @@ vec3 GetSunDisk(vec3 eyePos, vec3 viewDir, vec3 lightDir)
     // 计算入射光照
     float cosine_theta = dot(viewDir, -lightDir);
     float theta = acos(cosine_theta) * (180.0 / PI);
-    vec3 sunLuminance = parameters.sunLightColor.xyz * parameters.sunLightIntensity;
+    vec3 sunLuminance = mainLightColorIntensity.rgb * mainLightColorIntensity.w *
+                        parameters.sunLightIntensityFactor;
 
     // 判断光线是否被星球阻挡
     float disToPlanet = RayIntersectSphere(vec3(0,0,0), parameters.planetRadius, eyePos, viewDir);

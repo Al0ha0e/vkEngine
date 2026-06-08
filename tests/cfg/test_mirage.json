@@ -12,6 +12,23 @@
       "splitLambda": 0.75,
       "depthMargin": 60.0
     },
+    "atmosphere": {
+      "seaLevel": 0.0,
+      "planetRadius": 6360000.0,
+      "atmosphereHeight": 60000.0,
+      "sunDiskAngle": 2.0,
+      "sunLightIntensityFactor": 1.0,
+      "rayleighScatteringScale": 1.0,
+      "rayleighScatteringScalarHeight": 8000.0,
+      "mieScatteringScale": 1.0,
+      "mieAnisotropy": 0.8,
+      "mieScatteringScalarHeight": 1200.0,
+      "ozoneAbsorptionScale": 1.0,
+      "ozoneLevelCenterHeight": 25000.0,
+      "ozoneLevelWidth": 15000.0,
+      "aerialPerspectiveDistance": 32000.0,
+      "aerialPerspectiveScale": 1.0
+    },
     "bloom": {
       "threshold": 0.7,
       "intensity": 1.85,

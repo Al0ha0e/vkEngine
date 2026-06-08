@@ -21,6 +21,7 @@ int main(int argc, char **argv)
         vke_render::SSAO_PASS,
         vke_render::DEFERRED_LIGHTING_PASS,
         vke_render::SKYBOX_RENDERER,
+        vke_render::ATMOSPHERE_PASS,
         vke_render::BLOOM_PASS,
         vke_render::TONE_MAPPING_PASS,
         vke_render::UI_RENDERER};

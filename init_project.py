@@ -12,12 +12,6 @@ DIRECTORIES = [
 ASSET_COMMANDS = [
     [
         sys.executable,
-        "tools/gen_transmittance_lut.py",
-        "builtin_assets/texture/",
-        "builtin_assets/config/atmosphere_param.json",
-    ],
-    [
-        sys.executable,
         "tools/gen_brdf_lut.py",
         "builtin_assets/texture/",
         "256",
