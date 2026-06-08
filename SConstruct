@@ -200,6 +200,14 @@ targetinfo = [
         + ozzObjs,
     ],
     [
+        "tools/gltf_scene_conv",
+        [
+            "./third_party/stb/stb_image.cpp",
+            "./third_party/tinygltf/tiny_gltf.cpp",
+            "./src/tools/gltf_scene_conv.cpp",
+        ],
+    ],
+    [
         "tools/gltf_log",
         [
             "./third_party/stb/stb_image.cpp",

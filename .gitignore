@@ -13,3 +13,5 @@ tools/*.dll
 !builtin_assets/**/*.obj
 src/generated/*
 vkEngine.sln
+
+tests/from_source2

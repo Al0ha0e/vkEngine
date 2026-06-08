@@ -1,0 +1,32 @@
+{
+  "windowWidth": 1920,
+  "windowHeight": 1080,
+  "assetLUTPath": "./tests/from_source2/mirage/de_mirage_d_assets.json",
+  "defaultScenePath": "./tests/from_source2/mirage/de_mirage_d_de_mirage_vmap_c.json",
+  "gameScriptPath": "./tests/csharp/Game.dll",
+  "renderConfig": {
+    "directionalShadow": {
+      "mapSize": 4096,
+      "cascadeCnt": 4,
+      "maxDistance": 180.0,
+      "splitLambda": 0.75,
+      "depthMargin": 60.0
+    },
+    "bloom": {
+      "threshold": 0.7,
+      "intensity": 1.85,
+      "radius": 0.8,
+      "knee": 0.25
+    },
+    "ssao": {
+      "radius": 0.3,
+      "bias": 0.025,
+      "intensity": 0.8,
+      "power": 1.0
+    },
+    "toneMapping": {
+      "exposure": 1.0,
+      "toneMappingMode": 0
+    }
+  }
+}
