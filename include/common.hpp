@@ -1,12 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#ifdef VKE_DEBUG
-const bool DEBUG_MODE = true;
-#else
-const bool DEBUG_MODE = false;
-#endif
-
 #include <logger.hpp>
 
 #define VKE_EXIT(code) std::exit(code);

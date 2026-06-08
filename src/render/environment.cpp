@@ -49,7 +49,9 @@ namespace vke_render
 
     void RenderEnvironment::createInstance()
     {
-        VKE_FATAL_IF(DEBUG_MODE && !checkValidationLayerSupport(), "Validation layers requested, but not available!")
+#ifdef VKE_DEBUG
+        VKE_FATAL_IF(!checkValidationLayerSupport(), "Validation layers requested, but not available!")
+#endif
 
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -71,22 +73,20 @@ namespace vke_render
         createInfo.enabledExtensionCount = glfwExtensionCount;
         createInfo.ppEnabledExtensionNames = glfwExtensions;
 
-        if (DEBUG_MODE)
-        {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
+#ifdef VKE_DEBUG
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
 
-            const VkBool32 verbose_value = true;
-            const VkLayerSettingEXT layer_setting = {"VK_LAYER_KHRONOS_validation", "validate_sync", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &verbose_value};
-            VkLayerSettingsCreateInfoEXT layer_settings_create_info = {VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, nullptr, 1, &layer_setting};
-            createInfo.pNext = &layer_settings_create_info;
-            VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
-        }
-        else
-        {
-            createInfo.enabledLayerCount = 0;
-            VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
-        }
+        const VkBool32 verbose_value = true;
+        const VkLayerSettingEXT layer_setting = {"VK_LAYER_KHRONOS_validation", "validate_sync", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &verbose_value};
+        VkLayerSettingsCreateInfoEXT layer_settings_create_info = {VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, nullptr, 1, &layer_setting};
+        createInfo.pNext = &layer_settings_create_info;
+        VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
+#else
+        createInfo.enabledLayerCount = 0;
+        VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
+
+#endif
     }
 
     void RenderEnvironment::createSurface()
@@ -539,8 +539,6 @@ namespace vke_render
         {
             imageCnt = swapChainSupport.capabilities.maxImageCount;
         }
-        imageCnt = imageCnt > MAX_FRAMES_IN_FLIGHT ? MAX_FRAMES_IN_FLIGHT : imageCnt;
-
         VkSwapchainCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = surface;
@@ -585,13 +583,13 @@ namespace vke_render
 
         depthFormat = findDepthFormat();
 
-        for (int i = 0; i < imageCnt; ++i)
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             CreateImage(extent.width, extent.height, depthFormat,
                         VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 1,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &depthImages[i], &depthImageVmaAllocations[i], nullptr);
 
         VkCommandBuffer tmpCmdBuffer = BeginSingleTimeCommands(commandPool);
-        for (int i = 0; i < imageCnt; ++i)
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             MakeLayoutTransition(tmpCmdBuffer, VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                  VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, depthImages[i], VK_IMAGE_ASPECT_DEPTH_BIT, 1,
                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT);
@@ -635,7 +633,7 @@ namespace vke_render
     {
         for (auto imageView : instance->swapChainImageViews)
             vkDestroyImageView(globalLogicalDevice, imageView, nullptr);
-        for (int i = 0; i < imageCnt; ++i)
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
             vkDestroyImageView(globalLogicalDevice, instance->depthImageViews[i], nullptr);
             vmaDestroyImage(instance->vmaAllocator, instance->depthImages[i], instance->depthImageVmaAllocations[i]);
@@ -653,10 +651,10 @@ namespace vke_render
         createImageViews();
         rootRenderContext.width = swapChainExtent.width;
         rootRenderContext.height = swapChainExtent.height;
+        rootRenderContext.colorImages = swapChainImages;
+        rootRenderContext.colorImageViews = swapChainImageViews;
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            rootRenderContext.colorImages[i] = swapChainImages[i];
-            rootRenderContext.colorImageViews[i] = swapChainImageViews[i];
             rootRenderContext.depthImages[i] = depthImages[i];
             rootRenderContext.depthImageViews[i] = depthImageViews[i];
         }
@@ -671,6 +669,10 @@ namespace vke_render
         for (size_t i = 0; i < imageCnt; i++)
         {
             swapChainImageViews[i] = RenderEnvironment::CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+        }
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
             depthImageViews[i] = RenderEnvironment::CreateImageView(depthImages[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
         }
     }

@@ -232,7 +232,7 @@ namespace vke_render
             : name(name), resourceID(id), resourceType(type), framesInFlight(framesInFlight),
               firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
 
-        uint32_t GetCurrentSubIdx(uint32_t currentFrame) { return framesInFlight ? currentFrame : 0; }
+        uint32_t GetCurrentSubIdx(uint32_t currentFrame, uint32_t) { return framesInFlight ? currentFrame : 0; }
 
         void ResetTmpValues()
         {
@@ -257,21 +257,21 @@ namespace vke_render
         uint32_t mipLevelCnt;
         uint32_t layerCnt;
         bool dependOnSwapchain;
-        VkImage images[MAX_FRAMES_IN_FLIGHT];
+        std::vector<VkImage> images;
 
         ImageResource()
             : RenderResource(IMAGE_RESOURCE), aspectMask(VK_IMAGE_ASPECT_NONE), dependOnSwapchain(false),
               mipLevelCnt(1), layerCnt(1)
         {
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                images[i] = 0;
+            images.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
         }
         ImageResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight, VkImage *imgs,
                       const VkImageAspectFlags aspect, const bool dependOnSwapchain)
             : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
               mipLevelCnt(1), layerCnt(1)
         {
-            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
+            int cnt = dependOnSwapchain ? RenderEnvironment::GetInstance()->imageCnt : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
+            images.resize(cnt, VK_NULL_HANDLE);
             for (int i = 0; i < cnt; ++i)
                 images[i] = imgs[i];
 
@@ -283,14 +283,20 @@ namespace vke_render
             : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
               mipLevelCnt(mipLevelCnt), layerCnt(layerCnt)
         {
-            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
+            int cnt = dependOnSwapchain ? RenderEnvironment::GetInstance()->imageCnt : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
+            images.resize(cnt, VK_NULL_HANDLE);
             for (int i = 0; i < cnt; ++i)
                 images[i] = imgs[i];
 
             VKE_LOG_DEBUG("IMAGE RESOURCE {}", name)
         }
 
-        VkImage GetCurrentImage(uint32_t currentFrame, uint32_t imageIndex) { return images[GetCurrentSubIdx(dependOnSwapchain ? imageIndex : currentFrame)]; }
+        uint32_t GetCurrentSubIdx(uint32_t currentFrame, uint32_t imageIndex)
+        {
+            return dependOnSwapchain ? imageIndex : RenderResource::GetCurrentSubIdx(currentFrame, imageIndex);
+        }
+
+        VkImage GetCurrentImage(uint32_t currentFrame, uint32_t imageIndex) { return images[GetCurrentSubIdx(currentFrame, imageIndex)]; }
     };
 
     class BufferResource : public RenderResource
@@ -316,7 +322,7 @@ namespace vke_render
             VKE_LOG_DEBUG("BUFFER RESOURCE {}", name)
         }
 
-        VkBuffer GetCurrentBuffer(uint32_t currentFrame) { return buffers[GetCurrentSubIdx(currentFrame)]; }
+        VkBuffer GetCurrentBuffer(uint32_t currentFrame, uint32_t imageIndex) { return buffers[GetCurrentSubIdx(currentFrame, imageIndex)]; }
     };
 
     struct PermanentResourceState

@@ -7,6 +7,7 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 #include <memory>
+#include <vector>
 
 namespace vke_render
 {
@@ -28,8 +29,8 @@ namespace vke_render
         VkImageLayout outColorLayout;
         VkImage depthImages[MAX_FRAMES_IN_FLIGHT];
         VkImageView depthImageViews[MAX_FRAMES_IN_FLIGHT];
-        VkImage colorImages[MAX_FRAMES_IN_FLIGHT];
-        VkImageView colorImageViews[MAX_FRAMES_IN_FLIGHT];
+        std::vector<VkImage> colorImages;
+        std::vector<VkImageView> colorImageViews;
         vke_common::EventHub<RenderContext> *resizeEventHub;
         std::function<uint32_t(uint32_t)> AcquireNextImage;
         std::function<void(uint32_t, uint32_t)> Present;
@@ -39,17 +40,16 @@ namespace vke_render
         RenderContext(uint32_t w, uint32_t h, VkFormat colorFormat,
                       VkFormat depthFormat, VkImageLayout outColorLayout,
                       VkImage *depthImgs, VkImageView *depthImgViews,
-                      VkImage *colorImgs, VkImageView *colorImgViews,
+                      const std::vector<VkImage> &colorImgs, const std::vector<VkImageView> &colorImgViews,
                       vke_common::EventHub<RenderContext> *resizeEventHub,
                       std::function<uint32_t(uint32_t)> AcquireNextImage,
                       std::function<void(uint32_t, uint32_t)> Present)
             : width(w), height(h), colorFormat(colorFormat), depthFormat(depthFormat), outColorLayout(outColorLayout),
+              colorImages(colorImgs), colorImageViews(colorImgViews),
               resizeEventHub(resizeEventHub), AcquireNextImage(AcquireNextImage), Present(Present)
         {
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             {
-                colorImages[i] = colorImgs[i];
-                colorImageViews[i] = colorImgViews[i];
                 depthImages[i] = depthImgs[i];
                 depthImageViews[i] = depthImgViews[i];
             }
@@ -104,7 +104,7 @@ namespace vke_render
                 instance->swapChainImageFormat, instance->depthFormat,
                 VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                 instance->depthImages, instance->depthImageViews,
-                instance->swapChainImages.data(), instance->swapChainImageViews.data(),
+                instance->swapChainImages, instance->swapChainImageViews,
                 &(instance->resizeEventHub), AcquireNextImage, Present);
             return instance;
         }
@@ -114,14 +114,14 @@ namespace vke_render
             ((CPUCommandQueue *)(instance->commandQueues[CPU_QUEUE].get()))->Stop();
             instance->cleanupSwapChain();
 
-            for (int i = 0; i < instance->imageCnt; ++i)
-                vkDestroySemaphore(globalLogicalDevice, instance->renderFinishedSemaphores[i], nullptr);
+            for (VkSemaphore semaphore : instance->renderFinishedSemaphores)
+                vkDestroySemaphore(globalLogicalDevice, semaphore, nullptr);
 
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-            {
-                vkDestroySemaphore(globalLogicalDevice, instance->imageAvailableSemaphores[i], nullptr);
-                vkDestroyFence(globalLogicalDevice, instance->inFlightFences[i], nullptr);
-            }
+            for (VkSemaphore semaphore : instance->imageAvailableSemaphores)
+                vkDestroySemaphore(globalLogicalDevice, semaphore, nullptr);
+
+            for (VkFence fence : instance->inFlightFences)
+                vkDestroyFence(globalLogicalDevice, fence, nullptr);
 
             if (instance->computeCommandPool != instance->commandPool)
                 vkDestroyCommandPool(globalLogicalDevice, instance->computeCommandPool, nullptr);

@@ -66,7 +66,7 @@ namespace vke_render
                                        CurrentResourceNodeIDMaps &currentResourceNodeID)
     {
         instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT);
-        colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", true, context->colorImages, VK_IMAGE_ASPECT_COLOR_BIT, true,
+        colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", true, context->colorImages.data(), VK_IMAGE_ASPECT_COLOR_BIT, true,
                                                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
         depthAttachmentResourceID = frameGraph->AddPermanentImageResource("depthAttachment", true, context->depthImages, VK_IMAGE_ASPECT_DEPTH_BIT, false,
                                                                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
@@ -91,9 +91,9 @@ namespace vke_render
     void Renderer::recreate(RenderContext *ctx)
     {
         context = ctx;
+        ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->images = context->colorImages;
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->images[i] = context->colorImages[i];
             ((ImageResource *)frameGraph->permanentResources[depthAttachmentResourceID].get())->images[i] = context->depthImages[i];
         }
 

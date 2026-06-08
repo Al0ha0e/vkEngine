@@ -336,7 +336,7 @@ namespace vke_render
                     barrier.dstAccessMask = ref.accessMask;
                     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                    barrier.buffer = bufferResource->GetCurrentBuffer(currentFrame);
+                    barrier.buffer = bufferResource->GetCurrentBuffer(currentFrame, imageIndex);
                     barrier.offset = bufferResource->offset;
                     barrier.size = bufferResource->size;
                 }
@@ -483,7 +483,7 @@ namespace vke_render
                         barrier.dstAccessMask = war ? VK_ACCESS_NONE : ref.accessMask;
                         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                        barrier.buffer = bufferResource->GetCurrentBuffer(currentFrame);
+                        barrier.buffer = bufferResource->GetCurrentBuffer(currentFrame, imageIndex);
                         barrier.offset = bufferResource->offset;
                         barrier.size = bufferResource->size;
                     }
