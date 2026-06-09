@@ -1,6 +1,7 @@
 {
   "windowWidth": 1920,
   "windowHeight": 1080,
+  "enableVulkanValidationLayers": true,
   "assetLUTPath": "./tests/scene/test_render_desc.json",
   "defaultScenePath": "./tests/scene/test_render_scene.json",
   "gameScriptPath": "./tests/csharp/Game.dll",

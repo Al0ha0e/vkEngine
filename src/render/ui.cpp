@@ -59,10 +59,10 @@ namespace vke_render
 
     void UIRenderer::constructFrameGraph(FrameGraph &frameGraph,
                                          std::map<std::string, vke_ds::id32_t> &blackboard,
-                                         CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                         ResourceNodeIDMap &currentResourceNodeID)
     {
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
-        vke_ds::id32_t uiOutColorResourceNodeID = frameGraph.AllocResourceNode("uiOutColor", false, colorAttachmentResourceID);
+        vke_ds::id32_t uiOutColorResourceNodeID = frameGraph.AllocResourceNode("uiOutColor", colorAttachmentResourceID);
 
         vke_ds::id32_t glyphInstanceBufferResourceID = frameGraph.AddPermanentBufferResource("uiGlyphInstanceBuffer",
                                                                                              false,
@@ -74,29 +74,29 @@ namespace vke_render
                                                                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        vke_ds::id32_t glyphBufferResourceNodeID = frameGraph.AllocResourceNode("uiGlyphInstances", false, glyphInstanceBufferResourceID);
-        vke_ds::id32_t glyphAtlasResourceNodeID = frameGraph.AllocResourceNode("uiGlyphAtlasNode", false, glyphAtlasResourceID);
+        vke_ds::id32_t glyphBufferResourceNodeID = frameGraph.AllocResourceNode("uiGlyphInstances", glyphInstanceBufferResourceID);
+        vke_ds::id32_t glyphAtlasResourceNodeID = frameGraph.AllocResourceNode("uiGlyphAtlasNode", glyphAtlasResourceID);
 
         vke_ds::id32_t uiTaskNodeID = frameGraph.AllocTaskNode("ui render", RENDER_TASK,
                                                                std::bind(&UIRenderer::Render, this,
                                                                          std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
-        frameGraph.AddTaskNodeResourceRef(uiTaskNodeID, false, glyphBufferResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(uiTaskNodeID, glyphBufferResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
-        frameGraph.AddTaskNodeResourceRef(uiTaskNodeID, false, glyphAtlasResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(uiTaskNodeID, glyphAtlasResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        frameGraph.AddTaskNodeResourceRef(uiTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][colorAttachmentResourceID], uiOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(uiTaskNodeID, currentResourceNodeID[colorAttachmentResourceID], uiOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][colorAttachmentResourceID] = uiOutColorResourceNodeID;
+        currentResourceNodeID[colorAttachmentResourceID] = uiOutColorResourceNodeID;
     }
 
     void UIRenderer::createDescriptorSet()

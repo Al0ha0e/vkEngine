@@ -31,7 +31,7 @@ namespace vke_render
 
         void ConstructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                 ResourceNodeIDMap &currentResourceNodeID)
         {
             constructFrameGraph(frameGraph, blackboard, currentResourceNodeID);
         }
@@ -78,7 +78,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void initResources();
         void createDescriptorSet();
         void updateAtmospherePushConstants();

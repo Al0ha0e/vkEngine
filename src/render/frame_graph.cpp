@@ -57,13 +57,12 @@ namespace vke_render
     void FrameGraph::checkCrossQueue(ResourceRef &ref, TaskNode &taskNode)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
-        auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+        auto &resource = resources[resourceNode.resourceID];
 
         if (resource->tmpPrevUsedTask != nullptr && resource->tmpPrevUsedTask->actualTaskType != taskNode.actualTaskType)
         {
             resource->tmpPrevUsedTask->needQueueSubmit = true;
             taskNode.needQueueSubmit = true;
-            resource->tmpPrevUsedRef->crossQueueRef = &ref;
             resource->tmpPrevUsedRef->crossQueueTask = &taskNode;
         }
 
@@ -89,10 +88,10 @@ namespace vke_render
 
             uint32_t odeg = 0;
             for (auto &ref : node.resourceRefs)
-                if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
+                if (ref.second.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
                     ++odeg;
 
-            for (auto &ref : node.resourceRefs)
+            for (auto &[resourceID, ref] : node.resourceRefs)
             {
                 if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
                 {
@@ -107,7 +106,7 @@ namespace vke_render
                 else if (ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD && odeg == 0)
                 {
                     ResourceNode &resourceNode = *resourceNodes[ref.inResourceNodeID];
-                    if (targetResources.find(resourceNode.resourceID) != targetResources.end())
+                    if (targetResources.find(resourceID) != targetResources.end())
                     {
                         taskQueue.push(kv.first);
                         visited.insert(kv.first);
@@ -124,9 +123,8 @@ namespace vke_render
             taskQueue.pop();
             node.valid = true;
 
-            for (auto &ref : node.resourceRefs)
+            for (auto &[resourceID, ref] : node.resourceRefs)
             {
-                ref.crossQueueRef = nullptr;
                 ref.crossQueueTask = nullptr;
                 if (ref.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
                 {
@@ -161,9 +159,9 @@ namespace vke_render
 
             for (auto &ref : node.resourceRefs)
             {
-                if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
+                if (ref.second.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
                 {
-                    vke_ds::id32_t resourceNodeID = ref.outResourceNodeID;
+                    vke_ds::id32_t resourceNodeID = ref.second.outResourceNodeID;
                     ResourceNode &resourceNode = *resourceNodes[resourceNodeID];
                     for (auto dstTaskID : resourceNode.dstTaskIDs)
                     {
@@ -179,10 +177,7 @@ namespace vke_render
             }
         }
 
-        for (auto &resource : permanentResources)
-            resource->ResetTmpValues();
-
-        for (auto &kv : transientResources)
+        for (auto &kv : resources)
             kv.second->ResetTmpValues();
 
         for (int i = 0; i < TASK_TYPE_CNT; ++i)
@@ -192,17 +187,17 @@ namespace vke_render
         {
             TaskNode &taskNode = *taskNodes[taskID];
             for (auto &ref : taskNode.resourceRefs)
-                checkCrossQueue(ref, taskNode);
+                checkCrossQueue(ref.second, taskNode);
         }
 
         // construct first access
         for (auto taskID : orderedTasks)
         {
             TaskNode &taskNode = *taskNodes[taskID];
-            for (auto &ref : taskNode.resourceRefs)
+            for (auto &[resourceID, ref] : taskNode.resourceRefs)
             {
                 ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
-                auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+                auto &resource = resources[resourceID];
                 if (resource->firstAccessTaskID == 0)
                     resource->firstAccessTaskID = taskID;
             }
@@ -212,10 +207,10 @@ namespace vke_render
         {
             vke_ds::id32_t taskID = orderedTasks[i];
             TaskNode &taskNode = *taskNodes[taskID];
-            for (auto &ref : taskNode.resourceRefs)
+            for (auto &[resourceID, ref] : taskNode.resourceRefs)
             {
                 ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // last use out
-                auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+                auto &resource = resources[resourceID];
                 if (resource->lastAccessTaskID == 0)
                     resource->lastAccessTaskID = taskID;
             }
@@ -239,12 +234,12 @@ namespace vke_render
             for (auto taskID : orderedTasks)
             {
                 TaskNode &taskNode = *taskNodes[taskID];
-                for (auto &ref : taskNode.resourceRefs)
+                for (auto &[resourceID, ref] : taskNode.resourceRefs)
                 {
-                    if (!ref.isTransient)
-                        continue;
                     ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
-                    auto &resource = transientResources[resourceNode.resourceID];
+                    auto &resource = resources[resourceID];
+                    if (!resource->isTransient)
+                        continue;
                     if (resource->firstAccessTaskID == taskID) // transient first access must be RENDER/COMPUTE TASK
                     {
                         VKE_FATAL_IF((taskNode.actualTaskType != RENDER_TASK) && (taskNode.actualTaskType != COMPUTE_TASK), "transient first access must be RENDER/COMPUTE TASK")
@@ -258,19 +253,19 @@ namespace vke_render
                             BufferResource *bufferResource = (BufferResource *)resource.get();
                             vkGetBufferMemoryRequirements(globalLogicalDevice, bufferResource->buffers[0], &memoryReq);
                         }
-                        transientMemoryAllocationMap[resourceNode.resourceID] = transientMemorySimulator.PreAllocMemory(taskNode.actualTaskType, memoryReq);
+                        transientMemoryAllocationMap[resourceID] = transientMemorySimulator.PreAllocMemory(taskNode.actualTaskType, memoryReq);
                     }
                 }
 
-                for (auto &ref : taskNode.resourceRefs)
+                for (auto &[resourceID, ref] : taskNode.resourceRefs)
                 {
-                    if (!ref.isTransient)
-                        continue;
                     ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
-                    auto &resource = transientResources[resourceNode.resourceID];
+                    auto &resource = resources[resourceID];
+                    if (!resource->isTransient)
+                        continue;
                     if (resource->lastAccessTaskID == taskID)
                     {
-                        TransientMemoryAllocation &allocation = transientMemoryAllocationMap[resourceNode.resourceID];
+                        TransientMemoryAllocation &allocation = transientMemoryAllocationMap[resourceID];
                         VKE_FATAL_IF(allocation.type != taskNode.actualTaskType, "transient resource must be de/allocated from the same queue")
                         transientMemorySimulator.PreDeallocMemory(allocation);
                     }
@@ -294,13 +289,13 @@ namespace vke_render
                                    VkPipelineStageFlags2 &waitDstStageMask)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.GetResourceNodeID()];
-        auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+        auto &resource = resources[resourceNode.resourceID];
         // std::cout << "----SYNC RESOURCE " << "TASK " << taskNode.name << " RESOURCE_NODE " << resourceNode.name << " RESOURCE " << resource->name << "\n";
         // std::cout << "resource prevUsedTask " << resource->prevUsedTask << " " << resource->prevUsedRef << "\n";
         bool layoutChanged = false;
         if (resource->firstAccessTaskID == taskNode.taskID) // first use of resource
         {
-            if (resourceNode.isTransient)
+            if (resource->isTransient)
             {
                 layoutChanged = true;
                 if (resource->resourceType == IMAGE_RESOURCE)
@@ -502,12 +497,12 @@ namespace vke_render
                                      std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers)
     {
         ResourceNode &resourceNode = *resourceNodes[ref.outResourceNodeID == 0 ? ref.inResourceNodeID : ref.outResourceNodeID]; // first use out
-        auto &resource = resourceNode.isTransient ? transientResources[resourceNode.resourceID] : permanentResources[resourceNode.resourceID];
+        auto &resource = resources[resourceNode.resourceID];
         // std::cout << "----END RESOURCE " << "TASK " << taskNode.name << " RESOURCE_NODE " << resourceNode.name << " RESOURCE " << resourceNode.name << "\n";
-        if (ref.crossQueueRef != nullptr)
+        if (ref.crossQueueTask != nullptr)
         {
             // std::cout << "  CROSS QUEUE\n";
-            ResourceRef &crossQueueRef = *(ref.crossQueueRef);
+            ResourceRef &crossQueueRef = ref.crossQueueTask->resourceRefs[resourceNode.resourceID];
             needQueueSubmit = true;
             if (resource->resourceType == IMAGE_RESOURCE &&
                 resource->prevWrite && // been set by sync resource
@@ -546,7 +541,7 @@ namespace vke_render
                 barrier.subresourceRange.layerCount = imageResource->layerCnt;
             }
         }
-        else if (!resourceNode.isTransient && resource->lastAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE) // TODO final op 如何判断是最后一个？尤其是最后一个task是读的情况，此时没有任何对应的resourceNode.dstTaskIDs.size() == 0
+        else if (!resource->isTransient && resource->lastAccessTaskID == taskNode.taskID && resource->resourceType == IMAGE_RESOURCE) // TODO final op 如何判断是最后一个？尤其是最后一个task是读的情况，此时没有任何对应的resourceNode.dstTaskIDs.size() == 0
         {
             PermanentResourceState &state = permanentResourceStates[resourceNode.resourceID];
             if (state.enImageLayout.has_value() &&
@@ -605,8 +600,10 @@ namespace vke_render
         transientMemoryManager.Realloc(RENDER_TASK, currentFrame, transientMemorySimulator);
         transientMemoryManager.Realloc(COMPUTE_TASK, currentFrame, transientMemorySimulator);
 
-        for (auto &kv : transientResources)
+        for (auto &kv : resources)
         {
+            if (!kv.second->isTransient)
+                continue;
             vke_ds::id32_t resourceID = kv.first;
             RenderResource *resource = kv.second.get();
 
@@ -698,7 +695,7 @@ namespace vke_render
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
-                syncResources(currentFrame, imageIndex, ref, taskNode, needQueueSubmit,
+                syncResources(currentFrame, imageIndex, ref.second, taskNode, needQueueSubmit,
                               bufferMemoryBarriers, imageMemoryBarriers,
                               waitSemaphoreMap, waitDstStageMask);
             dependencyInfo.bufferMemoryBarrierCount = bufferMemoryBarriers.size();
@@ -713,7 +710,7 @@ namespace vke_render
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
             for (auto &ref : taskNode.resourceRefs)
-                endResourcesUse(currentFrame, imageIndex, ref, taskNode, needQueueSubmit,
+                endResourcesUse(currentFrame, imageIndex, ref.second, taskNode, needQueueSubmit,
                                 bufferMemoryBarriers, imageMemoryBarriers);
 
             if (needQueueSubmit)
@@ -722,9 +719,9 @@ namespace vke_render
                 bool nextAllocated = false;
                 for (auto &ref : taskNode.resourceRefs)
                 {
-                    if (ref.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
+                    if (ref.second.storeOp == VK_ATTACHMENT_STORE_OP_STORE)
                     {
-                        vke_ds::id32_t resourceNodeID = ref.outResourceNodeID;
+                        vke_ds::id32_t resourceNodeID = ref.second.outResourceNodeID;
                         ResourceNode &resourceNode = *resourceNodes[resourceNodeID];
                         for (auto dstTaskID : resourceNode.dstTaskIDs)
                         {
@@ -813,10 +810,8 @@ namespace vke_render
         for (int i = 0; i < TASK_TYPE_CNT; i++)
             submitCntEstimates[i] = actualSubmitCnts[i];
 
-        for (auto &resource : permanentResources)
-            if (resource->framesInFlight)
+        for (auto &[id, resource] : resources)
+            if (resource->isTransient || resource->framesInFlight)
                 resource->ResetPrev();
-        for (auto &[id, resource] : transientResources)
-            resource->ResetPrev();
     }
 }

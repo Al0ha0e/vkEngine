@@ -60,7 +60,8 @@ namespace vke_render
     {
     private:
         static RenderEnvironment *instance;
-        RenderEnvironment() : windowResized(false) {}
+        RenderEnvironment(bool enableValidationLayers)
+            : windowResized(false), enableValidationLayers(enableValidationLayers) {}
         ~RenderEnvironment() {}
         RenderEnvironment(const RenderEnvironment &);
         RenderEnvironment &operator=(const RenderEnvironment);
@@ -83,9 +84,9 @@ namespace vke_render
             return instance;
         }
 
-        static RenderEnvironment *Init(GLFWwindow *window)
+        static RenderEnvironment *Init(GLFWwindow *window, bool enableValidationLayers)
         {
-            instance = new RenderEnvironment();
+            instance = new RenderEnvironment(enableValidationLayers);
             instance->window = window;
             instance->createInstance();
             instance->createSurface();
@@ -553,6 +554,7 @@ namespace vke_render
 
     private:
         bool windowResized;
+        bool enableValidationLayers;
 
         void createInstance();
         void createSurface();

@@ -4,11 +4,11 @@ namespace vke_render
 {
     void ToneMappingPass::constructFrameGraph(FrameGraph &frameGraph,
                                               std::map<std::string, vke_ds::id32_t> &blackboard,
-                                              CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                              ResourceNodeIDMap &currentResourceNodeID)
     {
         vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
-        vke_ds::id32_t toneMappingOutColorResourceNodeID = frameGraph.AllocResourceNode("toneMappingOutColor", false, colorAttachmentResourceID);
+        vke_ds::id32_t toneMappingOutColorResourceNodeID = frameGraph.AllocResourceNode("toneMappingOutColor", colorAttachmentResourceID);
 
         toneMappingTaskNodeID = frameGraph.AllocTaskNode("tone mapping", RENDER_TASK,
                                                          std::bind(&ToneMappingPass::Render, this,
@@ -17,19 +17,19 @@ namespace vke_render
                                                      std::bind(&ToneMappingPass::onTransientResourcesReady, this,
                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-        frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, true, currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID], 0,
+        frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][colorAttachmentResourceID], toneMappingOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, currentResourceNodeID[colorAttachmentResourceID], toneMappingOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][colorAttachmentResourceID] = toneMappingOutColorResourceNodeID;
+        currentResourceNodeID[colorAttachmentResourceID] = toneMappingOutColorResourceNodeID;
     }
 
     void ToneMappingPass::allocateDescriptorSet()

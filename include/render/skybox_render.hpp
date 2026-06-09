@@ -17,7 +17,7 @@ namespace vke_render
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  CurrentResourceNodeIDMaps &currentResourceNodeID) override
+                  ResourceNodeIDMap &currentResourceNodeID) override
         {
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             initResources();
@@ -38,7 +38,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void initResources();
         void createDescriptorSet();
         void createGraphicsPipeline();

@@ -5,34 +5,34 @@ namespace vke_render
 {
     void SkyboxRenderer::constructFrameGraph(FrameGraph &frameGraph,
                                              std::map<std::string, vke_ds::id32_t> &blackboard,
-                                             CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                             ResourceNodeIDMap &currentResourceNodeID)
     {
         vke_ds::id32_t lutResourceID = blackboard.at("skyLUT");
-        vke_ds::id32_t lutOutResourceNodeID = currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP].at(lutResourceID);
+        vke_ds::id32_t lutOutResourceNodeID = currentResourceNodeID.at(lutResourceID);
         vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
 
-        vke_ds::id32_t skyOutColorResourceNodeID = frameGraph.AllocResourceNode("skyOutHDRColor", true, hdrColorResourceID);
+        vke_ds::id32_t skyOutColorResourceNodeID = frameGraph.AllocResourceNode("skyOutHDRColor", hdrColorResourceID);
         vke_ds::id32_t skyTaskNodeID = frameGraph.AllocTaskNode("skybox render", RENDER_TASK,
                                                                 std::bind(&SkyboxRenderer::Render, this,
                                                                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, true, currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID], skyOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, currentResourceNodeID[hdrColorResourceID], skyOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][depthAttachmentResourceID], 0,
+        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, currentResourceNodeID[depthAttachmentResourceID], 0,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
                                           VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, false, lutOutResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, lutOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID] = skyOutColorResourceNodeID;
+        currentResourceNodeID[hdrColorResourceID] = skyOutColorResourceNodeID;
     }
 
     void SkyboxRenderer::createGraphicsPipeline()

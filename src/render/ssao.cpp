@@ -12,13 +12,13 @@ namespace vke_render
 
     void SSAOPass::constructFrameGraph(FrameGraph &frameGraph,
                                        std::map<std::string, vke_ds::id32_t> &blackboard,
-                                       CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                       ResourceNodeIDMap &currentResourceNodeID)
     {
         ssaoRawResourceID = frameGraph.AddTransientImageResource("ssaoRaw", rawImages, VK_IMAGE_ASPECT_COLOR_BIT);
         ssaoResourceID = frameGraph.AddTransientImageResource("ssao", images, VK_IMAGE_ASPECT_COLOR_BIT);
         blackboard["ssao"] = ssaoResourceID;
-        vke_ds::id32_t ssaoRawOutResourceNodeID = frameGraph.AllocResourceNode("ssaoRawOut", true, ssaoRawResourceID);
-        vke_ds::id32_t ssaoBlurOutResourceNodeID = frameGraph.AllocResourceNode("ssaoBlurOut", true, ssaoResourceID);
+        vke_ds::id32_t ssaoRawOutResourceNodeID = frameGraph.AllocResourceNode("ssaoRawOut", ssaoRawResourceID);
+        vke_ds::id32_t ssaoBlurOutResourceNodeID = frameGraph.AllocResourceNode("ssaoBlurOut", ssaoResourceID);
 
         ssaoTaskNodeID = frameGraph.AllocTaskNode("ssao", RENDER_TASK,
                                                   std::bind(&SSAOPass::Render, this,
@@ -35,49 +35,49 @@ namespace vke_render
                                                      std::bind(&SSAOPass::onSSAOBlurResourcesReady, this,
                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, true, gbuffer->GetResourceNodeID(1), 0,
+        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, gbuffer->GetResourceNodeID(1), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, true, gbuffer->GetResourceNodeID(3), 0,
+        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, gbuffer->GetResourceNodeID(3), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, true, 0, ssaoRawOutResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, 0, ssaoRawOutResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, ssaoRawOutResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, ssaoRawOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, gbuffer->GetResourceNodeID(1), 0,
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, gbuffer->GetResourceNodeID(1), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, gbuffer->GetResourceNodeID(3), 0,
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, gbuffer->GetResourceNodeID(3), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, true, 0, ssaoBlurOutResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(ssaoBlurTaskNodeID, 0, ssaoBlurOutResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][ssaoResourceID] = ssaoBlurOutResourceNodeID;
+        currentResourceNodeID[ssaoResourceID] = ssaoBlurOutResourceNodeID;
     }
 
     void SSAOPass::allocateDescriptorSet()

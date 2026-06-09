@@ -42,7 +42,7 @@ namespace vke_common
             TimeManager::Init();
             InputManager::Init(window);
             EngineStateManager::Init();
-            vke_render::RenderEnvironment::Init(window);
+            vke_render::RenderEnvironment::Init(window, gameConfig.enableVulkanValidationLayers);
             AssetManager::Init();
             vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
             vke_render::DescriptorSetAllocator::Init();

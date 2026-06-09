@@ -1,6 +1,7 @@
 {
   "windowWidth": 1920,
   "windowHeight": 1080,
+  "enableVulkanValidationLayers": false,
   "assetLUTPath": "./tests/from_source2/mirage/de_mirage_d_assets.json",
   "defaultScenePath": "./tests/from_source2/mirage/de_mirage_d_de_mirage_vmap_c.json",
   "gameScriptPath": "./tests/csharp/Game.dll",

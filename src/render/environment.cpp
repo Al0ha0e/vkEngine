@@ -49,9 +49,7 @@ namespace vke_render
 
     void RenderEnvironment::createInstance()
     {
-#ifdef VKE_DEBUG
-        VKE_FATAL_IF(!checkValidationLayerSupport(), "Validation layers requested, but not available!")
-#endif
+        VKE_FATAL_IF(enableValidationLayers && !checkValidationLayerSupport(), "Validation layers requested, but not available!")
 
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -73,20 +71,22 @@ namespace vke_render
         createInfo.enabledExtensionCount = glfwExtensionCount;
         createInfo.ppEnabledExtensionNames = glfwExtensions;
 
-#ifdef VKE_DEBUG
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
+        const VkBool32 verboseValue = VK_TRUE;
+        const VkLayerSettingEXT layerSetting = {"VK_LAYER_KHRONOS_validation", "validate_sync", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &verboseValue};
+        VkLayerSettingsCreateInfoEXT layerSettingsCreateInfo = {VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, nullptr, 1, &layerSetting};
 
-        const VkBool32 verbose_value = true;
-        const VkLayerSettingEXT layer_setting = {"VK_LAYER_KHRONOS_validation", "validate_sync", VK_LAYER_SETTING_TYPE_BOOL32_EXT, 1, &verbose_value};
-        VkLayerSettingsCreateInfoEXT layer_settings_create_info = {VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT, nullptr, 1, &layer_setting};
-        createInfo.pNext = &layer_settings_create_info;
-        VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
-#else
-        createInfo.enabledLayerCount = 0;
-        VkResult result = vkCreateInstance(&createInfo, nullptr, &vkinstance);
+        if (enableValidationLayers)
+        {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+            createInfo.pNext = &layerSettingsCreateInfo;
+        }
+        else
+        {
+            createInfo.enabledLayerCount = 0;
+        }
 
-#endif
+        VKE_VK_CHECK(vkCreateInstance(&createInfo, nullptr, &vkinstance), "Failed to create Vulkan instance!")
     }
 
     void RenderEnvironment::createSurface()

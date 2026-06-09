@@ -16,13 +16,14 @@ namespace vke_render
         ToneMappingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, HDRColorManager *hdrColorManager, const nlohmann::json &configJSON)
             : RenderPassBase(TONE_MAPPING_PASS, ctx, globalDescriptorSets), hdrColorManager(hdrColorManager),
               inputSampler(hdrColorManager->sampler),
-              inputImageViewGetter([hdrColorManager](uint32_t currentFrame) { return hdrColorManager->GetImageView(currentFrame); }),
+              inputImageViewGetter([hdrColorManager](uint32_t currentFrame)
+                                   { return hdrColorManager->GetImageView(currentFrame); }),
               constants(configJSON) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  CurrentResourceNodeIDMaps &currentResourceNodeID) override
+                  ResourceNodeIDMap &currentResourceNodeID) override
         {
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             toneMappingShader = vke_common::AssetManager::LoadVertFragShaderUnique(vke_common::BUILTIN_VFSHADER_TONE_MAPPING_ID);
@@ -51,7 +52,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void allocateDescriptorSet();
         void createGraphicsPipeline();
         void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);

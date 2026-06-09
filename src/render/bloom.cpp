@@ -12,12 +12,12 @@ namespace vke_render
 
     void BloomPass::constructFrameGraph(FrameGraph &frameGraph,
                                         std::map<std::string, vke_ds::id32_t> &blackboard,
-                                        CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                        ResourceNodeIDMap &currentResourceNodeID)
     {
         vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
         bloomHdrColorResourceID = frameGraph.AddTransientImageResource("bloomHdrColor", images, VK_IMAGE_ASPECT_COLOR_BIT);
         blackboard["bloomHdrColor"] = bloomHdrColorResourceID;
-        vke_ds::id32_t bloomOutColorResourceNodeID = frameGraph.AllocResourceNode("bloomOutHDRColor", true, bloomHdrColorResourceID);
+        vke_ds::id32_t bloomOutColorResourceNodeID = frameGraph.AllocResourceNode("bloomOutHDRColor", bloomHdrColorResourceID);
 
         bloomTaskNodeID = frameGraph.AllocTaskNode("bloom", RENDER_TASK,
                                                    std::bind(&BloomPass::Render, this,
@@ -27,19 +27,19 @@ namespace vke_render
                                                      std::bind(&BloomPass::onTransientResourcesReady, this,
                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-        frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, true, currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID], 0,
+        frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, true, 0, bloomOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, 0, bloomOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID] = bloomOutColorResourceNodeID;
+        currentResourceNodeID[hdrColorResourceID] = bloomOutColorResourceNodeID;
     }
 
     void BloomPass::allocateDescriptorSet()

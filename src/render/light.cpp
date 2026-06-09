@@ -73,7 +73,7 @@ namespace vke_render
 
     void LightManager::ConstructFrameGraph(FrameGraph &frameGraph,
                                            std::map<std::string, vke_ds::id32_t> &blackboard,
-                                           CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                           ResourceNodeIDMap &currentResourceNodeID)
     {
 
         VkBuffer pointLightBuffers[MAX_FRAMES_IN_FLIGHT];
@@ -93,25 +93,25 @@ namespace vke_render
         blackboard["pointLightClusterBuffer"] = pointLightBufferResourceID;
         blackboard["spotLightClusterBuffer"] = spotLightBufferResourceID;
 
-        vke_ds::id32_t outPointLightBufferResourceNodeID = frameGraph.AllocResourceNode("outPointLight", false, pointLightBufferResourceID);
-        vke_ds::id32_t outSpotLightBufferResourceNodeID = frameGraph.AllocResourceNode("outSpotLight", false, spotLightBufferResourceID);
+        vke_ds::id32_t outPointLightBufferResourceNodeID = frameGraph.AllocResourceNode("outPointLight", pointLightBufferResourceID);
+        vke_ds::id32_t outSpotLightBufferResourceNodeID = frameGraph.AllocResourceNode("outSpotLight", spotLightBufferResourceID);
 
         vke_ds::id32_t lightCullingTaskNodeID = frameGraph.AllocTaskNode("light culling", COMPUTE_TASK,
                                                                          std::bind(&LightManager::cullLights, this,
                                                                                    std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
 
-        frameGraph.AddTaskNodeResourceRef(lightCullingTaskNodeID, false, 0, outPointLightBufferResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(lightCullingTaskNodeID, 0, outPointLightBufferResourceNodeID,
                                           VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                                           VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
-        frameGraph.AddTaskNodeResourceRef(lightCullingTaskNodeID, false, 0, outSpotLightBufferResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(lightCullingTaskNodeID, 0, outSpotLightBufferResourceNodeID,
                                           VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
                                           VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE);
 
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][pointLightBufferResourceID] = outPointLightBufferResourceNodeID;
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][spotLightBufferResourceID] = outSpotLightBufferResourceNodeID;
+        currentResourceNodeID[pointLightBufferResourceID] = outPointLightBufferResourceNodeID;
+        currentResourceNodeID[spotLightBufferResourceID] = outSpotLightBufferResourceNodeID;
     }
 
     void LightManager::cullLights(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)

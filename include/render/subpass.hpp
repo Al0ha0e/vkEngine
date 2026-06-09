@@ -38,7 +38,7 @@ namespace vke_render
         virtual void Init(int subpassID,
                           FrameGraph &frameGraph,
                           std::map<std::string, vke_ds::id32_t> &blackboard,
-                          CurrentResourceNodeIDMaps &currentResourceNodeID)
+                          ResourceNodeIDMap &currentResourceNodeID)
         {
             this->subpassID = subpassID;
         }

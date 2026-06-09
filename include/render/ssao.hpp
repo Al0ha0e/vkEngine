@@ -40,7 +40,7 @@ namespace vke_render
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  CurrentResourceNodeIDMaps &currentResourceNodeID) override
+                  ResourceNodeIDMap &currentResourceNodeID) override
         {
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             gbuffer = GBuffer::GetInstance();
@@ -59,8 +59,8 @@ namespace vke_render
             cleanupImages();
             createImages();
 
-            ImageResource *resource = static_cast<ImageResource *>(frameGraph.transientResources[ssaoResourceID].get());
-            ImageResource *rawResource = static_cast<ImageResource *>(frameGraph.transientResources[ssaoRawResourceID].get());
+            ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[ssaoResourceID].get());
+            ImageResource *rawResource = static_cast<ImageResource *>(frameGraph.resources[ssaoRawResourceID].get());
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             {
                 resource->images[i] = images[i];
@@ -93,7 +93,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void allocateDescriptorSet();
         void createGraphicsPipeline();
         void onSSAORawResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);

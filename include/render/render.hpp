@@ -66,7 +66,7 @@ namespace vke_render
             instance->initDescriptorSet();
 
             std::map<std::string, vke_ds::id32_t> blackboard;
-            CurrentResourceNodeIDMaps currentResourceNodeID;
+            ResourceNodeIDMap currentResourceNodeID;
             instance->constructFrameGraph(blackboard, currentResourceNodeID);
 
             instance->skyboxManager = std::make_unique<SkyboxManager>(
@@ -129,7 +129,8 @@ namespace vke_render
                     {
                         SSAOPass *ssaoPass = static_cast<SSAOPass *>(instance->subPasses[ssaoPassIt->second].get());
                         lightingPass->SetSSAOInput(ssaoPass->GetOutputSampler(),
-                                                   [ssaoPass](uint32_t currentFrame) { return ssaoPass->GetOutputImageView(currentFrame); });
+                                                   [ssaoPass](uint32_t currentFrame)
+                                                   { return ssaoPass->GetOutputImageView(currentFrame); });
                     }
                     lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
@@ -163,7 +164,8 @@ namespace vke_render
                     {
                         AtmospherePass *atmospherePass = static_cast<AtmospherePass *>(instance->subPasses[atmospherePassIt->second].get());
                         bloomPass->SetInput(atmospherePass->GetOutputSampler(),
-                                            [atmospherePass](uint32_t currentFrame) { return atmospherePass->GetOutputImageView(currentFrame); });
+                                            [atmospherePass](uint32_t currentFrame)
+                                            { return atmospherePass->GetOutputImageView(currentFrame); });
                     }
                     bloomPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[BLOOM_PASS] = instance->subPasses.size();
@@ -179,7 +181,8 @@ namespace vke_render
                     {
                         BloomPass *bloomPass = static_cast<BloomPass *>(instance->subPasses[bloomPassIt->second].get());
                         toneMappingPass->SetInput(bloomPass->GetOutputSampler(),
-                                                  [bloomPass](uint32_t currentFrame) { return bloomPass->GetOutputImageView(currentFrame); });
+                                                  [bloomPass](uint32_t currentFrame)
+                                                  { return bloomPass->GetOutputImageView(currentFrame); });
                     }
                     else
                     {
@@ -188,7 +191,8 @@ namespace vke_render
                         {
                             AtmospherePass *atmospherePass = static_cast<AtmospherePass *>(instance->subPasses[atmospherePassIt->second].get());
                             toneMappingPass->SetInput(atmospherePass->GetOutputSampler(),
-                                                      [atmospherePass](uint32_t currentFrame) { return atmospherePass->GetOutputImageView(currentFrame); });
+                                                      [atmospherePass](uint32_t currentFrame)
+                                                      { return atmospherePass->GetOutputImageView(currentFrame); });
                         }
                     }
                     toneMappingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
@@ -325,7 +329,7 @@ namespace vke_render
 
         void initDescriptorSet();
         void constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void cleanup();
         void recreate(RenderContext *ctx);
         void render();

@@ -21,6 +21,7 @@ namespace vke_common
     public:
         REFLECT_FIELD(uint32_t, windowWidth);
         REFLECT_FIELD(uint32_t, windowHeight);
+        REFLECT_FIELD(bool, enableVulkanValidationLayers);
         REFLECT_FIELD(std::string, assetLUTPath);
         REFLECT_FIELD(std::string, defaultScenePath);
         REFLECT_FIELD(std::string, gameScriptPath);
@@ -28,9 +29,9 @@ namespace vke_common
         vke_render::RenderConfig renderConfig;
         nlohmann::json sourceJSON;
 
-        GameConfig() : windowWidth(800), windowHeight(600),
+        GameConfig() : windowWidth(800), windowHeight(600), enableVulkanValidationLayers(false),
                        assetLUTPath(), defaultScenePath(), gameScriptPath(), physicsConfig(), renderConfig() {}
-        GameConfig(const nlohmann::json &json)
+        GameConfig(const nlohmann::json &json) : GameConfig()
         {
             sourceJSON = json;
             loadJSON(json);

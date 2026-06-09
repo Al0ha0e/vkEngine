@@ -201,7 +201,10 @@ with open("./src/generated/serialize.cpp", "w") as f:
             )
 
             for field_def in class_def.fields.values():
-                f.write(f'{field_def.name} = json["{field_def.name}"];')
+                f.write(
+                    f'if (json.contains("{field_def.name}")) '
+                    f'{field_def.name} = json["{field_def.name}"];'
+                )
 
             f.write("}\n")
         f.write("}\n")

@@ -53,7 +53,7 @@ namespace vke_render
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  CurrentResourceNodeIDMaps &currentResourceNodeID) override;
+                  ResourceNodeIDMap &currentResourceNodeID) override;
 
         vke_ds::id64_t AddUnit(RenderUnit *unit, bool isSkin = false);
         void RemoveUnit(vke_ds::id64_t id);
@@ -88,7 +88,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void createImages();
         void createImageViews(uint32_t currentFrame);
         void createSampler();

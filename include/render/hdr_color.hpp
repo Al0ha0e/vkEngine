@@ -36,7 +36,7 @@ namespace vke_render
 
         void ConstructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                 ResourceNodeIDMap &currentResourceNodeID)
         {
             resourceID = frameGraph.AddTransientImageResource("hdrColor", images, VK_IMAGE_ASPECT_COLOR_BIT);
             blackboard["hdrColor"] = resourceID;
@@ -49,7 +49,7 @@ namespace vke_render
             cleanupImages();
             createImages();
 
-            ImageResource *resource = (ImageResource *)frameGraph.transientResources[resourceID].get();
+            ImageResource *resource = (ImageResource *)frameGraph.resources[resourceID].get();
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 resource->images[i] = images[i];
         }

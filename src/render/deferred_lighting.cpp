@@ -11,15 +11,15 @@ namespace vke_render
 
     void DeferredLightingPass::constructFrameGraph(FrameGraph &frameGraph,
                                                    std::map<std::string, vke_ds::id32_t> &blackboard,
-                                                   CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                                   ResourceNodeIDMap &currentResourceNodeID)
     {
         vke_ds::id32_t irradianceResourceID = blackboard.at("skyIrradianceLUT");
         vke_ds::id32_t specularResourceID = blackboard.at("skySpecularLUT");
-        vke_ds::id32_t irradianceOutResourceNodeID = currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][irradianceResourceID];
-        vke_ds::id32_t specularOutResourceNodeID = currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][specularResourceID];
+        vke_ds::id32_t irradianceOutResourceNodeID = currentResourceNodeID[irradianceResourceID];
+        vke_ds::id32_t specularOutResourceNodeID = currentResourceNodeID[specularResourceID];
 
         vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
-        vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutHDRColor", true, hdrColorResourceID);
+        vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutHDRColor", hdrColorResourceID);
 
         lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
                                                       std::bind(&DeferredLightingPass::Render, this,
@@ -28,17 +28,17 @@ namespace vke_render
                                                      std::bind(&DeferredLightingPass::onTransientResourcesReady, this,
                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][blackboard["pointLightClusterBuffer"]], 0,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[blackboard["pointLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][blackboard["spotLightClusterBuffer"]], 0,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[blackboard["spotLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE);
 
         for (int i = 0; i < GBUFFER_CNT; i++)
-            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, gbuffer->GetResourceNodeID(i), 0,
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, gbuffer->GetResourceNodeID(i), 0,
                                               VK_ACCESS_SHADER_READ_BIT,
                                               VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -46,13 +46,13 @@ namespace vke_render
 
         auto shadowMapNodeIt = blackboard.find("directionalShadowMap0OutNode");
         if (shadowMapNodeIt != blackboard.end())
-            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, shadowMapNodeIt->second, 0,
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, shadowMapNodeIt->second, 0,
                                               VK_ACCESS_SHADER_READ_BIT,
                                               VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, 0, lightingOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, 0, lightingOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
@@ -60,25 +60,25 @@ namespace vke_render
 
         auto ssaoIt = blackboard.find("ssao");
         if (ssaoIt != blackboard.end())
-            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, true, currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][ssaoIt->second], 0,
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[ssaoIt->second], 0,
                                               VK_ACCESS_SHADER_READ_BIT,
                                               VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, irradianceOutResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, irradianceOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, false, specularOutResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, specularOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID] = lightingOutColorResourceNodeID;
+        currentResourceNodeID[hdrColorResourceID] = lightingOutColorResourceNodeID;
     }
 
     void DeferredLightingPass::allocateDescriptorSet()

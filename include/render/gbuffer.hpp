@@ -47,7 +47,7 @@ namespace vke_render
             for (int i = 0; i < GBUFFER_CNT; ++i)
             {
                 resourceIDs[i] = frameGraph.AddTransientImageResource("gbuffer" + std::to_string(i), images[i], VK_IMAGE_ASPECT_COLOR_BIT);
-                resourceNodeIDs[i] = frameGraph.AllocResourceNode("oriGBuffer" + std::to_string(i), true, resourceIDs[i]);
+                resourceNodeIDs[i] = frameGraph.AllocResourceNode("oriGBuffer" + std::to_string(i), resourceIDs[i]);
             }
         }
 

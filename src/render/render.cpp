@@ -63,7 +63,7 @@ namespace vke_render
     }
 
     void Renderer::constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
-                                       CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                       ResourceNodeIDMap &currentResourceNodeID)
     {
         instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT);
         colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", true, context->colorImages.data(), VK_IMAGE_ASPECT_COLOR_BIT, true,
@@ -77,11 +77,11 @@ namespace vke_render
         blackboard["colorAttachment"] = colorAttachmentResourceID;
         blackboard["depthAttachment"] = depthAttachmentResourceID;
 
-        vke_ds::id32_t oriColorResourceNodeID = frameGraph->AllocResourceNode("oriColor", false, colorAttachmentResourceID);
-        vke_ds::id32_t oriDepthResourceNodeID = frameGraph->AllocResourceNode("oriDepth", false, depthAttachmentResourceID);
+        vke_ds::id32_t oriColorResourceNodeID = frameGraph->AllocResourceNode("oriColor", colorAttachmentResourceID);
+        vke_ds::id32_t oriDepthResourceNodeID = frameGraph->AllocResourceNode("oriDepth", depthAttachmentResourceID);
 
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][colorAttachmentResourceID] = oriColorResourceNodeID;
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][depthAttachmentResourceID] = oriDepthResourceNodeID;
+        currentResourceNodeID[colorAttachmentResourceID] = oriColorResourceNodeID;
+        currentResourceNodeID[depthAttachmentResourceID] = oriDepthResourceNodeID;
         hdrColorManager = std::make_unique<HDRColorManager>(context);
         hdrColorManager->ConstructFrameGraph(*frameGraph, blackboard, currentResourceNodeID);
     }
@@ -91,10 +91,10 @@ namespace vke_render
     void Renderer::recreate(RenderContext *ctx)
     {
         context = ctx;
-        ((ImageResource *)frameGraph->permanentResources[colorAttachmentResourceID].get())->images = context->colorImages;
+        ((ImageResource *)frameGraph->resources[colorAttachmentResourceID].get())->images = context->colorImages;
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            ((ImageResource *)frameGraph->permanentResources[depthAttachmentResourceID].get())->images[i] = context->depthImages[i];
+            ((ImageResource *)frameGraph->resources[depthAttachmentResourceID].get())->images[i] = context->depthImages[i];
         }
 
         hdrColorManager->OnWindowResize(*frameGraph, context);

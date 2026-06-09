@@ -17,7 +17,8 @@ namespace vke_render
             : RenderPassBase(BLOOM_PASS, ctx, globalDescriptorSets),
               hdrColorManager(hdrColorManager),
               inputSampler(hdrColorManager->sampler),
-              inputImageViewGetter([hdrColorManager](uint32_t currentFrame) { return hdrColorManager->GetImageView(currentFrame); }),
+              inputImageViewGetter([hdrColorManager](uint32_t currentFrame)
+                                   { return hdrColorManager->GetImageView(currentFrame); }),
               sampler(VK_NULL_HANDLE),
               bloomHdrColorResourceID(0),
               constants(configJSON)
@@ -35,7 +36,7 @@ namespace vke_render
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  CurrentResourceNodeIDMaps &currentResourceNodeID) override
+                  ResourceNodeIDMap &currentResourceNodeID) override
         {
             RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
             bloomShader = vke_common::AssetManager::LoadVertFragShaderUnique(vke_common::BUILTIN_VFSHADER_BLOOM_ID);
@@ -52,7 +53,7 @@ namespace vke_render
             cleanupImages();
             createImages();
 
-            ImageResource *resource = static_cast<ImageResource *>(frameGraph.transientResources[bloomHdrColorResourceID].get());
+            ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[bloomHdrColorResourceID].get());
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 resource->images[i] = images[i];
         }
@@ -81,7 +82,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void allocateDescriptorSet();
         void createGraphicsPipeline();
         void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);

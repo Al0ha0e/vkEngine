@@ -1,6 +1,7 @@
 #ifndef FRAME_GRAPH_H
 #define FRAME_GRAPH_H
 
+#include <unordered_set>
 #include <render/environment.hpp>
 #include <render/command_pool.hpp>
 #include <render/semaphore_pool.hpp>
@@ -10,25 +11,20 @@
 
 namespace vke_render
 {
-    const uint32_t PERMANENT_RESOURCE_NODE_MAP = 0;
-    const uint32_t TRANSIENT_RESOURCE_NODE_MAP = 1;
-
     using ResourceNodeIDMap = std::map<vke_ds::id32_t, vke_ds::id32_t>;
-    using CurrentResourceNodeIDMaps = ResourceNodeIDMap[2];
 
     class ResourceNode
     {
     public:
         std::string name;
-        bool isTransient;
         vke_ds::id32_t resourceNodeID;
         vke_ds::id32_t resourceID;
         vke_ds::id32_t srcTaskID;
         std::vector<vke_ds::id32_t> dstTaskIDs;
 
-        ResourceNode() : isTransient(false), resourceNodeID(0), resourceID(0), srcTaskID(0) {}
-        ResourceNode(std::string &&name, const bool isTransient, const vke_ds::id32_t nodeID, const vke_ds::id32_t resourceID)
-            : name(std::move(name)), isTransient(isTransient), resourceNodeID(nodeID), resourceID(resourceID), srcTaskID(0) {}
+        ResourceNode() : resourceNodeID(0), resourceID(0), srcTaskID(0) {}
+        ResourceNode(std::string &&name, const vke_ds::id32_t nodeID, const vke_ds::id32_t resourceID)
+            : name(std::move(name)), resourceNodeID(nodeID), resourceID(resourceID), srcTaskID(0) {}
         ~ResourceNode() {}
         ResourceNode &operator=(const ResourceNode &) = delete;
         ResourceNode(const ResourceNode &) = delete;
@@ -38,7 +34,6 @@ namespace vke_render
             if (this != &ano)
             {
                 name = std::move(ano.name);
-                isTransient = ano.isTransient;
                 resourceNodeID = ano.resourceNodeID;
                 resourceID = ano.resourceID;
                 srcTaskID = ano.srcTaskID;
@@ -48,7 +43,7 @@ namespace vke_render
         }
 
         ResourceNode(ResourceNode &&ano)
-            : name(std::move(ano.name)), isTransient(ano.isTransient), resourceNodeID(ano.resourceNodeID), resourceID(ano.resourceID),
+            : name(std::move(ano.name)), resourceNodeID(ano.resourceNodeID), resourceID(ano.resourceID),
               srcTaskID(ano.srcTaskID), dstTaskIDs(std::move(ano.dstTaskIDs)) {}
     };
 
@@ -57,7 +52,6 @@ namespace vke_render
     class ResourceRef
     {
     public:
-        bool isTransient;
         vke_ds::id32_t inResourceNodeID;
         vke_ds::id32_t outResourceNodeID;
         VkAccessFlags2 accessMask;
@@ -65,24 +59,23 @@ namespace vke_render
         VkImageLayout imageLayout;
         VkAttachmentLoadOp loadOp;
         VkAttachmentStoreOp storeOp;
-        ResourceRef *crossQueueRef; // ref used by the next task in another queue ? ref : nullptr (nothing to do with in/output)
-        TaskNode *crossQueueTask;
+        TaskNode *crossQueueTask; // ref used by the next task in another queue ? ref : nullptr (nothing to do with in/output)
 
-        ResourceRef() : isTransient(false), inResourceNodeID(0), outResourceNodeID(0), accessMask(VK_ACCESS_NONE),
+        ResourceRef() : inResourceNodeID(0), outResourceNodeID(0), accessMask(VK_ACCESS_NONE),
                         stageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT), imageLayout(VK_IMAGE_LAYOUT_UNDEFINED),
                         loadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE), storeOp(VK_ATTACHMENT_STORE_OP_DONT_CARE),
-                        crossQueueRef(nullptr), crossQueueTask(nullptr)
+                        crossQueueTask(nullptr)
         {
         }
 
-        ResourceRef(const bool isTransient, const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
+        ResourceRef(const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
                     const VkAccessFlags2 accessMask, const VkPipelineStageFlags2 stageMask,
                     const VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                     const VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                     const VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            : isTransient(isTransient), inResourceNodeID(inResourceNodeID), outResourceNodeID(outResourceNodeID),
+            : inResourceNodeID(inResourceNodeID), outResourceNodeID(outResourceNodeID),
               accessMask(accessMask), stageMask(stageMask), imageLayout(layout),
-              loadOp(loadOp), storeOp(storeOp), crossQueueRef(nullptr), crossQueueTask(nullptr) {}
+              loadOp(loadOp), storeOp(storeOp), crossQueueTask(nullptr) {}
 
         vke_ds::id32_t GetResourceNodeID() { return inResourceNodeID == 0 ? outResourceNodeID : inResourceNodeID; }
     };
@@ -116,7 +109,7 @@ namespace vke_render
         uint64_t currentSemaphoreValue;
         VkSemaphore lastSemaphore;
         VkSemaphore currentSemaphore;
-        std::vector<ResourceRef> resourceRefs;
+        std::unordered_map<vke_ds::id32_t, ResourceRef> resourceRefs;
         TaskNodeExecuteCallback executeCallback;
         TaskNodeTransientReadyCallback transientReadyCallback;
 
@@ -174,14 +167,15 @@ namespace vke_render
               resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)),
               transientReadyCallback(std::move(ano.transientReadyCallback)) {}
 
-        void AddResourceRef(const bool isTransient, const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
+        void AddResourceRef(const vke_ds::id32_t resourceID,
+                            const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
                             const VkAccessFlags2 accessMask, const VkPipelineStageFlags2 stageMask,
                             const VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED,
                             const VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                             const VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE)
         {
-            resourceRefs.emplace_back(isTransient, inResourceNodeID, outResourceNodeID,
-                                      accessMask, stageMask, layout, loadOp, storeOp);
+            resourceRefs.emplace(resourceID, ResourceRef(inResourceNodeID, outResourceNodeID,
+                                                         accessMask, stageMask, layout, loadOp, storeOp));
         }
 
         void Reset()
@@ -215,6 +209,7 @@ namespace vke_render
         std::string name;
         vke_ds::id32_t resourceID;
         ResourceType resourceType;
+        bool isTransient;
         bool framesInFlight;
         vke_ds::id32_t firstAccessTaskID;
         vke_ds::id32_t lastAccessTaskID;
@@ -225,11 +220,11 @@ namespace vke_render
         TaskNode *tmpPrevUsedTask;
 
         RenderResource() : resourceID(0), resourceType(IMAGE_RESOURCE),
-                           firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false), framesInFlight(false) {}
+                           firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false), isTransient(false), framesInFlight(false) {}
         RenderResource(const ResourceType type) : resourceID(0), resourceType(type),
-                                                  firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false), framesInFlight(false) {}
-        RenderResource(std::string &&name, const vke_ds::id32_t id, const ResourceType type, const bool framesInFlight)
-            : name(name), resourceID(id), resourceType(type), framesInFlight(framesInFlight),
+                                                  firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false), isTransient(false), framesInFlight(false) {}
+        RenderResource(std::string &&name, const vke_ds::id32_t id, const ResourceType type, const bool isTransient, const bool framesInFlight)
+            : name(name), resourceID(id), resourceType(type), isTransient(isTransient), framesInFlight(framesInFlight),
               firstAccessTaskID(0), lastAccessTaskID(0), prevUsedRef(nullptr), prevUsedTask(nullptr), prevWrite(false) {}
 
         uint32_t GetCurrentSubIdx(uint32_t currentFrame, uint32_t) { return framesInFlight ? currentFrame : 0; }
@@ -265,9 +260,9 @@ namespace vke_render
         {
             images.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
         }
-        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight, VkImage *imgs,
+        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight, VkImage *imgs,
                       const VkImageAspectFlags aspect, const bool dependOnSwapchain)
-            : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE, isTransient, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
               mipLevelCnt(1), layerCnt(1)
         {
             int cnt = dependOnSwapchain ? RenderEnvironment::GetInstance()->imageCnt : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
@@ -278,9 +273,9 @@ namespace vke_render
             VKE_LOG_DEBUG("IMAGE RESOURCE {}", name)
         }
 
-        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight, VkImage *imgs,
+        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight, VkImage *imgs,
                       const VkImageAspectFlags aspect, uint32_t mipLevelCnt, uint32_t layerCnt, const bool dependOnSwapchain)
-            : RenderResource(std::move(name), id, IMAGE_RESOURCE, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
+            : RenderResource(std::move(name), id, IMAGE_RESOURCE, isTransient, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
               mipLevelCnt(mipLevelCnt), layerCnt(layerCnt)
         {
             int cnt = dependOnSwapchain ? RenderEnvironment::GetInstance()->imageCnt : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
@@ -312,9 +307,9 @@ namespace vke_render
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 buffers[i] = 0;
         }
-        BufferResource(std::string &&name, const vke_ds::id32_t id, const bool framesInFlight,
+        BufferResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight,
                        VkBuffer *buffs, const VkDeviceSize offset, const VkDeviceSize size)
-            : RenderResource(std::move(name), id, BUFFER_RESOURCE, framesInFlight), offset(offset), size(size)
+            : RenderResource(std::move(name), id, BUFFER_RESOURCE, isTransient, framesInFlight), offset(offset), size(size)
         {
             int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
             for (int i = 0; i < cnt; ++i)
@@ -339,15 +334,14 @@ namespace vke_render
     class FrameGraph
     {
     public:
-        std::vector<std::unique_ptr<RenderResource>> permanentResources;
-        std::map<vke_ds::id32_t, std::unique_ptr<RenderResource>> transientResources;
-        std::vector<PermanentResourceState> permanentResourceStates;
-        std::set<vke_ds::id32_t> targetResources;
-        std::map<vke_ds::id32_t, std::unique_ptr<ResourceNode>> resourceNodes;
-        std::map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
+        std::unordered_map<vke_ds::id32_t, std::unique_ptr<RenderResource>> resources;
+        std::unordered_map<vke_ds::id32_t, PermanentResourceState> permanentResourceStates;
+        std::unordered_set<vke_ds::id32_t> targetResources;
+        std::unordered_map<vke_ds::id32_t, std::unique_ptr<ResourceNode>> resourceNodes;
+        std::unordered_map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
 
         FrameGraph(const uint32_t framesInFlight)
-            : framesInFlight(framesInFlight), taskIDAllocator(1), resourceIDAllocator(1), transientMemoryUpdateCnt(0)
+            : framesInFlight(framesInFlight), resourceIDAllocator(1), taskNodeIDAllocator(1), resourceNodeIDAllocator(1), transientMemoryUpdateCnt(0)
         {
             init();
         }
@@ -363,21 +357,12 @@ namespace vke_render
                         vkDestroyFence(globalLogicalDevice, fences[i - 1][j], nullptr);
         }
 
-        vke_ds::id32_t AddPermanentResource(std::unique_ptr<RenderResource> &&resource, PermanentResourceState &resourceState)
-        {
-            vke_ds::id32_t id = permanentResources.size();
-            resource->resourceID = id;
-            permanentResources.push_back(std::move(resource));
-            permanentResourceStates.push_back(resourceState);
-            return id;
-        }
-
         vke_ds::id32_t AddPermanentImageResource(std::string &&name, const bool framesInFlight, VkImage *images, const VkImageAspectFlags aspectMask, const bool dependOnSwapchain,
                                                  const VkPipelineStageFlags2 stStage, const std::optional<VkImageLayout> stLayout, const std::optional<VkImageLayout> enLayout)
         {
-            vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, framesInFlight, images, aspectMask, dependOnSwapchain));
-            permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
+            vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, false, framesInFlight, images, aspectMask, dependOnSwapchain));
+            permanentResourceStates.emplace(id, PermanentResourceState(stStage, stLayout, enLayout));
             return id;
         }
 
@@ -385,9 +370,9 @@ namespace vke_render
                                                  const VkImageAspectFlags aspectMask, uint32_t mipLevelCnt, uint32_t layerCnt, const bool dependOnSwapchain,
                                                  const VkPipelineStageFlags2 stStage, const std::optional<VkImageLayout> stLayout, const std::optional<VkImageLayout> enLayout)
         {
-            vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<ImageResource>(std::move(name), id, framesInFlight, images, aspectMask, mipLevelCnt, layerCnt, dependOnSwapchain));
-            permanentResourceStates.emplace_back(stStage, stLayout, enLayout);
+            vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, false, framesInFlight, images, aspectMask, mipLevelCnt, layerCnt, dependOnSwapchain));
+            permanentResourceStates.emplace(id, PermanentResourceState(stStage, stLayout, enLayout));
             return id;
         }
 
@@ -395,26 +380,17 @@ namespace vke_render
                                                   VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size,
                                                   const VkPipelineStageFlags2 stStage)
         {
-            vke_ds::id32_t id = permanentResources.size();
-            permanentResources.push_back(std::make_unique<BufferResource>(std::move(name), id, framesInFlight,
-                                                                          buffers, offset, size));
-            permanentResourceStates.emplace_back(stStage, std::nullopt, std::nullopt);
-            return id;
-        }
-
-        vke_ds::id32_t AddTransientResource(std::unique_ptr<RenderResource> &&resource)
-        {
-            VKE_FATAL_IF(!resource->framesInFlight, "transient resource must have frames in flight copies!")
-            vke_ds::id32_t id = transientResources.size();
-            resource->resourceID = id;
-            transientResources.emplace(id, std::move(resource));
+            vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            resources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, false, framesInFlight,
+                                                                   buffers, offset, size));
+            permanentResourceStates.emplace(id, PermanentResourceState(stStage, std::nullopt, std::nullopt));
             return id;
         }
 
         vke_ds::id32_t AddTransientImageResource(std::string &&name, VkImage *images, const VkImageAspectFlags aspectMask)
         {
-            vke_ds::id32_t id = transientResources.size();
-            transientResources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, images, aspectMask, false));
+            vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, aspectMask, false));
             return id;
         }
 
@@ -422,15 +398,15 @@ namespace vke_render
                                                  const VkImageAspectFlags aspectMask,
                                                  uint32_t mipLevelCnt, uint32_t layerCnt)
         {
-            vke_ds::id32_t id = transientResources.size();
-            transientResources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, images, aspectMask, mipLevelCnt, layerCnt, false));
+            vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, aspectMask, mipLevelCnt, layerCnt, false));
             return id;
         }
 
         vke_ds::id32_t AddTransientBufferResource(std::string &&name, VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size)
         {
-            vke_ds::id32_t id = transientResources.size();
-            transientResources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, true, buffers, offset, size));
+            vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            resources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, true, true, buffers, offset, size));
             return id;
         }
 
@@ -438,16 +414,16 @@ namespace vke_render
 
         void RemoveTargetResource(const uint32_t resourceID) { targetResources.erase(resourceID); }
 
-        vke_ds::id32_t AllocResourceNode(std::string &&name, const bool isTransient, const vke_ds::id32_t resourceID)
+        vke_ds::id32_t AllocResourceNode(std::string &&name, const vke_ds::id32_t resourceID)
         {
-            vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resourceNodes.emplace(id, std::make_unique<ResourceNode>(std::move(name), isTransient, id, resourceID));
+            vke_ds::id32_t id = resourceNodeIDAllocator.Alloc();
+            resourceNodes.emplace(id, std::make_unique<ResourceNode>(std::move(name), id, resourceID));
             return id;
         }
 
         vke_ds::id32_t AllocTaskNode(std::string &&name, const TaskType taskType, const TaskNodeExecuteCallback callback)
         {
-            vke_ds::id32_t id = taskIDAllocator.Alloc();
+            vke_ds::id32_t id = taskNodeIDAllocator.Alloc();
             TaskType actualTaskType;
             switch (taskType)
             {
@@ -470,14 +446,14 @@ namespace vke_render
         }
 
         void AddTaskNodeResourceRef(const vke_ds::id32_t taskID,
-                                    const bool isTransient, const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
+                                    const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
                                     const VkAccessFlags2 accessMask, const VkPipelineStageFlags2 stageMask,
                                     const VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                                     const VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                     const VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED)
         {
             TaskNode &taskNode = *taskNodes[taskID];
-            taskNode.AddResourceRef(isTransient, inResourceNodeID, outResourceNodeID, accessMask, stageMask, layout, loadOp, storeOp);
+            taskNode.AddResourceRef(resourceNodes[inResourceNodeID ? inResourceNodeID : outResourceNodeID]->resourceID, inResourceNodeID, outResourceNodeID, accessMask, stageMask, layout, loadOp, storeOp);
             if (inResourceNodeID > 0)
                 resourceNodes[inResourceNodeID]->dstTaskIDs.push_back(taskID);
             if (outResourceNodeID > 0)
@@ -489,13 +465,11 @@ namespace vke_render
             taskNodes[taskID]->transientReadyCallback = callback;
         }
 
+        void ClearResources() { resources.clear(); }
+
         void ClearTaskNodes() { taskNodes.clear(); }
 
         void ClearResourceNodes() { resourceNodes.clear(); }
-
-        void ClearTransientResources() { transientResources.clear(); }
-
-        void ClearPermanentResources() { permanentResources.clear(); }
 
         void Compile();
         void Sync(const uint32_t currentFrame);
@@ -506,8 +480,9 @@ namespace vke_render
         uint32_t framesInFlight;
         uint32_t queueFamilies[TASK_TYPE_CNT - 1];
         uint32_t submitCntEstimates[TASK_TYPE_CNT];
-        vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskNodeIDAllocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceNodeIDAllocator;
         std::vector<std::unique_ptr<CommandPool>> commandPools[TASK_TYPE_CNT];
         std::unique_ptr<SemaphorePool> semaphorePools[MAX_FRAMES_IN_FLIGHT];
         std::vector<vke_ds::id32_t> orderedTasks;

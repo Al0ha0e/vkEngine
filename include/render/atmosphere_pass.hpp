@@ -20,7 +20,7 @@ namespace vke_render
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
-                  CurrentResourceNodeIDMaps &currentResourceNodeID) override;
+                  ResourceNodeIDMap &currentResourceNodeID) override;
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer,
                     uint32_t currentFrame, uint32_t imageIndex) override;
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
@@ -43,7 +43,7 @@ namespace vke_render
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 CurrentResourceNodeIDMaps &currentResourceNodeID);
+                                 ResourceNodeIDMap &currentResourceNodeID);
         void createDescriptorSet();
         void createGraphicsPipeline();
         void updateDescriptorSet(uint32_t currentFrame);

@@ -10,7 +10,7 @@ namespace vke_render
 
     void SkyboxManager::constructFrameGraph(FrameGraph &frameGraph,
                                             std::map<std::string, vke_ds::id32_t> &blackboard,
-                                            CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                            ResourceNodeIDMap &currentResourceNodeID)
     {
         vke_ds::id32_t lutTaskID = frameGraph.AllocTaskNode("gen sky lut", COMPUTE_TASK,
                                                             std::bind(&SkyboxManager::generateLUT, this,
@@ -25,7 +25,7 @@ namespace vke_render
         vke_ds::id32_t lutResourceID = frameGraph.AddPermanentImageResource("skyLUT", true, skyLUTImages,
                                                                             VK_IMAGE_ASPECT_COLOR_BIT, skyLUTs[0]->mipLevelCnt, 6, false,
                                                                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
-        vke_ds::id32_t lutOutResourceNodeID = frameGraph.AllocResourceNode("outSkyLUT", false, lutResourceID);
+        vke_ds::id32_t lutOutResourceNodeID = frameGraph.AllocResourceNode("outSkyLUT", lutResourceID);
 
         VkImage skyIrradianceImages[MAX_FRAMES_IN_FLIGHT];
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -33,7 +33,7 @@ namespace vke_render
         vke_ds::id32_t irradianceResourceID = frameGraph.AddPermanentImageResource("skyIrradianceLUT", true, skyIrradianceImages,
                                                                                    VK_IMAGE_ASPECT_COLOR_BIT, skyIrradianceLUTs[0]->mipLevelCnt, 6, false,
                                                                                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
-        vke_ds::id32_t irradianceOutResourceNodeID = frameGraph.AllocResourceNode("outSkyIrradianceLUT", false, irradianceResourceID);
+        vke_ds::id32_t irradianceOutResourceNodeID = frameGraph.AllocResourceNode("outSkyIrradianceLUT", irradianceResourceID);
 
         VkImage skySpecularImages[MAX_FRAMES_IN_FLIGHT];
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -41,24 +41,24 @@ namespace vke_render
         vke_ds::id32_t specularResourceID = frameGraph.AddPermanentImageResource("skySpecularLUT", true, skySpecularImages,
                                                                                  VK_IMAGE_ASPECT_COLOR_BIT, skySpecularLUTs[0]->mipLevelCnt, 6, false,
                                                                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, std::nullopt);
-        vke_ds::id32_t specularOutResourceNodeID = frameGraph.AllocResourceNode("outSkySpecularLUT", false, specularResourceID);
+        vke_ds::id32_t specularOutResourceNodeID = frameGraph.AllocResourceNode("outSkySpecularLUT", specularResourceID);
 
-        frameGraph.AddTaskNodeResourceRef(lutTaskID, false, 0, lutOutResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(lutTaskID, 0, lutOutResourceNodeID,
                                           VK_ACCESS_SHADER_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_GENERAL);
-        frameGraph.AddTaskNodeResourceRef(iblTaskID, false, lutOutResourceNodeID, 0,
+        frameGraph.AddTaskNodeResourceRef(iblTaskID, lutOutResourceNodeID, 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        frameGraph.AddTaskNodeResourceRef(iblTaskID, false, 0, irradianceOutResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(iblTaskID, 0, irradianceOutResourceNodeID,
                                           VK_ACCESS_SHADER_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_GENERAL);
-        frameGraph.AddTaskNodeResourceRef(iblTaskID, false, 0, specularOutResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(iblTaskID, 0, specularOutResourceNodeID,
                                           VK_ACCESS_SHADER_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE,
@@ -67,9 +67,9 @@ namespace vke_render
         blackboard["skyLUT"] = lutResourceID;
         blackboard["skyIrradianceLUT"] = irradianceResourceID;
         blackboard["skySpecularLUT"] = specularResourceID;
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][lutResourceID] = lutOutResourceNodeID;
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][irradianceResourceID] = irradianceOutResourceNodeID;
-        currentResourceNodeID[PERMANENT_RESOURCE_NODE_MAP][specularResourceID] = specularOutResourceNodeID;
+        currentResourceNodeID[lutResourceID] = lutOutResourceNodeID;
+        currentResourceNodeID[irradianceResourceID] = irradianceOutResourceNodeID;
+        currentResourceNodeID[specularResourceID] = specularOutResourceNodeID;
     }
 
     void SkyboxManager::initResources()

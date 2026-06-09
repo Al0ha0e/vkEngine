@@ -32,7 +32,7 @@ namespace vke_render
     void AtmospherePass::Init(int subpassID,
                               FrameGraph &frameGraph,
                               std::map<std::string, vke_ds::id32_t> &blackboard,
-                              CurrentResourceNodeIDMaps &currentResourceNodeID)
+                              ResourceNodeIDMap &currentResourceNodeID)
     {
         RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
         VKE_FATAL_IF(gbuffer == nullptr, "Atmosphere pass requires the gbuffer pass to be initialized first")
@@ -44,11 +44,11 @@ namespace vke_render
 
     void AtmospherePass::constructFrameGraph(FrameGraph &frameGraph,
                                              std::map<std::string, vke_ds::id32_t> &blackboard,
-                                             CurrentResourceNodeIDMaps &currentResourceNodeID)
+                                             ResourceNodeIDMap &currentResourceNodeID)
     {
         const vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
         outputResourceID = frameGraph.AddTransientImageResource("atmosphereHdrColor", images, VK_IMAGE_ASPECT_COLOR_BIT);
-        const vke_ds::id32_t outputNodeID = frameGraph.AllocResourceNode("atmosphereOutHDRColor", true, outputResourceID);
+        const vke_ds::id32_t outputNodeID = frameGraph.AllocResourceNode("atmosphereOutHDRColor", outputResourceID);
 
         taskNodeID = frameGraph.AllocTaskNode(
             "atmosphere",
@@ -62,22 +62,22 @@ namespace vke_render
                       std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
         frameGraph.AddTaskNodeResourceRef(
-            taskNodeID, true, currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID], 0,
+            taskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
             VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         frameGraph.AddTaskNodeResourceRef(
-            taskNodeID, true, gbuffer->GetResourceNodeID(3), 0,
+            taskNodeID, gbuffer->GetResourceNodeID(3), 0,
             VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         frameGraph.AddTaskNodeResourceRef(
-            taskNodeID, true, 0, outputNodeID,
+            taskNodeID, 0, outputNodeID,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[TRANSIENT_RESOURCE_NODE_MAP][hdrColorResourceID] = outputNodeID;
+        currentResourceNodeID[hdrColorResourceID] = outputNodeID;
     }
 
     void AtmospherePass::createDescriptorSet()
@@ -181,7 +181,7 @@ namespace vke_render
         cleanupImageViews();
         cleanupImages();
         createImages();
-        ImageResource *resource = static_cast<ImageResource *>(frameGraph.transientResources[outputResourceID].get());
+        ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[outputResourceID].get());
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             resource->images[i] = images[i];
     }

@@ -1,6 +1,7 @@
 {
   "windowWidth": 1920,
   "windowHeight": 1080,
+  "enableVulkanValidationLayers": false,
   "assetLUTPath": "./tests/from_source2/dust2/de_dust2_d_assets.json",
   "defaultScenePath": "./tests/from_source2/dust2/de_dust2_d_de_dust2_vmap_c.json",
   "gameScriptPath": "./tests/csharp/Game.dll",
