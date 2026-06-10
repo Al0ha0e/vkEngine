@@ -105,14 +105,7 @@ namespace vke_render
         uint32_t imageIndex = context->AcquireNextImage(currentFrame);
 
         frameGraph->Sync(currentFrame);
-
-        if (frameGraphUpdated)
-        {
-            frameGraph->Compile();
-            frameGraphUpdated = false;
-        }
-
-        frameGraph->UpdateTransientMemory(currentFrame);
+        frameGraph->PrepareForExecute(currentFrame);
 
         if (cameraInfoUpdateCnt > 0)
         {

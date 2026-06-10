@@ -26,7 +26,7 @@ namespace vke_render
     private:
         static Renderer *instance;
         Renderer()
-            : cameraIDAllocator(1), currentCamera(1), cameraInfoUpdateCnt(0), frameGraphUpdated(false) {};
+            : cameraIDAllocator(1), currentCamera(1), cameraInfoUpdateCnt(0) {};
         ~Renderer() {}
 
     public:
@@ -301,14 +301,13 @@ namespace vke_render
             glm::vec2 extent(ctx->width, ctx->height);
             for (auto &subpass : instance->subPasses)
                 subpass->OnWindowResize(*instance->frameGraph, ctx);
-            instance->frameGraphUpdated = true;
+            instance->frameGraph->MarkNeedRecompile();
             instance->resizeEventHub.DispatchEvent(&extent);
         }
 
         void Update();
 
     private:
-        bool frameGraphUpdated;
         vke_ds::id32_t colorAttachmentResourceID;
         vke_ds::id32_t depthAttachmentResourceID;
         DescriptorSetInfo globalDescriptorSetInfos[2]; // 0 no light, 1 light

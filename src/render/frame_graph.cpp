@@ -273,7 +273,7 @@ namespace vke_render
             }
             transientMemoryUpdateCnt = framesInFlight;
         }
-
+        needRecompile = false;
         VKE_LOG_INFO("orderedTask cnt {}", orderedTasks.size())
         for (auto taskID : orderedTasks)
             VKE_LOG_INFO("task id {}", taskID)
@@ -589,7 +589,7 @@ namespace vke_render
         }
     }
 
-    void FrameGraph::UpdateTransientMemory(const uint32_t currentFrame)
+    void FrameGraph::updateTransientMemory(const uint32_t currentFrame)
     {
         if (transientMemoryUpdateCnt == 0)
             return;
@@ -635,6 +635,13 @@ namespace vke_render
             if (taskNode.transientReadyCallback)
                 taskNode.transientReadyCallback(taskNode, *this, currentFrame);
         }
+    }
+
+    void FrameGraph::PrepareForExecute(const uint32_t currentFrame)
+    {
+        if (needRecompile)
+            Compile();
+        updateTransientMemory(currentFrame);
     }
 
     void FrameGraph::Execute(const uint32_t currentFrame, const uint32_t imageIndex)
