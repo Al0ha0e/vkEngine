@@ -96,8 +96,8 @@ namespace vke_render
                                  ResourceNodeIDMap &currentResourceNodeID);
         void allocateDescriptorSet();
         void createGraphicsPipeline();
-        void onSSAORawResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
-        void onSSAOBlurResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
+        void onSSAORawResourcesReady(uint32_t currentFrame);
+        void onSSAOBlurResourcesReady(uint32_t currentFrame);
         void renderFullscreen(VkCommandBuffer commandBuffer, uint32_t currentFrame, VkImageView outputImageView,
                               GraphicsPipeline *pipeline, VkDescriptorSet descriptorSet, const float clearValue);
         void createImages();

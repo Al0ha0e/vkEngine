@@ -13,9 +13,7 @@ namespace vke_render
         toneMappingTaskNodeID = frameGraph.AllocTaskNode("tone mapping", RENDER_TASK,
                                                          std::bind(&ToneMappingPass::Render, this,
                                                                    std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.SetTaskNodeTransientReadyCallback(toneMappingTaskNodeID,
-                                                     std::bind(&ToneMappingPass::onTransientResourcesReady, this,
-                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        frameGraph.AddTransientReadyCallback(std::bind(&ToneMappingPass::onTransientResourcesReady, this, std::placeholders::_1));
 
         frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -111,7 +109,7 @@ namespace vke_render
         vkCmdEndRendering(commandBuffer);
     }
 
-    void ToneMappingPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    void ToneMappingPass::onTransientResourcesReady(uint32_t currentFrame)
     {
         VkDescriptorImageInfo hdrColorImageInfo = {
             inputSampler,

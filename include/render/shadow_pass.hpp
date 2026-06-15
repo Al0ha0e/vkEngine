@@ -96,7 +96,7 @@ namespace vke_render
         void createGraphicsPipeline(RenderInfo &renderInfo, bool isSkin);
         void registerMaterial(std::shared_ptr<Material> &material, bool isSkin);
         void updateShadowInfo(uint32_t currentFrame);
-        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
+        void onTransientResourcesReady(uint32_t currentFrame);
     };
 }
 

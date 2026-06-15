@@ -24,16 +24,12 @@ namespace vke_render
                                                   std::bind(&SSAOPass::Render, this,
                                                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                                             std::placeholders::_4, std::placeholders::_5));
-        frameGraph.SetTaskNodeTransientReadyCallback(ssaoTaskNodeID,
-                                                     std::bind(&SSAOPass::onSSAORawResourcesReady, this,
-                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        frameGraph.AddTransientReadyCallback(std::bind(&SSAOPass::onSSAORawResourcesReady, this, std::placeholders::_1));
         ssaoBlurTaskNodeID = frameGraph.AllocTaskNode("ssao blur", RENDER_TASK,
                                                       std::bind(&SSAOPass::Render, this,
                                                                 std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                                                 std::placeholders::_4, std::placeholders::_5));
-        frameGraph.SetTaskNodeTransientReadyCallback(ssaoBlurTaskNodeID,
-                                                     std::bind(&SSAOPass::onSSAOBlurResourcesReady, this,
-                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        frameGraph.AddTransientReadyCallback(std::bind(&SSAOPass::onSSAOBlurResourcesReady, this, std::placeholders::_1));
 
         frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, gbuffer->GetResourceNodeID(1), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -182,7 +178,7 @@ namespace vke_render
         vkCmdEndRendering(commandBuffer);
     }
 
-    void SSAOPass::onSSAORawResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    void SSAOPass::onSSAORawResourcesReady(uint32_t currentFrame)
     {
         createImageView(currentFrame);
 
@@ -198,7 +194,7 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 2, descriptorWrites, 0, nullptr);
     }
 
-    void SSAOPass::onSSAOBlurResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    void SSAOPass::onSSAOBlurResourcesReady(uint32_t currentFrame)
     {
         createImageView(currentFrame);
 

@@ -66,7 +66,7 @@ namespace vke_render
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  ResourceNodeIDMap &currentResourceNodeID);
         void createGraphicsPipeline(RenderInfo &renderInfo, bool isSkin);
-        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
+        void onTransientResourcesReady(uint32_t currentFrame);
     };
 }
 

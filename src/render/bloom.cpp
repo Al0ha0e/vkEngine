@@ -23,9 +23,7 @@ namespace vke_render
                                                    std::bind(&BloomPass::Render, this,
                                                              std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                                              std::placeholders::_4, std::placeholders::_5));
-        frameGraph.SetTaskNodeTransientReadyCallback(bloomTaskNodeID,
-                                                     std::bind(&BloomPass::onTransientResourcesReady, this,
-                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        frameGraph.AddTransientReadyCallback(std::bind(&BloomPass::onTransientResourcesReady, this, std::placeholders::_1));
 
         frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -122,7 +120,7 @@ namespace vke_render
         vkCmdEndRendering(commandBuffer);
     }
 
-    void BloomPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    void BloomPass::onTransientResourcesReady(uint32_t currentFrame)
     {
         createImageView(currentFrame);
 

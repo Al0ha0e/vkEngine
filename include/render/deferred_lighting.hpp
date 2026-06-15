@@ -69,7 +69,7 @@ namespace vke_render
         void allocateDescriptorSet();
         void updateDescriptorSet(uint32_t currentFrame);
         void createGraphicsPipeline();
-        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
+        void onTransientResourcesReady(uint32_t currentFrame);
     };
 };
 

@@ -629,12 +629,8 @@ namespace vke_render
             }
         }
 
-        for (auto taskID : orderedTasks)
-        {
-            TaskNode &taskNode = *taskNodes[taskID];
-            if (taskNode.transientReadyCallback)
-                taskNode.transientReadyCallback(taskNode, *this, currentFrame);
-        }
+        for (auto &kv : transientReadyCallbacks)
+            kv.second(currentFrame);
     }
 
     void FrameGraph::PrepareForExecute(const uint32_t currentFrame)

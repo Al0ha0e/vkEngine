@@ -24,9 +24,7 @@ namespace vke_render
         lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
                                                       std::bind(&DeferredLightingPass::Render, this,
                                                                 std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.SetTaskNodeTransientReadyCallback(lightingTaskNodeID,
-                                                     std::bind(&DeferredLightingPass::onTransientResourcesReady, this,
-                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        frameGraph.AddTransientReadyCallback(std::bind(&DeferredLightingPass::onTransientResourcesReady, this, std::placeholders::_1));
 
         frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[blackboard["pointLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -213,7 +211,7 @@ namespace vke_render
     {
     }
 
-    void DeferredLightingPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    void DeferredLightingPass::onTransientResourcesReady(uint32_t currentFrame)
     {
         hdrColorManager->CreateImageView(currentFrame);
         updateDescriptorSet(currentFrame);

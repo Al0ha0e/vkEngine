@@ -92,7 +92,7 @@ namespace vke_render
     class FrameGraph;
 
     using TaskNodeExecuteCallback = std::function<void(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)>;
-    using TaskNodeTransientReadyCallback = std::function<void(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)>;
+    using TransientReadyCallback = std::function<void(uint32_t currentFrame)>;
 
     class TaskNode
     {
@@ -111,7 +111,6 @@ namespace vke_render
         VkSemaphore currentSemaphore;
         std::unordered_map<vke_ds::id32_t, ResourceRef> resourceRefs;
         TaskNodeExecuteCallback executeCallback;
-        TaskNodeTransientReadyCallback transientReadyCallback;
 
         TaskNode() : taskID(0), taskType(RENDER_TASK), valid(false),
                      needQueueSubmit(false), isFinalTask(false), indeg(0),
@@ -154,7 +153,6 @@ namespace vke_render
                 currentSemaphore = ano.currentSemaphore;
                 resourceRefs = std::move(ano.resourceRefs);
                 executeCallback = std::move(ano.executeCallback);
-                transientReadyCallback = std::move(ano.transientReadyCallback);
             }
             return *this;
         }
@@ -164,8 +162,7 @@ namespace vke_render
               valid(ano.valid), needQueueSubmit(ano.needQueueSubmit), isFinalTask(ano.isFinalTask), indeg(ano.indeg),
               lastSemaphoreValue(ano.lastSemaphoreValue), currentSemaphoreValue(ano.currentSemaphoreValue),
               lastSemaphore(ano.lastSemaphore), currentSemaphore(ano.currentSemaphore),
-              resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)),
-              transientReadyCallback(std::move(ano.transientReadyCallback)) {}
+              resourceRefs(std::move(ano.resourceRefs)), executeCallback(std::move(ano.executeCallback)) {}
 
         void AddResourceRef(const vke_ds::id32_t resourceID,
                             const vke_ds::id32_t inResourceNodeID, const vke_ds::id32_t outResourceNodeID,
@@ -501,9 +498,11 @@ namespace vke_render
             MarkNeedRecompile();
         }
 
-        void SetTaskNodeTransientReadyCallback(const vke_ds::id32_t taskID, const TaskNodeTransientReadyCallback &callback)
+        vke_ds::id32_t AddTransientReadyCallback(const TransientReadyCallback &callback)
         {
-            taskNodes[taskID]->transientReadyCallback = callback;
+            vke_ds::id32_t id = transientReadyCallbackIDAllocator.Alloc();
+            transientReadyCallbacks[id] = callback;
+            return id;
         }
 
         void Compile();
@@ -518,6 +517,8 @@ namespace vke_render
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> taskNodeIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceNodeIDAllocator;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> transientReadyCallbackIDAllocator;
+        std::unordered_map<vke_ds::id32_t, TransientReadyCallback> transientReadyCallbacks;
         std::vector<std::unique_ptr<CommandPool>> commandPools[TASK_TYPE_CNT];
         std::unique_ptr<SemaphorePool> semaphorePools[MAX_FRAMES_IN_FLIGHT];
         std::vector<vke_ds::id32_t> orderedTasks;

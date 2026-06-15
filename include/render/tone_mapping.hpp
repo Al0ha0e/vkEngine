@@ -55,7 +55,7 @@ namespace vke_render
                                  ResourceNodeIDMap &currentResourceNodeID);
         void allocateDescriptorSet();
         void createGraphicsPipeline();
-        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
+        void onTransientResourcesReady(uint32_t currentFrame);
     };
 }
 

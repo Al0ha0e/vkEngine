@@ -47,7 +47,7 @@ namespace vke_render
         void createDescriptorSet();
         void createGraphicsPipeline();
         void updateDescriptorSet(uint32_t currentFrame);
-        void onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame);
+        void onTransientResourcesReady(uint32_t currentFrame);
         void createImages();
         void cleanupImages();
         void createImageView(uint32_t currentFrame);

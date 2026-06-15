@@ -187,9 +187,7 @@ namespace vke_render
         shadowTaskNodeID = frameGraph.AllocTaskNode("shadow pass", RENDER_TASK,
                                                     std::bind(&ShadowPass::Render, this,
                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.SetTaskNodeTransientReadyCallback(shadowTaskNodeID,
-                                                     std::bind(&ShadowPass::onTransientResourcesReady, this,
-                                                               std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        frameGraph.AddTransientReadyCallback(std::bind(&ShadowPass::onTransientResourcesReady, this, std::placeholders::_1));
 
         frameGraph.AddTaskNodeResourceRef(shadowTaskNodeID, shadowMapResourceNodeID, shadowMapOutResourceNodeID,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -438,7 +436,7 @@ namespace vke_render
     {
     }
 
-    void ShadowPass::onTransientResourcesReady(TaskNode &node, FrameGraph &frameGraph, uint32_t currentFrame)
+    void ShadowPass::onTransientResourcesReady(uint32_t currentFrame)
     {
         createImageViews(currentFrame);
     }
