@@ -3,6 +3,7 @@
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
+#include <render/render.hpp>
 #include <logger.hpp>
 #include <vector>
 
@@ -194,26 +195,28 @@ namespace vke_common
         if (registry.all_of<vke_component::CharacterController>(entity))
             registry.get<vke_component::CharacterController>(entity).OnTransformed(transform);
 
-        if (lighting.HasLight<vke_render::DirectionalLight>(entity))
+        auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
+
+        if (lightManager->HasLight<vke_render::DirectionalLight>(entity))
         {
-            auto &light = lighting.GetLight<vke_render::DirectionalLight>(entity);
+            auto &light = lightManager->GetLightWithoutCheck<vke_render::DirectionalLight>(entity);
             light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
-            lighting.MarkDirty<vke_render::DirectionalLight>();
+            lightManager->MarkDirty<vke_render::DirectionalLight>();
         }
 
-        if (lighting.HasLight<vke_render::PointLight>(entity))
+        if (lightManager->HasLight<vke_render::PointLight>(entity))
         {
-            auto &light = lighting.GetLight<vke_render::PointLight>(entity);
+            auto &light = lightManager->GetLightWithoutCheck<vke_render::PointLight>(entity);
             light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
-            lighting.MarkDirty<vke_render::PointLight>();
+            lightManager->MarkDirty<vke_render::PointLight>();
         }
 
-        if (lighting.HasLight<vke_render::SpotLight>(entity))
+        if (lightManager->HasLight<vke_render::SpotLight>(entity))
         {
-            auto &light = lighting.GetLight<vke_render::SpotLight>(entity);
+            auto &light = lightManager->GetLightWithoutCheck<vke_render::SpotLight>(entity);
             light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
             light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
-            lighting.MarkDirty<vke_render::SpotLight>();
+            lightManager->MarkDirty<vke_render::SpotLight>();
         }
 
         for (auto &child : transform.children)

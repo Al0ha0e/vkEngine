@@ -1,5 +1,5 @@
 {
-  "maxid": 15,
+  "maxid": 17,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -55,7 +55,7 @@
           "shape": { "type": 2, "radius": 0.35, "halfHeight": 0.6 }
         }
       ],
-      "children": []
+      "children": [16]
     },
     {
       "id": 2,
@@ -72,7 +72,7 @@
         {
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
-          "intensity": 2.5
+          "intensity": 1.0
         }
       ],
       "children": []
@@ -420,6 +420,66 @@
           "restitution": 0.0,
           "mass": 2.0,
           "shape": { "type": 1, "halfExtent": [0.48, 0.35, 0.48] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 15,
+      "static": true,
+      "name": "animated_spot_light",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 3.0, 4.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.316228, 0.0, 0.0, 0.948683]
+      },
+      "components": [
+        {
+          "type": "spotLight",
+          "radius": 18.0,
+          "color": [1.0, 0.35, 0.1],
+          "intensity": 9.0,
+          "innerCone": 25.0,
+          "outerCone": 50.0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.AnimatedSpotLightScript",
+          "data": {
+            "fields": []
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 16,
+      "static": true,
+      "name": "player_flashlight",
+      "layer": 0,
+      "parent": 1,
+      "transform": {
+        "pos": [-0.35, -0.28, -0.45],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "spotLight",
+          "radius": 22.0,
+          "color": [1.0, 0.86, 0.62],
+          "intensity": 7.5,
+          "innerCone": 14.0,
+          "outerCone": 32.0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.FlashlightFlickerScript",
+          "data": {
+            "fields": []
+          }
         }
       ],
       "children": []

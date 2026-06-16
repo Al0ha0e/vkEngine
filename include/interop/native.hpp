@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <interop/interop.hpp>
 #include <interop/math.hpp>
+#include <interop/light.hpp>
 #include <interop/physics.hpp>
 
 namespace vke_interop
@@ -68,6 +69,26 @@ namespace vke_interop
         GetPreviousFrameTimeFn GetPreviousFrameTime;
         SetEngineStateFn SetEngineState;
         HasComponentFn HasComponent;
+        GetDirectionalLightColorFn GetDirectionalLightColor;
+        SetDirectionalLightColorFn SetDirectionalLightColor;
+        GetDirectionalLightIntensityFn GetDirectionalLightIntensity;
+        SetDirectionalLightIntensityFn SetDirectionalLightIntensity;
+        GetPointLightColorFn GetPointLightColor;
+        SetPointLightColorFn SetPointLightColor;
+        GetPointLightIntensityFn GetPointLightIntensity;
+        SetPointLightIntensityFn SetPointLightIntensity;
+        GetPointLightRadiusFn GetPointLightRadius;
+        SetPointLightRadiusFn SetPointLightRadius;
+        GetSpotLightColorFn GetSpotLightColor;
+        SetSpotLightColorFn SetSpotLightColor;
+        GetSpotLightIntensityFn GetSpotLightIntensity;
+        SetSpotLightIntensityFn SetSpotLightIntensity;
+        GetSpotLightRadiusFn GetSpotLightRadius;
+        SetSpotLightRadiusFn SetSpotLightRadius;
+        GetSpotLightInnerConeFn GetSpotLightInnerCone;
+        SetSpotLightInnerConeFn SetSpotLightInnerCone;
+        GetSpotLightOuterConeFn GetSpotLightOuterCone;
+        SetSpotLightOuterConeFn SetSpotLightOuterCone;
         SetCharacterControllerVelocityFn SetCharacterControllerVelocity;
         GetCharacterControllerVelocityFn GetCharacterControllerVelocity;
         IsCharacterControllerGroundedFn IsCharacterControllerGrounded;

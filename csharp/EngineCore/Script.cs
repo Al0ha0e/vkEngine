@@ -45,14 +45,20 @@ namespace vkEngine.EngineCore
             [typeof(Transform)] = ComponentType.Transform,
             [typeof(RigidBody)] = ComponentType.RigidBody,
             [typeof(Sensor)] = ComponentType.Sensor,
-            [typeof(CharacterController)] = ComponentType.CharacterController
+            [typeof(CharacterController)] = ComponentType.CharacterController,
+            [typeof(DirectionalLight)] = ComponentType.DirectionalLight,
+            [typeof(PointLight)] = ComponentType.PointLight,
+            [typeof(SpotLight)] = ComponentType.SpotLight
         };
         private static readonly Dictionary<ComponentType, Type> componentRuntimeTypeMap = new()
         {
             [ComponentType.Transform] = typeof(Transform),
             [ComponentType.RigidBody] = typeof(RigidBody),
             [ComponentType.Sensor] = typeof(Sensor),
-            [ComponentType.CharacterController] = typeof(CharacterController)
+            [ComponentType.CharacterController] = typeof(CharacterController),
+            [ComponentType.DirectionalLight] = typeof(DirectionalLight),
+            [ComponentType.PointLight] = typeof(PointLight),
+            [ComponentType.SpotLight] = typeof(SpotLight)
         };
 
         protected EntityScript(UInt32 entity)

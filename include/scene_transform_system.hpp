@@ -2,7 +2,7 @@
 #define SCENE_TRANSFORM_SYSTEM_H
 
 #include <component/transform.hpp>
-#include <render/light.hpp>
+#include <ds/id_allocator.hpp>
 #include <entt/entity/registry.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -14,9 +14,8 @@ namespace vke_common
     {
     public:
         SceneTransformSystem(entt::registry &registry,
-                             std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity,
-                             vke_render::SceneLighting &lighting)
-            : registry(registry), idToEntity(idToEntity), lighting(lighting) {}
+                             std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity)
+            : registry(registry), idToEntity(idToEntity) {}
 
         void InitializeHierarchy(const nlohmann::json &jsonObjs);
         void PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities);
@@ -36,7 +35,6 @@ namespace vke_common
     private:
         entt::registry &registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity;
-        vke_render::SceneLighting &lighting;
 
         void dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited);
         void updateTransform(entt::entity entity, Transform &transform, bool first);

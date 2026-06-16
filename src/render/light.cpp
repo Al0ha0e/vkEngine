@@ -9,8 +9,9 @@ namespace vke_render
         {
             lightCnts[i] = 0;
             lightUpdateCnts[i] = 0;
+            dirtyFlags[i] = false;
+            cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i], VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
         }
-        sceneLighting = nullptr;
 
         auto lightCullingShader = vke_common::AssetManager::LoadComputeShader(vke_common::BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID);
         lightCullingTask = std::make_unique<ComputePipeline>(lightCullingShader);
@@ -124,16 +125,12 @@ namespace vke_render
 
     void LightManager::update(uint32_t currentFrame)
     {
-        if (sceneLighting == nullptr)
-            return;
-
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
         {
-            if (sceneLighting->dirtyFlags[i])
+            if (dirtyFlags[i])
             {
-                lightCnts[i] = sceneLighting->lightCnts[i];
                 lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
-                sceneLighting->dirtyFlags[i] = false;
+                dirtyFlags[i] = false;
             }
         }
 
@@ -142,31 +139,70 @@ namespace vke_render
             if (lightUpdateCnts[i] > 0)
             {
                 --lightUpdateCnts[i];
-                if (sceneLighting != nullptr)
-                    RenderEnvironment::CopyBuffer(sceneLighting->cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer, sceneLighting->cpuLightBuffers[i]->bufferSize);
+                RenderEnvironment::CopyBuffer(cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer, cpuLightBuffers[i]->bufferSize);
             }
         }
     }
 
     DirectionalLight *LightManager::GetSun()
     {
-        if (sceneLighting == nullptr || sceneLighting->lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0)
+        if (lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0)
             return nullptr;
 
-        return reinterpret_cast<DirectionalLight *>(sceneLighting->cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
+        return reinterpret_cast<DirectionalLight *>(cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
     }
 
-    void LightManager::BindSceneLighting(SceneLighting *lighting)
+    void LightManager::LoadSceneLightData(const SceneLightData &lighting)
     {
-        sceneLighting = lighting;
-        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+        ClearLights();
+
+        for (auto &[entity, id] : lighting.entityToLight[(int)LightType::DIRECTIONAL_LIGHT])
         {
-            lightCnts[i] = sceneLighting == nullptr ? 0 : sceneLighting->lightCnts[i];
-            lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
+            VKE_FATAL_IF(id >= lighting.directionalLights.size(), "LIGHT DATA MAP OUT OF RANGE")
+            AddLight<DirectionalLight>(entity, lighting.directionalLights[id]);
         }
 
-        if (sceneLighting != nullptr)
-            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
-                sceneLighting->dirtyFlags[i] = true;
+        for (auto &[entity, id] : lighting.entityToLight[(int)LightType::POINT_LIGHT])
+        {
+            VKE_FATAL_IF(id >= lighting.pointLights.size(), "LIGHT DATA MAP OUT OF RANGE")
+            AddLight<PointLight>(entity, lighting.pointLights[id]);
+        }
+
+        for (auto &[entity, id] : lighting.entityToLight[(int)LightType::SPOT_LIGHT])
+        {
+            VKE_FATAL_IF(id >= lighting.spotLights.size(), "LIGHT DATA MAP OUT OF RANGE")
+            AddLight<SpotLight>(entity, lighting.spotLights[id]);
+        }
+    }
+
+    SceneLightData LightManager::ToSceneLightData() const
+    {
+        SceneLightData lighting;
+
+        const auto *directionalLights = reinterpret_cast<const DirectionalLight *>(cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
+        lighting.directionalLights.assign(directionalLights, directionalLights + lightCnts[(int)LightType::DIRECTIONAL_LIGHT]);
+
+        const auto *pointLights = reinterpret_cast<const PointLight *>(cpuLightBuffers[(int)LightType::POINT_LIGHT]->data);
+        lighting.pointLights.assign(pointLights, pointLights + lightCnts[(int)LightType::POINT_LIGHT]);
+
+        const auto *spotLights = reinterpret_cast<const SpotLight *>(cpuLightBuffers[(int)LightType::SPOT_LIGHT]->data);
+        lighting.spotLights.assign(spotLights, spotLights + lightCnts[(int)LightType::SPOT_LIGHT]);
+
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            lighting.entityToLight[i] = entityToLight[i];
+
+        return lighting;
+    }
+
+    void LightManager::ClearLights()
+    {
+        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+        {
+            lightCnts[i] = 0;
+            lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
+            dirtyFlags[i] = true;
+            entityToLight[i].clear();
+            ownerMaps[i].clear();
+        }
     }
 }

@@ -29,7 +29,8 @@ namespace vke_common
         std::vector<std::string> layers;
         entt::registry registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
-        vke_render::SceneLighting lighting;
+        vke_render::SceneLightData lighting;
+        bool loadedToEngine;
         SceneTransformSystem transformSystem;
         std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptState>> csharpScriptStates;
 
@@ -38,14 +39,14 @@ namespace vke_common
 
         Scene()
             : layers({"default", "editor"}),
-              registry(), idToEntity(), lighting(), transformSystem(registry, idToEntity, lighting),
+              registry(), idToEntity(), lighting(), loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(1),
-              physicsUpdateListenerID(0), initialized(true), loadedToEngine(false) {}
+              physicsUpdateListenerID(0), initialized(true) {}
 
         Scene(const nlohmann::json &json)
-            : registry(), idToEntity(), lighting(), transformSystem(registry, idToEntity, lighting),
+            : registry(), idToEntity(), lighting(), loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
-              physicsUpdateListenerID(0), initialized(false), loadedToEngine(false)
+              physicsUpdateListenerID(0), initialized(false)
         {
             init(json);
             initialized = true;
@@ -53,9 +54,9 @@ namespace vke_common
 
         Scene(const std::string &pth, const nlohmann::json &json)
             : path(pth),
-              registry(), idToEntity(), lighting(), transformSystem(registry, idToEntity, lighting),
+              registry(), idToEntity(), lighting(), loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
-              physicsUpdateListenerID(0), initialized(false), loadedToEngine(false)
+              physicsUpdateListenerID(0), initialized(false)
         {
             init(json);
             initialized = true;
@@ -87,7 +88,7 @@ namespace vke_common
             for (auto entity : sensorView)
                 sensorView.get<vke_component::Sensor>(entity).LoadToEngine(static_cast<uint32_t>(entity));
             loadView.operator()<vke_component::CharacterController>();
-            vke_render::Renderer::GetInstance()->lightManager->BindSceneLighting(&lighting);
+            vke_render::Renderer::GetInstance()->lightManager->LoadSceneLightData(lighting);
 
             physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
                                                                                           std::function<void(void *, void *)>(physicsUpdateCallback));
@@ -114,7 +115,8 @@ namespace vke_common
             ScriptManager::Unload();
             vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
             physicsUpdateListenerID = 0;
-            vke_render::Renderer::GetInstance()->lightManager->BindSceneLighting(nullptr);
+            lighting = vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData();
+            vke_render::Renderer::GetInstance()->lightManager->ClearLights();
 
             auto unloadView = [this]<typename T>()
             {
@@ -179,12 +181,11 @@ namespace vke_common
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> idAllocator;
         vke_ds::id32_t physicsUpdateListenerID;
         bool initialized;
-        bool loadedToEngine;
 
         void init(const nlohmann::json &json);
         void loadComponent(const vke_ds::id32_t id, const entt::entity entity,
                            const nlohmann::json &component);
-        void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json);
+        void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json, const vke_render::SceneLightData &lightData);
         void unloadEntityFromEngine(entt::entity entity);
 
         static void physicsUpdateCallback(void *self, void *info);
