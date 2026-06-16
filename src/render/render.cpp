@@ -107,14 +107,15 @@ namespace vke_render
         frameGraph->Sync(currentFrame);
         frameGraph->PrepareForExecute(currentFrame);
 
-        if (cameraInfoUpdateCnt > 0)
+        bool cameraUpdated = cameraInfoUpdateCnt > 0;
+        if (cameraUpdated)
         {
             VKE_LOG_DEBUG("CAM INFO UPD {}", cameraInfoUpdateCnt)
             --cameraInfoUpdateCnt;
             camInfoBuffers[currentFrame].ToBuffer(0, &hostCameraInfo, sizeof(vke_render::CameraInfo));
         }
 
-        lightManager->Update(currentFrame);
+        lightManager->Update(currentFrame, cameraUpdated);
 
         for (auto &kv : renderUpdateCallbacks)
             kv.second(currentFrame);

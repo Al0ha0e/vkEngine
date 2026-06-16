@@ -88,7 +88,7 @@ namespace vke_common
             for (auto entity : sensorView)
                 sensorView.get<vke_component::Sensor>(entity).LoadToEngine(static_cast<uint32_t>(entity));
             loadView.operator()<vke_component::CharacterController>();
-            vke_render::Renderer::GetInstance()->lightManager->LoadSceneLightData(lighting);
+            vke_render::Renderer::GetInstance()->lightManager->LoadSceneLightData(lighting.cpuLightData);
 
             physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
                                                                                           std::function<void(void *, void *)>(physicsUpdateCallback));
@@ -115,7 +115,7 @@ namespace vke_common
             ScriptManager::Unload();
             vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
             physicsUpdateListenerID = 0;
-            lighting = vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData();
+            lighting = vke_render::SceneLightData(vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData());
             vke_render::Renderer::GetInstance()->lightManager->ClearLights();
 
             auto unloadView = [this]<typename T>()

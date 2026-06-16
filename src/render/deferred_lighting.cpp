@@ -82,10 +82,7 @@ namespace vke_render
     void DeferredLightingPass::allocateDescriptorSet()
     {
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-        {
             lightingDescriptorSets[i] = lightingShader->CreateDescriptorSet(1);
-            shadowDescriptorSets[i] = lightingShader->CreateDescriptorSet(2);
-        }
     }
 
     void DeferredLightingPass::updateDescriptorSet(uint32_t currentFrame)
@@ -119,15 +116,6 @@ namespace vke_render
 
         vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT + extraTextureCnt, descriptorWrites, 0, nullptr);
 
-        VkWriteDescriptorSet shadowDescriptorWrites[2];
-        VkDescriptorImageInfo shadowImageInfo;
-        VkDescriptorBufferInfo shadowBufferInfo = shadowPass->GetDirectionalShadowBufferInfo(currentFrame);
-        vke_render::ConstructDescriptorSetWrite(shadowDescriptorWrites[0], shadowDescriptorSets[currentFrame], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &shadowBufferInfo);
-
-        shadowImageInfo = {shadowPass->GetShadowMapSampler(), shadowPass->GetDirectionalShadowMapView(currentFrame), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
-        vke_render::ConstructDescriptorSetWrite(shadowDescriptorWrites[1], shadowDescriptorSets[currentFrame], 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &shadowImageInfo);
-
-        vkUpdateDescriptorSets(globalLogicalDevice, 2, shadowDescriptorWrites, 0, nullptr);
     }
 
     void DeferredLightingPass::createGraphicsPipeline()
@@ -193,13 +181,14 @@ namespace vke_render
         scissor.extent = {context->width, context->height};
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDescriptorSet descriptorSets[3] = {globalDescriptorSets[currentFrame], lightingDescriptorSets[currentFrame], shadowDescriptorSets[currentFrame]};
+        VkDescriptorSet descriptorSets[3] = {globalDescriptorSets[currentFrame], lightingDescriptorSets[currentFrame],
+                                             shadowManager->GetDeferredLightingDescriptorSet(currentFrame)};
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 3, descriptorSets, 0, nullptr);
 
         DeferredLightingConstants constants{
-            lightManager->lightCnts[(int)LightType::DIRECTIONAL_LIGHT],
+            lightManager->GetLightCnt(LightType::DIRECTIONAL_LIGHT),
             ssaoImageViewGetter ? 1u : 0u};
         vkCmdPushConstants(commandBuffer, renderPipeline->pipelineLayout, VK_SHADER_STAGE_ALL, 0,
                            sizeof(DeferredLightingConstants), &constants);

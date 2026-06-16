@@ -2,9 +2,6 @@
 #define LIGHT_H
 
 #include <render/buffer.hpp>
-#include <render/descriptor.hpp>
-#include <render/pipeline.hpp>
-#include <render/frame_graph.hpp>
 #include <entt/entity/entity.hpp>
 #include <glm/glm.hpp>
 #include <nlohmann/json.hpp>
@@ -103,199 +100,92 @@ namespace vke_render
     constexpr uint32_t LIGHT_MAP_ST[] = {0, MAX_DIRECTIONAL_LIGHT_CNT, MAX_DIRECTIONAL_LIGHT_CNT + MAX_POINT_LIGHT_CNT,
                                          MAX_DIRECTIONAL_LIGHT_CNT + MAX_POINT_LIGHT_CNT + MAX_SPOT_LIGHT_CNT};
 
-    struct SceneLightData
+    struct CPULightData
     {
-        std::vector<DirectionalLight> directionalLights;
-        std::vector<PointLight> pointLights;
-        std::vector<SpotLight> spotLights;
+        std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
+        uint32_t lightCnts[(int)LightType::LIGHT_TYPE_CNT];
         std::unordered_map<entt::entity, vke_ds::id32_t> entityToLight[(int)LightType::LIGHT_TYPE_CNT];
 
-        SceneLightData() = default;
+        CPULightData()
+        {
+            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            {
+                lightCnts[i] = 0;
+                cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i],
+                                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            }
+        }
+
+        CPULightData(const CPULightData &) = delete;
+        CPULightData &operator=(const CPULightData &) = delete;
+        CPULightData(CPULightData &&) = default;
+        CPULightData &operator=(CPULightData &&) = default;
+
+        void Clear()
+        {
+            for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
+            {
+                lightCnts[i] = 0;
+                entityToLight[i].clear();
+            }
+        }
+    };
+
+    struct SceneLightData
+    {
+        std::shared_ptr<CPULightData> cpuLightData;
+
+        SceneLightData()
+            : cpuLightData(std::make_shared<CPULightData>()) {}
+        explicit SceneLightData(std::shared_ptr<CPULightData> data)
+            : cpuLightData(std::move(data))
+        {
+            if (cpuLightData == nullptr)
+                cpuLightData = std::make_shared<CPULightData>();
+        }
         SceneLightData(const SceneLightData &) = default;
         SceneLightData &operator=(const SceneLightData &) = default;
         SceneLightData(SceneLightData &&) = default;
         SceneLightData &operator=(SceneLightData &&) = default;
 
         template <AllowedLightType T>
-        auto &GetLightVector()
+        T *GetLightBuffer()
         {
-            if constexpr (std::same_as<T, DirectionalLight>)
-                return directionalLights;
-            else if constexpr (std::same_as<T, PointLight>)
-                return pointLights;
-            else
-                return spotLights;
+            return reinterpret_cast<T *>(cpuLightData->cpuLightBuffers[(int)T::type]->data);
         }
 
         template <AllowedLightType T>
-        const auto &GetLightVector() const
+        const T *GetLightBuffer() const
         {
-            if constexpr (std::same_as<T, DirectionalLight>)
-                return directionalLights;
-            else if constexpr (std::same_as<T, PointLight>)
-                return pointLights;
-            else
-                return spotLights;
+            return reinterpret_cast<const T *>(cpuLightData->cpuLightBuffers[(int)T::type]->data);
         }
 
         template <AllowedLightType T>
         void AddLight(entt::entity entity, const T &light)
         {
             const int typecode = (int)T::type;
-            auto &lights = GetLightVector<T>();
-            VKE_FATAL_IF(lights.size() >= MAX_LIGHT_CNTS[typecode], "NO MORE LIGHT OF TYPE {}", typecode)
-            entityToLight[typecode][entity] = static_cast<vke_ds::id32_t>(lights.size());
-            lights.push_back(light);
+            uint32_t &cnt = cpuLightData->lightCnts[typecode];
+            VKE_FATAL_IF(cnt >= MAX_LIGHT_CNTS[typecode], "NO MORE LIGHT OF TYPE {}", typecode)
+            cpuLightData->entityToLight[typecode][entity] = static_cast<vke_ds::id32_t>(cnt);
+            std::construct_at(GetLightBuffer<T>() + cnt, light);
+            ++cnt;
         }
 
         template <AllowedLightType T>
         bool HasLight(entt::entity entity) const
         {
             const int typecode = (int)T::type;
-            return entityToLight[typecode].find(entity) != entityToLight[typecode].end();
+            return cpuLightData->entityToLight[typecode].find(entity) != cpuLightData->entityToLight[typecode].end();
         }
 
         template <AllowedLightType T>
         const T &GetLight(entt::entity entity) const
         {
             const int typecode = (int)T::type;
-            const vke_ds::id32_t id = entityToLight[typecode].at(entity);
-            const auto &lights = GetLightVector<T>();
-            VKE_FATAL_IF(id >= lights.size(), "LIGHT NOT EXIST")
-            return lights[id];
+            const vke_ds::id32_t id = cpuLightData->entityToLight[typecode].at(entity);
+            VKE_FATAL_IF(id >= cpuLightData->lightCnts[typecode], "LIGHT NOT EXIST")
+            return GetLightBuffer<T>()[id];
         }
-    };
-
-    class LightManager
-    {
-    public:
-        uint32_t lightCnts[(int)LightType::LIGHT_TYPE_CNT];
-
-        LightManager()
-        {
-            init();
-        }
-        ~LightManager() {}
-        LightManager(const LightManager &) = delete;
-        LightManager &operator=(const LightManager &) = delete;
-
-        void GetBindingInfos(std::vector<VkDescriptorSetLayoutBinding> &bindingInfos, DescriptorSetInfo &descriptorSetInfo);
-
-        void GetDescriptorSetWrites(uint32_t id,
-                                    std::vector<VkWriteDescriptorSet> &descriptorSetWrites,
-                                    VkDescriptorSet descriptorSet,
-                                    std::vector<VkDescriptorBufferInfo> &bufferInfos);
-
-        void ConstructFrameGraph(FrameGraph &frameGraph,
-                                 std::map<std::string, vke_ds::id32_t> &blackboard,
-                                 ResourceNodeIDMap &currentResourceNodeID);
-
-        void Update(uint32_t currentFrame)
-        {
-            update(currentFrame);
-        }
-
-        void SetGlobalDescriptorSets(VkDescriptorSet *descriptorSet)
-        {
-            globalDescriptorSets = descriptorSet;
-        }
-
-        DirectionalLight *GetSun();
-        void LoadSceneLightData(const SceneLightData &lighting);
-        SceneLightData ToSceneLightData() const;
-        void ClearLights();
-
-        template <AllowedLightType T, typename... Args>
-        void AddLight(entt::entity entity, Args &&...args)
-        {
-            const int typecode = (int)T::type;
-            uint32_t &cnt = lightCnts[typecode];
-            VKE_FATAL_IF(cnt >= MAX_LIGHT_CNTS[typecode], "NO MORE LIGHT OF TYPE {}", typecode)
-
-            const vke_ds::id32_t id = cnt++;
-            ownerMaps[typecode].push_back(entity);
-            std::construct_at(reinterpret_cast<T *>(cpuLightBuffers[typecode]->data) + id, std::forward<Args>(args)...);
-
-            entityToLight[typecode][entity] = id;
-            dirtyFlags[typecode] = true;
-        }
-
-        template <AllowedLightType T>
-        bool HasLight(entt::entity entity) const
-        {
-            const int typecode = (int)T::type;
-            return entityToLight[typecode].find(entity) != entityToLight[typecode].end();
-        }
-
-        template <AllowedLightType T>
-        T &GetLightWithoutCheck(entt::entity entity)
-        {
-            const int typecode = (int)T::type;
-            vke_ds::id32_t id = entityToLight[typecode].find(entity)->second;
-            return reinterpret_cast<T *>(cpuLightBuffers[typecode]->data)[id];
-        }
-
-        template <AllowedLightType T>
-        const T &GetLightWithoutCheck(entt::entity entity) const
-        {
-            const int typecode = (int)T::type;
-            vke_ds::id32_t id = entityToLight[typecode].find(entity)->second;
-            return reinterpret_cast<const T *>(cpuLightBuffers[typecode]->data)[id];
-        }
-
-        template <AllowedLightType T>
-        void RemoveLight(entt::entity entity)
-        {
-            const int typecode = (int)T::type;
-            auto &lightMap = entityToLight[typecode];
-            auto it = lightMap.find(entity);
-            if (it == lightMap.end())
-                return;
-
-            vke_ds::id32_t id = it->second;
-            uint32_t &cnt = lightCnts[typecode];
-            VKE_FATAL_IF(id >= cnt, "LIGHT NOT EXIST")
-
-            const uint32_t last = cnt - 1;
-            if (id != last)
-            {
-                const size_t size = LIGHT_SIZES[typecode];
-                char *base = reinterpret_cast<char *>(cpuLightBuffers[typecode]->data);
-                std::memcpy(base + id * size, base + last * size, size);
-
-                entt::entity swappedOwner = ownerMaps[typecode][last];
-                ownerMaps[typecode][id] = swappedOwner;
-                lightMap[swappedOwner] = id;
-            }
-
-            ownerMaps[typecode].pop_back();
-            --cnt;
-            lightMap.erase(it);
-            dirtyFlags[typecode] = true;
-        }
-
-        template <AllowedLightType T>
-        void MarkDirty()
-        {
-            const int typecode = (int)T::type;
-            dirtyFlags[typecode] = true;
-        }
-
-    private:
-        bool dirtyFlags[(int)LightType::LIGHT_TYPE_CNT];
-        uint32_t lightUpdateCnts[(int)LightType::LIGHT_TYPE_CNT];
-        VkDescriptorSet *globalDescriptorSets;
-        std::unordered_map<entt::entity, vke_ds::id32_t> entityToLight[(int)LightType::LIGHT_TYPE_CNT];
-        std::vector<entt::entity> ownerMaps[(int)LightType::LIGHT_TYPE_CNT];
-        std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
-
-        std::unique_ptr<DeviceBuffer> lightBuffers[(int)LightType::LIGHT_TYPE_CNT][MAX_FRAMES_IN_FLIGHT];
-        std::unique_ptr<DeviceBuffer> clusterBuffers[2][MAX_FRAMES_IN_FLIGHT];
-        std::unique_ptr<ComputePipeline> lightCullingTask;
-
-        void init();
-        void update(uint32_t currentFrame);
-        void cullLights(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex);
     };
 }
 

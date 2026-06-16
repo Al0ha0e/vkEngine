@@ -12,7 +12,7 @@
 #include <render/skybox_render.hpp>
 #include <render/hdr_color.hpp>
 #include <render/ui.hpp>
-#include <render/light.hpp>
+#include <render/light_manager.hpp>
 #include <render/camera.hpp>
 #include <event.hpp>
 
@@ -61,13 +61,14 @@ namespace vke_render
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 instance->camInfoBuffers.emplace_back(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-            instance->lightManager = std::make_unique<LightManager>();
-
-            instance->initDescriptorSet();
-
             std::map<std::string, vke_ds::id32_t> blackboard;
             ResourceNodeIDMap currentResourceNodeID;
             instance->constructFrameGraph(blackboard, currentResourceNodeID);
+
+            instance->lightManager = std::make_unique<LightManager>(
+                ctx, *(instance->frameGraph), &instance->hostCameraInfo, renderConfig.directionalShadow);
+
+            instance->initDescriptorSet();
 
             instance->skyboxManager = std::make_unique<SkyboxManager>(
                 instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
@@ -102,7 +103,7 @@ namespace vke_render
                 {
                     std::unique_ptr<ShadowPass> shadowPass = std::make_unique<ShadowPass>(
                         ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
-                        instance->lightManager.get(), &instance->hostCameraInfo, renderConfig.directionalShadow);
+                        instance->lightManager->GetShadowManager());
                     shadowPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
                     instance->subPassMap[SHADOW_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(shadowPass));
@@ -119,11 +120,9 @@ namespace vke_render
                 }
                 case DEFERRED_LIGHTING_PASS:
                 {
-                    ShadowPass *shadowPass = nullptr;
-                    auto shadowPassIt = instance->subPassMap.find(SHADOW_PASS);
-                    if (shadowPassIt != instance->subPassMap.end())
-                        shadowPass = static_cast<ShadowPass *>(instance->subPasses[shadowPassIt->second].get());
-                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT], instance->lightManager.get(), instance->skyboxManager.get(), instance->hdrColorManager.get(), shadowPass);
+                    std::unique_ptr<DeferredLightingPass> lightingPass = std::make_unique<DeferredLightingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT],
+                                                                                                                instance->lightManager.get(), instance->skyboxManager.get(),
+                                                                                                                instance->hdrColorManager.get(), instance->lightManager->GetShadowManager());
                     auto ssaoPassIt = instance->subPassMap.find(SSAO_PASS);
                     if (ssaoPassIt != instance->subPassMap.end())
                     {

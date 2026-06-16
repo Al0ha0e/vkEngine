@@ -3,7 +3,7 @@
 
 #include <render/cubemap.hpp>
 #include <render/frame_graph.hpp>
-#include <render/light.hpp>
+#include <render/light_manager.hpp>
 #include <render/render_config.hpp>
 #include <render/renderinfo.hpp>
 #include <render/texture.hpp>

@@ -72,7 +72,19 @@
         {
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
-          "intensity": 1.0
+          "intensity": 2.0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.SunCycleScript",
+          "data": {
+            "fields": [
+              {
+                "name": "Speed",
+                "val": 0.08
+              }
+            ]
+          }
         }
       ],
       "children": []
@@ -470,7 +482,7 @@
           "type": "spotLight",
           "radius": 22.0,
           "color": [1.0, 0.86, 0.62],
-          "intensity": 7.5,
+          "intensity": 0.1,
           "innerCone": 14.0,
           "outerCone": 32.0
         },

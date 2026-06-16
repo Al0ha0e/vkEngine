@@ -11,7 +11,7 @@ namespace vke_common
         ret["maxid"] = idAllocator.id;
         nlohmann::json objectsJSON = nlohmann::json::array();
         vke_render::SceneLightData lightData = loadedToEngine
-                                                   ? vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData()
+                                                   ? vke_render::SceneLightData(vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData())
                                                    : lighting;
 
         for (auto &[id, entity] : idToEntity)

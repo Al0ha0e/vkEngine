@@ -5,8 +5,8 @@
 #include <render/gbuffer.hpp>
 #include <render/renderinfo.hpp>
 #include <render/subpass.hpp>
-#include <render/light.hpp>
-#include <render/shadow_pass.hpp>
+#include <render/light_manager.hpp>
+#include <render/shadow_manager.hpp>
 #include <render/hdr_color.hpp>
 #include <asset.hpp>
 #include <functional>
@@ -16,9 +16,9 @@ namespace vke_render
     class DeferredLightingPass : public RenderPassBase
     {
     public:
-        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager, HDRColorManager *hdrColorManager, ShadowPass *shadowPass)
+        DeferredLightingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, LightManager *lightManager, SkyboxManager *skyboxManager, HDRColorManager *hdrColorManager, ShadowManager *shadowManager)
             : RenderPassBase(DEFERRED_LIGHTING_PASS, ctx, globalDescriptorSets), lightManager(lightManager), skyboxManager(skyboxManager),
-              hdrColorManager(hdrColorManager), shadowPass(shadowPass),
+              hdrColorManager(hdrColorManager), shadowManager(shadowManager),
               ssaoSampler(VK_NULL_HANDLE),
               ssaoImageViewGetter(nullptr) {}
 
@@ -52,9 +52,8 @@ namespace vke_render
         LightManager *lightManager;
         SkyboxManager *skyboxManager;
         HDRColorManager *hdrColorManager;
-        ShadowPass *shadowPass;
+        ShadowManager *shadowManager;
         VkDescriptorSet lightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
-        VkDescriptorSet shadowDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> lightingShader;
         std::shared_ptr<Texture2D> brdfLUT;
