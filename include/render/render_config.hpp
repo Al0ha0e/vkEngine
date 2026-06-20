@@ -8,6 +8,7 @@
 namespace vke_render
 {
     constexpr uint32_t MAX_DIRECTIONAL_SHADOW_CASCADE_CNT = 4;
+    constexpr uint32_t MAX_SPOT_LIGHT_SHADOW_CNT = 32;
 
     struct AtmosphereParameter
     {
@@ -154,6 +155,11 @@ namespace vke_render
             splitLambda = json.value("splitLambda", splitLambda);
             depthMargin = json.value("depthMargin", depthMargin);
         }
+    };
+
+    struct SpotShadowConfig
+    {
+        uint32_t mapSize = 1024;
     };
 
     struct RenderConfig

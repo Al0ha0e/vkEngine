@@ -3,12 +3,12 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #define SHADOW_MAP_PASS
-#define SHADOW_DIRECTIONAL_ONLY
 #include "shadow.glsl"
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
-    uint cascadeIndex;
+    uint shadowIndex;
+    uint shadowType;
 };
 
 layout(set = 1, binding = 0) uniform JointBlockObject {
@@ -31,5 +31,8 @@ void main()
         + inWeights.w * JointBlock.joints[inJointIDs.w];
 
     vec4 skinnedPos = skinMat * vec4(inPosition, 1.0);
-    gl_Position = DirectionalShadows.shadows[0].lightViewProj[cascadeIndex] * model * skinnedPos;
+    mat4 lightViewProj = shadowType == 0
+        ? DirectionalShadows.shadows[0].lightViewProj[shadowIndex]
+        : SpotShadows.shadows[shadowIndex].lightViewProj;
+    gl_Position = lightViewProj * model * skinnedPos;
 }

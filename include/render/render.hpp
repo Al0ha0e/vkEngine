@@ -61,9 +61,9 @@ namespace vke_render
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 instance->camInfoBuffers.emplace_back(sizeof(CameraInfo), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
 
-            std::map<std::string, vke_ds::id32_t> blackboard;
-            ResourceNodeIDMap currentResourceNodeID;
-            instance->constructFrameGraph(blackboard, currentResourceNodeID);
+            instance->blackboard.clear();
+            instance->currentResourceNodeID.clear();
+            instance->constructFrameGraph(instance->blackboard, instance->currentResourceNodeID);
 
             instance->lightManager = std::make_unique<LightManager>(
                 ctx, *(instance->frameGraph), &instance->hostCameraInfo, renderConfig.directionalShadow);
@@ -74,8 +74,8 @@ namespace vke_render
                 instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
                 instance->lightManager.get(),
                 renderConfig.atmosphere);
-            instance->skyboxManager->ConstructFrameGraph(*(instance->frameGraph), blackboard, currentResourceNodeID);
-            instance->lightManager->ConstructFrameGraph(*(instance->frameGraph), blackboard, currentResourceNodeID);
+            instance->skyboxManager->ConstructFrameGraph(*(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
+            instance->lightManager->ConstructFrameGraph(*(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
 
             int customPassID = 0;
             for (int i = 0; i < passes.size(); i++)
@@ -87,14 +87,14 @@ namespace vke_render
                 case CUSTOM_RENDERER:
                 {
                     std::unique_ptr<RenderPassBase> &customPass = customPasses[customPassID++];
-                    customPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    customPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPasses.push_back(std::move(customPass));
                     break;
                 }
                 case GBUFFER_PASS:
                 {
                     std::unique_ptr<GBufferPass> gbufferPass = std::make_unique<GBufferPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
-                    gbufferPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    gbufferPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[GBUFFER_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(gbufferPass));
                     break;
@@ -104,7 +104,7 @@ namespace vke_render
                     std::unique_ptr<ShadowPass> shadowPass = std::make_unique<ShadowPass>(
                         ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
                         instance->lightManager->GetShadowManager());
-                    shadowPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    shadowPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[SHADOW_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(shadowPass));
                     break;
@@ -113,7 +113,7 @@ namespace vke_render
                 {
                     const nlohmann::json &ssaoConfigJSON = renderConfig.sourceJSON.value("ssao", nlohmann::json::object());
                     std::unique_ptr<SSAOPass> ssaoPass = std::make_unique<SSAOPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], ssaoConfigJSON);
-                    ssaoPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    ssaoPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[SSAO_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(ssaoPass));
                     break;
@@ -131,7 +131,7 @@ namespace vke_render
                                                    [ssaoPass](uint32_t currentFrame)
                                                    { return ssaoPass->GetOutputImageView(currentFrame); });
                     }
-                    lightingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    lightingPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[DEFERRED_LIGHTING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(lightingPass));
                     break;
@@ -139,7 +139,7 @@ namespace vke_render
                 case SKYBOX_RENDERER:
                 {
                     std::unique_ptr<SkyboxRenderer> skyboxRenderer = std::make_unique<SkyboxRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->skyboxManager.get(), instance->hdrColorManager.get());
-                    skyboxRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    skyboxRenderer->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[SKYBOX_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(skyboxRenderer));
                     break;
@@ -149,7 +149,7 @@ namespace vke_render
                     std::unique_ptr<AtmospherePass> atmospherePass = std::make_unique<AtmospherePass>(
                         ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
                         instance->skyboxManager.get(), instance->hdrColorManager.get());
-                    atmospherePass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    atmospherePass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[ATMOSPHERE_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(atmospherePass));
                     break;
@@ -166,7 +166,7 @@ namespace vke_render
                                             [atmospherePass](uint32_t currentFrame)
                                             { return atmospherePass->GetOutputImageView(currentFrame); });
                     }
-                    bloomPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    bloomPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[BLOOM_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(bloomPass));
                     break;
@@ -194,7 +194,7 @@ namespace vke_render
                                                       { return atmospherePass->GetOutputImageView(currentFrame); });
                         }
                     }
-                    toneMappingPass->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    toneMappingPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[TONE_MAPPING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(toneMappingPass));
                     break;
@@ -202,7 +202,7 @@ namespace vke_render
                 case UI_RENDERER:
                 {
                     std::unique_ptr<UIRenderer> uiRenderer = std::make_unique<UIRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
-                    uiRenderer->Init(i, *(instance->frameGraph), blackboard, currentResourceNodeID);
+                    uiRenderer->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[UI_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(uiRenderer));
                     break;
@@ -316,6 +316,8 @@ namespace vke_render
         std::unique_ptr<FrameGraph> frameGraph;
         std::unique_ptr<SkyboxManager> skyboxManager;
         std::unique_ptr<HDRColorManager> hdrColorManager;
+        std::map<std::string, vke_ds::id32_t> blackboard;
+        ResourceNodeIDMap currentResourceNodeID;
 
         uint32_t cameraInfoUpdateCnt;
         CameraInfo hostCameraInfo;

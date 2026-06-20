@@ -72,7 +72,7 @@
         {
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
-          "intensity": 2.0
+          "intensity": 0.2
         },
         {
           "type": "script",
@@ -81,7 +81,7 @@
             "fields": [
               {
                 "name": "Speed",
-                "val": 0.08
+                "val": 0.0
               }
             ]
           }
@@ -443,7 +443,7 @@
       "layer": 0,
       "parent": 0,
       "transform": {
-        "pos": [0.0, 3.0, 4.0],
+        "pos": [0.0, 2.0, 4.0],
         "scl": [1.0, 1.0, 1.0],
         "rot": [-0.316228, 0.0, 0.0, 0.948683]
       },
@@ -454,7 +454,8 @@
           "color": [1.0, 0.35, 0.1],
           "intensity": 9.0,
           "innerCone": 25.0,
-          "outerCone": 50.0
+          "outerCone": 50.0,
+          "castShadow": true
         },
         {
           "type": "script",
@@ -484,7 +485,8 @@
           "color": [1.0, 0.86, 0.62],
           "intensity": 0.1,
           "innerCone": 14.0,
-          "outerCone": 32.0
+          "outerCone": 32.0,
+          "castShadow": true
         },
         {
           "type": "script",

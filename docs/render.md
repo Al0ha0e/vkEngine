@@ -102,3 +102,14 @@ https://github.com/KhronosGroup/Vulkan-ValidationLayers/issues/7193#issuecomment
 ## TODO
 
 实现 descriptor set 回收
+
+
+## 资源更新流程规范
+
+资源更新包括以下几个步骤：
+
+- CPU数据更新：更新1份GPU Buffer，设置updateCnt=MAX_FRAMES_IN_FLIGHT
+- GPU数据更新(SyncToGPU)：每一帧检查updateCnt，不为0就把数据拷贝到当前帧对应的GPU Buffer里
+- 描述符集更新：在onTransientReady回调里更新
+- 资源增删(UpdateResources)：每一帧在frameGraph->Sync之后和frameGraph->PrepareForExecute之前进行增删
+- framegraph更新(UpdateFrameGraph)：每一帧在资源增删之后和frameGraph->PrepareForExecute之前进行更新

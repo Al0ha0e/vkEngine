@@ -25,7 +25,7 @@ struct SpotLight
     vec4 positionWithRadius; // w: radius
     vec4 direction;          // xyz
     vec4 colorWithIntensity; // w: intensity
-    vec4 cone;               // x:inner, y: outer
+    vec4 cone;               // x:inner, y: outer, z: shadow slot + 1 (0 disables shadow)
 };
 
 

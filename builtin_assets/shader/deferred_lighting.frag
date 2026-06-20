@@ -1,10 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
-
 #include "camera.glsl"
 #include "light.glsl"
-#define SHADOW_DIRECTIONAL_ONLY
 #include "shadow.glsl"
 
 layout(location = 0) in vec2 vTexCoord;
@@ -120,6 +118,44 @@ float SampleDirectionalShadow(uint lightIndex, vec3 worldPos, vec3 worldNormal, 
             visibility += texture(DirectionalShadowMaps[0],
                                   vec4(uv + sampleOffset,
                                        float(cascadeIndex), shadowCoord.z - bias)) * weight;
+            weightSum += weight;
+        }
+    }
+    return visibility / weightSum;
+}
+
+float SampleSpotShadow(SpotLight light, vec3 worldPos, vec3 worldNormal, vec3 lightDir)
+{
+    if (light.cone.z <= 0.0)
+        return 1.0;
+
+    uint slot = uint(light.cone.z) - 1u;
+    if (slot >= MAX_SPOT_LIGHT_SHADOW_CNT)
+        return 1.0;
+
+    float NdotL = max(dot(worldNormal, lightDir), 0.0);
+    const float NORMAL_BIAS = 0.003;
+    const float DEPTH_BIAS_MIN = 0.00015;
+    const float DEPTH_BIAS_SLOPE = 0.00045;
+    vec3 shadowWorldPos = worldPos + worldNormal * NORMAL_BIAS;
+    vec4 lightClip = SpotShadows.shadows[slot].lightViewProj * vec4(shadowWorldPos, 1.0);
+    vec3 shadowCoord = lightClip.xyz / lightClip.w;
+    vec2 uv = shadowCoord.xy * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || shadowCoord.z < 0.0 || shadowCoord.z > 1.0)
+        return 1.0;
+
+    float bias = max(DEPTH_BIAS_SLOPE * (1.0 - NdotL), DEPTH_BIAS_MIN);
+    const int pcfRadius = 1;
+    vec2 texelSize = 1.0 / vec2(textureSize(SpotShadowMap, 0));
+    float visibility = 0.0;
+    float weightSum = 0.0;
+    for (int x = -pcfRadius; x <= pcfRadius; ++x)
+    {
+        for (int y = -pcfRadius; y <= pcfRadius; ++y)
+        {
+            vec2 sampleOffset = vec2(x, y) * texelSize;
+            float weight = (float(pcfRadius + 1) - abs(float(x))) * (float(pcfRadius + 1) - abs(float(y)));
+            visibility += texture(SpotShadowMap, vec4(uv + sampleOffset, float(slot), shadowCoord.z - bias)) * weight;
             weightSum += weight;
         }
     }
@@ -247,7 +283,9 @@ void main()
         vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
         vec3 diffuse = albedo / PI;
         vec3 radiance = light.colorWithIntensity.rgb * light.colorWithIntensity.w;
-        Lo += (kD * diffuse + spec) * radiance * NdotL * attenuation;
+        vec3 worldLightDir = normalize(light.positionWithRadius.xyz - worldPos);
+        float shadow = SampleSpotShadow(light, worldPos, worldN, worldLightDir);
+        Lo += (kD * diffuse + spec) * radiance * NdotL * attenuation * shadow;
     }
 
     vec3 F = fresnelSchlickRoughness(F0, NdotV, roughness);

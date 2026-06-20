@@ -35,10 +35,7 @@ namespace vke_render
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  ResourceNodeIDMap &currentResourceNodeID);
 
-        void Update(uint32_t currentFrame, bool cameraUpdated)
-        {
-            update(currentFrame, cameraUpdated);
-        }
+        void Update(uint32_t currentFrame, bool cameraUpdated);
 
         void SetGlobalDescriptorSets(VkDescriptorSet *descriptorSet)
         {
@@ -60,22 +57,27 @@ namespace vke_render
             VKE_FATAL_IF(cnt >= MAX_LIGHT_CNTS[typecode], "NO MORE LIGHT OF TYPE {}", typecode)
 
             const vke_ds::id32_t id = cnt++;
-            ownerMaps[typecode].push_back(entity);
+            cpuLightData->ownerMaps[typecode].push_back(entity);
             std::construct_at(reinterpret_cast<T *>(cpuLightData->cpuLightBuffers[typecode]->data) + id, std::forward<Args>(args)...);
 
             cpuLightData->entityToLight[typecode][entity] = id;
+            if constexpr (std::same_as<T, SpotLight>)
+            {
+                SpotLight &light = GetLightWithoutCheckByID(id);
+                if (light.CastShadow())
+                    shadowManager->ActivateSpotShadow(entity, light);
+            }
             dirtyFlags[typecode] = true;
         }
 
         template <AllowedLightType T>
         bool HasLight(entt::entity entity) const
         {
-            const int typecode = (int)T::type;
-            return cpuLightData->entityToLight[typecode].find(entity) != cpuLightData->entityToLight[typecode].end();
+            return cpuLightData->HasLight<T>(entity);
         }
 
         template <AllowedLightType T>
-        T &GetLightWithoutCheck(entt::entity entity)
+        T &GetLightWithoutCheckByEntity(entt::entity entity)
         {
             const int typecode = (int)T::type;
             vke_ds::id32_t id = cpuLightData->entityToLight[typecode].find(entity)->second;
@@ -83,11 +85,25 @@ namespace vke_render
         }
 
         template <AllowedLightType T>
-        const T &GetLightWithoutCheck(entt::entity entity) const
+        const T &GetLightWithoutCheckByEntity(entt::entity entity) const
         {
             const int typecode = (int)T::type;
             vke_ds::id32_t id = cpuLightData->entityToLight[typecode].find(entity)->second;
             return reinterpret_cast<const T *>(cpuLightData->cpuLightBuffers[typecode]->data)[id];
+        }
+
+        template <AllowedLightType T>
+        T &GetLightWithoutCheckByID(vke_ds::id32_t id)
+        {
+            const int typecode = (int)T::type;
+            return reinterpret_cast<T *>(cpuLightData->cpuLightBuffers[typecode]->data)[id];
+        }
+
+        template <AllowedLightType T>
+        const T &GetLightWithoutCheckByID(vke_ds::id32_t id) const
+        {
+            const int typecode = (int)T::type;
+            return reinterpret_cast<T *>(cpuLightData->cpuLightBuffers[typecode]->data)[id];
         }
 
         template <AllowedLightType T>
@@ -98,8 +114,14 @@ namespace vke_render
             auto it = lightMap.find(entity);
             if (it == lightMap.end())
                 return;
-
             vke_ds::id32_t id = it->second;
+
+            if constexpr (std::same_as<T, SpotLight>)
+            {
+                SpotLight &light = GetLightWithoutCheckByID<SpotLight>(id);
+                shadowManager->DeactivateSpotShadow(entity, light);
+            }
+
             uint32_t &cnt = cpuLightData->lightCnts[typecode];
             VKE_FATAL_IF(id >= cnt, "LIGHT NOT EXIST")
 
@@ -110,12 +132,12 @@ namespace vke_render
                 char *base = reinterpret_cast<char *>(cpuLightData->cpuLightBuffers[typecode]->data);
                 std::memcpy(base + id * size, base + last * size, size);
 
-                entt::entity swappedOwner = ownerMaps[typecode][last];
-                ownerMaps[typecode][id] = swappedOwner;
+                entt::entity swappedOwner = cpuLightData->ownerMaps[typecode][last];
+                cpuLightData->ownerMaps[typecode][id] = swappedOwner;
                 lightMap[swappedOwner] = id;
             }
 
-            ownerMaps[typecode].pop_back();
+            cpuLightData->ownerMaps[typecode].pop_back();
             --cnt;
             lightMap.erase(it);
             dirtyFlags[typecode] = true;
@@ -130,12 +152,14 @@ namespace vke_render
 
         ShadowManager *GetShadowManager() { return shadowManager.get(); }
         const ShadowManager *GetShadowManager() const { return shadowManager.get(); }
+        void UpdateSpotShadow(entt::entity entity);
+        uint32_t ActivateSpotShadow(entt::entity entity);
+        void DeactivateSpotShadow(entt::entity entity);
 
     private:
         bool dirtyFlags[(int)LightType::LIGHT_TYPE_CNT];
         uint32_t lightUpdateCnts[(int)LightType::LIGHT_TYPE_CNT];
         VkDescriptorSet *globalDescriptorSets;
-        std::vector<entt::entity> ownerMaps[(int)LightType::LIGHT_TYPE_CNT];
         std::shared_ptr<CPULightData> cpuLightData;
 
         std::unique_ptr<DeviceBuffer> lightBuffers[(int)LightType::LIGHT_TYPE_CNT][MAX_FRAMES_IN_FLIGHT];
@@ -144,7 +168,6 @@ namespace vke_render
         std::unique_ptr<ShadowManager> shadowManager;
 
         void init();
-        void update(uint32_t currentFrame, bool cameraUpdated);
         void cullLights(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex);
     };
 }

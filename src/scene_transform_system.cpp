@@ -199,24 +199,26 @@ namespace vke_common
 
         if (lightManager->HasLight<vke_render::DirectionalLight>(entity))
         {
-            auto &light = lightManager->GetLightWithoutCheck<vke_render::DirectionalLight>(entity);
+            auto &light = lightManager->GetLightWithoutCheckByEntity<vke_render::DirectionalLight>(entity);
             light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
             lightManager->MarkDirty<vke_render::DirectionalLight>();
         }
 
         if (lightManager->HasLight<vke_render::PointLight>(entity))
         {
-            auto &light = lightManager->GetLightWithoutCheck<vke_render::PointLight>(entity);
+            auto &light = lightManager->GetLightWithoutCheckByEntity<vke_render::PointLight>(entity);
             light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
             lightManager->MarkDirty<vke_render::PointLight>();
         }
 
         if (lightManager->HasLight<vke_render::SpotLight>(entity))
         {
-            auto &light = lightManager->GetLightWithoutCheck<vke_render::SpotLight>(entity);
+            auto &light = lightManager->GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
             light.positionWithRadius = glm::vec4(transform.GetGlobalPosition(), light.positionWithRadius.w);
             light.direction = glm::vec4(glm::normalize(TransformForward(transform)), 0.0f);
             lightManager->MarkDirty<vke_render::SpotLight>();
+            if (light.CastShadow())
+                lightManager->UpdateSpotShadow(entity);
         }
 
         for (auto &child : transform.children)

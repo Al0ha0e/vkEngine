@@ -3,12 +3,12 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #define SHADOW_MAP_PASS
-#define SHADOW_DIRECTIONAL_ONLY
 #include "shadow.glsl"
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
-    uint cascadeIndex;
+    uint shadowIndex;
+    uint shadowType;
 };
 
 layout(location = 0) in vec3 inPosition;
@@ -18,5 +18,8 @@ layout(location = 3) in vec2 inTexCoord;
 
 void main()
 {
-    gl_Position = DirectionalShadows.shadows[0].lightViewProj[cascadeIndex] * model * vec4(inPosition, 1.0);
+    mat4 lightViewProj = shadowType == 0
+        ? DirectionalShadows.shadows[0].lightViewProj[shadowIndex]
+        : SpotShadows.shadows[shadowIndex].lightViewProj;
+    gl_Position = lightViewProj * model * vec4(inPosition, 1.0);
 }

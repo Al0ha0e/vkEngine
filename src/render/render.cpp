@@ -105,7 +105,6 @@ namespace vke_render
         uint32_t imageIndex = context->AcquireNextImage(currentFrame);
 
         frameGraph->Sync(currentFrame);
-        frameGraph->PrepareForExecute(currentFrame);
 
         bool cameraUpdated = cameraInfoUpdateCnt > 0;
         if (cameraUpdated)
@@ -116,6 +115,8 @@ namespace vke_render
         }
 
         lightManager->Update(currentFrame, cameraUpdated);
+
+        frameGraph->PrepareForExecute(currentFrame);
 
         for (auto &kv : renderUpdateCallbacks)
             kv.second(currentFrame);

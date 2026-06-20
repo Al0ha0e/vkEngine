@@ -42,9 +42,17 @@ namespace vke_render
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                               VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
 
-        auto shadowMapNodeIt = blackboard.find("directionalShadowMap0OutNode");
-        if (shadowMapNodeIt != blackboard.end())
-            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, shadowMapNodeIt->second, 0,
+        auto shadowMapIt = blackboard.find("directionalShadowMap0");
+        if (shadowMapIt != blackboard.end())
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[shadowMapIt->second], 0,
+                                              VK_ACCESS_SHADER_READ_BIT,
+                                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                              VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        auto spotShadowMapIt = blackboard.find("spotShadowMap");
+        if (spotShadowMapIt != blackboard.end())
+            frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[spotShadowMapIt->second], 0,
                                               VK_ACCESS_SHADER_READ_BIT,
                                               VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                               VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,

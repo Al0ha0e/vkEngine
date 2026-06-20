@@ -124,7 +124,7 @@ namespace vke_common
         {
             auto &color = component["color"];
             float intensity = component["intensity"];
-            lighting.AddLight(
+            lighting.AppendLight(
                 entity,
                 vke_render::DirectionalLight(
                     glm::vec4(glm::normalize(TransformForward(transform)), 0.0f),
@@ -135,7 +135,7 @@ namespace vke_common
             auto &color = component["color"];
             float radius = component["radius"];
             float intensity = component["intensity"];
-            lighting.AddLight(
+            lighting.AppendLight(
                 entity,
                 vke_render::PointLight(
                     glm::vec4(transform.GetGlobalPosition(), radius),
@@ -148,13 +148,14 @@ namespace vke_common
             float intensity = component["intensity"];
             float innerCone = glm::radians(component["innerCone"].get<float>());
             float outerCone = glm::radians(component["outerCone"].get<float>());
-            lighting.AddLight(
+            bool castShadow = component.value("castShadow", component.value("shadowSlot", 0u) != 0u);
+            lighting.AppendLight(
                 entity,
                 vke_render::SpotLight(
                     glm::vec4(transform.GetGlobalPosition(), radius),
                     glm::vec4(glm::normalize(TransformForward(transform)), 0.0f),
                     glm::vec4(color[0], color[1], color[2], intensity),
-                    glm::vec4(glm::cos(innerCone), glm::cos(outerCone), 0.0f, 0.0f)));
+                    glm::vec4(glm::cos(innerCone), glm::cos(outerCone), castShadow ? 1.0f : 0.0f, 0.0f)));
         }
         else if (type == "script")
         {
@@ -220,13 +221,13 @@ namespace vke_common
             components.push_back(registry.get<vke_component::CharacterController>(entity).ToJSON());
 
         if (lightData.HasLight<vke_render::DirectionalLight>(entity))
-            components.push_back(lightData.GetLight<vke_render::DirectionalLight>(entity).ToJSON());
+            components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::DirectionalLight>(entity).ToJSON());
 
         if (lightData.HasLight<vke_render::PointLight>(entity))
-            components.push_back(lightData.GetLight<vke_render::PointLight>(entity).ToJSON());
+            components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::PointLight>(entity).ToJSON());
 
         if (lightData.HasLight<vke_render::SpotLight>(entity))
-            components.push_back(lightData.GetLight<vke_render::SpotLight>(entity).ToJSON());
+            components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).ToJSON());
 
         auto scriptIt = csharpScriptStates.find(entity);
         if (scriptIt != csharpScriptStates.end())

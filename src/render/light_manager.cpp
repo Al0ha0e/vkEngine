@@ -82,7 +82,6 @@ namespace vke_render
                                            std::map<std::string, vke_ds::id32_t> &blackboard,
                                            ResourceNodeIDMap &currentResourceNodeID)
     {
-
         VkBuffer pointLightBuffers[MAX_FRAMES_IN_FLIGHT];
         VkBuffer spotLightBuffers[MAX_FRAMES_IN_FLIGHT];
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -129,7 +128,7 @@ namespace vke_render
                                    glm::ivec3(CLUSTER_DIM_X / 8, CLUSTER_DIM_Y / 8, CLUSTER_DIM_Z));
     }
 
-    void LightManager::update(uint32_t currentFrame, bool cameraUpdated)
+    void LightManager::Update(uint32_t currentFrame, bool cameraUpdated)
     {
         bool directionalDirty = dirtyFlags[(int)LightType::DIRECTIONAL_LIGHT];
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
@@ -142,7 +141,7 @@ namespace vke_render
         }
 
         if (cameraUpdated || directionalDirty)
-            shadowManager->UpdateShadow();
+            shadowManager->UpdateDirectionalShadowInfo();
 
         bool directionalSync = lightUpdateCnts[(int)LightType::DIRECTIONAL_LIGHT] > 0;
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
@@ -154,9 +153,9 @@ namespace vke_render
                                               cpuLightData->cpuLightBuffers[i]->bufferSize);
             }
         }
-
         if (cameraUpdated || directionalSync)
-            shadowManager->SyncToGPU(currentFrame);
+            shadowManager->SyncDirectionalShadowToGPU(currentFrame);
+        shadowManager->SyncSpotShadowToGPU(currentFrame);
     }
 
     DirectionalLight *LightManager::GetSun()
@@ -172,16 +171,11 @@ namespace vke_render
         cpuLightData = lighting == nullptr ? std::make_shared<CPULightData>() : std::move(lighting);
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
         {
-            ownerMaps[i].clear();
-            ownerMaps[i].resize(cpuLightData->lightCnts[i], entt::null);
-            for (auto &[entity, id] : cpuLightData->entityToLight[i])
-                ownerMaps[i][id] = entity;
             lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
             dirtyFlags[i] = true;
         }
 
-        if (shadowManager != nullptr)
-            shadowManager->SetCPULightData(cpuLightData);
+        shadowManager->SetCPULightData(cpuLightData);
     }
 
     std::shared_ptr<CPULightData> LightManager::ToSceneLightData() const
@@ -196,10 +190,30 @@ namespace vke_render
         {
             lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
             dirtyFlags[i] = true;
-            ownerMaps[i].clear();
         }
 
-        if (shadowManager != nullptr)
-            shadowManager->SetCPULightData(cpuLightData);
+        shadowManager->SetCPULightData(cpuLightData);
+    }
+
+    void LightManager::UpdateSpotShadow(entt::entity entity)
+    {
+        SpotLight &light = GetLightWithoutCheckByEntity<SpotLight>(entity);
+        shadowManager->CalcSpotShadowVPMatrix(light);
+    }
+
+    uint32_t LightManager::ActivateSpotShadow(entt::entity entity)
+    {
+        SpotLight &light = GetLightWithoutCheckByEntity<SpotLight>(entity);
+        uint32_t slot = shadowManager->ActivateSpotShadow(entity, light);
+        if (slot != 0)
+            dirtyFlags[(int)LightType::SPOT_LIGHT] = true;
+        return slot;
+    }
+
+    void LightManager::DeactivateSpotShadow(entt::entity entity)
+    {
+        SpotLight &light = GetLightWithoutCheckByEntity<SpotLight>(entity);
+        shadowManager->DeactivateSpotShadow(entity, light);
+        dirtyFlags[(int)LightType::SPOT_LIGHT] = true;
     }
 }

@@ -5,8 +5,8 @@ namespace TestProj;
 
 public sealed class FlashlightFlickerScript : EntityScript
 {
-    public float BaseIntensity = 7.5f;
-    public float FlickerAmplitude = 3.5f;
+    public float BaseIntensity = 2.5f;
+    public float FlickerAmplitude = 1.5f;
     public float FlickerSpeed = 6.0f;
     public float DropoutChance = 0.08f;
     public float FollowSpeed = 8.0f;

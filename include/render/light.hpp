@@ -66,7 +66,7 @@ namespace vke_render
         glm::vec4 positionWithRadius; // w: radius
         glm::vec4 direction;          // xyz
         glm::vec4 colorWithIntensity; // w: intensity
-        glm::vec4 cone;               // x:inner, y: outer
+        glm::vec4 cone;               // x:inner, y: outer, z: shadow slot + 1 (0 disables shadow)
 
         SpotLight() : positionWithRadius(0), direction(1, 0, 0, 0), colorWithIntensity(0), cone(0) {}
         SpotLight(glm::vec4 positionWithRadius, glm::vec4 direction, glm::vec4 colorWithIntensity, glm::vec4 cone)
@@ -80,8 +80,13 @@ namespace vke_render
                 {"color", {colorWithIntensity.x, colorWithIntensity.y, colorWithIntensity.z}},
                 {"intensity", colorWithIntensity.w},
                 {"innerCone", glm::degrees(glm::acos(glm::clamp(cone.x, -1.0f, 1.0f)))},
-                {"outerCone", glm::degrees(glm::acos(glm::clamp(cone.y, -1.0f, 1.0f)))}};
+                {"outerCone", glm::degrees(glm::acos(glm::clamp(cone.y, -1.0f, 1.0f)))},
+                {"castShadow", CastShadow()}};
         }
+
+        bool CastShadow() const { return cone.z != 0.0f; }
+        int GetShadowSlot() { return (int)cone.z - 1; }
+        void SetShadowSlot(bool castShadow, int slot) { cone.z = castShadow ? slot + 1 : 0; }
     };
 
     template <typename T>
@@ -105,6 +110,7 @@ namespace vke_render
         std::unique_ptr<HostCoherentBuffer> cpuLightBuffers[(int)LightType::LIGHT_TYPE_CNT];
         uint32_t lightCnts[(int)LightType::LIGHT_TYPE_CNT];
         std::unordered_map<entt::entity, vke_ds::id32_t> entityToLight[(int)LightType::LIGHT_TYPE_CNT];
+        std::vector<entt::entity> ownerMaps[(int)LightType::LIGHT_TYPE_CNT];
 
         CPULightData()
         {
@@ -127,7 +133,15 @@ namespace vke_render
             {
                 lightCnts[i] = 0;
                 entityToLight[i].clear();
+                ownerMaps[i].clear();
             }
+        }
+
+        template <AllowedLightType T>
+        bool HasLight(entt::entity entity) const
+        {
+            const int typecode = (int)T::type;
+            return entityToLight[typecode].find(entity) != entityToLight[typecode].end();
         }
     };
 
@@ -161,12 +175,13 @@ namespace vke_render
         }
 
         template <AllowedLightType T>
-        void AddLight(entt::entity entity, const T &light)
+        void AppendLight(entt::entity entity, const T &light)
         {
             const int typecode = (int)T::type;
             uint32_t &cnt = cpuLightData->lightCnts[typecode];
             VKE_FATAL_IF(cnt >= MAX_LIGHT_CNTS[typecode], "NO MORE LIGHT OF TYPE {}", typecode)
             cpuLightData->entityToLight[typecode][entity] = static_cast<vke_ds::id32_t>(cnt);
+            cpuLightData->ownerMaps[typecode].push_back(entity);
             std::construct_at(GetLightBuffer<T>() + cnt, light);
             ++cnt;
         }
@@ -174,16 +189,14 @@ namespace vke_render
         template <AllowedLightType T>
         bool HasLight(entt::entity entity) const
         {
-            const int typecode = (int)T::type;
-            return cpuLightData->entityToLight[typecode].find(entity) != cpuLightData->entityToLight[typecode].end();
+            return cpuLightData->HasLight<T>(entity);
         }
 
         template <AllowedLightType T>
-        const T &GetLight(entt::entity entity) const
+        const T &GetLightWithoutCheckByEntity(entt::entity entity) const
         {
             const int typecode = (int)T::type;
             const vke_ds::id32_t id = cpuLightData->entityToLight[typecode].at(entity);
-            VKE_FATAL_IF(id >= cpuLightData->lightCnts[typecode], "LIGHT NOT EXIST")
             return GetLightBuffer<T>()[id];
         }
     };

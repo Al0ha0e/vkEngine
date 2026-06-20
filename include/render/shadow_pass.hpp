@@ -13,9 +13,7 @@ namespace vke_render
     public:
         ShadowPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, ShadowManager *shadowManager)
             : RenderPassBase(SHADOW_PASS, ctx, globalDescriptorSets), shadowManager(shadowManager),
-              shadowMapResourceID(0), shadowMapResourceNodeID(0), shadowTaskNodeID(0), unitAllocator(1)
-        {
-        }
+              shadowTaskNodeID(0), unitAllocator(1) {}
 
         ~ShadowPass() {}
 
@@ -36,8 +34,6 @@ namespace vke_render
         std::shared_ptr<Material> shadowSkinMaterial;
         std::map<Material *, std::unique_ptr<RenderInfo>> renderInfoMap;
         std::map<vke_ds::id64_t, Material *> unitMaterialMap;
-        vke_ds::id32_t shadowMapResourceID;
-        vke_ds::id32_t shadowMapResourceNodeID;
         vke_ds::id32_t shadowTaskNodeID;
         vke_ds::NaiveIDAllocator<vke_ds::id64_t> unitAllocator;
 

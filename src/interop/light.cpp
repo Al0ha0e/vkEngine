@@ -12,15 +12,23 @@ namespace vke_interop
     }
 
     template <vke_render::AllowedLightType T>
-    static T &GetLightWithoutCheck(uint32_t entity)
+    static T &GetLightWithoutCheckByEntity(uint32_t entity)
     {
-        return vke_render::Renderer::GetInstance()->lightManager->GetLightWithoutCheck<T>(ToEntity(entity));
+        return vke_render::Renderer::GetInstance()->lightManager->GetLightWithoutCheckByEntity<T>(ToEntity(entity));
     }
 
     template <vke_render::AllowedLightType T>
     static void MarkLightDirty()
     {
         vke_render::Renderer::GetInstance()->lightManager->MarkDirty<T>();
+    }
+
+    static void UpdateSpotLight(uint32_t entity, vke_render::SpotLight &light)
+    {
+        auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
+        lightManager->MarkDirty<vke_render::SpotLight>();
+        if (light.CastShadow())
+            lightManager->UpdateSpotShadow(ToEntity(entity));
     }
 
     static Vector3<float> ToInteropColor(const glm::vec4 &colorWithIntensity)
@@ -36,13 +44,13 @@ namespace vke_interop
     template <vke_render::AllowedLightType T>
     static void GetLightColor(uint32_t entity, Vector3<float> *color)
     {
-        *color = ToInteropColor(GetLightWithoutCheck<T>(entity).colorWithIntensity);
+        *color = ToInteropColor(GetLightWithoutCheckByEntity<T>(entity).colorWithIntensity);
     }
 
     template <vke_render::AllowedLightType T>
     static void SetLightColor(uint32_t entity, const Vector3<float> *color)
     {
-        auto &light = GetLightWithoutCheck<T>(entity);
+        auto &light = GetLightWithoutCheckByEntity<T>(entity);
         glm::vec3 rgb = ToGlm(*color);
         light.colorWithIntensity = glm::vec4(rgb, light.colorWithIntensity.w);
         MarkLightDirty<T>();
@@ -51,13 +59,13 @@ namespace vke_interop
     template <vke_render::AllowedLightType T>
     static float GetLightIntensity(uint32_t entity)
     {
-        return GetLightWithoutCheck<T>(entity).colorWithIntensity.w;
+        return GetLightWithoutCheckByEntity<T>(entity).colorWithIntensity.w;
     }
 
     template <vke_render::AllowedLightType T>
     static void SetLightIntensity(uint32_t entity, float intensity)
     {
-        GetLightWithoutCheck<T>(entity).colorWithIntensity.w = intensity;
+        GetLightWithoutCheckByEntity<T>(entity).colorWithIntensity.w = intensity;
         MarkLightDirty<T>();
     }
 
@@ -103,12 +111,12 @@ namespace vke_interop
 
     float VKE_INTEROP_CDECL GetPointLightRadius(uint32_t entity)
     {
-        return GetLightWithoutCheck<vke_render::PointLight>(entity).positionWithRadius.w;
+        return GetLightWithoutCheckByEntity<vke_render::PointLight>(entity).positionWithRadius.w;
     }
 
     void VKE_INTEROP_CDECL SetPointLightRadius(uint32_t entity, float radius)
     {
-        GetLightWithoutCheck<vke_render::PointLight>(entity).positionWithRadius.w = radius;
+        GetLightWithoutCheckByEntity<vke_render::PointLight>(entity).positionWithRadius.w = radius;
         MarkLightDirty<vke_render::PointLight>();
     }
 
@@ -134,36 +142,39 @@ namespace vke_interop
 
     float VKE_INTEROP_CDECL GetSpotLightRadius(uint32_t entity)
     {
-        return GetLightWithoutCheck<vke_render::SpotLight>(entity).positionWithRadius.w;
+        return GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).positionWithRadius.w;
     }
 
     void VKE_INTEROP_CDECL SetSpotLightRadius(uint32_t entity, float radius)
     {
-        GetLightWithoutCheck<vke_render::SpotLight>(entity).positionWithRadius.w = radius;
-        MarkLightDirty<vke_render::SpotLight>();
+        auto &light = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
+        light.positionWithRadius.w = radius;
+        UpdateSpotLight(entity, light);
     }
 
     float VKE_INTEROP_CDECL GetSpotLightInnerCone(uint32_t entity)
     {
-        const float cosValue = GetLightWithoutCheck<vke_render::SpotLight>(entity).cone.x;
+        const float cosValue = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).cone.x;
         return glm::acos(glm::clamp(cosValue, -1.0f, 1.0f));
     }
 
     void VKE_INTEROP_CDECL SetSpotLightInnerCone(uint32_t entity, float radians)
     {
-        GetLightWithoutCheck<vke_render::SpotLight>(entity).cone.x = glm::cos(radians);
-        MarkLightDirty<vke_render::SpotLight>();
+        auto &light = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
+        light.cone.x = glm::cos(radians);
+        UpdateSpotLight(entity, light);
     }
 
     float VKE_INTEROP_CDECL GetSpotLightOuterCone(uint32_t entity)
     {
-        const float cosValue = GetLightWithoutCheck<vke_render::SpotLight>(entity).cone.y;
+        const float cosValue = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).cone.y;
         return glm::acos(glm::clamp(cosValue, -1.0f, 1.0f));
     }
 
     void VKE_INTEROP_CDECL SetSpotLightOuterCone(uint32_t entity, float radians)
     {
-        GetLightWithoutCheck<vke_render::SpotLight>(entity).cone.y = glm::cos(radians);
-        MarkLightDirty<vke_render::SpotLight>();
+        auto &light = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
+        light.cone.y = glm::cos(radians);
+        UpdateSpotLight(entity, light);
     }
 }
