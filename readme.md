@@ -72,13 +72,15 @@ The build will produce `out/engine.exe`. The executable expects a single game co
   - [ ] transient resource schedule optimize
 - **Rendering**:
   - [x] cluster-based deferred rendering & PBR 
+  - [x] forward transparent rendering 
   - [x] directional/spot/point lights
   - [x] IBL
   - [x] SSAO
   - [x] post-processing: bloom, tone mapping
   - [x] directional light CSM with PCF
+  - [x] spot light shadows
   - [ ] UI rendering
-  - [ ] spot and point light shadows
+  - [ ] point light shadows
 - **Physics**:
   - [x] rigidbody
   - [x] collision detection

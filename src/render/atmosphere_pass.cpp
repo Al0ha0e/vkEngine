@@ -8,26 +8,8 @@ namespace vke_render
           skyboxManager(skyboxManager),
           hdrColorManager(hdrColorManager),
           gbuffer(GBuffer::GetInstance()),
-          sampler(VK_NULL_HANDLE),
-          outputResourceID(0),
           taskNodeID(0)
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-        {
-            images[i] = VK_NULL_HANDLE;
-            imageViews[i] = VK_NULL_HANDLE;
-        }
-        createImages();
-        createSampler();
-    }
-
-    AtmospherePass::~AtmospherePass()
-    {
-        cleanupImageViews();
-        cleanupImages();
-        if (sampler != VK_NULL_HANDLE)
-            vkDestroySampler(globalLogicalDevice, sampler, nullptr);
-    }
+    {}
 
     void AtmospherePass::Init(int subpassID,
                               FrameGraph &frameGraph,
@@ -46,9 +28,10 @@ namespace vke_render
                                              std::map<std::string, vke_ds::id32_t> &blackboard,
                                              ResourceNodeIDMap &currentResourceNodeID)
     {
-        const vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
-        outputResourceID = frameGraph.AddTransientImageResource("atmosphereHdrColor", images, VK_IMAGE_ASPECT_COLOR_BIT);
-        const vke_ds::id32_t outputNodeID = frameGraph.AllocResourceNode("atmosphereOutHDRColor", outputResourceID);
+        inputHDRColorImageIndex = hdrColorManager->GetLatestImageIndex();
+        outputHDRColorImageIndex = hdrColorManager->GetAlternateImageIndex();
+        const vke_ds::id32_t outputNodeID = frameGraph.AllocResourceNode(
+            "atmosphereOutHDRColor", hdrColorManager->GetResourceID(outputHDRColorImageIndex));
 
         taskNodeID = frameGraph.AllocTaskNode(
             "atmosphere",
@@ -59,7 +42,7 @@ namespace vke_render
         frameGraph.AddTransientReadyCallback(std::bind(&AtmospherePass::onTransientResourcesReady, this, std::placeholders::_1));
 
         frameGraph.AddTaskNodeResourceRef(
-            taskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
+            taskNodeID, hdrColorManager->GetResourceNodeID(inputHDRColorImageIndex), 0,
             VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
             VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -74,7 +57,7 @@ namespace vke_render
             VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[hdrColorResourceID] = outputNodeID;
+        hdrColorManager->UpdateResourceNode(outputHDRColorImageIndex, outputNodeID);
     }
 
     void AtmospherePass::createDescriptorSet()
@@ -124,7 +107,7 @@ namespace vke_render
     {
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachment.imageView = imageViews[currentFrame];
+        colorAttachment.imageView = hdrColorManager->GetImageView(outputHDRColorImageIndex, currentFrame);
         colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -158,7 +141,7 @@ namespace vke_render
     void AtmospherePass::updateDescriptorSet(uint32_t currentFrame)
     {
         VkDescriptorImageInfo imageInfos[2] = {
-            {hdrColorManager->sampler, hdrColorManager->GetImageView(currentFrame), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+            {hdrColorManager->sampler, hdrColorManager->GetImageView(inputHDRColorImageIndex, currentFrame), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
             {gbuffer->sampler, gbuffer->imageViews[3][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}};
         VkWriteDescriptorSet writes[2];
         ConstructDescriptorSetWrite(writes[0], descriptorSets[currentFrame], 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &imageInfos[0]);
@@ -168,71 +151,11 @@ namespace vke_render
 
     void AtmospherePass::onTransientResourcesReady(uint32_t currentFrame)
     {
-        createImageView(currentFrame);
         updateDescriptorSet(currentFrame);
     }
 
     void AtmospherePass::OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx)
     {
         context = ctx;
-        cleanupImageViews();
-        cleanupImages();
-        createImages();
-        ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[outputResourceID].get());
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            resource->images[i] = images[i];
-    }
-
-    void AtmospherePass::createImages()
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            RenderEnvironment::CreateImageWithoutMemory(
-                context->width, context->height, HDRColorManager::HDR_COLOR_FORMAT,
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-                1, &images[i]);
-    }
-
-    void AtmospherePass::cleanupImages()
-    {
-        for (VkImage &image : images)
-            if (image != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(globalLogicalDevice, image, nullptr);
-                image = VK_NULL_HANDLE;
-            }
-    }
-
-    void AtmospherePass::createImageView(uint32_t currentFrame)
-    {
-        if (imageViews[currentFrame] != VK_NULL_HANDLE)
-            vkDestroyImageView(globalLogicalDevice, imageViews[currentFrame], nullptr);
-        imageViews[currentFrame] = RenderEnvironment::CreateImageView(
-            images[currentFrame], HDRColorManager::HDR_COLOR_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
-
-    void AtmospherePass::cleanupImageViews()
-    {
-        for (VkImageView &imageView : imageViews)
-            if (imageView != VK_NULL_HANDLE)
-            {
-                vkDestroyImageView(globalLogicalDevice, imageView, nullptr);
-                imageView = VK_NULL_HANDLE;
-            }
-    }
-
-    void AtmospherePass::createSampler()
-    {
-        VkSamplerCreateInfo samplerInfo{};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerInfo.maxAnisotropy = 1.0f;
-        VKE_VK_CHECK(vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &sampler),
-                     "failed to create atmosphere sampler!")
     }
 }

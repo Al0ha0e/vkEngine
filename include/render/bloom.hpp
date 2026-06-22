@@ -16,22 +16,9 @@ namespace vke_render
         BloomPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, HDRColorManager *hdrColorManager, const nlohmann::json &configJSON)
             : RenderPassBase(BLOOM_PASS, ctx, globalDescriptorSets),
               hdrColorManager(hdrColorManager),
-              inputSampler(hdrColorManager->sampler),
-              inputImageViewGetter([hdrColorManager](uint32_t currentFrame)
-                                   { return hdrColorManager->GetImageView(currentFrame); }),
-              sampler(VK_NULL_HANDLE),
-              bloomHdrColorResourceID(0),
               constants(configJSON)
-        {
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            {
-                images[i] = VK_NULL_HANDLE;
-                imageViews[i] = VK_NULL_HANDLE;
-            }
-            createImages();
-            createSampler();
-        }
-        ~BloomPass() override;
+        {}
+        ~BloomPass() override = default;
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -46,38 +33,16 @@ namespace vke_render
         }
 
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
-        void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override
-        {
-            context = ctx;
-            cleanupImageViews();
-            cleanupImages();
-            createImages();
-
-            ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[bloomHdrColorResourceID].get());
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                resource->images[i] = images[i];
-        }
-
-        VkSampler GetOutputSampler() const { return sampler; }
-        VkImageView GetOutputImageView(uint32_t currentFrame) const { return imageViews[currentFrame]; }
-        void SetInput(VkSampler inputSampler, std::function<VkImageView(uint32_t)> imageViewGetter)
-        {
-            this->inputSampler = inputSampler;
-            inputImageViewGetter = std::move(imageViewGetter);
-        }
+        void OnWindowResize(FrameGraph &, RenderContext *ctx) override { context = ctx; }
 
     private:
         VkDescriptorSet bloomDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> bloomShader;
         HDRColorManager *hdrColorManager;
-        VkSampler inputSampler;
-        std::function<VkImageView(uint32_t)> inputImageViewGetter;
-        VkSampler sampler;
-        VkImage images[MAX_FRAMES_IN_FLIGHT];
-        VkImageView imageViews[MAX_FRAMES_IN_FLIGHT];
-        vke_ds::id32_t bloomHdrColorResourceID;
         vke_ds::id32_t bloomTaskNodeID;
+        uint32_t inputHDRColorImageIndex;
+        uint32_t outputHDRColorImageIndex;
         BloomConfig constants;
 
         void constructFrameGraph(FrameGraph &frameGraph,
@@ -86,11 +51,6 @@ namespace vke_render
         void allocateDescriptorSet();
         void createGraphicsPipeline();
         void onTransientResourcesReady(uint32_t currentFrame);
-        void createImages();
-        void cleanupImages();
-        void createImageView(uint32_t currentFrame);
-        void cleanupImageViews();
-        void createSampler();
     };
 }
 

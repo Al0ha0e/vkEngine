@@ -7,6 +7,7 @@
 #include <render/ssao.hpp>
 #include <render/deferred_lighting.hpp>
 #include <render/atmosphere_pass.hpp>
+#include <render/transparent_pass.hpp>
 #include <render/bloom.hpp>
 #include <render/tone_mapping.hpp>
 #include <render/skybox_render.hpp>
@@ -154,18 +155,22 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(atmospherePass));
                     break;
                 }
+                case TRANSPARENT_PASS:
+                {
+                    auto transparentPass = std::make_unique<TransparentPass>(
+                        ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_LIGHT],
+                        instance->lightManager.get(), instance->skyboxManager.get(),
+                        instance->lightManager->GetShadowManager(), instance->hdrColorManager.get(),
+                        &instance->hostCameraInfo);
+                    transparentPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
+                    instance->subPassMap[TRANSPARENT_PASS] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(transparentPass));
+                    break;
+                }
                 case BLOOM_PASS:
                 {
                     const nlohmann::json &bloomConfigJSON = renderConfig.sourceJSON.value("bloom", nlohmann::json::object());
                     std::unique_ptr<BloomPass> bloomPass = std::make_unique<BloomPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->hdrColorManager.get(), bloomConfigJSON);
-                    auto atmospherePassIt = instance->subPassMap.find(ATMOSPHERE_PASS);
-                    if (atmospherePassIt != instance->subPassMap.end())
-                    {
-                        AtmospherePass *atmospherePass = static_cast<AtmospherePass *>(instance->subPasses[atmospherePassIt->second].get());
-                        bloomPass->SetInput(atmospherePass->GetOutputSampler(),
-                                            [atmospherePass](uint32_t currentFrame)
-                                            { return atmospherePass->GetOutputImageView(currentFrame); });
-                    }
                     bloomPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[BLOOM_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(bloomPass));
@@ -175,25 +180,6 @@ namespace vke_render
                 {
                     const nlohmann::json &toneMappingConfigJSON = renderConfig.sourceJSON.value("toneMapping", nlohmann::json::object());
                     std::unique_ptr<ToneMappingPass> toneMappingPass = std::make_unique<ToneMappingPass>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT], instance->hdrColorManager.get(), toneMappingConfigJSON);
-                    auto bloomPassIt = instance->subPassMap.find(BLOOM_PASS);
-                    if (bloomPassIt != instance->subPassMap.end())
-                    {
-                        BloomPass *bloomPass = static_cast<BloomPass *>(instance->subPasses[bloomPassIt->second].get());
-                        toneMappingPass->SetInput(bloomPass->GetOutputSampler(),
-                                                  [bloomPass](uint32_t currentFrame)
-                                                  { return bloomPass->GetOutputImageView(currentFrame); });
-                    }
-                    else
-                    {
-                        auto atmospherePassIt = instance->subPassMap.find(ATMOSPHERE_PASS);
-                        if (atmospherePassIt != instance->subPassMap.end())
-                        {
-                            AtmospherePass *atmospherePass = static_cast<AtmospherePass *>(instance->subPasses[atmospherePassIt->second].get());
-                            toneMappingPass->SetInput(atmospherePass->GetOutputSampler(),
-                                                      [atmospherePass](uint32_t currentFrame)
-                                                      { return atmospherePass->GetOutputImageView(currentFrame); });
-                        }
-                    }
                     toneMappingPass->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[TONE_MAPPING_PASS] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(toneMappingPass));
@@ -292,6 +278,14 @@ namespace vke_render
             if (it == instance->subPassMap.end())
                 return nullptr;
             return static_cast<ShadowPass *>(instance->subPasses[it->second].get());
+        }
+
+        static TransparentPass *GetTransparentPass()
+        {
+            auto it = instance->subPassMap.find(TRANSPARENT_PASS);
+            if (it == instance->subPassMap.end())
+                return nullptr;
+            return static_cast<TransparentPass *>(instance->subPasses[it->second].get());
         }
 
         static void OnWindowResize(void *listener, RenderContext *ctx)

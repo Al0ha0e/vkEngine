@@ -42,6 +42,7 @@ namespace
     constexpr uint32_t SHADER_METALLIC_ROUGHNESS_TEXTURE = 1u << 1;
     constexpr uint32_t SHADER_NORMAL_TEXTURE = 1u << 2;
     constexpr uint32_t SHADER_OCCLUSION_TEXTURE = 1u << 3;
+    constexpr uint32_t SHADER_TRANSPARENT = 1u << 4;
 
     struct AssetIds
     {
@@ -480,6 +481,7 @@ layout(push_constant) uniform PushConstants {
     layout(offset = 64) vec4 baseColorFactor;
     layout(offset = 80) vec4 materialFactors;
     layout(offset = 96) vec4 emissiveAlpha;
+    layout(offset = 112) uvec4 forwardInfo;
 } constants;
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
@@ -524,10 +526,12 @@ void main() {
         name += (mask & SHADER_METALLIC_ROUGHNESS_TEXTURE) != 0 ? "_mr_tex" : "_mr_const";
         name += (mask & SHADER_NORMAL_TEXTURE) != 0 ? "_normal_tex" : "_normal_vertex";
         name += (mask & SHADER_OCCLUSION_TEXTURE) != 0 ? "_occlusion_tex" : "_occlusion_const";
+        if ((mask & SHADER_TRANSPARENT) != 0)
+            name += "_forward_blend";
         return name;
     }
 
-    std::string FragmentShaderSource(uint32_t featureMask)
+    std::string FragmentShaderSource(uint32_t featureMask, bool transparent)
     {
         const bool baseTexture = (featureMask & SHADER_BASE_COLOR_TEXTURE) != 0;
         const bool mrTexture = (featureMask & SHADER_METALLIC_ROUGHNESS_TEXTURE) != 0;
@@ -539,7 +543,24 @@ void main() {
         const int normalBinding = normalTexture ? binding++ : -1;
         const int occlusionBinding = occlusionTexture ? binding++ : -1;
 
-        std::string source = R"(#version 450
+        std::string source = transparent ? R"(#version 450
+#extension GL_GOOGLE_include_directive : enable
+#include "camera.glsl"
+#include "light.glsl"
+#include "shadow.glsl"
+#include "forward_pbr.glsl"
+layout(push_constant) uniform PushConstants {
+    layout(offset = 0) mat4 model;
+    layout(offset = 64) vec4 baseColorFactor;
+    layout(offset = 80) vec4 materialFactors;
+    layout(offset = 96) vec4 emissiveAlpha;
+    layout(offset = 112) uvec4 forwardInfo;
+} constants;
+layout(location = 0) in vec3 vViewPos;
+layout(location = 1) in vec2 vTexCoord;
+layout(location = 2) in mat3 vTBN;
+layout(location = 0) out vec4 outColor;
+)" : R"(#version 450
 layout(push_constant) uniform PushConstants {
     layout(offset = 0) mat4 model;
     layout(offset = 64) vec4 baseColorFactor;
@@ -570,7 +591,8 @@ layout(location = 3) out float outLinearDepth;
         source += "    vec4 baseColor = constants.baseColorFactor;\n";
         if (baseTexture)
             source += "    baseColor *= texture(baseColorTexture, vTexCoord);\n";
-        source += "    if (baseColor.a < constants.emissiveAlpha.w) discard;\n";
+        if (!transparent)
+            source += "    if (baseColor.a < constants.emissiveAlpha.w) discard;\n";
         source += "    float metallic = constants.materialFactors.x;\n";
         source += "    float roughness = constants.materialFactors.y;\n";
         if (mrTexture)
@@ -589,7 +611,20 @@ layout(location = 3) out float outLinearDepth;
             source += "    sampledNormal.xy *= constants.materialFactors.z;\n";
             source += "    normal = normalize(vTBN * sampledNormal);\n";
         }
-        source += R"(    outBaseColor = vec4(baseColor.rgb, occlusion);
+        if (transparent)
+            source += R"(    metallic = clamp(metallic, 0.0, 1.0);
+    roughness = clamp(roughness, 0.04, 1.0);
+    vec3 color = EvaluateForwardPBR(baseColor.rgb, metallic, roughness, occlusion,
+                                    normal, vViewPos, constants.forwardInfo.x,
+                                    constants.forwardInfo.yz);
+    color += constants.emissiveAlpha.rgb;
+    if (constants.forwardInfo.w == 1u)
+        color *= baseColor.a;
+    outColor = vec4(color, baseColor.a);
+}
+)";
+        else
+            source += R"(    outBaseColor = vec4(baseColor.rgb, occlusion);
     outNormal = vec4(normal * 0.5 + 0.5, 0.0);
     outMetalRough = vec4(clamp(metallic, 0.0, 1.0), clamp(roughness, 0.04, 1.0), 0.0, 0.0);
     outLinearDepth = -vViewPos.z;
@@ -601,7 +636,7 @@ layout(location = 3) out float outLinearDepth;
     bool CompileShader(const fs::path &source, const fs::path &output)
     {
         VKE_LOG_INFO("Compiling shader {}", source.filename().string())
-        const std::string command = "glslc --target-env=vulkan1.4 \"" +
+        const std::string command = "glslc --target-env=vulkan1.4 -I \"builtin_assets/shader\" \"" +
                                     source.string() + "\" -o \"" + output.string() + "\"";
         if (std::system(command.c_str()) != 0)
         {
@@ -795,7 +830,9 @@ bool Converter::ExportShader(int materialIndex, uint64_t &out)
     const tinygltf::Material defaultMaterial;
     const tinygltf::Material &material =
         materialIndex >= 0 ? model.materials[materialIndex] : defaultMaterial;
-    const uint32_t featureMask = ShaderFeatureMask(material);
+    const bool transparent = material.alphaMode == "BLEND";
+    const uint32_t featureMask = ShaderFeatureMask(material) |
+                                 (transparent ? SHADER_TRANSPARENT : 0u);
     auto existing = shaderAssets.find(featureMask);
     if (existing != shaderAssets.end())
     {
@@ -818,7 +855,7 @@ bool Converter::ExportShader(int materialIndex, uint64_t &out)
         commonVertexShaderGenerated = true;
     }
 
-    if (!WriteText(fragPath, FragmentShaderSource(featureMask)) ||
+    if (!WriteText(fragPath, FragmentShaderSource(featureMask, transparent)) ||
         !CompileShader(fragPath, fragSpvPath))
         return false;
 
@@ -881,6 +918,8 @@ bool Converter::ExportMaterial(int materialIndex, uint64_t &out)
     for (size_t i = 0; i < std::min<size_t>(3, material.emissiveFactor.size()); ++i)
         emissive[i] = material.emissiveFactor[i];
     const double alphaCutoff = material.alphaMode == "MASK" ? material.alphaCutoff : 0.0;
+    const std::string renderMode = material.alphaMode == "MASK" ? "cutoff" :
+                                   material.alphaMode == "BLEND" ? "blend" : "opaque";
 
     out = ids.material++;
     const std::string materialName =
@@ -895,6 +934,8 @@ bool Converter::ExportMaterial(int materialIndex, uint64_t &out)
         {"name", materialName},
         {"path", ""},
         {"shader", shader},
+        {"renderMode", renderMode},
+        {"blendMode", "alpha"},
         {"textures", textures},
         {"bindingInfos", bindings},
         {"pushConstantInfos",

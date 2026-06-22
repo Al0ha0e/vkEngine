@@ -6,7 +6,7 @@ namespace vke_render
                                               std::map<std::string, vke_ds::id32_t> &blackboard,
                                               ResourceNodeIDMap &currentResourceNodeID)
     {
-        vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
+        inputHDRColorImageIndex = hdrColorManager->GetLatestImageIndex();
         vke_ds::id32_t colorAttachmentResourceID = blackboard["colorAttachment"];
         vke_ds::id32_t toneMappingOutColorResourceNodeID = frameGraph.AllocResourceNode("toneMappingOutColor", colorAttachmentResourceID);
 
@@ -15,7 +15,7 @@ namespace vke_render
                                                                    std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
         frameGraph.AddTransientReadyCallback(std::bind(&ToneMappingPass::onTransientResourcesReady, this, std::placeholders::_1));
 
-        frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
+        frameGraph.AddTaskNodeResourceRef(toneMappingTaskNodeID, hdrColorManager->GetResourceNodeID(inputHDRColorImageIndex), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -112,8 +112,8 @@ namespace vke_render
     void ToneMappingPass::onTransientResourcesReady(uint32_t currentFrame)
     {
         VkDescriptorImageInfo hdrColorImageInfo = {
-            inputSampler,
-            inputImageViewGetter(currentFrame),
+            hdrColorManager->sampler,
+            hdrColorManager->GetImageView(inputHDRColorImageIndex, currentFrame),
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
         VkWriteDescriptorSet descriptorWrite{};

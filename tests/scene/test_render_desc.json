@@ -61,5 +61,28 @@
       { "name": "metallic", "offset": 80, "component_cnt": 1, "component_type": "float", "data": [0.0] },
       { "name": "roughness", "offset": 84, "component_cnt": 1, "component_type": "float", "data": [0.58] }
     ]
+  },
+  {
+    "type": 2,
+    "id": 1025,
+    "name": "TransparentPBRConstantShader",
+    "path": "./tests/shader/transparent_pbr_constant_vert.spv",
+    "fragPath": "./tests/shader/transparent_pbr_constant_frag.spv"
+  },
+  {
+    "type": 4,
+    "id": 1028,
+    "name": "CyanTransparentPBRMaterial",
+    "path": "",
+    "shader": 1025,
+    "renderMode": "blend",
+    "blendMode": "alpha",
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      { "name": "baseColorFactor", "offset": 64, "component_cnt": 4, "component_type": "float", "data": [0.04, 0.55, 0.8, 0.42] },
+      { "name": "materialFactors", "offset": 80, "component_cnt": 4, "component_type": "float", "data": [0.05, 0.18, 1.0, 1.0] },
+      { "name": "emissiveAlpha", "offset": 96, "component_cnt": 4, "component_type": "float", "data": [0.0, 0.0, 0.0, 0.0] }
+    ]
   }
 ]

@@ -165,6 +165,8 @@ namespace vke_common
         vke_render::Material *mat = new vke_render::Material(asset.id);
 
         mat->shader = AssetManager::LoadVertFragShader(asset.shader);
+        mat->renderMode = asset.renderMode;
+        mat->blendMode = asset.blendMode;
         int bindingID = 0;
         for (auto tex : asset.textures)
             mat->textures.push_back(AssetManager::LoadTexture2D(tex));

@@ -1,4 +1,5 @@
 #include <render/shader.hpp>
+#include <algorithm>
 
 namespace vke_render
 {
@@ -9,13 +10,9 @@ namespace vke_render
         {
             SpvReflectDescriptorSet &ds = reflectInfo.descriptor_sets[i];
             uint32_t setID = ds.set;
-
-            auto it = bindingInfoMap.find(setID);
-            if (it != bindingInfoMap.end())
-                continue;
-
-            DescriptorSetInfo descriptorSetInfo;
-            std::vector<VkDescriptorSetLayoutBinding> bindings;
+            auto infoIt = descriptorSetInfoMap.try_emplace(setID).first;
+            DescriptorSetInfo &descriptorSetInfo = infoIt->second;
+            std::vector<VkDescriptorSetLayoutBinding> &bindings = bindingInfoMap[setID];
             int bindingCnt = ds.binding_count;
             for (int j = 0; j < bindingCnt; j++)
             {
@@ -33,16 +30,27 @@ namespace vke_render
                 if (desCnt == 0) // bindless
                 {
                     binding.descriptorCount = DEFAULT_BINDLESS_CNT;
-                    descriptorSetInfo.variableDescriptorCnt = DEFAULT_BINDLESS_CNT;
-                    descriptorSetInfo.AddCnt(binding.descriptorType, binding.descriptorCount);
+                    descriptorSetInfo.variableDescriptorCnt = std::max(
+                        descriptorSetInfo.variableDescriptorCnt, DEFAULT_BINDLESS_CNT);
                 }
-                else
-                    descriptorSetInfo.AddCnt(binding.descriptorType, binding.descriptorCount);
+
+                auto existing = std::find_if(
+                    bindings.begin(), bindings.end(),
+                    [&binding](const VkDescriptorSetLayoutBinding &candidate)
+                    { return candidate.binding == binding.binding; });
+                if (existing != bindings.end())
+                {
+                    VKE_FATAL_IF(existing->descriptorType != binding.descriptorType ||
+                                     existing->descriptorCount != binding.descriptorCount,
+                                 "Descriptor set {} binding {} differs between shader stages",
+                                 setID, binding.binding)
+                    existing->stageFlags |= binding.stageFlags;
+                    continue;
+                }
+
+                descriptorSetInfo.AddCnt(binding.descriptorType, binding.descriptorCount);
                 bindings.push_back(binding);
             }
-
-            descriptorSetInfoMap[setID] = std::move(descriptorSetInfo);
-            bindingInfoMap[setID] = std::move(bindings);
         }
     }
 
@@ -67,10 +75,14 @@ namespace vke_render
 
     void ShaderModuleSet::constructDescriptorSetLayout()
     {
-        for (auto &it : descriptorSetInfoMap)
+        if (descriptorSetInfoMap.empty())
+            return;
+
+        const uint32_t maxSet = descriptorSetInfoMap.rbegin()->first;
+        for (uint32_t setID = 0; setID <= maxSet; ++setID)
         {
-            DescriptorSetInfo &descriptorSetInfo = it.second;
-            std::vector<VkDescriptorSetLayoutBinding> &bindings = bindingInfoMap[it.first];
+            DescriptorSetInfo &descriptorSetInfo = descriptorSetInfoMap.try_emplace(setID).first->second;
+            std::vector<VkDescriptorSetLayoutBinding> &bindings = bindingInfoMap[setID];
 
             VkDescriptorSetLayoutCreateInfo layoutInfo{};
             layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;

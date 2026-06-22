@@ -233,12 +233,34 @@ namespace vke_common
         std::shared_ptr<std::vector<vke_render::TextureBindingInfo>> textureBindingInfos;
         std::shared_ptr<std::vector<vke_render::PushConstantInfo>> pushConstantInfos;
         std::shared_ptr<std::vector<std::unique_ptr<uint32_t[]>>> pushConstantData;
+        vke_render::MaterialRenderMode renderMode;
+        vke_render::MaterialBlendMode blendMode;
 
-        MaterialAsset() {}
+        MaterialAsset()
+            : renderMode(vke_render::MaterialRenderMode::OPAQUE_MODE),
+              blendMode(vke_render::MaterialBlendMode::ALPHA) {}
 
         MaterialAsset(AssetHandle id, const nlohmann::json &json)
-            : shader(json["shader"]), Asset(id, json)
+            : shader(json["shader"]), Asset(id, json),
+              renderMode(vke_render::MaterialRenderMode::OPAQUE_MODE),
+              blendMode(vke_render::MaterialBlendMode::ALPHA)
         {
+            const std::string renderModeName = json.value("renderMode", "opaque");
+            if (renderModeName == "cutoff")
+                renderMode = vke_render::MaterialRenderMode::CUTOFF_MODE;
+            else if (renderModeName == "blend")
+                renderMode = vke_render::MaterialRenderMode::BLEND_MODE;
+            else if (renderModeName != "opaque")
+                throw std::invalid_argument("material renderMode must be opaque, cutoff or blend");
+
+            const std::string blendModeName = json.value("blendMode", "alpha");
+            if (blendModeName == "premultipliedAlpha")
+                blendMode = vke_render::MaterialBlendMode::PREMULTIPLIED_ALPHA;
+            else if (blendModeName == "additive")
+                blendMode = vke_render::MaterialBlendMode::ADDITIVE;
+            else if (blendModeName != "alpha")
+                throw std::invalid_argument("material blendMode must be alpha, premultipliedAlpha or additive");
+
             auto &texs = json["textures"];
             for (auto &tex : texs)
                 textures.push_back(tex);
@@ -291,7 +313,10 @@ namespace vke_common
             }
         }
 
-        DEFAULT_CONSTRUCTOR2(MaterialAsset)
+        MaterialAsset(AssetHandle id, const std::string &nm, const std::string &pth)
+            : Asset(id, nm, pth), shader(0),
+              renderMode(vke_render::MaterialRenderMode::OPAQUE_MODE),
+              blendMode(vke_render::MaterialBlendMode::ALPHA) {}
 
         std::string toJSON()
         {
@@ -339,6 +364,12 @@ namespace vke_common
             }
 
             std::string ret = ", \"shader\": " + std::to_string(shader);
+            const char *renderModeName = renderMode == vke_render::MaterialRenderMode::CUTOFF_MODE ? "cutoff" :
+                                         renderMode == vke_render::MaterialRenderMode::BLEND_MODE ? "blend" : "opaque";
+            const char *blendModeName = blendMode == vke_render::MaterialBlendMode::PREMULTIPLIED_ALPHA ? "premultipliedAlpha" :
+                                        blendMode == vke_render::MaterialBlendMode::ADDITIVE ? "additive" : "alpha";
+            ret += ", \"renderMode\": \"" + std::string(renderModeName) + "\"";
+            ret += ", \"blendMode\": \"" + std::string(blendModeName) + "\"";
             ret += ", \"textures\": " + texturesJSON.dump();
             ret += ", \"bindingInfos\": " + bindingInfosJSON.dump();
             ret += ", \"pushConstantInfos\": " + pushConstantInfosJSON.dump();

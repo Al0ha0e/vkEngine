@@ -142,6 +142,7 @@ commonsrc = (
         "./src/render/ssao.cpp",
         "./src/render/deferred_lighting.cpp",
         "./src/render/atmosphere_pass.cpp",
+        "./src/render/transparent_pass.cpp",
         "./src/render/bloom.cpp",
         "./src/render/tone_mapping.cpp",
         "./src/render/shader.cpp",
@@ -298,7 +299,9 @@ sprefix = "./tests/shader/"
 shaders = [
     ["material_constant.vert", "material_constant_vert.spv"],
     ["material_constant.frag", "material_constant_frag.spv"],
+    ["transparent_pbr_constant.vert", "transparent_pbr_constant_vert.spv"],
+    ["transparent_pbr_constant.frag", "transparent_pbr_constant_frag.spv"],
 ]
 for s in shaders:
-    print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
-    os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
+    print(glslc + f" {sprefix+s[0]} -I {sprefix} -I ./builtin_assets/shader/ -o {sprefix+s[1]}")
+    os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -I ./builtin_assets/shader/ -o {sprefix+s[1]}")

@@ -45,8 +45,11 @@ namespace vke_component
         void LoadToEngine()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get());
-            if (castsShadow)
+            if (material->renderMode == vke_render::MaterialRenderMode::BLEND_MODE)
+                renderID = renderer->GetTransparentPass()->AddUnit(material, renderUnit.get());
+            else
+                renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get());
+            if (castsShadow && material->renderMode != vke_render::MaterialRenderMode::BLEND_MODE)
             {
                 vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
                 if (shadowPass != nullptr)
@@ -57,8 +60,11 @@ namespace vke_component
         void UnloadFromEngine()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
-            if (castsShadow && shadowRenderID != 0)
+            if (material->renderMode == vke_render::MaterialRenderMode::BLEND_MODE)
+                renderer->GetTransparentPass()->RemoveUnit(renderID);
+            else
+                renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
+            if (castsShadow && material->renderMode != vke_render::MaterialRenderMode::BLEND_MODE && shadowRenderID != 0)
             {
                 vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
                 if (shadowPass != nullptr)

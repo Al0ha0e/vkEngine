@@ -9,14 +9,15 @@ namespace vke_render
     {
         vke_ds::id32_t lutResourceID = blackboard.at("skyLUT");
         vke_ds::id32_t lutOutResourceNodeID = currentResourceNodeID.at(lutResourceID);
-        vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
+        hdrColorImageIndex = hdrColorManager->GetLatestImageIndex();
+        vke_ds::id32_t hdrColorResourceID = hdrColorManager->GetResourceID(hdrColorImageIndex);
         vke_ds::id32_t depthAttachmentResourceID = blackboard["depthAttachment"];
 
         vke_ds::id32_t skyOutColorResourceNodeID = frameGraph.AllocResourceNode("skyOutHDRColor", hdrColorResourceID);
         vke_ds::id32_t skyTaskNodeID = frameGraph.AllocTaskNode("skybox render", RENDER_TASK,
                                                                 std::bind(&SkyboxRenderer::Render, this,
                                                                           std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, currentResourceNodeID[hdrColorResourceID], skyOutColorResourceNodeID,
+        frameGraph.AddTaskNodeResourceRef(skyTaskNodeID, hdrColorManager->GetResourceNodeID(hdrColorImageIndex), skyOutColorResourceNodeID,
                                           VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
@@ -32,7 +33,7 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        currentResourceNodeID[hdrColorResourceID] = skyOutColorResourceNodeID;
+        hdrColorManager->UpdateResourceNode(hdrColorImageIndex, skyOutColorResourceNodeID);
     }
 
     void SkyboxRenderer::createGraphicsPipeline()
@@ -161,7 +162,7 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = hdrColorManager->GetImageView(currentFrame);
+        colorAttachmentInfo.imageView = hdrColorManager->GetImageView(hdrColorImageIndex, currentFrame);
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

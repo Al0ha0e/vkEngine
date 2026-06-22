@@ -14,11 +14,7 @@ namespace vke_render
     {
     public:
         ToneMappingPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, HDRColorManager *hdrColorManager, const nlohmann::json &configJSON)
-            : RenderPassBase(TONE_MAPPING_PASS, ctx, globalDescriptorSets), hdrColorManager(hdrColorManager),
-              inputSampler(hdrColorManager->sampler),
-              inputImageViewGetter([hdrColorManager](uint32_t currentFrame)
-                                   { return hdrColorManager->GetImageView(currentFrame); }),
-              constants(configJSON) {}
+            : RenderPassBase(TONE_MAPPING_PASS, ctx, globalDescriptorSets), hdrColorManager(hdrColorManager), constants(configJSON) {}
 
         void Init(int subpassID,
                   FrameGraph &frameGraph,
@@ -34,20 +30,13 @@ namespace vke_render
 
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override {}
-        void SetInput(VkSampler sampler, std::function<VkImageView(uint32_t)> imageViewGetter)
-        {
-            inputSampler = sampler;
-            inputImageViewGetter = std::move(imageViewGetter);
-        }
-
     private:
         VkDescriptorSet toneMappingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         std::shared_ptr<ShaderModuleSet> toneMappingShader;
         HDRColorManager *hdrColorManager;
-        VkSampler inputSampler;
-        std::function<VkImageView(uint32_t)> inputImageViewGetter;
         vke_ds::id32_t toneMappingTaskNodeID;
+        uint32_t inputHDRColorImageIndex;
         ToneMappingConfig constants;
 
         void constructFrameGraph(FrameGraph &frameGraph,

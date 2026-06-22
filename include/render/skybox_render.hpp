@@ -35,6 +35,7 @@ namespace vke_render
         std::shared_ptr<Material> skyboxMaterial;
         SkyboxManager *skyboxManager;
         HDRColorManager *hdrColorManager;
+        uint32_t hdrColorImageIndex;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,

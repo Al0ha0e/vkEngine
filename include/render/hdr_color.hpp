@@ -12,12 +12,17 @@ namespace vke_render
         VkSampler sampler;
 
         HDRColorManager(RenderContext *ctx)
-            : context(ctx), sampler(VK_NULL_HANDLE), resourceID(0)
+            : context(ctx), sampler(VK_NULL_HANDLE), latestImageIndex(0)
         {
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
             {
-                images[i] = VK_NULL_HANDLE;
-                imageViews[i] = VK_NULL_HANDLE;
+                resourceIDs[imageIndex] = 0;
+                resourceNodeIDs[imageIndex] = 0;
+                for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+                {
+                    images[imageIndex][frame] = VK_NULL_HANDLE;
+                    imageViews[imageIndex][frame] = VK_NULL_HANDLE;
+                }
             }
             createImages();
             createSampler();
@@ -38,8 +43,15 @@ namespace vke_render
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  ResourceNodeIDMap &currentResourceNodeID)
         {
-            resourceID = frameGraph.AddTransientImageResource("hdrColor", images, VK_IMAGE_ASPECT_COLOR_BIT);
-            blackboard["hdrColor"] = resourceID;
+            latestImageIndex = 0;
+            for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
+            {
+                resourceNodeIDs[imageIndex] = 0;
+                resourceIDs[imageIndex] = frameGraph.AddTransientImageResource(
+                    imageIndex == 0 ? "hdrColor0" : "hdrColor1", images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT);
+            }
+            frameGraph.AddTransientReadyCallback([this](uint32_t currentFrame)
+                                                 { CreateImageViews(currentFrame); });
         }
 
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx)
@@ -49,56 +61,79 @@ namespace vke_render
             cleanupImages();
             createImages();
 
-            ImageResource *resource = (ImageResource *)frameGraph.resources[resourceID].get();
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                resource->images[i] = images[i];
+            for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
+            {
+                ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[resourceIDs[imageIndex]].get());
+                for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+                    resource->images[frame] = images[imageIndex][frame];
+            }
         }
 
-        void CreateImageView(uint32_t currentFrame)
+        void CreateImageViews(uint32_t currentFrame)
         {
-            if (imageViews[currentFrame] != VK_NULL_HANDLE)
-                vkDestroyImageView(globalLogicalDevice, imageViews[currentFrame], nullptr);
-            imageViews[currentFrame] = RenderEnvironment::CreateImageView(images[currentFrame], HDR_COLOR_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+            for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
+            {
+                if (imageViews[imageIndex][currentFrame] != VK_NULL_HANDLE)
+                    vkDestroyImageView(globalLogicalDevice, imageViews[imageIndex][currentFrame], nullptr);
+                imageViews[imageIndex][currentFrame] = RenderEnvironment::CreateImageView(
+                    images[imageIndex][currentFrame], HDR_COLOR_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+            }
         }
 
-        VkImageView GetImageView(uint32_t currentFrame) const { return imageViews[currentFrame]; }
+        static constexpr uint32_t IMAGE_COUNT = 2;
+        uint32_t GetLatestImageIndex() const { return latestImageIndex; }
+        uint32_t GetAlternateImageIndex() const { return 1u - latestImageIndex; }
+        vke_ds::id32_t GetResourceID(uint32_t imageIndex) const { return resourceIDs[imageIndex]; }
+        vke_ds::id32_t GetResourceNodeID(uint32_t imageIndex) const { return resourceNodeIDs[imageIndex]; }
+        VkImageView GetImageView(uint32_t imageIndex, uint32_t currentFrame) const { return imageViews[imageIndex][currentFrame]; }
+        VkImageView GetLatestImageView(uint32_t currentFrame) const { return GetImageView(latestImageIndex, currentFrame); }
+
+        void UpdateResourceNode(uint32_t imageIndex, vke_ds::id32_t resourceNodeID)
+        {
+            resourceNodeIDs[imageIndex] = resourceNodeID;
+            latestImageIndex = imageIndex;
+        }
 
     private:
         RenderContext *context;
-        VkImage images[MAX_FRAMES_IN_FLIGHT];
-        VkImageView imageViews[MAX_FRAMES_IN_FLIGHT];
-
-        vke_ds::id32_t resourceID;
+        VkImage images[IMAGE_COUNT][MAX_FRAMES_IN_FLIGHT];
+        VkImageView imageViews[IMAGE_COUNT][MAX_FRAMES_IN_FLIGHT];
+        vke_ds::id32_t resourceIDs[IMAGE_COUNT];
+        vke_ds::id32_t resourceNodeIDs[IMAGE_COUNT];
+        uint32_t latestImageIndex;
 
         void createImages()
         {
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
+            for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
+                for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+                    RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
                                                             HDR_COLOR_FORMAT, VK_IMAGE_TILING_OPTIMAL,
                                                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
                                                                 VK_IMAGE_USAGE_SAMPLED_BIT |
                                                                 VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-                                                            1, &images[i]);
+                                                            1, &images[imageIndex][frame]);
         }
 
         void cleanupImages()
         {
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                if (images[i] != VK_NULL_HANDLE)
-                {
-                    vkDestroyImage(globalLogicalDevice, images[i], nullptr);
-                    images[i] = VK_NULL_HANDLE;
-                }
+            for (auto &imageSet : images)
+                for (VkImage &image : imageSet)
+                    if (image != VK_NULL_HANDLE)
+                    {
+                        vkDestroyImage(globalLogicalDevice, image, nullptr);
+                        image = VK_NULL_HANDLE;
+                    }
         }
 
         void cleanupImageViews()
         {
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-                if (imageViews[i] != VK_NULL_HANDLE)
-                {
-                    vkDestroyImageView(globalLogicalDevice, imageViews[i], nullptr);
-                    imageViews[i] = VK_NULL_HANDLE;
-                }
+            for (auto &imageViewSet : imageViews)
+                for (VkImageView &imageView : imageViewSet)
+                    if (imageView != VK_NULL_HANDLE)
+                    {
+                        vkDestroyImageView(globalLogicalDevice, imageView, nullptr);
+                        imageView = VK_NULL_HANDLE;
+                    }
         }
 
         void createSampler()

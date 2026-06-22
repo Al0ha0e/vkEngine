@@ -2,22 +2,14 @@
 
 namespace vke_render
 {
-    BloomPass::~BloomPass()
-    {
-        cleanupImageViews();
-        cleanupImages();
-        if (sampler != VK_NULL_HANDLE)
-            vkDestroySampler(globalLogicalDevice, sampler, nullptr);
-    }
-
     void BloomPass::constructFrameGraph(FrameGraph &frameGraph,
                                         std::map<std::string, vke_ds::id32_t> &blackboard,
                                         ResourceNodeIDMap &currentResourceNodeID)
     {
-        vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
-        bloomHdrColorResourceID = frameGraph.AddTransientImageResource("bloomHdrColor", images, VK_IMAGE_ASPECT_COLOR_BIT);
-        blackboard["bloomHdrColor"] = bloomHdrColorResourceID;
-        vke_ds::id32_t bloomOutColorResourceNodeID = frameGraph.AllocResourceNode("bloomOutHDRColor", bloomHdrColorResourceID);
+        inputHDRColorImageIndex = hdrColorManager->GetLatestImageIndex();
+        outputHDRColorImageIndex = hdrColorManager->GetAlternateImageIndex();
+        vke_ds::id32_t bloomOutColorResourceNodeID = frameGraph.AllocResourceNode(
+            "bloomOutHDRColor", hdrColorManager->GetResourceID(outputHDRColorImageIndex));
 
         bloomTaskNodeID = frameGraph.AllocTaskNode("bloom", RENDER_TASK,
                                                    std::bind(&BloomPass::Render, this,
@@ -25,7 +17,7 @@ namespace vke_render
                                                              std::placeholders::_4, std::placeholders::_5));
         frameGraph.AddTransientReadyCallback(std::bind(&BloomPass::onTransientResourcesReady, this, std::placeholders::_1));
 
-        frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, currentResourceNodeID[hdrColorResourceID], 0,
+        frameGraph.AddTaskNodeResourceRef(bloomTaskNodeID, hdrColorManager->GetResourceNodeID(inputHDRColorImageIndex), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
                                           VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -37,7 +29,7 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,
                                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        currentResourceNodeID[hdrColorResourceID] = bloomOutColorResourceNodeID;
+        hdrColorManager->UpdateResourceNode(outputHDRColorImageIndex, bloomOutColorResourceNodeID);
     }
 
     void BloomPass::allocateDescriptorSet()
@@ -76,7 +68,7 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = imageViews[currentFrame];
+        colorAttachmentInfo.imageView = hdrColorManager->GetImageView(outputHDRColorImageIndex, currentFrame);
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -122,11 +114,9 @@ namespace vke_render
 
     void BloomPass::onTransientResourcesReady(uint32_t currentFrame)
     {
-        createImageView(currentFrame);
-
         VkDescriptorImageInfo hdrColorImageInfo = {
-            inputSampler,
-            inputImageViewGetter(currentFrame),
+            hdrColorManager->sampler,
+            hdrColorManager->GetImageView(inputHDRColorImageIndex, currentFrame),
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
         VkWriteDescriptorSet descriptorWrite{};
@@ -135,59 +125,4 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 1, &descriptorWrite, 0, nullptr);
     }
 
-    void BloomPass::createImages()
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
-                                                        HDRColorManager::HDR_COLOR_FORMAT, VK_IMAGE_TILING_OPTIMAL,
-                                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                                            VK_IMAGE_USAGE_SAMPLED_BIT |
-                                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-                                                        1, &images[i]);
-    }
-
-    void BloomPass::cleanupImages()
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            if (images[i] != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(globalLogicalDevice, images[i], nullptr);
-                images[i] = VK_NULL_HANDLE;
-            }
-    }
-
-    void BloomPass::createImageView(uint32_t currentFrame)
-    {
-        if (imageViews[currentFrame] != VK_NULL_HANDLE)
-            vkDestroyImageView(globalLogicalDevice, imageViews[currentFrame], nullptr);
-        imageViews[currentFrame] = RenderEnvironment::CreateImageView(images[currentFrame], HDRColorManager::HDR_COLOR_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
-
-    void BloomPass::cleanupImageViews()
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            if (imageViews[i] != VK_NULL_HANDLE)
-            {
-                vkDestroyImageView(globalLogicalDevice, imageViews[i], nullptr);
-                imageViews[i] = VK_NULL_HANDLE;
-            }
-    }
-
-    void BloomPass::createSampler()
-    {
-        VkSamplerCreateInfo samplerInfo{};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
-        samplerInfo.maxAnisotropy = 1.0f;
-
-        VKE_VK_CHECK(vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &sampler), "failed to create bloom sampler!")
-    }
 }

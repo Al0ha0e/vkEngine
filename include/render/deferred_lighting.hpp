@@ -61,6 +61,7 @@ namespace vke_render
         VkSampler ssaoSampler;
         std::function<VkImageView(uint32_t)> ssaoImageViewGetter;
         vke_ds::id32_t lightingTaskNodeID;
+        uint32_t hdrColorImageIndex;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,

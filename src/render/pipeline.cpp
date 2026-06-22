@@ -92,23 +92,25 @@ namespace vke_render
 
         VkPipelineRenderingCreateInfo *pipelineRenderingCreateInfo = (VkPipelineRenderingCreateInfo *)(pipelineInfo.pNext);
 
-        std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(pipelineRenderingCreateInfo->colorAttachmentCount);
-        for (int i = 0; i < colorBlendAttachments.size(); ++i)
-        {
-            colorBlendAttachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachments[i].blendEnable = VK_FALSE;
-        }
-
         VkPipelineColorBlendStateCreateInfo colorBlending{};
-        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlending.logicOpEnable = VK_FALSE;
-        colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
-        colorBlending.attachmentCount = colorBlendAttachments.size();
-        colorBlending.pAttachments = colorBlendAttachments.data();
-        colorBlending.blendConstants[0] = 0.0f; // Optional
-        colorBlending.blendConstants[1] = 0.0f; // Optional
-        colorBlending.blendConstants[2] = 0.0f; // Optional
-        colorBlending.blendConstants[3] = 0.0f; // Optional
+        std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
+        if (pipelineInfo.pColorBlendState != nullptr)
+            colorBlending = *pipelineInfo.pColorBlendState;
+        else
+        {
+            colorBlendAttachments.resize(pipelineRenderingCreateInfo->colorAttachmentCount);
+            for (auto &attachment : colorBlendAttachments)
+            {
+                attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+                attachment.blendEnable = VK_FALSE;
+            }
+            colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+            colorBlending.logicOpEnable = VK_FALSE;
+            colorBlending.logicOp = VK_LOGIC_OP_COPY;
+            colorBlending.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
+            colorBlending.pAttachments = colorBlendAttachments.data();
+        }
 
         /////////////////////////////////////////////////////////////////////////////
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};

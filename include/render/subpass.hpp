@@ -14,6 +14,7 @@ namespace vke_render
         DEFERRED_LIGHTING_PASS,
         SKYBOX_RENDERER,
         ATMOSPHERE_PASS,
+        TRANSPARENT_PASS,
         BLOOM_PASS,
         TONE_MAPPING_PASS,
         UI_RENDERER

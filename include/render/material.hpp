@@ -7,6 +7,20 @@
 
 namespace vke_render
 {
+    enum class MaterialRenderMode
+    {
+        OPAQUE_MODE,
+        CUTOFF_MODE,
+        BLEND_MODE
+    };
+
+    enum class MaterialBlendMode
+    {
+        ALPHA,
+        PREMULTIPLIED_ALPHA,
+        ADDITIVE
+    };
+
     struct TextureBindingInfo
     {
         uint32_t binding;
@@ -21,13 +35,17 @@ namespace vke_render
     class Material
     {
     public:
-        Material() = default;
+        Material()
+            : renderMode(MaterialRenderMode::OPAQUE_MODE), blendMode(MaterialBlendMode::ALPHA) {}
 
-        Material(vke_common::AssetHandle hdl) : handle(hdl) {}
+        Material(vke_common::AssetHandle hdl)
+            : handle(hdl), renderMode(MaterialRenderMode::OPAQUE_MODE), blendMode(MaterialBlendMode::ALPHA) {}
 
         ~Material() {}
 
         vke_common::AssetHandle handle;
+        MaterialRenderMode renderMode;
+        MaterialBlendMode blendMode;
         std::shared_ptr<ShaderModuleSet> shader;
         std::vector<std::shared_ptr<Texture2D>> textures;
         std::shared_ptr<std::vector<TextureBindingInfo>> textureBindingInfos;

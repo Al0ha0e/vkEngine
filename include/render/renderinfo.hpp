@@ -14,14 +14,22 @@ namespace vke_render
         std::vector<PushConstantInfo> pushConstantInfos;
         uint32_t perPrimitiveStart;
         VkDescriptorSet perUnitDescriptorSet;
+        const glm::mat4 *modelMatrix;
 
-        RenderUnit() = default;
+        RenderUnit() : perPrimitiveStart(0), perUnitDescriptorSet(nullptr), modelMatrix(nullptr) {}
 
         RenderUnit(std::shared_ptr<const Mesh> &msh, const void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr, bool constantIsFloat = true)
-            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues, constantIsFloat)), perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet) {}
+            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues, constantIsFloat)),
+              perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet),
+              modelMatrix(constantSize == sizeof(glm::mat4) ? static_cast<const glm::mat4 *>(pValues) : nullptr) {}
 
         RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)
-            : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())), perUnitDescriptorSet(descriptorSet) {}
+            : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())),
+              perUnitDescriptorSet(descriptorSet), modelMatrix(nullptr)
+        {
+            if (!pushConstantInfos.empty() && pushConstantInfos[0].offset == 0 && pushConstantInfos[0].size == sizeof(glm::mat4))
+                modelMatrix = static_cast<const glm::mat4 *>(pushConstantInfos[0].pValues);
+        }
 
         void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout, int descriptorSetOffset)
         {
@@ -95,7 +103,8 @@ namespace vke_render
                             VkVertexInputRate vertexInputRate,
                             VkGraphicsPipelineCreateInfo &pipelineInfo)
         {
-            renderPipeline = std::make_unique<GraphicsPipeline>(material->shader, vertexAttributeSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
+            renderPipeline = std::make_unique<GraphicsPipeline>(
+                material->shader, vertexAttributeSizes, vertexInputRate, pipelineInfo);
         }
 
         vke_ds::id64_t AddUnit(RenderUnit *unit)

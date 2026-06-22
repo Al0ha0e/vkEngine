@@ -18,7 +18,8 @@ namespace vke_render
         vke_ds::id32_t irradianceOutResourceNodeID = currentResourceNodeID[irradianceResourceID];
         vke_ds::id32_t specularOutResourceNodeID = currentResourceNodeID[specularResourceID];
 
-        vke_ds::id32_t hdrColorResourceID = blackboard.at("hdrColor");
+        hdrColorImageIndex = hdrColorManager->GetLatestImageIndex();
+        vke_ds::id32_t hdrColorResourceID = hdrColorManager->GetResourceID(hdrColorImageIndex);
         vke_ds::id32_t lightingOutColorResourceNodeID = frameGraph.AllocResourceNode("deferredLightingOutHDRColor", hdrColorResourceID);
 
         lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
@@ -84,7 +85,7 @@ namespace vke_render
                                           VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-        currentResourceNodeID[hdrColorResourceID] = lightingOutColorResourceNodeID;
+        hdrColorManager->UpdateResourceNode(hdrColorImageIndex, lightingOutColorResourceNodeID);
     }
 
     void DeferredLightingPass::allocateDescriptorSet()
@@ -156,7 +157,7 @@ namespace vke_render
         VkRenderingAttachmentInfo colorAttachmentInfo{};
         colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = hdrColorManager->GetImageView(currentFrame);
+        colorAttachmentInfo.imageView = hdrColorManager->GetImageView(hdrColorImageIndex, currentFrame);
         colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -210,7 +211,6 @@ namespace vke_render
 
     void DeferredLightingPass::onTransientResourcesReady(uint32_t currentFrame)
     {
-        hdrColorManager->CreateImageView(currentFrame);
         updateDescriptorSet(currentFrame);
     }
 }

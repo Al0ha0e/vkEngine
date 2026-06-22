@@ -1,5 +1,5 @@
 {
-  "maxid": 17,
+  "maxid": 19,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -72,7 +72,7 @@
         {
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
-          "intensity": 0.2
+          "intensity": 0.9
         },
         {
           "type": "script",
@@ -494,6 +494,66 @@
           "data": {
             "fields": []
           }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 17,
+      "static": false,
+      "name": "transparent_pbr_cube",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [-0.65, -0.85, 0.75],
+        "scl": [0.8, 0.8, 0.8],
+        "rot": [0.0, 0.258819, 0.0, 0.965926]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1028,
+          "mesh": 2,
+          "castsShadow": false
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.35,
+          "restitution": 0.15,
+          "mass": 4.0,
+          "shape": { "type": 1, "halfExtent": [0.8, 0.8, 0.8] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 18,
+      "static": false,
+      "name": "transparent_pbr_sphere",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.45, -0.75, 0.15],
+        "scl": [0.9, 0.9, 0.9],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1028,
+          "mesh": 3,
+          "castsShadow": false
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.25,
+          "restitution": 0.25,
+          "mass": 3.0,
+          "shape": { "type": 0, "radius": 0.9 }
         }
       ],
       "children": []
