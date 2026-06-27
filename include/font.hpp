@@ -1,6 +1,11 @@
 #ifndef FONT_H
 #define FONT_H
 
+#include <font_sdf.hpp>
+
+// Compatibility wrapper; the SDF implementation is kept in a focused header.
+#if 0
+
 #include <common.hpp>
 
 #include <ft2build.h>
@@ -305,4 +310,5 @@ namespace vke_common
     };
 }
 
+#endif
 #endif

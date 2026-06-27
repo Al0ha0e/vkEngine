@@ -251,6 +251,17 @@ namespace vke_render
         {
             switch (format)
             {
+            case VK_FORMAT_R8_UNORM:
+            case VK_FORMAT_R8_SNORM:
+            case VK_FORMAT_R8_UINT:
+            case VK_FORMAT_R8_SINT:
+                return 1;
+            case VK_FORMAT_R16_UNORM:
+            case VK_FORMAT_R16_SNORM:
+            case VK_FORMAT_R16_UINT:
+            case VK_FORMAT_R16_SINT:
+            case VK_FORMAT_R16_SFLOAT:
+                return 2;
             case VK_FORMAT_R16G16B16A16_UNORM:
             case VK_FORMAT_R16G16B16A16_SFLOAT:
                 return 8;

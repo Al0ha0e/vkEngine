@@ -12,7 +12,7 @@
 #include <render/tone_mapping.hpp>
 #include <render/skybox_render.hpp>
 #include <render/hdr_color.hpp>
-#include <render/ui.hpp>
+#include <render/layered_2d.hpp>
 #include <render/light_manager.hpp>
 #include <render/camera.hpp>
 #include <event.hpp>
@@ -185,12 +185,14 @@ namespace vke_render
                     instance->subPasses.push_back(std::move(toneMappingPass));
                     break;
                 }
-                case UI_RENDERER:
+                case LAYERED_2D_RENDERER:
                 {
-                    std::unique_ptr<UIRenderer> uiRenderer = std::make_unique<UIRenderer>(ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT]);
-                    uiRenderer->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
-                    instance->subPassMap[UI_RENDERER] = instance->subPasses.size();
-                    instance->subPasses.push_back(std::move(uiRenderer));
+                    auto layered2DRenderer = std::make_unique<Layered2DRenderer>(
+                        ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
+                        &instance->glyphManager);
+                    layered2DRenderer->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
+                    instance->subPassMap[LAYERED_2D_RENDERER] = instance->subPasses.size();
+                    instance->subPasses.push_back(std::move(layered2DRenderer));
                     break;
                 }
 
@@ -288,6 +290,19 @@ namespace vke_render
             return static_cast<TransparentPass *>(instance->subPasses[it->second].get());
         }
 
+        static Layered2DRenderer *GetLayered2DRenderer()
+        {
+            auto it = instance->subPassMap.find(LAYERED_2D_RENDERER);
+            if (it == instance->subPassMap.end())
+                return nullptr;
+            return static_cast<Layered2DRenderer *>(instance->subPasses[it->second].get());
+        }
+
+        static GlyphManager *GetGlyphManager()
+        {
+            return &instance->glyphManager;
+        }
+
         static void OnWindowResize(void *listener, RenderContext *ctx)
         {
             instance->recreate(ctx);
@@ -310,6 +325,7 @@ namespace vke_render
         std::unique_ptr<FrameGraph> frameGraph;
         std::unique_ptr<SkyboxManager> skyboxManager;
         std::unique_ptr<HDRColorManager> hdrColorManager;
+        GlyphManager glyphManager;
         std::map<std::string, vke_ds::id32_t> blackboard;
         ResourceNodeIDMap currentResourceNodeID;
 

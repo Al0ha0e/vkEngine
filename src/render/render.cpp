@@ -115,6 +115,7 @@ namespace vke_render
         }
 
         lightManager->Update(currentFrame, cameraUpdated);
+        glyphManager.Sync(currentFrame);
 
         frameGraph->PrepareForExecute(currentFrame);
 

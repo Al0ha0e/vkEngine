@@ -262,7 +262,7 @@ namespace vke_common
         ret->ascender = static_cast<int>(ret->face->size->metrics.ascender >> 6);
         ret->descender = static_cast<int>(ret->face->size->metrics.descender >> 6);
         ret->lineHeight = static_cast<int>(ret->face->size->metrics.height >> 6);
-        ret->BuildAtlas(asset.characterCount, asset.firstCodepoint);
+        ret->BuildStaticAtlas(asset.characters, asset.characterCount, asset.firstCodepoint);
         return ret;
     }
 

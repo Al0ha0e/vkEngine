@@ -1,28 +1,32 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_nonuniform_qualifier : require
 
 struct Glyph
 {
     vec4 quadRect; // xy = min, zw = max in target pixels
     vec4 uvRect;   // xy = min, zw = max in atlas pixels
-    vec4 color;      // rgba tint
+    vec4 color;    // rgba tint
+    uvec4 atlasInfo; // x = 0 static atlas, 1 dynamic atlas
 };
 
-layout(set = 0, binding = 0, std430) readonly buffer GlyphBuffer
+layout(location = 0) in uint glyphID;
+
+layout(set = 0, binding = 2, std430) readonly buffer GlyphBuffer
 {
     Glyph glyphs[];
-};
-layout(set = 0, binding = 1) uniform sampler2D uGlyphAtlas;
-
+} glyphBuffers[16];
 layout(push_constant) uniform PushConstants
 {
+    mat4 model;
     vec2 viewportSize;
     vec2 atlasSize;
 } pc;
 
 layout(location = 0) out vec2 vUV;
 layout(location = 1) out vec4 vColor;
+layout(location = 2) flat out uint vAtlasType;
 
 const vec2 quadCorners[6] = vec2[](
     vec2(0.0, 0.0),
@@ -34,10 +38,13 @@ const vec2 quadCorners[6] = vec2[](
 
 void main()
 {
-    Glyph glyph = glyphs[gl_InstanceIndex];
+    uint bufferIndex = glyphID >> 9u;
+    uint slotIndex = glyphID & 511u;
+    Glyph glyph = glyphBuffers[nonuniformEXT(bufferIndex)].glyphs[slotIndex];
     vec2 corner = quadCorners[gl_VertexIndex];
 
-    vec2 screenPos = mix(glyph.quadRect.xw, glyph.quadRect.zy, corner);
+    vec2 localPos = mix(glyph.quadRect.xw, glyph.quadRect.zy, corner);
+    vec2 screenPos = (pc.model * vec4(localPos, 0.0, 1.0)).xy;
     vec2 uv = mix(glyph.uvRect.xw, glyph.uvRect.zy, corner);
 
     vec2 ndc = vec2(
@@ -48,4 +55,5 @@ void main()
 
     vUV = uv / pc.atlasSize;
     vColor = glyph.color;
+    vAtlasType = glyph.atlasInfo.x;
 }

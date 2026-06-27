@@ -15,6 +15,7 @@
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
+#include <component/text.hpp>
 #include <scene_transform_system.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -30,6 +31,7 @@ namespace vke_common
         entt::registry registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
         vke_render::SceneLightData lighting;
+        std::shared_ptr<vke_render::CPUGlyphData> glyphs;
         bool loadedToEngine;
         SceneTransformSystem transformSystem;
         std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptState>> csharpScriptStates;
@@ -39,12 +41,14 @@ namespace vke_common
 
         Scene()
             : layers({"default", "editor"}),
-              registry(), idToEntity(), lighting(), loadedToEngine(false), transformSystem(registry, idToEntity),
+              registry(), idToEntity(), lighting(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(1),
               physicsUpdateListenerID(0), initialized(true) {}
 
         Scene(const nlohmann::json &json)
-            : registry(), idToEntity(), lighting(), loadedToEngine(false), transformSystem(registry, idToEntity),
+            : registry(), idToEntity(), lighting(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
               physicsUpdateListenerID(0), initialized(false)
         {
@@ -54,7 +58,8 @@ namespace vke_common
 
         Scene(const std::string &pth, const nlohmann::json &json)
             : path(pth),
-              registry(), idToEntity(), lighting(), loadedToEngine(false), transformSystem(registry, idToEntity),
+              registry(), idToEntity(), lighting(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
               physicsUpdateListenerID(0), initialized(false)
         {
@@ -78,9 +83,11 @@ namespace vke_common
                     view.template get<T>(entity).LoadToEngine();
             };
 
+            vke_render::Renderer::GetGlyphManager()->LoadSceneGlyphData(glyphs);
             loadView.operator()<vke_component::Camera>();
             loadView.operator()<vke_component::RenderableObject>();
             loadView.operator()<vke_component::SkeletonAnimator>();
+            loadView.operator()<vke_component::UIText>();
             auto rigidBodyView = registry.view<vke_component::RigidBody>();
             for (auto entity : rigidBodyView)
                 rigidBodyView.get<vke_component::RigidBody>(entity).LoadToEngine(static_cast<uint32_t>(entity));
@@ -116,6 +123,7 @@ namespace vke_common
             vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
             physicsUpdateListenerID = 0;
             lighting = vke_render::SceneLightData(vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData());
+            glyphs = vke_render::Renderer::GetGlyphManager()->ToSceneGlyphData();
             vke_render::Renderer::GetInstance()->lightManager->ClearLights();
 
             auto unloadView = [this]<typename T>()
@@ -129,8 +137,10 @@ namespace vke_common
             unloadView.operator()<vke_component::Sensor>();
             unloadView.operator()<vke_component::RigidBody>();
             unloadView.operator()<vke_component::SkeletonAnimator>();
+            unloadView.operator()<vke_component::UIText>();
             unloadView.operator()<vke_component::RenderableObject>();
             unloadView.operator()<vke_component::Camera>();
+            vke_render::Renderer::GetGlyphManager()->ClearGlyphs();
             loadedToEngine = false;
         }
 

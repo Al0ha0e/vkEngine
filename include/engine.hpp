@@ -10,6 +10,7 @@
 #include <engine_state.hpp>
 #include <time.hpp>
 #include <script.hpp>
+#include <spatial_2d.hpp>
 
 namespace vke_common
 {
@@ -46,6 +47,7 @@ namespace vke_common
             AssetManager::Init();
             vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
             vke_render::DescriptorSetAllocator::Init();
+            Spatial2DLayerManager::Init();
             if (ctx == nullptr)
                 ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
             vke_render::Renderer::Init(ctx, passes, customPasses, gameConfig.renderConfig);
@@ -69,6 +71,7 @@ namespace vke_common
             SceneManager::Dispose();
             ScriptManager::Dispose();
             vke_render::Renderer::Dispose();
+            Spatial2DLayerManager::Dispose();
             vke_render::DescriptorSetAllocator::Dispose();
             vke_physics::PhysicsManager::Dispose();
             AssetManager::Dispose();

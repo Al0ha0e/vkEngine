@@ -181,6 +181,7 @@ namespace vke_common
         uint32_t pixelSize;
         uint32_t characterCount;
         uint32_t firstCodepoint;
+        std::string characters;
 
         FontAsset() {}
 
@@ -189,6 +190,7 @@ namespace vke_common
             pixelSize = json.contains("pixelSize") ? (uint32_t)json["pixelSize"] : 48;
             characterCount = json.contains("characterCount") ? (uint32_t)json["characterCount"] : 128;
             firstCodepoint = json.contains("firstCodepoint") ? (uint32_t)json["firstCodepoint"] : 32;
+            characters = json.contains("characters") ? json["characters"].get<std::string>() : "";
         }
 
         FontAsset(AssetHandle id, const std::string &nm, const std::string &pth)
@@ -199,6 +201,8 @@ namespace vke_common
             std::string ret = ", \"pixelSize\": " + std::to_string(pixelSize) +
                               ", \"characterCount\": " + std::to_string(characterCount) +
                               ", \"firstCodepoint\": " + std::to_string(firstCodepoint);
+            if (!characters.empty())
+                ret += ", \"characters\": " + nlohmann::json(characters).dump();
             return ret;
         }
     };

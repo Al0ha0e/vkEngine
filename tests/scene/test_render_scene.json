@@ -1,5 +1,5 @@
 {
-  "maxid": 19,
+  "maxid": 21,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -554,6 +554,48 @@
           "restitution": 0.25,
           "mass": 3.0,
           "shape": { "type": 0, "radius": 0.9 }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 19,
+      "static": true,
+      "name": "ui_test_title",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [60.0, 60.0, 10.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "uiText",
+          "text": "vkEngine 2D Text",
+          "color": [0.95, 0.85, 0.25, 1.0],
+          "material": 0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 20,
+      "static": true,
+      "name": "ui_test_status",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [60.0, 120.0, 11.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "uiText",
+          "text": "Layered UI renderer is online.",
+          "color": [0.3, 0.85, 1.0, 1.0],
+          "material": 0
         }
       ],
       "children": []

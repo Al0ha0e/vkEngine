@@ -4,6 +4,7 @@
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
+#include <component/text.hpp>
 #include <component/script.hpp>
 #include <scene.hpp>
 
@@ -24,6 +25,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::RenderableObject>(entity))
             registry.get<vke_component::RenderableObject>(entity).UnloadFromEngine();
+
+        if (registry.all_of<vke_component::UIText>(entity))
+            registry.get<vke_component::UIText>(entity).UnloadFromEngine();
 
         if (registry.all_of<vke_component::SkeletonAnimator>(entity))
             registry.get<vke_component::SkeletonAnimator>(entity).UnloadFromEngine();
@@ -103,6 +107,10 @@ namespace vke_common
         else if (type == "renderableObject")
         {
             registry.emplace<vke_component::RenderableObject>(entity, transform, component);
+        }
+        else if (type == "uiText")
+        {
+            registry.emplace<vke_component::UIText>(entity, transform, component, glyphs.get());
         }
         else if (type == "animator")
         {
@@ -193,6 +201,8 @@ namespace vke_common
             return vke_render::Renderer::GetInstance()->lightManager->HasLight<vke_render::SpotLight>(entity);
         case ComponentType::Script:
             return csharpScriptStates.find(entity) != csharpScriptStates.end();
+        case ComponentType::UIText:
+            return registry.all_of<vke_component::UIText>(entity);
         default:
             return false;
         }
@@ -207,6 +217,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::RenderableObject>(entity))
             components.push_back(registry.get<vke_component::RenderableObject>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::UIText>(entity))
+            components.push_back(registry.get<vke_component::UIText>(entity).ToJSON());
 
         if (registry.all_of<vke_component::SkeletonAnimator>(entity))
             components.push_back(registry.get<vke_component::SkeletonAnimator>(entity).ToJSON());

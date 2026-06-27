@@ -17,7 +17,8 @@ namespace vke_common
         DirectionalLight = 7,
         PointLight = 8,
         SpotLight = 9,
-        Script = 10
+        Script = 10,
+        UIText = 11
     };
 }
 

@@ -25,7 +25,7 @@ int main(int argc, char **argv)
         vke_render::TRANSPARENT_PASS,
         vke_render::BLOOM_PASS,
         vke_render::TONE_MAPPING_PASS,
-        vke_render::UI_RENDERER};
+        vke_render::LAYERED_2D_RENDERER};
     std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
 
     GLFWwindow *window = initWindow(gameConfig->windowWidth, gameConfig->windowHeight);

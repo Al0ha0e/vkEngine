@@ -3,6 +3,7 @@
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
+#include <component/text.hpp>
 #include <render/render.hpp>
 #include <logger.hpp>
 #include <vector>
@@ -194,6 +195,9 @@ namespace vke_common
 
         if (registry.all_of<vke_component::CharacterController>(entity))
             registry.get<vke_component::CharacterController>(entity).OnTransformed(transform);
+
+        if (registry.all_of<vke_component::UIText>(entity))
+            registry.get<vke_component::UIText>(entity).OnTransformed(transform);
 
         auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
 

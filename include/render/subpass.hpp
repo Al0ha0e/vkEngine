@@ -17,7 +17,7 @@ namespace vke_render
         TRANSPARENT_PASS,
         BLOOM_PASS,
         TONE_MAPPING_PASS,
-        UI_RENDERER
+        LAYERED_2D_RENDERER
     };
 
     class RenderPassBase
