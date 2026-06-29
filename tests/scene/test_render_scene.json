@@ -1,5 +1,5 @@
 {
-  "maxid": 21,
+  "maxid": 22,
   "layers": ["default", "editor", "test"],
   "objects": [
     {
@@ -596,6 +596,34 @@
           "text": "Layered UI renderer is online.",
           "color": [0.3, 0.85, 1.0, 1.0],
           "material": 0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 21,
+      "static": true,
+      "name": "fps_text",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [60.0, 180.0, 12.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "uiText",
+          "text": "FPS: 0.0",
+          "color": [0.95, 0.95, 0.95, 1.0],
+          "material": 0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.FpsTextScript",
+          "data": {
+            "fields": []
+          }
         }
       ],
       "children": []

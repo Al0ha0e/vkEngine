@@ -79,8 +79,12 @@ The build will produce `out/engine.exe`. The executable expects a single game co
   - [x] post-processing: bloom, tone mapping
   - [x] directional light CSM with PCF
   - [x] spot light shadows
-  - [ ] UI rendering
   - [ ] point light shadows
+- **UI**
+  - [x] SDF Font
+  - [ ] UI transform: anchor, pivot, size, scale
+  - [ ] basic widgets: text, image, panel, button
+  - [ ] input/event handling: hover, click, focus
 - **Physics**:
   - [x] rigidbody
   - [x] collision detection

@@ -4,28 +4,136 @@
 
 namespace vke_render
 {
+    bool GlyphIDVertexBufferPool::Ensure(Allocation &allocation, uint32_t count)
+    {
+        if (count == 0)
+        {
+            Release(allocation);
+            return true;
+        }
+
+        if (allocation.Valid() && count <= allocation.capacity)
+            return true;
+
+        Release(allocation);
+        allocation = allocateCapacity(capacityClass(count));
+        return allocation.Valid();
+    }
+
+    void GlyphIDVertexBufferPool::Update(const Allocation &allocation, const std::vector<GlyphID> &glyphIDs,
+                                         uint32_t currentFrame)
+    {
+        if (!allocation.Valid() || glyphIDs.empty())
+            return;
+        chunks[allocation.chunkIndex].buffers[currentFrame]->ToBuffer(
+            static_cast<size_t>(allocation.offset) * sizeof(GlyphID),
+            glyphIDs.data(),
+            glyphIDs.size() * sizeof(GlyphID));
+    }
+
+    void GlyphIDVertexBufferPool::Release(Allocation &allocation)
+    {
+        if (!allocation.Valid())
+            return;
+
+        allocation.count = 0;
+        freeLists[allocation.capacity].push_back(allocation);
+        allocation = {};
+    }
+
+    VkBuffer GlyphIDVertexBufferPool::GetBuffer(const Allocation &allocation, uint32_t currentFrame) const
+    {
+        return chunks[allocation.chunkIndex].buffers[currentFrame]->buffer;
+    }
+
+    VkDeviceSize GlyphIDVertexBufferPool::GetOffset(const Allocation &allocation) const
+    {
+        return static_cast<VkDeviceSize>(allocation.offset) * sizeof(GlyphID);
+    }
+
+    GlyphIDVertexBufferPool::Allocation GlyphIDVertexBufferPool::allocateCapacity(uint32_t capacity)
+    {
+        auto &freeList = freeLists[capacity];
+        if (!freeList.empty())
+        {
+            Allocation allocation = freeList.back();
+            freeList.pop_back();
+            allocation.count = 0;
+            return allocation;
+        }
+
+        for (uint32_t chunkIndex = 0; chunkIndex < chunks.size(); ++chunkIndex)
+        {
+            Chunk &chunk = chunks[chunkIndex];
+            if (capacity <= chunk.capacity - chunk.used)
+            {
+                Allocation allocation{chunkIndex, chunk.used, capacity, 0};
+                chunk.used += capacity;
+                return allocation;
+            }
+        }
+
+        const uint32_t chunkCapacity = std::max(DEFAULT_CHUNK_CAPACITY, capacity);
+        Chunk chunk;
+        for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+            chunk.buffers[frame] = std::make_unique<HostCoherentBuffer>(
+                static_cast<VkDeviceSize>(chunkCapacity) * sizeof(GlyphID), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        chunk.capacity = chunkCapacity;
+        chunks.push_back(std::move(chunk));
+
+        Allocation allocation{static_cast<uint32_t>(chunks.size() - 1), 0, capacity, 0};
+        chunks.back().used = capacity;
+        return allocation;
+    }
+
+    uint32_t GlyphIDVertexBufferPool::capacityClass(uint32_t count)
+    {
+        uint32_t capacity = 1;
+        while (capacity < count)
+            capacity <<= 1;
+        return capacity;
+    }
+
+    Layered2DRenderUnit::~Layered2DRenderUnit()
+    {
+        if (glyphIDPool != nullptr)
+            glyphIDPool->Release(glyphIDAllocation);
+    }
+
     void Layered2DRenderUnit::SetGlyphIDs(std::vector<GlyphID> ids)
     {
         glyphIDs = std::move(ids);
-        glyphIDBuffer.reset();
         if (glyphIDs.empty())
+        {
+            glyphIDPool->Release(glyphIDAllocation);
+            glyphIDUpdateCnt = 0;
             return;
-        glyphIDBuffer = std::make_unique<HostCoherentBuffer>(
-            glyphIDs.size() * sizeof(GlyphID), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        glyphIDBuffer->ToBuffer(0, glyphIDs.data(), glyphIDs.size() * sizeof(GlyphID));
+        }
+
+        if (glyphIDPool->Ensure(glyphIDAllocation, static_cast<uint32_t>(glyphIDs.size())))
+        {
+            glyphIDAllocation.count = static_cast<uint32_t>(glyphIDs.size());
+            glyphIDUpdateCnt = MAX_FRAMES_IN_FLIGHT;
+        }
     }
 
     void Layered2DRenderUnit::Render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
-                                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize) const
+                                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize, uint32_t currentFrame)
     {
-        if (glyphIDs.empty() || glyphIDBuffer == nullptr || modelMatrix == nullptr)
+        if (glyphIDs.empty() || !glyphIDAllocation.Valid() || glyphIDPool == nullptr || modelMatrix == nullptr)
             return;
 
-        VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &glyphIDBuffer->buffer, &offset);
+        if (glyphIDUpdateCnt > 0)
+        {
+            glyphIDPool->Update(glyphIDAllocation, glyphIDs, currentFrame);
+            --glyphIDUpdateCnt;
+        }
+        VkBuffer glyphIDBuffer = glyphIDPool->GetBuffer(glyphIDAllocation, currentFrame);
+        VkDeviceSize offset = glyphIDPool->GetOffset(glyphIDAllocation);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &glyphIDBuffer, &offset);
         Layered2DRenderPushConstants constants{*modelMatrix, viewportSize, atlasSize};
         vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(constants), &constants);
-        vkCmdDraw(commandBuffer, 6, static_cast<uint32_t>(glyphIDs.size()), 0, 0);
+        vkCmdDraw(commandBuffer, 6, glyphIDAllocation.count, 0, 0);
     }
 
     Layered2DRenderInfo::Layered2DRenderInfo(std::shared_ptr<Material> material, RenderContext *context)
@@ -41,7 +149,8 @@ namespace vke_render
     }
 
     void Layered2DRenderInfo::Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
-                                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize) const
+                                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize,
+                                     uint32_t currentFrame) const
     {
         if (units.empty())
             return;
@@ -53,7 +162,7 @@ namespace vke_render
                                     renderPipeline->pipelineLayout, 1, 1, &commonDescriptorSet, 0, nullptr);
         material->SetPushConstants(commandBuffer, renderPipeline->pipelineLayout);
         for (const auto &entry : units)
-            entry.second->Render(commandBuffer, renderPipeline->pipelineLayout, viewportSize, atlasSize);
+            entry.second->Render(commandBuffer, renderPipeline->pipelineLayout, viewportSize, atlasSize, currentFrame);
     }
 
     void Layered2DRenderInfo::createPipeline(RenderContext *context)
@@ -125,15 +234,14 @@ namespace vke_render
         if (it == renderInfos.end())
             return;
         it->second->RemoveUnit(unitID);
-        if (it->second->Empty())
-            renderInfos.erase(it);
     }
 
     void Layered2DRenderLayer::Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
-                                      const glm::vec2 &viewportSize, const glm::vec2 &atlasSize) const
+                                      const glm::vec2 &viewportSize, const glm::vec2 &atlasSize,
+                                      uint32_t currentFrame) const
     {
         for (const auto &entry : renderInfos)
-            entry.second->Render(commandBuffer, rendererDescriptorSet, viewportSize, atlasSize);
+            entry.second->Render(commandBuffer, rendererDescriptorSet, viewportSize, atlasSize, currentFrame);
     }
 
     void Layered2DRenderer::Init(int subpassID, FrameGraph &frameGraph,
@@ -173,7 +281,7 @@ namespace vke_render
 
         UnitState state;
         state.material = material == nullptr ? defaultMaterial : material;
-        state.unit = std::make_unique<Layered2DRenderUnit>(unitID, modelMatrix);
+        state.unit = std::make_unique<Layered2DRenderUnit>(unitID, modelMatrix, &glyphIDPool);
         state.unit->SetGlyphIDs(glyphIDs);
         units.emplace(unitID, std::move(state));
         return true;
@@ -228,11 +336,6 @@ namespace vke_render
             return;
         layerIt->second->RemoveUnit(unitIt->second.material.get(), unitID);
         unitIt->second.layerID = std::numeric_limits<vke_ds::id32_t>::max();
-        if (layerIt->second->Empty())
-        {
-            layers.erase(layerIt);
-            layerOrder.erase(std::remove(layerOrder.begin(), layerOrder.end(), layerID), layerOrder.end());
-        }
     }
 
     void Layered2DRenderer::SetLayerOrder(const std::vector<vke_ds::id32_t> &backToFrontLayerIDs)
@@ -276,9 +379,7 @@ namespace vke_render
         for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
         {
             rendererDescriptorSets[frame] = textShader->CreateDescriptorSet(0);
-            std::array<VkDescriptorBufferInfo, GlyphManager::MAX_GLYPH_BUFFER_CNT> glyphBufferInfos;
-            for (uint32_t i = 0; i < GlyphManager::MAX_GLYPH_BUFFER_CNT; ++i)
-                glyphBufferInfos[i] = glyphManager->GetDescriptorBufferInfo(i, frame);
+            VkDescriptorBufferInfo glyphBufferInfo = glyphManager->GetDescriptorBufferInfo(frame);
 
             VkDescriptorImageInfo staticAtlasInfo{
                 font->atlasTexture->textureSampler, font->atlasTexture->textureImageView,
@@ -292,8 +393,7 @@ namespace vke_render
             ConstructDescriptorSetWrite(writes[1], rendererDescriptorSets[frame], 1,
                                         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &dynamicAtlasInfo);
             ConstructDescriptorSetWrite(writes[2], rendererDescriptorSets[frame], 2,
-                                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, glyphBufferInfos.data(), 0,
-                                        GlyphManager::MAX_GLYPH_BUFFER_CNT);
+                                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &glyphBufferInfo);
             vkUpdateDescriptorSets(globalLogicalDevice, 3, writes, 0, nullptr);
         }
     }
@@ -332,7 +432,8 @@ namespace vke_render
         {
             auto it = layers.find(layerID);
             if (it != layers.end())
-                it->second->Render(commandBuffer, rendererDescriptorSets[currentFrame], viewportSize, atlasSize);
+                it->second->Render(commandBuffer, rendererDescriptorSets[currentFrame], viewportSize, atlasSize,
+                                   currentFrame);
         }
         vkCmdEndRendering(commandBuffer);
     }

@@ -6,6 +6,7 @@
 #include <interop/math.hpp>
 #include <interop/light.hpp>
 #include <interop/physics.hpp>
+#include <interop/text.hpp>
 
 namespace vke_interop
 {
@@ -69,6 +70,11 @@ namespace vke_interop
         GetPreviousFrameTimeFn GetPreviousFrameTime;
         SetEngineStateFn SetEngineState;
         HasComponentFn HasComponent;
+        GetUITextLengthFn GetUITextLength;
+        GetUITextTextFn GetUITextText;
+        SetUITextTextFn SetUITextText;
+        GetUITextColorFn GetUITextColor;
+        SetUITextColorFn SetUITextColor;
         GetDirectionalLightColorFn GetDirectionalLightColor;
         SetDirectionalLightColorFn SetDirectionalLightColor;
         GetDirectionalLightIntensityFn GetDirectionalLightIntensity;

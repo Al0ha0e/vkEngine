@@ -1,8 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
-#extension GL_EXT_nonuniform_qualifier : require
-
 struct Glyph
 {
     vec4 quadRect; // xy = min, zw = max in target pixels
@@ -16,7 +14,7 @@ layout(location = 0) in uint glyphID;
 layout(set = 0, binding = 2, std430) readonly buffer GlyphBuffer
 {
     Glyph glyphs[];
-} glyphBuffers[16];
+} glyphBuffer;
 layout(push_constant) uniform PushConstants
 {
     mat4 model;
@@ -38,9 +36,7 @@ const vec2 quadCorners[6] = vec2[](
 
 void main()
 {
-    uint bufferIndex = glyphID >> 9u;
-    uint slotIndex = glyphID & 511u;
-    Glyph glyph = glyphBuffers[nonuniformEXT(bufferIndex)].glyphs[slotIndex];
+    Glyph glyph = glyphBuffer.glyphs[glyphID];
     vec2 corner = quadCorners[gl_VertexIndex];
 
     vec2 localPos = mix(glyph.quadRect.xw, glyph.quadRect.zy, corner);

@@ -47,6 +47,25 @@ namespace vkEngine.EngineCore
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public struct NVec4
+    {
+        public float x, y, z, w;
+
+        public NVec4(float x, float y, float z, float w)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+        }
+
+        public static NVec4 Zero => new(0f, 0f, 0f, 0f);
+        public static NVec4 One => new(1f, 1f, 1f, 1f);
+
+        public override readonly string ToString() => $"({x}, {y}, {z}, {w})";
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public struct NQuat
     {
         public float x, y, z, w;

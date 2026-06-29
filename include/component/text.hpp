@@ -46,23 +46,16 @@ namespace vke_component
             return UIComponent::LoadToEngine();
         }
 
-        bool SetText(std::string_view newText)
+        void SetText(std::string_view newText)
         {
-            const std::string oldText = text;
             text.assign(newText);
-            if (rebuild())
-                return true;
-            text = oldText;
             rebuild();
-            return false;
         }
 
-        bool SetColor(const glm::vec4 &newColor)
+        void SetColor(const glm::vec4 &newColor)
         {
-            if (!SetGlyphColor(newColor))
-                return false;
             color = newColor;
-            return true;
+            SetGlyphColor(newColor);
         }
 
         const std::string &GetText() const { return text; }

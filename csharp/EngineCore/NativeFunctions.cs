@@ -32,6 +32,11 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<float> GetPreviousFrameTime;
         public delegate* unmanaged[Cdecl]<Int32, void> SetEngineState;
         public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> HasComponent;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetUITextLength;
+        public delegate* unmanaged[Cdecl]<UInt32, byte*, UInt32, UInt32> GetUITextText;
+        public delegate* unmanaged[Cdecl]<UInt32, byte*, UInt32, void> SetUITextText;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec4*, void> GetUITextColor;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec4*, void> SetUITextColor;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetDirectionalLightColor;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> SetDirectionalLightColor;
         public delegate* unmanaged[Cdecl]<UInt32, float> GetDirectionalLightIntensity;
@@ -124,6 +129,7 @@ namespace vkEngine.EngineCore
             Time.RegisterNativeFunctions(functions);
             EngineStateManager.RegisterNativeFunctions(functions);
             EntityScript.RegisterNativeFunctions(functions);
+            UIText.RegisterNativeFunctions(functions);
             Light.RegisterNativeFunctions(functions);
             CharacterController.RegisterNativeFunctions(functions);
             RigidBody.RegisterNativeFunctions(functions);

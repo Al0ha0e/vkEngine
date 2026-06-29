@@ -171,6 +171,7 @@ commonsrc = (
         "./third_party/tinygltf/tiny_gltf.cpp",
         "./src/interop/native.cpp",
         "./src/interop/light.cpp",
+        "./src/interop/text.cpp",
         "./src/interop/physics.cpp",
     ]
     + generated_files

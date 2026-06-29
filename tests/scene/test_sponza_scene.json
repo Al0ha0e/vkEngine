@@ -1,6 +1,6 @@
 {
   "layers": ["default", "editor", "test"],
-  "maxid": 4,
+  "maxid": 5,
   "objects": [
     {
       "children": [],
@@ -192,6 +192,34 @@
           "type": "directionalLight",
           "color": [1.0, 0.96, 0.9],
           "intensity": 3.0
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 4,
+      "static": true,
+      "name": "fps_text",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [60.0, 60.0, 12.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "uiText",
+          "text": "FPS: 0.0",
+          "color": [0.95, 0.95, 0.95, 1.0],
+          "material": 0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.FpsTextScript",
+          "data": {
+            "fields": []
+          }
         }
       ],
       "children": []

@@ -16,7 +16,8 @@ namespace vkEngine.EngineCore
         DirectionalLight = 7,
         PointLight = 8,
         SpotLight = 9,
-        Script = 10
+        Script = 10,
+        UIText = 11
     }
 
     public interface IScriptLifecycle
@@ -48,7 +49,8 @@ namespace vkEngine.EngineCore
             [typeof(CharacterController)] = ComponentType.CharacterController,
             [typeof(DirectionalLight)] = ComponentType.DirectionalLight,
             [typeof(PointLight)] = ComponentType.PointLight,
-            [typeof(SpotLight)] = ComponentType.SpotLight
+            [typeof(SpotLight)] = ComponentType.SpotLight,
+            [typeof(UIText)] = ComponentType.UIText
         };
         private static readonly Dictionary<ComponentType, Type> componentRuntimeTypeMap = new()
         {
@@ -58,7 +60,8 @@ namespace vkEngine.EngineCore
             [ComponentType.CharacterController] = typeof(CharacterController),
             [ComponentType.DirectionalLight] = typeof(DirectionalLight),
             [ComponentType.PointLight] = typeof(PointLight),
-            [ComponentType.SpotLight] = typeof(SpotLight)
+            [ComponentType.SpotLight] = typeof(SpotLight),
+            [ComponentType.UIText] = typeof(UIText)
         };
 
         protected EntityScript(UInt32 entity)

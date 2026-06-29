@@ -98,14 +98,14 @@ namespace vke_component
             if (!renderer->UpdateUnitGlyphIDs(id, glyphIDs))
                 return false;
             localBounds = newLocalBounds;
-            return syncSpatialLayer();
+            syncSpatialLayer();
+            return true;
         }
 
-        bool SetGlyphColor(const glm::vec4 &color)
+        void SetGlyphColor(const glm::vec4 &color)
         {
             for (vke_render::GlyphID glyphID : glyphIDs)
                 glyphData->UpdateColor(glyphID, color);
-            return true;
         }
 
         bool IsLoaded() const { return id != INVALID_ID; }
@@ -120,10 +120,7 @@ namespace vke_component
         vke_common::AABB2D localBounds;
         vke_render::Layered2DRenderUnit *renderUnit = nullptr;
 
-        float getZIndex() const
-        {
-            return transform == nullptr ? 0.0f : transform->model[3].z;
-        }
+        float getZIndex() const { return transform->model[3].z; }
 
         vke_common::AABB2D getWorldBounds() const
         {
@@ -144,30 +141,22 @@ namespace vke_component
             return vke_common::AABB2D(minimum, maximum);
         }
 
-        bool syncSpatialLayer()
+        void syncSpatialLayer()
         {
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             vke_common::Spatial2DLayerManager *spatialManager = vke_common::Spatial2DLayerManager::GetInstance();
 
             const vke_common::Spatial2DUnit *oldUnit = spatialManager->GetUnit(id);
-            if (oldUnit == nullptr)
-                return false;
-
             const vke_ds::id32_t oldLayer = oldUnit->layer;
-            if (!spatialManager->ReinsertUnit(id, getWorldBounds(), getZIndex()))
-                return false;
-
+            spatialManager->ReinsertUnit(id, getWorldBounds(), getZIndex());
             const vke_common::Spatial2DUnit *newUnit = spatialManager->GetUnit(id);
-            if (newUnit == nullptr)
-                return false;
+
             if (oldLayer != newUnit->layer)
             {
                 renderer->RemoveUnitFromLayer(id, oldLayer);
-                if (!renderer->AddUnitToLayer(id, newUnit->layer))
-                    return false;
+                renderer->AddUnitToLayer(id, newUnit->layer);
             }
             renderer->SetLayerOrder(spatialManager->GetLayerOrder());
-            return true;
         }
 
         bool setGlyphs(std::vector<vke_render::GlyphInstanceGPU> newGlyphs)
@@ -177,8 +166,7 @@ namespace vke_component
 
             glyphData->Release(glyphIDs);
             std::vector<vke_render::GlyphID> newGlyphIDs;
-            if (!glyphData->Allocate(newGlyphs, newGlyphIDs))
-                return false;
+            glyphData->Allocate(newGlyphs, newGlyphIDs);
             glyphIDs = std::move(newGlyphIDs);
             return true;
         }
