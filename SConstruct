@@ -171,6 +171,7 @@ commonsrc = (
         "./third_party/vma/vma.cpp",
         "./third_party/stb/stb_image.cpp",
         "./third_party/tinygltf/tiny_gltf.cpp",
+        "./third_party/miniaudio/miniaudio.c",
         "./src/interop/native.cpp",
         "./src/interop/light.cpp",
         "./src/interop/text.cpp",

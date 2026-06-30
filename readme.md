@@ -63,6 +63,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 - [entt](https://github.com/skypjack/entt)
 - [freetype](https://freetype.org/)
 - [recastnavigation](https://github.com/recastnavigation/recastnavigation)
+- [miniaudio](https://github.com/mackron/miniaudio)
 
 
 ## Roadmap 
@@ -96,6 +97,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
   - [x] animation sampling
   - [x] GPU skinning
   - [ ] blending
+  - [ ] root motion
   - [ ] IK
 - **Scripting**:
   - [x] CoreCLR integration
