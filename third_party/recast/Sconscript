@@ -1,0 +1,44 @@
+import os, fnmatch
+
+Import("env")
+
+RECASTNAVIGATION_ENABLE_ASSERTS = False
+RECASTNAVIGATION_DT_POLYREF64 = False
+RECASTNAVIGATION_DT_VIRTUAL_QUERYFILTER = False
+
+def glob_cpp(root):
+    matches = []
+    for base, dirs, files in os.walk(root):
+        matches += [os.path.join(base, f) for f in fnmatch.filter(files, "*.cpp")]
+    return matches
+
+recast_cppdefines = []
+
+if not RECASTNAVIGATION_ENABLE_ASSERTS:
+    recast_cppdefines.append("RC_DISABLE_ASSERTS")
+
+if RECASTNAVIGATION_DT_POLYREF64:
+    recast_cppdefines.append("DT_POLYREF64")
+
+if RECASTNAVIGATION_DT_VIRTUAL_QUERYFILTER:
+    recast_cppdefines.append("DT_VIRTUAL_QUERYFILTER")
+
+recast_objs = glob_cpp("./Recast/Source")
+detour_objs = glob_cpp("./Detour/Source")
+detour_crowd_objs = glob_cpp("./DetourCrowd/Source")
+detour_tile_cache_objs = glob_cpp("./DetourTileCache/Source")
+
+tot_objs = recast_objs + detour_objs + detour_crowd_objs + detour_tile_cache_objs
+
+objs = env.Object(
+    tot_objs,
+    CPPPATH=[
+        "./Recast/Include",
+        "./Detour/Include",
+        "./DetourCrowd/Include",
+        "./DetourTileCache/Include",
+    ],
+    CPPDEFINES=recast_cppdefines,
+)
+
+Return("objs")

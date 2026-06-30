@@ -62,6 +62,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 - [ozz-animation](https://github.com/guillaumeblanc/ozz-animation)
 - [entt](https://github.com/skypjack/entt)
 - [freetype](https://freetype.org/)
+- [recastnavigation](https://github.com/recastnavigation/recastnavigation)
 
 
 ## Roadmap 

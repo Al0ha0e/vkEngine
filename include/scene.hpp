@@ -144,15 +144,6 @@ namespace vke_common
             loadedToEngine = false;
         }
 
-        // void AddObject(std::unique_ptr<GameObject> &&object)
-        // {
-        //     vke_ds::id32_t id = idAllocator.Alloc();
-        //     object->id = id;
-        //     entt::entity entity = registry.create();
-        //     idToEntity[id] = entity;
-        //     gameObjects[id] = std::move(object);
-        // }
-
         entt::entity GetObjectEntity(vke_ds::id32_t id) const
         {
             auto it = idToEntity.find(id);
@@ -165,6 +156,16 @@ namespace vke_common
         }
 
         bool HasComponent(entt::entity entity, ComponentType componentType) const;
+
+        entt::entity AddObject(std::string &name, glm::vec3 pos, glm::vec3 scl, glm::quat rot, int layer, bool isStatic)
+        {
+            vke_ds::id32_t id = idAllocator.Alloc();
+            entt::entity entity = registry.create();
+            idToEntity[id] = entity;
+            registry.emplace<GameObject>(entity, id, name, layer, isStatic);
+            registry.emplace<Transform>(entity, pos, scl, rot);
+            return entity;
+        }
 
         void RemoveObject(entt::entity entity)
         {

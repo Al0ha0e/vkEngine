@@ -20,6 +20,9 @@ namespace vke_common
         GameObject(const nlohmann::json &json)
             : id(json["id"]), layer(json["layer"]), isStatic(json["static"]), name(json["name"]) {}
 
+        GameObject(vke_ds::id32_t id, std::string &name, int layer, bool isStatic)
+            : id(id), layer(layer), isStatic(isStatic), name(name) {}
+
         ~GameObject() {}
 
         nlohmann::json ToJSON()

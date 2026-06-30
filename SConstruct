@@ -108,6 +108,7 @@ joltObjs = SConscript(
 )
 ozzObjs = SConscript(["third_party/ozz/Sconscript"], exports=["env"])
 freetypeObjs = SConscript(["third_party/freetype/Sconscript"], exports=["env"])
+recastObjs = SConscript(["third_party/recast/Sconscript"], exports=["env"])
 
 
 libs = ["Gdi32", "shell32", "user32", "vulkan-1"] + selflibs
@@ -128,6 +129,7 @@ commonsrc = (
     joltObjs
     + ozzObjs
     + freetypeObjs
+    + recastObjs
     + [
         "./src/render/environment.cpp",
         "./src/asset.cpp",
