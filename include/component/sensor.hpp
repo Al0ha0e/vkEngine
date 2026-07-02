@@ -28,6 +28,7 @@ namespace vke_component
             : shape(new vke_physics::PhyscisShape(json["shape"]))
         {
             init(transform, json.value("isStatic", true), json["layer"]);
+            settings.mMotionQuality = json.value("motionQuality", JPH::EMotionQuality::Discrete);
         }
 
         ~Sensor() {}
@@ -51,6 +52,7 @@ namespace vke_component
             return {
                 {"type", "sensor"},
                 {"isStatic", settings.mMotionType == JPH::EMotionType::Static},
+                {"motionQuality", settings.mMotionQuality},
                 {"layer", (int)settings.mObjectLayer},
                 {"shape", shape->ToJSON()}};
         }
@@ -73,6 +75,7 @@ namespace vke_component
                                                  motionType, layer);
             settings.mIsSensor = true;
             settings.mAllowDynamicOrKinematic = true;
+            settings.mMotionQuality = JPH::EMotionQuality::Discrete;
         }
     };
 }

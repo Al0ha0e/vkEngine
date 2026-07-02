@@ -21,13 +21,13 @@ namespace vke_component
             const vke_common::Transform &transform,
             std::shared_ptr<vke_render::Material> &mat,
             std::shared_ptr<const vke_render::Mesh> &mesh)
-            : material(mat), castsShadow(true), shadowRenderID(0)
+            : material(mat), castsShadow(true), renderID(0), shadowRenderID(0)
         {
             init(transform, mesh);
         }
 
         RenderableObject(const vke_common::Transform &transform, const nlohmann::json &json)
-            : castsShadow(json.contains("castsShadow") ? json["castsShadow"].get<bool>() : true), shadowRenderID(0)
+            : castsShadow(json.contains("castsShadow") ? json["castsShadow"].get<bool>() : true), renderID(0), shadowRenderID(0)
         {
             material = vke_common::AssetManager::LoadMaterial(json["material"]);
             std::shared_ptr<const vke_render::Mesh> mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
@@ -71,6 +71,14 @@ namespace vke_component
                     shadowPass->RemoveUnit(shadowRenderID);
                 shadowRenderID = 0;
             }
+        }
+
+        void SetMesh(std::shared_ptr<const vke_render::Mesh> &mesh)
+        {
+            if (renderUnit != nullptr)
+                renderUnit->mesh = mesh;
+            if (shadowRenderUnit != nullptr)
+                shadowRenderUnit->mesh = mesh;
         }
 
         nlohmann::json ToJSON()

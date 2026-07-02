@@ -63,7 +63,7 @@ namespace vke_render
             cpuLightData->entityToLight[typecode][entity] = id;
             if constexpr (std::same_as<T, SpotLight>)
             {
-                SpotLight &light = GetLightWithoutCheckByID(id);
+                SpotLight &light = GetLightWithoutCheckByID<SpotLight>(id);
                 if (light.CastShadow())
                     shadowManager->ActivateSpotShadow(entity, light);
             }

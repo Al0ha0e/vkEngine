@@ -36,6 +36,8 @@ namespace vke_component
               mass(hasMassOverride ? json["mass"].get<float>() : 0.0f)
         {
             init(transform, json["motionType"], json["layer"]);
+            settings.mMotionQuality = json.value("motionQuality", JPH::EMotionQuality::Discrete);
+            settings.mGravityFactor = json.value("gravityFactor", 1.0f);
         }
 
         ~RigidBody() {}
@@ -63,9 +65,11 @@ namespace vke_component
             nlohmann::json ret = {
                 {"type", "rigidbody"},
                 {"motionType", settings.mMotionType},
+                {"motionQuality", settings.mMotionQuality},
                 {"layer", (int)settings.mObjectLayer},
                 {"friction", friction},
                 {"restitution", restitution},
+                {"gravityFactor", settings.mGravityFactor},
                 {"shape", shape->ToJSON()}};
             if (hasMassOverride)
                 ret["mass"] = mass;
@@ -87,6 +91,8 @@ namespace vke_component
                                                  JPH::RVec3(position.x, position.y, position.z),
                                                  JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
                                                  motionType, layer);
+            settings.mMotionQuality = JPH::EMotionQuality::Discrete;
+            settings.mGravityFactor = 1.0f;
             if (hasMassOverride)
             {
                 settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;

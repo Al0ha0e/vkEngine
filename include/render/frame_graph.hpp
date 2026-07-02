@@ -258,27 +258,25 @@ namespace vke_render
         {
             images.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
         }
-        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight, VkImage *imgs,
+        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight, VkImage *imgs, uint32_t imgCnt,
                       const VkImageAspectFlags aspect, const bool dependOnSwapchain)
             : RenderResource(std::move(name), id, IMAGE_RESOURCE, isTransient, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
               mipLevelCnt(1), layerCnt(1)
         {
-            int cnt = dependOnSwapchain ? RenderEnvironment::GetInstance()->imageCnt : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
-            images.resize(cnt, VK_NULL_HANDLE);
-            for (int i = 0; i < cnt; ++i)
+            images.resize(imgCnt, VK_NULL_HANDLE);
+            for (int i = 0; i < imgCnt; ++i)
                 images[i] = imgs[i];
 
             VKE_LOG_DEBUG("IMAGE RESOURCE {}", name)
         }
 
-        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight, VkImage *imgs,
+        ImageResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight, VkImage *imgs, uint32_t imgCnt,
                       const VkImageAspectFlags aspect, uint32_t mipLevelCnt, uint32_t layerCnt, const bool dependOnSwapchain)
             : RenderResource(std::move(name), id, IMAGE_RESOURCE, isTransient, framesInFlight), aspectMask(aspect), dependOnSwapchain(dependOnSwapchain),
               mipLevelCnt(mipLevelCnt), layerCnt(layerCnt)
         {
-            int cnt = dependOnSwapchain ? RenderEnvironment::GetInstance()->imageCnt : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
-            images.resize(cnt, VK_NULL_HANDLE);
-            for (int i = 0; i < cnt; ++i)
+            images.resize(imgCnt, VK_NULL_HANDLE);
+            for (int i = 0; i < imgCnt; ++i)
                 images[i] = imgs[i];
 
             VKE_LOG_DEBUG("IMAGE RESOURCE {}", name)
@@ -305,12 +303,13 @@ namespace vke_render
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
                 buffers[i] = 0;
         }
-        BufferResource(std::string &&name, const vke_ds::id32_t id, const bool isTransient, const bool framesInFlight,
-                       VkBuffer *buffs, const VkDeviceSize offset, const VkDeviceSize size)
+        BufferResource(std::string &&name, const vke_ds::id32_t id,
+                       const bool isTransient, const bool framesInFlight,
+                       VkBuffer *buffs, uint32_t bufferCnt,
+                       const VkDeviceSize offset, const VkDeviceSize size)
             : RenderResource(std::move(name), id, BUFFER_RESOURCE, isTransient, framesInFlight), offset(offset), size(size)
         {
-            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
-            for (int i = 0; i < cnt; ++i)
+            for (int i = 0; i < bufferCnt; ++i)
                 buffers[i] = buffs[i];
             VKE_LOG_DEBUG("BUFFER RESOURCE {}", name)
         }
@@ -339,8 +338,8 @@ namespace vke_render
         std::unordered_map<vke_ds::id32_t, std::unique_ptr<TaskNode>> taskNodes;
         bool needRecompile;
 
-        FrameGraph(const uint32_t framesInFlight)
-            : framesInFlight(framesInFlight), resourceIDAllocator(1), taskNodeIDAllocator(1), resourceNodeIDAllocator(1), transientMemoryUpdateCnt(0), needRecompile(true)
+        FrameGraph(const uint32_t framesInFlight, vke_render::RenderContext *context)
+            : framesInFlight(framesInFlight), context(context), resourceIDAllocator(1), taskNodeIDAllocator(1), resourceNodeIDAllocator(1), transientMemoryUpdateCnt(0), needRecompile(true)
         {
             init();
         }
@@ -362,7 +361,8 @@ namespace vke_render
                                                  const VkPipelineStageFlags2 stStage, const std::optional<VkImageLayout> stLayout, const std::optional<VkImageLayout> enLayout)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, false, framesInFlight, images, aspectMask, dependOnSwapchain));
+            int cnt = dependOnSwapchain ? context->colorImages.size() : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, false, framesInFlight, images, cnt, aspectMask, dependOnSwapchain));
             permanentResourceStates.emplace(id, PermanentResourceState(stStage, stLayout, enLayout));
             return id;
         }
@@ -372,7 +372,8 @@ namespace vke_render
                                                  const VkPipelineStageFlags2 stStage, const std::optional<VkImageLayout> stLayout, const std::optional<VkImageLayout> enLayout)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, false, framesInFlight, images, aspectMask, mipLevelCnt, layerCnt, dependOnSwapchain));
+            int cnt = dependOnSwapchain ? context->colorImages.size() : (framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1);
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, false, framesInFlight, images, cnt, aspectMask, mipLevelCnt, layerCnt, dependOnSwapchain));
             permanentResourceStates.emplace(id, PermanentResourceState(stStage, stLayout, enLayout));
             return id;
         }
@@ -382,8 +383,9 @@ namespace vke_render
                                                   const VkPipelineStageFlags2 stStage)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            int cnt = framesInFlight ? MAX_FRAMES_IN_FLIGHT : 1;
             resources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, false, framesInFlight,
-                                                                   buffers, offset, size));
+                                                                   buffers, cnt, offset, size));
             permanentResourceStates.emplace(id, PermanentResourceState(stStage, std::nullopt, std::nullopt));
             return id;
         }
@@ -391,7 +393,7 @@ namespace vke_render
         vke_ds::id32_t AddTransientImageResource(std::string &&name, VkImage *images, const VkImageAspectFlags aspectMask)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, aspectMask, false));
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, MAX_FRAMES_IN_FLIGHT, aspectMask, false));
             return id;
         }
 
@@ -400,14 +402,14 @@ namespace vke_render
                                                  uint32_t mipLevelCnt, uint32_t layerCnt)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, aspectMask, mipLevelCnt, layerCnt, false));
+            resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, MAX_FRAMES_IN_FLIGHT, aspectMask, mipLevelCnt, layerCnt, false));
             return id;
         }
 
         vke_ds::id32_t AddTransientBufferResource(std::string &&name, VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
-            resources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, true, true, buffers, offset, size));
+            resources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, true, true, buffers, MAX_FRAMES_IN_FLIGHT, offset, size));
             return id;
         }
 
@@ -512,6 +514,7 @@ namespace vke_render
 
     private:
         uint32_t framesInFlight;
+        vke_render::RenderContext *context;
         uint32_t queueFamilies[TASK_TYPE_CNT - 1];
         uint32_t submitCntEstimates[TASK_TYPE_CNT];
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceIDAllocator;

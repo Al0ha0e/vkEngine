@@ -64,6 +64,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 - [freetype](https://freetype.org/)
 - [recastnavigation](https://github.com/recastnavigation/recastnavigation)
 - [miniaudio](https://github.com/mackron/miniaudio)
+- [imgui](https://github.com/ocornut/imgui)
 
 
 ## Roadmap 

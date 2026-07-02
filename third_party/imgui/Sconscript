@@ -1,0 +1,25 @@
+Import("env", "VULKAN_PATH")
+
+imgui_env = env.Clone()
+imgui_env.AppendUnique(
+    CPPPATH=[
+        ".",
+        "backends",
+        "../",
+        VULKAN_PATH + "/Include",
+    ]
+)
+
+imgui_sources = [
+    "imgui.cpp",
+    "imgui_draw.cpp",
+    "imgui_tables.cpp",
+    "imgui_widgets.cpp",
+    "imgui_demo.cpp",
+    "backends/imgui_impl_vulkan.cpp",
+    "backends/imgui_impl_glfw.cpp",
+]
+
+objs = imgui_env.Object(imgui_sources)
+
+Return("objs")
