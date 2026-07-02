@@ -65,9 +65,9 @@ namespace vke_render
     void Renderer::constructFrameGraph(std::map<std::string, vke_ds::id32_t> &blackboard,
                                        ResourceNodeIDMap &currentResourceNodeID)
     {
-        instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT);
+        instance->frameGraph = std::make_unique<FrameGraph>(MAX_FRAMES_IN_FLIGHT, context);
         colorAttachmentResourceID = frameGraph->AddPermanentImageResource("colorAttachment", true, context->colorImages.data(), VK_IMAGE_ASPECT_COLOR_BIT, true,
-                                                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+                                                                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_IMAGE_LAYOUT_UNDEFINED, context->outColorLayout);
         depthAttachmentResourceID = frameGraph->AddPermanentImageResource("depthAttachment", true, context->depthImages, VK_IMAGE_ASPECT_DEPTH_BIT, false,
                                                                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, std::nullopt, std::nullopt);
 

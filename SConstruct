@@ -112,12 +112,15 @@ recastObjs = SConscript(["third_party/recast/Sconscript"], exports=["env"])
 
 
 libs = ["Gdi32", "shell32", "user32", "vulkan-1"] + selflibs
-libpath = ["./libs", "D:/VulkanSDK/Lib"]
+VULKAN_PATH = "D:/VulkanSDK"
+libpath = ["./libs", VULKAN_PATH + "/Lib"]
 cpppath = [
     "./include",
-    "D:/VulkanSDK/Include",
+    VULKAN_PATH + "/Include",
     "./third_party/spirv_reflect",
     "./third_party/",
+    "./third_party/imgui",
+    "./third_party/imgui/backends",
 ]
 cpppath.append("./third_party/freetype/include")
 cppdefines = ["JSON_NOEXCEPTION", "SPDLOG_NO_EXCEPTIONS"]
@@ -237,11 +240,25 @@ for info in targetinfo:
         CPPDEFINES=cppdefines + jolt_cppdefines,
     )
 
+imguiObjs = SConscript(["third_party/imgui/Sconscript"], exports=["env", "VULKAN_PATH"])
+editorsrc = [
+    "./src/editor/editor.cpp",
+    "./src/editor/render.cpp",
+    "./src/editor/component/camera.cpp",
+    "./src/editor/component/light.cpp",
+    "./src/editor/component/renderable_object.cpp",
+    "./src/editor/component/skeleton_animator.cpp",
+    "./src/editor/component/rigidbody.cpp",
+    "./src/editor/component/sensor.cpp",
+    "./src/editor/component/text.cpp",
+]
+
 ### tests
 
 targetinfo = [
     ["out/test_spvrefl", ["./tests/test_spvrefl.cpp"]],
     ["out/engine", ["./src/main.cpp"]],
+    ["out/editor", ["./src/editor_main.cpp"] + editorsrc + imguiObjs],
 ]
 
 for info in targetinfo:
