@@ -243,6 +243,7 @@ namespace vke_render
                     if (resource->firstAccessTaskID == taskID) // transient first access must be RENDER/COMPUTE TASK
                     {
                         VKE_FATAL_IF((taskNode.actualTaskType != RENDER_TASK) && (taskNode.actualTaskType != COMPUTE_TASK), "transient first access must be RENDER/COMPUTE TASK")
+                        recreateTransientResource(resourceID, *resource, 0);
                         if (resource->resourceType == IMAGE_RESOURCE)
                         {
                             ImageResource *imageResource = (ImageResource *)resource.get();
@@ -278,6 +279,67 @@ namespace vke_render
         for (auto taskID : orderedTasks)
             VKE_LOG_INFO("task id {}", taskID)
         VKE_LOG_INFO("-------------------------- END COMPILE-----------------------")
+    }
+
+    void FrameGraph::cleanupTransientResource(RenderResource &resource)
+    {
+        if (!resource.isTransient)
+            return;
+
+        if (resource.resourceType == IMAGE_RESOURCE)
+        {
+            ImageResource *imageResource = static_cast<ImageResource *>(&resource);
+            for (VkImage &image : imageResource->images)
+            {
+                if (image != VK_NULL_HANDLE)
+                {
+                    vkDestroyImage(globalLogicalDevice, image, nullptr);
+                    image = VK_NULL_HANDLE;
+                }
+            }
+        }
+        else
+        {
+            BufferResource *bufferResource = static_cast<BufferResource *>(&resource);
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+            {
+                if (bufferResource->buffers[i] != VK_NULL_HANDLE)
+                {
+                    vkDestroyBuffer(globalLogicalDevice, bufferResource->buffers[i], nullptr);
+                    bufferResource->buffers[i] = VK_NULL_HANDLE;
+                }
+            }
+        }
+    }
+
+    void FrameGraph::cleanupTransientResources()
+    {
+        for (auto &[id, resource] : resources)
+            cleanupTransientResource(*resource);
+    }
+
+    void FrameGraph::recreateTransientResource(const vke_ds::id32_t resourceID, RenderResource &resource, const uint32_t currentFrame)
+    {
+        VKE_FATAL_IF(!resource.isTransient, "resource not transient")
+
+        if (resource.resourceType == IMAGE_RESOURCE)
+        {
+            ImageResource *imageResource = static_cast<ImageResource *>(&resource);
+            VKE_FATAL_IF(transientImageCreateInfos.find(resourceID) == transientImageCreateInfos.end(), "transient image create info not found")
+            if (imageResource->images[currentFrame] != VK_NULL_HANDLE)
+                vkDestroyImage(globalLogicalDevice, imageResource->images[currentFrame], nullptr);
+            VKE_VK_CHECK(vkCreateImage(globalLogicalDevice, &transientImageCreateInfos[resourceID], nullptr, &imageResource->images[currentFrame]),
+                         "failed to create transient image!")
+        }
+        else
+        {
+            BufferResource *bufferResource = static_cast<BufferResource *>(&resource);
+            VKE_FATAL_IF(transientBufferCreateInfos.find(resourceID) == transientBufferCreateInfos.end(), "transient buffer create info not found")
+            if (bufferResource->buffers[currentFrame] != VK_NULL_HANDLE)
+                vkDestroyBuffer(globalLogicalDevice, bufferResource->buffers[currentFrame], nullptr);
+            VKE_VK_CHECK(vkCreateBuffer(globalLogicalDevice, &transientBufferCreateInfos[resourceID], nullptr, &bufferResource->buffers[currentFrame]),
+                         "failed to create transient buffer!")
+        }
     }
 
     void FrameGraph::syncResources(const uint32_t currentFrame, const uint32_t imageIndex,
@@ -597,6 +659,12 @@ namespace vke_render
 
         RenderEnvironment *env = RenderEnvironment::GetInstance();
 
+        for (auto &kv : resources)
+        {
+            if (kv.second->isTransient)
+                recreateTransientResource(kv.first, *kv.second, currentFrame);
+        }
+
         transientMemoryManager.Realloc(RENDER_TASK, currentFrame, transientMemorySimulator);
         transientMemoryManager.Realloc(COMPUTE_TASK, currentFrame, transientMemorySimulator);
 
@@ -620,6 +688,7 @@ namespace vke_render
                 ImageResource *imageResource = (ImageResource *)resource;
                 VKE_VK_CHECK(vmaBindImageMemory2(env->vmaAllocator, poolAllocation, bindOffset, imageResource->images[currentFrame], nullptr),
                              "failed to bind transient image memory!")
+                VKE_LOG_INFO("IMAGE BIND MEMORY {} {}", resource->name, (void *)(imageResource->images[currentFrame]))
             }
             else
             {
@@ -630,7 +699,7 @@ namespace vke_render
         }
 
         for (auto &kv : transientReadyCallbacks)
-            kv.second(currentFrame);
+            kv.second(*this, currentFrame);
     }
 
     void FrameGraph::PrepareForExecute(const uint32_t currentFrame)

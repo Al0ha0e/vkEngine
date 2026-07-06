@@ -5,7 +5,6 @@ namespace vke_render
     SSAOPass::~SSAOPass()
     {
         cleanupImageViews();
-        cleanupImages();
         if (sampler != VK_NULL_HANDLE)
             vkDestroySampler(globalLogicalDevice, sampler, nullptr);
     }
@@ -14,8 +13,8 @@ namespace vke_render
                                        std::map<std::string, vke_ds::id32_t> &blackboard,
                                        ResourceNodeIDMap &currentResourceNodeID)
     {
-        ssaoRawResourceID = frameGraph.AddTransientImageResource("ssaoRaw", rawImages, VK_IMAGE_ASPECT_COLOR_BIT);
-        ssaoResourceID = frameGraph.AddTransientImageResource("ssao", images, VK_IMAGE_ASPECT_COLOR_BIT);
+        ssaoRawResourceID = frameGraph.AddTransientImageResource("ssaoRaw", imageCreateInfo, VK_IMAGE_ASPECT_COLOR_BIT);
+        ssaoResourceID = frameGraph.AddTransientImageResource("ssao", imageCreateInfo, VK_IMAGE_ASPECT_COLOR_BIT);
         blackboard["ssao"] = ssaoResourceID;
         vke_ds::id32_t ssaoRawOutResourceNodeID = frameGraph.AllocResourceNode("ssaoRawOut", ssaoRawResourceID);
         vke_ds::id32_t ssaoBlurOutResourceNodeID = frameGraph.AllocResourceNode("ssaoBlurOut", ssaoResourceID);
@@ -24,12 +23,12 @@ namespace vke_render
                                                   std::bind(&SSAOPass::Render, this,
                                                             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                                             std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTransientReadyCallback(std::bind(&SSAOPass::onSSAORawResourcesReady, this, std::placeholders::_1));
+        frameGraph.AddTransientReadyCallback(std::bind(&SSAOPass::onSSAORawResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
         ssaoBlurTaskNodeID = frameGraph.AllocTaskNode("ssao blur", RENDER_TASK,
                                                       std::bind(&SSAOPass::Render, this,
                                                                 std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                                                                 std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTransientReadyCallback(std::bind(&SSAOPass::onSSAOBlurResourcesReady, this, std::placeholders::_1));
+        frameGraph.AddTransientReadyCallback(std::bind(&SSAOPass::onSSAOBlurResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
 
         frameGraph.AddTaskNodeResourceRef(ssaoTaskNodeID, gbuffer->GetResourceNodeID(1), 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -178,9 +177,9 @@ namespace vke_render
         vkCmdEndRendering(commandBuffer);
     }
 
-    void SSAOPass::onSSAORawResourcesReady(uint32_t currentFrame)
+    void SSAOPass::onSSAORawResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame)
     {
-        createImageView(currentFrame);
+        createImageView(frameGraph, currentFrame);
 
         VkDescriptorImageInfo imageInfos[2] = {
             {gbuffer->sampler, gbuffer->imageViews[1][currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
@@ -194,9 +193,9 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 2, descriptorWrites, 0, nullptr);
     }
 
-    void SSAOPass::onSSAOBlurResourcesReady(uint32_t currentFrame)
+    void SSAOPass::onSSAOBlurResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame)
     {
-        createImageView(currentFrame);
+        createImageView(frameGraph, currentFrame);
 
         VkDescriptorImageInfo imageInfos[3] = {
             {sampler, rawImageViews[currentFrame], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
@@ -213,51 +212,17 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 3, descriptorWrites, 0, nullptr);
     }
 
-    void SSAOPass::createImages()
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-        {
-            RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
-                                                        SSAO_FORMAT, VK_IMAGE_TILING_OPTIMAL,
-                                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                                            VK_IMAGE_USAGE_SAMPLED_BIT |
-                                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-                                                        1, &images[i]);
-            RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
-                                                        SSAO_FORMAT, VK_IMAGE_TILING_OPTIMAL,
-                                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                                            VK_IMAGE_USAGE_SAMPLED_BIT |
-                                                            VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-                                                        1, &rawImages[i]);
-        }
-    }
-
-    void SSAOPass::cleanupImages()
-    {
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-        {
-            if (images[i] != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(globalLogicalDevice, images[i], nullptr);
-                images[i] = VK_NULL_HANDLE;
-            }
-            if (rawImages[i] != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(globalLogicalDevice, rawImages[i], nullptr);
-                rawImages[i] = VK_NULL_HANDLE;
-            }
-        }
-    }
-
-    void SSAOPass::createImageView(uint32_t currentFrame)
+    void SSAOPass::createImageView(FrameGraph &frameGraph, uint32_t currentFrame)
     {
         if (imageViews[currentFrame] != VK_NULL_HANDLE)
             vkDestroyImageView(globalLogicalDevice, imageViews[currentFrame], nullptr);
-        imageViews[currentFrame] = RenderEnvironment::CreateImageView(images[currentFrame], SSAO_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkImage image = frameGraph.GetImageResource(ssaoResourceID).images[currentFrame];
+        imageViews[currentFrame] = RenderEnvironment::CreateImageView(image, SSAO_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
 
         if (rawImageViews[currentFrame] != VK_NULL_HANDLE)
             vkDestroyImageView(globalLogicalDevice, rawImageViews[currentFrame], nullptr);
-        rawImageViews[currentFrame] = RenderEnvironment::CreateImageView(rawImages[currentFrame], SSAO_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkImage rawImage = frameGraph.GetImageResource(ssaoRawResourceID).images[currentFrame];
+        rawImageViews[currentFrame] = RenderEnvironment::CreateImageView(rawImage, SSAO_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 
     void SSAOPass::cleanupImageViews()

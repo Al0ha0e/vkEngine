@@ -69,10 +69,8 @@ namespace vke_render
                                          std::map<std::string, vke_ds::id32_t> &blackboard,
                                          ResourceNodeIDMap &currentResourceNodeID)
     {
-        const DirectionalShadowConfig &directionalConfig = shadowManager->GetDirectionalConfig();
-        vke_ds::id32_t shadowMapResourceID = frameGraph.AddTransientImageResource("directionalShadowMap0", shadowManager->GetDirectionalShadowMapImages(), VK_IMAGE_ASPECT_DEPTH_BIT, 1, directionalConfig.cascadeCnt);
-        vke_ds::id32_t shadowMapOutResourceNodeID = frameGraph.AllocResourceNode("directionalShadowMap0Out", shadowMapResourceID);
-
+        vke_ds::id32_t shadowMapResourceID = shadowManager->GetDirectionalShadowMapResourceID();
+        vke_ds::id32_t shadowMapOutResourceNodeID = shadowManager->GetDirectionalShadowMapResourceNodeID();
         blackboard["directionalShadowMap0"] = shadowMapResourceID;
 
         shadowTaskNodeID = frameGraph.AllocTaskNode("shadow pass", RENDER_TASK,
@@ -87,10 +85,8 @@ namespace vke_render
 
         currentResourceNodeID[shadowMapResourceID] = shadowMapOutResourceNodeID;
 
-        vke_ds::id32_t spotShadowMapResourceID = frameGraph.AddTransientImageResource(
-            "spotShadowMap", shadowManager->GetSpotShadowMapImages(), VK_IMAGE_ASPECT_DEPTH_BIT,
-            1, MAX_SPOT_LIGHT_SHADOW_CNT);
-        vke_ds::id32_t spotShadowMapResourceNodeID = frameGraph.AllocResourceNode("spotShadowMapOut", spotShadowMapResourceID);
+        vke_ds::id32_t spotShadowMapResourceID = shadowManager->GetSpotShadowMapResourceID();
+        vke_ds::id32_t spotShadowMapResourceNodeID = shadowManager->GetSpotShadowMapResourceNodeID();
         blackboard["spotShadowMap"] = spotShadowMapResourceID;
         frameGraph.AddTaskNodeResourceRef(shadowTaskNodeID, 0, spotShadowMapResourceNodeID,
                                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,

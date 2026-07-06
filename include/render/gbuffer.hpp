@@ -46,7 +46,7 @@ namespace vke_render
         {
             for (int i = 0; i < GBUFFER_CNT; ++i)
             {
-                resourceIDs[i] = frameGraph.AddTransientImageResource("gbuffer" + std::to_string(i), images[i], VK_IMAGE_ASPECT_COLOR_BIT);
+                resourceIDs[i] = frameGraph.AddTransientImageResource("gbuffer" + std::to_string(i), CreateImageInfo(i), VK_IMAGE_ASPECT_COLOR_BIT);
                 resourceNodeIDs[i] = frameGraph.AllocResourceNode("oriGBuffer" + std::to_string(i), resourceIDs[i]);
             }
         }
@@ -61,13 +61,14 @@ namespace vke_render
             return resourceNodeIDs[index];
         }
 
-        void CreateImageViews(uint32_t currentFrame)
+        void CreateImageViews(FrameGraph &frameGraph, uint32_t currentFrame)
         {
             for (int i = 0; i < GBUFFER_CNT; ++i)
             {
                 if (imageViews[i][currentFrame] != VK_NULL_HANDLE)
                     vkDestroyImageView(globalLogicalDevice, imageViews[i][currentFrame], nullptr);
-                imageViews[i][currentFrame] = RenderEnvironment::CreateImageView(images[i][currentFrame], gbufferFormats[i], VK_IMAGE_ASPECT_COLOR_BIT);
+                VkImage image = frameGraph.GetImageResource(resourceIDs[i]).images[currentFrame];
+                imageViews[i][currentFrame] = RenderEnvironment::CreateImageView(image, gbufferFormats[i], VK_IMAGE_ASPECT_COLOR_BIT);
             }
         }
 
@@ -76,13 +77,29 @@ namespace vke_render
             instance->width = w;
             instance->height = h;
             instance->cleanupImageViews();
-            instance->cleanupImages();
-            instance->createImages();
+        }
+
+        VkImageCreateInfo CreateImageInfo(uint32_t index) const
+        {
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.extent = {width, height, 1};
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = 1;
+            imageInfo.format = gbufferFormats[index];
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                              VK_IMAGE_USAGE_SAMPLED_BIT |
+                              VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            return imageInfo;
         }
 
         uint32_t width;
         uint32_t height;
-        VkImage images[GBUFFER_CNT][MAX_FRAMES_IN_FLIGHT];
         VkImageView imageViews[GBUFFER_CNT][MAX_FRAMES_IN_FLIGHT];
         VkSampler sampler;
         vke_ds::id32_t resourceIDs[GBUFFER_CNT];
@@ -93,7 +110,6 @@ namespace vke_render
         {
             vkDestroySampler(globalLogicalDevice, sampler, nullptr);
             cleanupImageViews();
-            cleanupImages();
         }
 
         void init()
@@ -105,8 +121,6 @@ namespace vke_render
                 for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
                     imageViews[i][j] = VK_NULL_HANDLE;
             }
-
-            createImages();
 
             VkSamplerCreateInfo samplerInfo{};
             samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -122,25 +136,6 @@ namespace vke_render
             samplerInfo.maxAnisotropy = 1.0f;
 
             vkCreateSampler(globalLogicalDevice, &samplerInfo, nullptr, &sampler);
-        }
-
-        void createImages()
-        {
-            VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                           VK_IMAGE_USAGE_SAMPLED_BIT |
-                                           VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-            for (int i = 0; i < GBUFFER_CNT; ++i)
-                for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
-                    RenderEnvironment::CreateImageWithoutMemory(width, height, gbufferFormats[i],
-                                                                VK_IMAGE_TILING_OPTIMAL, usageFlags, 1,
-                                                                &images[i][j]);
-        }
-
-        void cleanupImages()
-        {
-            for (int i = 0; i < GBUFFER_CNT; ++i)
-                for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
-                    vkDestroyImage(globalLogicalDevice, images[i][j], nullptr);
         }
 
         void cleanupImageViews()

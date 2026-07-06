@@ -9,8 +9,10 @@ namespace vke_editor
 {
     EditorRenderer *EditorRenderer::instance = nullptr;
 
-    static void CheckImGuiVkResult(VkResult result){
-        VKE_VK_CHECK(result, "ImGui Vulkan backend call failed!")}
+    static void CheckImGuiVkResult(VkResult result)
+    {
+        VKE_VK_CHECK(result, "ImGui Vulkan backend call failed!")
+    }
 
     static void BuildDefaultDockLayout(ImGuiID dockspaceId)
     {
@@ -230,6 +232,7 @@ namespace vke_editor
                 &sceneColorImages[i], &sceneColorImageVmaAllocations[i], nullptr);
             sceneColorImageViews[i] = vke_render::RenderEnvironment::CreateImageView(
                 sceneColorImages[i], context->colorFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+            VKE_LOG_INFO("createSceneRenderContext {}", (void *)sceneColorImages[i])
 
             vke_render::RenderEnvironment::CreateImage(
                 width, height, env->depthFormat,

@@ -19,19 +19,28 @@ namespace vke_render
                 resourceIDs[imageIndex] = 0;
                 resourceNodeIDs[imageIndex] = 0;
                 for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
-                {
-                    images[imageIndex][frame] = VK_NULL_HANDLE;
                     imageViews[imageIndex][frame] = VK_NULL_HANDLE;
-                }
             }
-            createImages();
             createSampler();
+            imageCreateInfo = VkImageCreateInfo{};
+            imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageCreateInfo.extent = {context->width, context->height, 1};
+            imageCreateInfo.mipLevels = 1;
+            imageCreateInfo.arrayLayers = 1;
+            imageCreateInfo.format = HDR_COLOR_FORMAT;
+            imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                    VK_IMAGE_USAGE_SAMPLED_BIT |
+                                    VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+            imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         }
 
         ~HDRColorManager()
         {
             cleanupImageViews();
-            cleanupImages();
             if (sampler != VK_NULL_HANDLE)
                 vkDestroySampler(globalLogicalDevice, sampler, nullptr);
         }
@@ -48,36 +57,20 @@ namespace vke_render
             {
                 resourceNodeIDs[imageIndex] = 0;
                 resourceIDs[imageIndex] = frameGraph.AddTransientImageResource(
-                    imageIndex == 0 ? "hdrColor0" : "hdrColor1", images[imageIndex], VK_IMAGE_ASPECT_COLOR_BIT);
+                    imageIndex == 0 ? "hdrColor0" : "hdrColor1", imageCreateInfo, VK_IMAGE_ASPECT_COLOR_BIT);
             }
-            frameGraph.AddTransientReadyCallback([this](uint32_t currentFrame)
-                                                 { CreateImageViews(currentFrame); });
+            frameGraph.AddTransientReadyCallback([this](FrameGraph &frameGraph, uint32_t currentFrame)
+                                                 { createImageViews(frameGraph, currentFrame); });
         }
 
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx)
         {
             context = ctx;
             cleanupImageViews();
-            cleanupImages();
-            createImages();
+            imageCreateInfo.extent = {context->width, context->height, 1};
 
             for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
-            {
-                ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[resourceIDs[imageIndex]].get());
-                for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
-                    resource->images[frame] = images[imageIndex][frame];
-            }
-        }
-
-        void CreateImageViews(uint32_t currentFrame)
-        {
-            for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
-            {
-                if (imageViews[imageIndex][currentFrame] != VK_NULL_HANDLE)
-                    vkDestroyImageView(globalLogicalDevice, imageViews[imageIndex][currentFrame], nullptr);
-                imageViews[imageIndex][currentFrame] = RenderEnvironment::CreateImageView(
-                    images[imageIndex][currentFrame], HDR_COLOR_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
-            }
+                frameGraph.SetTransientImageCreateInfo(resourceIDs[imageIndex], imageCreateInfo);
         }
 
         static constexpr uint32_t IMAGE_COUNT = 2;
@@ -96,33 +89,21 @@ namespace vke_render
 
     private:
         RenderContext *context;
-        VkImage images[IMAGE_COUNT][MAX_FRAMES_IN_FLIGHT];
+        VkImageCreateInfo imageCreateInfo;
         VkImageView imageViews[IMAGE_COUNT][MAX_FRAMES_IN_FLIGHT];
         vke_ds::id32_t resourceIDs[IMAGE_COUNT];
         vke_ds::id32_t resourceNodeIDs[IMAGE_COUNT];
         uint32_t latestImageIndex;
 
-        void createImages()
+        void createImageViews(FrameGraph &frameGraph, uint32_t currentFrame)
         {
             for (uint32_t imageIndex = 0; imageIndex < IMAGE_COUNT; ++imageIndex)
-                for (int frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
-                    RenderEnvironment::CreateImageWithoutMemory(context->width, context->height,
-                                                            HDR_COLOR_FORMAT, VK_IMAGE_TILING_OPTIMAL,
-                                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                                                                VK_IMAGE_USAGE_SAMPLED_BIT |
-                                                                VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT,
-                                                            1, &images[imageIndex][frame]);
-        }
-
-        void cleanupImages()
-        {
-            for (auto &imageSet : images)
-                for (VkImage &image : imageSet)
-                    if (image != VK_NULL_HANDLE)
-                    {
-                        vkDestroyImage(globalLogicalDevice, image, nullptr);
-                        image = VK_NULL_HANDLE;
-                    }
+            {
+                if (imageViews[imageIndex][currentFrame] != VK_NULL_HANDLE)
+                    vkDestroyImageView(globalLogicalDevice, imageViews[imageIndex][currentFrame], nullptr);
+                VkImage image = frameGraph.GetImageResource(resourceIDs[imageIndex]).images[currentFrame];
+                imageViews[imageIndex][currentFrame] = RenderEnvironment::CreateImageView(image, HDR_COLOR_FORMAT, VK_IMAGE_ASPECT_COLOR_BIT);
+            }
         }
 
         void cleanupImageViews()

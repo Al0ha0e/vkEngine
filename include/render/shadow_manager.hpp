@@ -59,8 +59,10 @@ namespace vke_render
         uint32_t ActivateSpotShadow(entt::entity lightEntity, SpotLight &light);
         void DeactivateSpotShadow(entt::entity lightEntity, SpotLight &light);
 
-        VkImage *GetDirectionalShadowMapImages() { return directionalShadowMapImages; }
-        VkImage *GetSpotShadowMapImages() { return spotShadowMapImages; }
+        vke_ds::id32_t GetDirectionalShadowMapResourceID() const { return directionalShadowMapResourceID; }
+        vke_ds::id32_t GetDirectionalShadowMapResourceNodeID() const { return directionalShadowMapResourceNodeID; }
+        vke_ds::id32_t GetSpotShadowMapResourceID() const { return spotShadowMapResourceID; }
+        vke_ds::id32_t GetSpotShadowMapResourceNodeID() const { return spotShadowMapResourceNodeID; }
         VkImageView GetDirectionalShadowCascadeView(uint32_t currentFrame, uint32_t cascade) const { return directionalShadowCascadeImageViews[currentFrame][cascade]; }
         VkImageView GetSpotShadowMapLayerView(uint32_t currentFrame, uint32_t slot) const { return spotShadowMapLayerViews[currentFrame][slot]; }
         VkDescriptorSet GetShadowPassDescriptorSet(uint32_t currentFrame) const { return shadowPassDescriptorSets[currentFrame]; }
@@ -80,10 +82,10 @@ namespace vke_render
         std::unique_ptr<HostCoherentBuffer> spotShadowInfoBuffers[MAX_FRAMES_IN_FLIGHT];
         VkDescriptorSet shadowPassDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         VkDescriptorSet deferredLightingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
-        VkImage directionalShadowMapImages[MAX_FRAMES_IN_FLIGHT];
+        VkImageCreateInfo directionalShadowMapImageCreateInfo;
         VkImageView directionalShadowMapImageViews[MAX_FRAMES_IN_FLIGHT];
         VkImageView directionalShadowCascadeImageViews[MAX_FRAMES_IN_FLIGHT][MAX_DIRECTIONAL_SHADOW_CASCADE_CNT];
-        VkImage spotShadowMapImages[MAX_FRAMES_IN_FLIGHT];
+        VkImageCreateInfo spotShadowMapImageCreateInfo;
         VkImageView spotShadowMapImageViews[MAX_FRAMES_IN_FLIGHT];
         VkImageView spotShadowMapLayerViews[MAX_FRAMES_IN_FLIGHT][MAX_SPOT_LIGHT_SHADOW_CNT];
         VkSampler shadowMapSampler;
@@ -91,15 +93,18 @@ namespace vke_render
         SpotShadowInfoCPU spotShadowInfos[MAX_SPOT_LIGHT_SHADOW_CNT];
         entt::entity spotShadowLightEntities[MAX_SPOT_LIGHT_SHADOW_CNT];
         uint32_t spotShadowUpdateCnts[MAX_SPOT_LIGHT_SHADOW_CNT];
+        vke_ds::id32_t directionalShadowMapResourceID;
+        vke_ds::id32_t directionalShadowMapResourceNodeID;
+        vke_ds::id32_t spotShadowMapResourceID;
+        vke_ds::id32_t spotShadowMapResourceNodeID;
 
+        void registerFrameGraphResources(FrameGraph &frameGraph);
         void createDescriptorSets();
-        void createDirectionalImages();
-        void createSpotShadowImages();
-        void createDirectionalImageViews(uint32_t currentFrame);
-        void createSpotShadowImageViews(uint32_t currentFrame);
+        void createDirectionalImageViews(FrameGraph &frameGraph, uint32_t currentFrame);
+        void createSpotShadowImageViews(FrameGraph &frameGraph, uint32_t currentFrame);
         void createSampler();
         void updateDeferredLightingDescriptorSet(uint32_t currentFrame);
-        void onTransientResourcesReady(uint32_t currentFrame);
+        void onTransientResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame);
         int32_t findSpotShadowSlot(entt::entity lightEntity) const;
         void clearLights();
     };

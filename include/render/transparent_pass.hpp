@@ -68,7 +68,7 @@ namespace vke_render
         void registerMaterial(std::shared_ptr<Material> &material);
         void createGraphicsPipeline(MaterialState &state);
         void updateEnvironmentDescriptorSet(MaterialState &state, uint32_t currentFrame);
-        void onTransientResourcesReady(uint32_t currentFrame);
+        void onTransientResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame);
     };
 }
 

@@ -25,7 +25,7 @@ namespace vke_render
         lightingTaskNodeID = frameGraph.AllocTaskNode("deferred lighting", RENDER_TASK,
                                                       std::bind(&DeferredLightingPass::Render, this,
                                                                 std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTransientReadyCallback(std::bind(&DeferredLightingPass::onTransientResourcesReady, this, std::placeholders::_1));
+        frameGraph.AddTransientReadyCallback(std::bind(&DeferredLightingPass::onTransientResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
 
         frameGraph.AddTaskNodeResourceRef(lightingTaskNodeID, currentResourceNodeID[blackboard["pointLightClusterBuffer"]], 0,
                                           VK_ACCESS_SHADER_READ_BIT,
@@ -124,7 +124,6 @@ namespace vke_render
         vke_render::ConstructDescriptorSetWrite(descriptorWrites[GBUFFER_CNT + 3], lightingDescriptorSets[currentFrame], GBUFFER_CNT + 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &(imageInfos[GBUFFER_CNT + 3]));
 
         vkUpdateDescriptorSets(globalLogicalDevice, GBUFFER_CNT + extraTextureCnt, descriptorWrites, 0, nullptr);
-
     }
 
     void DeferredLightingPass::createGraphicsPipeline()
@@ -209,7 +208,7 @@ namespace vke_render
     {
     }
 
-    void DeferredLightingPass::onTransientResourcesReady(uint32_t currentFrame)
+    void DeferredLightingPass::onTransientResourcesReady(FrameGraph &, uint32_t currentFrame)
     {
         updateDescriptorSet(currentFrame);
     }

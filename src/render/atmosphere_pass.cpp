@@ -39,7 +39,7 @@ namespace vke_render
             std::bind(&AtmospherePass::Render, this,
                       std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                       std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTransientReadyCallback(std::bind(&AtmospherePass::onTransientResourcesReady, this, std::placeholders::_1));
+        frameGraph.AddTransientReadyCallback(std::bind(&AtmospherePass::onTransientResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
 
         frameGraph.AddTaskNodeResourceRef(
             taskNodeID, hdrColorManager->GetResourceNodeID(inputHDRColorImageIndex), 0,
@@ -149,7 +149,7 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 2, writes, 0, nullptr);
     }
 
-    void AtmospherePass::onTransientResourcesReady(uint32_t currentFrame)
+    void AtmospherePass::onTransientResourcesReady(FrameGraph &, uint32_t currentFrame)
     {
         updateDescriptorSet(currentFrame);
     }

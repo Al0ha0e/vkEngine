@@ -26,13 +26,25 @@ namespace vke_render
         {
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
             {
-                images[i] = VK_NULL_HANDLE;
                 imageViews[i] = VK_NULL_HANDLE;
-                rawImages[i] = VK_NULL_HANDLE;
                 rawImageViews[i] = VK_NULL_HANDLE;
             }
-            createImages();
             createSampler();
+
+            imageCreateInfo = VkImageCreateInfo{};
+            imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageCreateInfo.extent = {context->width, context->height, 1};
+            imageCreateInfo.mipLevels = 1;
+            imageCreateInfo.arrayLayers = 1;
+            imageCreateInfo.format = SSAO_FORMAT;
+            imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageCreateInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                                    VK_IMAGE_USAGE_SAMPLED_BIT |
+                                    VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+            imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         }
 
         ~SSAOPass() override;
@@ -56,16 +68,9 @@ namespace vke_render
         {
             context = ctx;
             cleanupImageViews();
-            cleanupImages();
-            createImages();
-
-            ImageResource *resource = static_cast<ImageResource *>(frameGraph.resources[ssaoResourceID].get());
-            ImageResource *rawResource = static_cast<ImageResource *>(frameGraph.resources[ssaoRawResourceID].get());
-            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            {
-                resource->images[i] = images[i];
-                rawResource->images[i] = rawImages[i];
-            }
+            imageCreateInfo.extent = {context->width, context->height, 1};
+            frameGraph.SetTransientImageCreateInfo(ssaoResourceID, imageCreateInfo);
+            frameGraph.SetTransientImageCreateInfo(ssaoRawResourceID, imageCreateInfo);
         }
 
         VkSampler GetOutputSampler() const { return sampler; }
@@ -80,10 +85,9 @@ namespace vke_render
         std::shared_ptr<ShaderModuleSet> ssaoShader;
         std::shared_ptr<ShaderModuleSet> ssaoBlurShader;
         GBuffer *gbuffer;
+        VkImageCreateInfo imageCreateInfo;
         VkSampler sampler;
-        VkImage images[MAX_FRAMES_IN_FLIGHT];
         VkImageView imageViews[MAX_FRAMES_IN_FLIGHT];
-        VkImage rawImages[MAX_FRAMES_IN_FLIGHT];
         VkImageView rawImageViews[MAX_FRAMES_IN_FLIGHT];
         vke_ds::id32_t ssaoResourceID;
         vke_ds::id32_t ssaoRawResourceID;
@@ -96,13 +100,11 @@ namespace vke_render
                                  ResourceNodeIDMap &currentResourceNodeID);
         void allocateDescriptorSet();
         void createGraphicsPipeline();
-        void onSSAORawResourcesReady(uint32_t currentFrame);
-        void onSSAOBlurResourcesReady(uint32_t currentFrame);
+        void onSSAORawResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame);
+        void onSSAOBlurResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame);
         void renderFullscreen(VkCommandBuffer commandBuffer, uint32_t currentFrame, VkImageView outputImageView,
                               GraphicsPipeline *pipeline, VkDescriptorSet descriptorSet, const float clearValue);
-        void createImages();
-        void cleanupImages();
-        void createImageView(uint32_t currentFrame);
+        void createImageView(FrameGraph &frameGraph, uint32_t currentFrame);
         void cleanupImageViews();
         void createSampler();
     };

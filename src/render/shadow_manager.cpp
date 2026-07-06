@@ -76,7 +76,8 @@ namespace vke_render
     ShadowManager::ShadowManager(RenderContext *ctx, FrameGraph &frameGraph, std::shared_ptr<CPULightData> cpuLightData, const CameraInfo *cameraInfo,
                                  const DirectionalShadowConfig &directionalConfig)
         : context(ctx), cpuLightData(cpuLightData), cameraInfo(cameraInfo), directionalConfig(directionalConfig),
-          shadowMapSampler(VK_NULL_HANDLE)
+          shadowMapSampler(VK_NULL_HANDLE), directionalShadowMapResourceID(0), directionalShadowMapResourceNodeID(0),
+          spotShadowMapResourceID(0), spotShadowMapResourceNodeID(0)
     {
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
@@ -84,9 +85,7 @@ namespace vke_render
             spotShadowInfoBuffers[i] = std::make_unique<HostCoherentBuffer>(sizeof(SpotShadowInfoCPU) * MAX_SPOT_LIGHT_SHADOW_CNT, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
             shadowPassDescriptorSets[i] = VK_NULL_HANDLE;
             deferredLightingDescriptorSets[i] = VK_NULL_HANDLE;
-            directionalShadowMapImages[i] = VK_NULL_HANDLE;
             directionalShadowMapImageViews[i] = VK_NULL_HANDLE;
-            spotShadowMapImages[i] = VK_NULL_HANDLE;
             spotShadowMapImageViews[i] = VK_NULL_HANDLE;
             for (uint32_t cascade = 0; cascade < MAX_DIRECTIONAL_SHADOW_CASCADE_CNT; ++cascade)
                 directionalShadowCascadeImageViews[i][cascade] = VK_NULL_HANDLE;
@@ -100,12 +99,37 @@ namespace vke_render
             spotShadowUpdateCnts[slot] = 0;
         }
 
-        createDirectionalImages();
-        createSpotShadowImages();
+        directionalShadowMapImageCreateInfo = VkImageCreateInfo{};
+        directionalShadowMapImageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        directionalShadowMapImageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        directionalShadowMapImageCreateInfo.extent = {directionalConfig.mapSize, directionalConfig.mapSize, 1};
+        directionalShadowMapImageCreateInfo.mipLevels = 1;
+        directionalShadowMapImageCreateInfo.arrayLayers = directionalConfig.cascadeCnt;
+        directionalShadowMapImageCreateInfo.format = context->depthFormat;
+        directionalShadowMapImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        directionalShadowMapImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        directionalShadowMapImageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        directionalShadowMapImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        directionalShadowMapImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        spotShadowMapImageCreateInfo = VkImageCreateInfo{};
+        spotShadowMapImageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        spotShadowMapImageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+        spotShadowMapImageCreateInfo.extent = {spotConfig.mapSize, spotConfig.mapSize, 1};
+        spotShadowMapImageCreateInfo.mipLevels = 1;
+        spotShadowMapImageCreateInfo.arrayLayers = MAX_SPOT_LIGHT_SHADOW_CNT;
+        spotShadowMapImageCreateInfo.format = context->depthFormat;
+        spotShadowMapImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        spotShadowMapImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        spotShadowMapImageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        spotShadowMapImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        spotShadowMapImageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
         createSampler();
         createDescriptorSets();
+        registerFrameGraphResources(frameGraph);
         UpdateDirectionalShadowInfo();
-        frameGraph.AddTransientReadyCallback(std::bind(&ShadowManager::onTransientResourcesReady, this, std::placeholders::_1));
+        frameGraph.AddTransientReadyCallback(std::bind(&ShadowManager::onTransientResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     ShadowManager::~ShadowManager()
@@ -125,9 +149,6 @@ namespace vke_render
                     directionalShadowCascadeImageViews[i][cascade] = VK_NULL_HANDLE;
                 }
             }
-
-            vkDestroyImage(globalLogicalDevice, directionalShadowMapImages[i], nullptr);
-
             if (spotShadowMapImageViews[i] != VK_NULL_HANDLE)
                 vkDestroyImageView(globalLogicalDevice, spotShadowMapImageViews[i], nullptr);
             for (uint32_t slot = 0; slot < MAX_SPOT_LIGHT_SHADOW_CNT; ++slot)
@@ -135,7 +156,6 @@ namespace vke_render
                 if (spotShadowMapLayerViews[i][slot] != VK_NULL_HANDLE)
                     vkDestroyImageView(globalLogicalDevice, spotShadowMapLayerViews[i][slot], nullptr);
             }
-            vkDestroyImage(globalLogicalDevice, spotShadowMapImages[i], nullptr);
         }
 
         vkDestroySampler(globalLogicalDevice, shadowMapSampler, nullptr);
@@ -207,37 +227,32 @@ namespace vke_render
         }
     }
 
-    void ShadowManager::createDirectionalImages()
+    void ShadowManager::registerFrameGraphResources(FrameGraph &frameGraph)
     {
-        VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            RenderEnvironment::CreateImageWithoutMemory(directionalConfig.mapSize, directionalConfig.mapSize,
-                                                        context->depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                                                        usageFlags, 1, &directionalShadowMapImages[i], directionalConfig.cascadeCnt);
+        directionalShadowMapResourceID = frameGraph.AddTransientImageResource(
+            "directionalShadowMap0", directionalShadowMapImageCreateInfo, VK_IMAGE_ASPECT_DEPTH_BIT,
+            1, directionalConfig.cascadeCnt);
+        directionalShadowMapResourceNodeID = frameGraph.AllocResourceNode("directionalShadowMap0Out", directionalShadowMapResourceID);
+
+        spotShadowMapResourceID = frameGraph.AddTransientImageResource(
+            "spotShadowMap", spotShadowMapImageCreateInfo, VK_IMAGE_ASPECT_DEPTH_BIT,
+            1, MAX_SPOT_LIGHT_SHADOW_CNT);
+        spotShadowMapResourceNodeID = frameGraph.AllocResourceNode("spotShadowMapOut", spotShadowMapResourceID);
     }
 
-    void ShadowManager::createSpotShadowImages()
-    {
-        VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-            RenderEnvironment::CreateImageWithoutMemory(spotConfig.mapSize, spotConfig.mapSize,
-                                                        context->depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                                                        usageFlags, 1, &spotShadowMapImages[i],
-                                                        MAX_SPOT_LIGHT_SHADOW_CNT);
-    }
-
-    void ShadowManager::createDirectionalImageViews(uint32_t currentFrame)
+    void ShadowManager::createDirectionalImageViews(FrameGraph &frameGraph, uint32_t currentFrame)
     {
         if (directionalShadowMapImageViews[currentFrame] != VK_NULL_HANDLE)
             vkDestroyImageView(globalLogicalDevice, directionalShadowMapImageViews[currentFrame], nullptr);
-        directionalShadowMapImageViews[currentFrame] = RenderEnvironment::CreateImageView(directionalShadowMapImages[currentFrame], context->depthFormat,
+        VkImage image = frameGraph.GetImageResource(directionalShadowMapResourceID).images[currentFrame];
+        directionalShadowMapImageViews[currentFrame] = RenderEnvironment::CreateImageView(image, context->depthFormat,
                                                                                           VK_IMAGE_ASPECT_DEPTH_BIT, 1, 0,
                                                                                           directionalConfig.cascadeCnt, VK_IMAGE_VIEW_TYPE_2D_ARRAY);
         for (uint32_t cascade = 0; cascade < directionalConfig.cascadeCnt; ++cascade)
         {
             if (directionalShadowCascadeImageViews[currentFrame][cascade] != VK_NULL_HANDLE)
                 vkDestroyImageView(globalLogicalDevice, directionalShadowCascadeImageViews[currentFrame][cascade], nullptr);
-            directionalShadowCascadeImageViews[currentFrame][cascade] = RenderEnvironment::CreateImageView(directionalShadowMapImages[currentFrame],
+            directionalShadowCascadeImageViews[currentFrame][cascade] = RenderEnvironment::CreateImageView(image,
                                                                                                            context->depthFormat,
                                                                                                            VK_IMAGE_ASPECT_DEPTH_BIT,
                                                                                                            1, cascade, 1,
@@ -245,12 +260,13 @@ namespace vke_render
         }
     }
 
-    void ShadowManager::createSpotShadowImageViews(uint32_t currentFrame)
+    void ShadowManager::createSpotShadowImageViews(FrameGraph &frameGraph, uint32_t currentFrame)
     {
+        VkImage image = frameGraph.GetImageResource(spotShadowMapResourceID).images[currentFrame];
         if (spotShadowMapImageViews[currentFrame] != VK_NULL_HANDLE)
             vkDestroyImageView(globalLogicalDevice, spotShadowMapImageViews[currentFrame], nullptr);
         spotShadowMapImageViews[currentFrame] = RenderEnvironment::CreateImageView(
-            spotShadowMapImages[currentFrame], context->depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT,
+            image, context->depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT,
             1, 0, MAX_SPOT_LIGHT_SHADOW_CNT, VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
         for (uint32_t slot = 0; slot < MAX_SPOT_LIGHT_SHADOW_CNT; ++slot)
@@ -258,7 +274,7 @@ namespace vke_render
             if (spotShadowMapLayerViews[currentFrame][slot] != VK_NULL_HANDLE)
                 vkDestroyImageView(globalLogicalDevice, spotShadowMapLayerViews[currentFrame][slot], nullptr);
             spotShadowMapLayerViews[currentFrame][slot] = RenderEnvironment::CreateImageView(
-                spotShadowMapImages[currentFrame], context->depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT,
+                image, context->depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT,
                 1, slot, 1, VK_IMAGE_VIEW_TYPE_2D);
         }
     }
@@ -436,10 +452,12 @@ namespace vke_render
         spotShadowUpdateCnts[slot] = MAX_FRAMES_IN_FLIGHT;
     }
 
-    void ShadowManager::onTransientResourcesReady(uint32_t currentFrame)
+    void ShadowManager::onTransientResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame)
     {
-        createDirectionalImageViews(currentFrame);
-        createSpotShadowImageViews(currentFrame);
+        if (directionalShadowMapResourceID != 0)
+            createDirectionalImageViews(frameGraph, currentFrame);
+        if (spotShadowMapResourceID != 0)
+            createSpotShadowImageViews(frameGraph, currentFrame);
         updateDeferredLightingDescriptorSet(currentFrame);
     }
 }

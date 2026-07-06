@@ -92,7 +92,7 @@ namespace vke_render
     class FrameGraph;
 
     using TaskNodeExecuteCallback = std::function<void(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex)>;
-    using TransientReadyCallback = std::function<void(uint32_t currentFrame)>;
+    using TransientReadyCallback = std::function<void(FrameGraph &frameGraph, uint32_t currentFrame)>;
 
     class TaskNode
     {
@@ -349,6 +349,7 @@ namespace vke_render
 
         ~FrameGraph()
         {
+            cleanupTransientResources();
             for (int i = 1; i < TASK_TYPE_CNT - 1; i++)
                 if (RenderEnvironment::HasQueue(QueueType(i)))
                     for (int j = 0; j < framesInFlight; j++)
@@ -390,27 +391,63 @@ namespace vke_render
             return id;
         }
 
-        vke_ds::id32_t AddTransientImageResource(std::string &&name, VkImage *images, const VkImageAspectFlags aspectMask)
+        vke_ds::id32_t AddTransientImageResource(std::string &&name, const VkImageCreateInfo &createInfo, const VkImageAspectFlags aspectMask)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            VkImage images[MAX_FRAMES_IN_FLIGHT] = {};
             resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, MAX_FRAMES_IN_FLIGHT, aspectMask, false));
+            transientImageCreateInfos.emplace(id, createInfo);
             return id;
         }
 
-        vke_ds::id32_t AddTransientImageResource(std::string &&name, VkImage *images,
+        vke_ds::id32_t AddTransientImageResource(std::string &&name, const VkImageCreateInfo &createInfo,
                                                  const VkImageAspectFlags aspectMask,
                                                  uint32_t mipLevelCnt, uint32_t layerCnt)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            VkImage images[MAX_FRAMES_IN_FLIGHT] = {};
             resources.emplace(id, std::make_unique<ImageResource>(std::move(name), id, true, true, images, MAX_FRAMES_IN_FLIGHT, aspectMask, mipLevelCnt, layerCnt, false));
+            transientImageCreateInfos.emplace(id, createInfo);
             return id;
         }
 
-        vke_ds::id32_t AddTransientBufferResource(std::string &&name, VkBuffer *buffers, const VkDeviceSize offset, const VkDeviceSize size)
+        vke_ds::id32_t AddTransientBufferResource(std::string &&name, const VkBufferCreateInfo &createInfo, const VkDeviceSize offset, const VkDeviceSize size)
         {
             vke_ds::id32_t id = resourceIDAllocator.Alloc();
+            VkBuffer buffers[MAX_FRAMES_IN_FLIGHT] = {};
             resources.emplace(id, std::make_unique<BufferResource>(std::move(name), id, true, true, buffers, MAX_FRAMES_IN_FLIGHT, offset, size));
+            transientBufferCreateInfos.emplace(id, createInfo);
             return id;
+        }
+
+        void SetTransientImageCreateInfo(const vke_ds::id32_t resourceID, const VkImageCreateInfo &createInfo)
+        {
+            VKE_FATAL_IF(resources.find(resourceID) == resources.end(), "transient image resource not found")
+            VKE_FATAL_IF(!resources[resourceID]->isTransient || resources[resourceID]->resourceType != IMAGE_RESOURCE, "resource not transient image")
+            transientImageCreateInfos[resourceID] = createInfo;
+            MarkNeedRecompile();
+        }
+
+        void SetTransientBufferCreateInfo(const vke_ds::id32_t resourceID, const VkBufferCreateInfo &createInfo)
+        {
+            VKE_FATAL_IF(resources.find(resourceID) == resources.end(), "transient buffer resource not found")
+            VKE_FATAL_IF(!resources[resourceID]->isTransient || resources[resourceID]->resourceType != BUFFER_RESOURCE, "resource not transient buffer")
+            transientBufferCreateInfos[resourceID] = createInfo;
+            MarkNeedRecompile();
+        }
+
+        ImageResource &GetImageResource(const vke_ds::id32_t resourceID)
+        {
+            VKE_FATAL_IF(resources.find(resourceID) == resources.end(), "image resource not found")
+            VKE_FATAL_IF(resources[resourceID]->resourceType != IMAGE_RESOURCE, "resource not image")
+            return *static_cast<ImageResource *>(resources[resourceID].get());
+        }
+
+        BufferResource &GetBufferResource(const vke_ds::id32_t resourceID)
+        {
+            VKE_FATAL_IF(resources.find(resourceID) == resources.end(), "buffer resource not found")
+            VKE_FATAL_IF(resources[resourceID]->resourceType != BUFFER_RESOURCE, "resource not buffer")
+            return *static_cast<BufferResource *>(resources[resourceID].get());
         }
 
         void RemoveTransientResource(vke_ds::id32_t resourceID)
@@ -431,7 +468,10 @@ namespace vke_render
                 resourceNodes.erase(nodeID);
             }
 
+            cleanupTransientResource(resource);
             resources.erase(it);
+            transientImageCreateInfos.erase(resourceID);
+            transientBufferCreateInfos.erase(resourceID);
             MarkNeedRecompile();
         }
 
@@ -522,6 +562,8 @@ namespace vke_render
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> resourceNodeIDAllocator;
         vke_ds::NaiveIDAllocator<vke_ds::id32_t> transientReadyCallbackIDAllocator;
         std::unordered_map<vke_ds::id32_t, TransientReadyCallback> transientReadyCallbacks;
+        std::unordered_map<vke_ds::id32_t, VkImageCreateInfo> transientImageCreateInfos;
+        std::unordered_map<vke_ds::id32_t, VkBufferCreateInfo> transientBufferCreateInfos;
         std::vector<std::unique_ptr<CommandPool>> commandPools[TASK_TYPE_CNT];
         std::unique_ptr<SemaphorePool> semaphorePools[MAX_FRAMES_IN_FLIGHT];
         std::vector<vke_ds::id32_t> orderedTasks;
@@ -549,6 +591,9 @@ namespace vke_render
                              std::vector<VkImageMemoryBarrier2> &imageMemoryBarriers);
         void checkCrossQueue(ResourceRef &ref, TaskNode &taskNode);
         void updateTransientMemory(const uint32_t currentFrame);
+        void recreateTransientResource(const vke_ds::id32_t resourceID, RenderResource &resource, const uint32_t currentFrame);
+        void cleanupTransientResource(RenderResource &resource);
+        void cleanupTransientResources();
     };
 }
 #endif

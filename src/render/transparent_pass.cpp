@@ -38,7 +38,7 @@ namespace vke_render
             std::bind(&TransparentPass::Render, this, std::placeholders::_1, std::placeholders::_2,
                       std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
         frameGraph.AddTransientReadyCallback(
-            std::bind(&TransparentPass::onTransientResourcesReady, this, std::placeholders::_1));
+            std::bind(&TransparentPass::onTransientResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
 
         frameGraph.AddTaskNodeResourceRef(
             taskNodeID, hdrColorManager->GetResourceNodeID(hdrColorImageIndex), outputNodeID,
@@ -188,7 +188,7 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 3, writes, 0, nullptr);
     }
 
-    void TransparentPass::onTransientResourcesReady(uint32_t currentFrame)
+    void TransparentPass::onTransientResourcesReady(FrameGraph &, uint32_t currentFrame)
     {
         for (auto &entry : materialStates)
             updateEnvironmentDescriptorSet(*entry.second, currentFrame);

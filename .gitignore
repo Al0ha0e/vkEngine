@@ -13,5 +13,6 @@ tools/*.dll
 !builtin_assets/**/*.obj
 src/generated/*
 vkEngine.sln
+imgui.ini
 
 tests/from_source2

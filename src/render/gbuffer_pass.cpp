@@ -16,7 +16,7 @@ namespace vke_render
         gbufferTaskNodeID = frameGraph.AllocTaskNode("gbuffer pass", RENDER_TASK,
                                                      std::bind(&GBufferPass::Render, this,
                                                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5));
-        frameGraph.AddTransientReadyCallback(std::bind(&GBufferPass::onTransientResourcesReady, this, std::placeholders::_1));
+        frameGraph.AddTransientReadyCallback(std::bind(&GBufferPass::onTransientResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
         for (int i = 0; i < GBUFFER_CNT; i++)
             frameGraph.AddTaskNodeResourceRef(gbufferTaskNodeID, 0, gbuffer->GetResourceNodeID(i),
                                               VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -138,15 +138,11 @@ namespace vke_render
     {
         gbuffer->Recreate(ctx->width, ctx->height);
         for (int i = 0; i < GBUFFER_CNT; ++i)
-        {
-            ImageResource *resource = (ImageResource *)frameGraph.resources[gbuffer->GetResourceID(i)].get();
-            for (int j = 0; j < MAX_FRAMES_IN_FLIGHT; ++j)
-                resource->images[j] = gbuffer->images[i][j];
-        }
+            frameGraph.SetTransientImageCreateInfo(gbuffer->GetResourceID(i), gbuffer->CreateImageInfo(i));
     }
 
-    void GBufferPass::onTransientResourcesReady(uint32_t currentFrame)
+    void GBufferPass::onTransientResourcesReady(FrameGraph &frameGraph, uint32_t currentFrame)
     {
-        gbuffer->CreateImageViews(currentFrame);
+        gbuffer->CreateImageViews(frameGraph, currentFrame);
     }
 }
