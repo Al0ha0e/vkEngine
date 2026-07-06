@@ -29,10 +29,14 @@ namespace vke_editor
     {
         instance = new Editor();
         instance->selectedEntity = entt::null;
+        instance->selectedAssetType = vke_common::ASSET_CNT_FLAG;
+        instance->selectedAsset = 0;
+        instance->assetBrowserMode = AssetBrowserMode::ByType;
         vke_common::EventSystem::Init();
         vke_common::TimeManager::Init();
         vke_common::InputManager::Init(window);
         vke_common::EngineStateManager::Init();
+        vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
         vke_render::RenderEnvironment::Init(window, gameConfig.enableVulkanValidationLayers);
         vke_common::AssetManager::Init();
         vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
@@ -62,6 +66,7 @@ namespace vke_editor
 
     void Editor::Dispose()
     {
+        instance->disposeTexturePreviewDescriptorSets();
         vke_common::SceneManager::Dispose();
         vke_common::ScriptManager::Dispose();
         vke_render::Renderer::Dispose();
@@ -94,17 +99,17 @@ namespace vke_editor
 
         vke_common::TimeManager::Update();
 
-        // if (state != vke_common::EngineState::Paused)
-        // {
-        //     vke_common::ScriptManager::GetInstance()->Update();
-        //     fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
-        //     const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
-        //     while (fixedUpdateAccumulator >= fixedStepTime)
-        //     {
-        //         FixedUpdate();
-        //         fixedUpdateAccumulator -= fixedStepTime;
-        //     }
-        // }
+        if (state != vke_common::EngineState::Paused)
+        {
+            vke_common::ScriptManager::GetInstance()->Update();
+            fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
+            const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
+            while (fixedUpdateAccumulator >= fixedStepTime)
+            {
+                FixedUpdate();
+                fixedUpdateAccumulator -= fixedStepTime;
+            }
+        }
 
         vke_render::Renderer::GetInstance()->Update();
         EditorRenderer::GetInstance()->Update();
@@ -161,6 +166,25 @@ namespace vke_editor
             ImGui::EndMenu();
         }
 
+        const vke_common::EngineState state = vke_common::EngineStateManager::GetState();
+        if (state == vke_common::EngineState::Paused || state == vke_common::EngineState::Running)
+        {
+            const char *buttonLabel = state == vke_common::EngineState::Paused ? "Start" : "Pause";
+            const ImGuiStyle &style = ImGui::GetStyle();
+            const float buttonWidth = ImGui::CalcTextSize(buttonLabel).x + style.FramePadding.x * 2.0f;
+            const float centeredX = (ImGui::GetWindowWidth() - buttonWidth) * 0.5f;
+            const float nextX = glm::max(ImGui::GetCursorPosX() + style.ItemSpacing.x, centeredX);
+
+            ImGui::SameLine(nextX);
+            if (ImGui::Button(buttonLabel, ImVec2(buttonWidth, 0.0f)))
+            {
+                vke_common::EngineStateManager::SetState(
+                    state == vke_common::EngineState::Paused
+                        ? vke_common::EngineState::Running
+                        : vke_common::EngineState::Paused);
+            }
+        }
+
         ImGui::EndMainMenuBar();
     }
 
@@ -192,7 +216,10 @@ namespace vke_editor
         }
 
         if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsAnyItemHovered())
+        {
+            clearSelectedAsset();
             selectedEntity = entt::null;
+        }
 
         ImGui::End();
     }
@@ -213,7 +240,10 @@ namespace vke_editor
         ImGui::PushID(static_cast<int>(object.id));
         const bool opened = ImGui::TreeNodeEx(object.name.c_str(), flags);
         if (ImGui::IsItemClicked())
+        {
+            clearSelectedAsset();
             selectedEntity = entity;
+        }
 
         if (opened && !transform.children.empty())
         {
@@ -229,6 +259,18 @@ namespace vke_editor
         ImGui::Begin("Inspector");
 
         vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
+        if (selectedAsset != 0)
+        {
+            if (selectedAssetType == vke_common::ASSET_TEXTURE)
+                showSelectedTextureInspector();
+            else if (selectedAssetType == vke_common::ASSET_MATERIAL)
+                showSelectedMaterialInspector();
+            else
+                showSelectedAssetInspector();
+            ImGui::End();
+            return;
+        }
+
         if (scene == nullptr || selectedEntity == entt::null || !scene->registry.valid(selectedEntity) ||
             !scene->registry.all_of<vke_common::GameObject, vke_common::Transform>(selectedEntity))
         {
@@ -391,37 +433,6 @@ namespace vke_editor
         }
     }
 
-    template <typename AssetMap>
-    static void ShowAssetGroup(const char *label, const AssetMap &assets)
-    {
-        if (!ImGui::TreeNode(label))
-            return;
-
-        for (const auto &[id, asset] : assets)
-            ImGui::Text("%llu  %s", static_cast<unsigned long long>(id), asset.name.c_str());
-
-        ImGui::TreePop();
-    }
-
-    void Editor::showAssets()
-    {
-        ImGui::Begin("Assets");
-
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (scene != nullptr)
-            ImGui::Text("Scene: %s", scene->path.empty() ? "<unsaved>" : scene->path.c_str());
-
-        vke_common::AssetManager *assetManager = vke_common::AssetManager::GetInstance();
-        ShowAssetGroup("Textures", assetManager->textureCache);
-        ShowAssetGroup("Meshes", assetManager->meshCache);
-        ShowAssetGroup("Materials", assetManager->materialCache);
-        ShowAssetGroup("Scenes", assetManager->sceneCache);
-        ShowAssetGroup("Fonts", assetManager->fontCache);
-        ShowAssetGroup("Animations", assetManager->animationCache);
-
-        ImGui::End();
-    }
-
     void Editor::createEmptyObject()
     {
         vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
@@ -429,6 +440,7 @@ namespace vke_editor
             return;
 
         std::string name = "GameObject";
+        clearSelectedAsset();
         selectedEntity = scene->AddObject(name, glm::vec3(0.0f), glm::vec3(1.0f), glm::quat(glm::vec3(0.0f)), 0, false);
     }
 

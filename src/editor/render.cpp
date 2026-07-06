@@ -118,7 +118,7 @@ namespace vke_editor
         initInfo.Device = vke_render::globalLogicalDevice;
         initInfo.QueueFamily = env->queueFamilyIndices.graphicsAndComputeFamily.value();
         initInfo.Queue = graphicsQueue->queue;
-        initInfo.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE;
+        initInfo.DescriptorPoolSize = 512;
         initInfo.MinImageCount = vke_render::MAX_FRAMES_IN_FLIGHT;
         initInfo.ImageCount = static_cast<uint32_t>(ctx->colorImages.size());
         initInfo.UseDynamicRendering = true;

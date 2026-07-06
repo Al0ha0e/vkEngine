@@ -1,6 +1,7 @@
 #ifndef EDITOR_H
 #define EDITOR_H
 
+#include <editor/assets.hpp>
 #include <editor/render.hpp>
 #include <game_config.hpp>
 #include <render/render.hpp>
@@ -14,6 +15,8 @@
 #include <spatial_2d.hpp>
 #include <entt/entity/entity.hpp>
 #include <imgui.h>
+#include <map>
+#include <vector>
 
 namespace vke_editor
 {
@@ -28,6 +31,11 @@ namespace vke_editor
 
         float fixedUpdateAccumulator;
         entt::entity selectedEntity;
+        vke_common::AssetType selectedAssetType;
+        vke_common::AssetHandle selectedAsset;
+        std::map<vke_common::AssetHandle, VkDescriptorSet> texturePreviewDescriptorSets;
+        AssetBrowserMode assetBrowserMode;
+        AssetTreeNode assetDirectoryTree;
 
     public:
         static Editor *GetInstance();
@@ -65,6 +73,19 @@ namespace vke_editor
         void showAddComponentMenu();
         void addComponent(vke_common::ComponentType componentType);
         void showAssets();
+        void showAssetsByType(vke_common::AssetManager *assetManager);
+        void showAssetsByDirectory(vke_common::AssetManager *assetManager);
+        void rebuildAssetDirectoryTree(vke_common::AssetManager *assetManager);
+        void drawAssetDirectoryNode(const AssetTreeNode &node);
+        void drawAssetEntry(const AssetTreeEntry &entry);
+        void selectAsset(vke_common::AssetType assetType, vke_common::AssetHandle asset);
+        void clearSelectedAsset();
+        void disposeTexturePreviewDescriptorSets();
+        void showSelectedTextureInspector();
+        VkDescriptorSet getTexturePreviewDescriptorSet(vke_common::AssetHandle textureAsset);
+        void drawTexturePreview(vke_common::AssetHandle textureAsset, float maxSize);
+        void showSelectedMaterialInspector();
+        void showSelectedAssetInspector();
         void createEmptyObject();
         void ensureSelectedEntityValid();
     };

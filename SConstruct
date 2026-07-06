@@ -244,6 +244,7 @@ imguiObjs = SConscript(["third_party/imgui/Sconscript"], exports=["env", "VULKAN
 editorsrc = [
     "./src/editor/editor.cpp",
     "./src/editor/render.cpp",
+    "./src/editor/assets.cpp",
     "./src/editor/component/camera.cpp",
     "./src/editor/component/light.cpp",
     "./src/editor/component/renderable_object.cpp",

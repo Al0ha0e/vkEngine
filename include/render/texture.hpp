@@ -14,6 +14,8 @@ namespace vke_render
         VmaAllocation textureImageAllocation;
         VkImageView textureImageView;
         VkSampler textureSampler;
+        uint32_t width;
+        uint32_t height;
         uint32_t mipLevelCnt;
 
         Texture2D(const vke_common::AssetHandle hdl, void *pixels, int texWidth, int texHeight,
@@ -25,6 +27,8 @@ namespace vke_render
                   VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
                   bool anisotropyEnable = VK_TRUE,
                   bool generateMipMap = true) : handle(hdl),
+                                                width(static_cast<uint32_t>(texWidth)),
+                                                height(static_cast<uint32_t>(texHeight)),
                                                 mipLevelCnt(generateMipMap ? (static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1) : 1)
         {
             RenderEnvironment::CreateImage(
@@ -68,7 +72,7 @@ namespace vke_render
                   VkFilter minFilter = VK_FILTER_LINEAR,
                   VkFilter magFilter = VK_FILTER_LINEAR,
                   VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                  bool anisotropyEnable = VK_TRUE) : handle(0), mipLevelCnt(1)
+                  bool anisotropyEnable = VK_TRUE) : handle(0), width(static_cast<uint32_t>(texWidth)), height(static_cast<uint32_t>(texHeight)), mipLevelCnt(1)
         {
             RenderEnvironment::CreateImage(
                 texWidth, texHeight, format,
@@ -97,7 +101,7 @@ namespace vke_render
                   VkSamplerAddressMode addressModeU,
                   VkSamplerAddressMode addressModeV,
                   VkSamplerAddressMode addressModeW,
-                  bool anisotropyEnable = VK_TRUE) : handle(0), mipLevelCnt(1)
+                  bool anisotropyEnable = VK_TRUE) : handle(0), width(static_cast<uint32_t>(texWidth)), height(static_cast<uint32_t>(texHeight)), mipLevelCnt(1)
         {
             RenderEnvironment::CreateImage(
                 texWidth, texHeight, format,
