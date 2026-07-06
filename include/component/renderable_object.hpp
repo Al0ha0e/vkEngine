@@ -59,16 +59,41 @@ namespace vke_component
 
         void UnloadFromEngine()
         {
-            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            if (material->renderMode == vke_render::MaterialRenderMode::BLEND_MODE)
-                renderer->GetTransparentPass()->RemoveUnit(renderID);
-            else
-                renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
-            if (castsShadow && material->renderMode != vke_render::MaterialRenderMode::BLEND_MODE && shadowRenderID != 0)
+            unloadFromEngine(material, castsShadow);
+        }
+
+        void SetMaterial(std::shared_ptr<vke_render::Material> &mat)
+        {
+            if (mat == nullptr || mat == material)
+                return;
+
+            const bool loaded = renderID != 0;
+            if (loaded)
+                unloadFromEngine(material, castsShadow);
+            material = mat;
+            if (loaded)
+                LoadToEngine();
+        }
+
+        void SetCastShadow(bool castShadow)
+        {
+            if (castShadow == castsShadow)
+                return;
+
+            castsShadow = castShadow;
+            if (renderID == 0 || material == nullptr ||
+                material->renderMode == vke_render::MaterialRenderMode::BLEND_MODE)
+                return;
+
+            vke_render::ShadowPass *shadowPass = vke_render::Renderer::GetInstance()->GetShadowPass();
+            if (shadowPass == nullptr)
+                return;
+
+            if (castsShadow && shadowRenderID == 0)
+                shadowRenderID = shadowPass->AddUnit(shadowRenderUnit.get());
+            else if (!castsShadow && shadowRenderID != 0)
             {
-                vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
-                if (shadowPass != nullptr)
-                    shadowPass->RemoveUnit(shadowRenderID);
+                shadowPass->RemoveUnit(shadowRenderID);
                 shadowRenderID = 0;
             }
         }
@@ -94,6 +119,27 @@ namespace vke_component
     private:
         vke_ds::id64_t renderID;
         vke_ds::id64_t shadowRenderID;
+
+        void unloadFromEngine(std::shared_ptr<vke_render::Material> &mat, bool castShadow)
+        {
+            if (renderID == 0 || mat == nullptr)
+                return;
+
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            if (mat->renderMode == vke_render::MaterialRenderMode::BLEND_MODE)
+                renderer->GetTransparentPass()->RemoveUnit(renderID);
+            else
+                renderer->GetGBufferPass()->RemoveUnit(mat.get(), renderID);
+            renderID = 0;
+
+            if (castShadow && mat->renderMode != vke_render::MaterialRenderMode::BLEND_MODE && shadowRenderID != 0)
+            {
+                vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
+                if (shadowPass != nullptr)
+                    shadowPass->RemoveUnit(shadowRenderID);
+                shadowRenderID = 0;
+            }
+        }
 
         void init(const vke_common::Transform &transform, std::shared_ptr<const vke_render::Mesh> &mesh)
         {

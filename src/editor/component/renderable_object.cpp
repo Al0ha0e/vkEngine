@@ -14,16 +14,6 @@ namespace vke_editor
         return std::to_string(handle) + "  " + name;
     }
 
-    static void DrawReadOnlyAsset(const char *label, const std::string &displayName)
-    {
-        std::vector<char> value(displayName.begin(), displayName.end());
-        value.push_back('\0');
-
-        ImGui::BeginDisabled();
-        ImGui::InputText(label, value.data(), value.size(), ImGuiInputTextFlags_ReadOnly);
-        ImGui::EndDisabled();
-    }
-
     void Editor::drawRenderableObjectComponent(vke_common::Scene *scene)
     {
         if (scene == nullptr || selectedEntity == entt::null ||
@@ -43,9 +33,28 @@ namespace vke_editor
                 : renderable.renderUnit->mesh->handle;
         vke_common::AssetManager *assetManager = vke_common::AssetManager::GetInstance();
 
-        DrawReadOnlyAsset(
-            "Material",
-            GetAssetDisplayName(materialHandle, assetManager->materialCache));
+        const std::string selectedMaterial = GetAssetDisplayName(materialHandle, assetManager->materialCache);
+        if (ImGui::BeginCombo("Material", selectedMaterial.c_str()))
+        {
+            for (const auto &[assetHandle, asset] : assetManager->materialCache)
+            {
+                const bool selected = assetHandle == materialHandle;
+                const std::string materialLabel = std::to_string(assetHandle) + "  " + asset.name;
+                if (ImGui::Selectable(materialLabel.c_str(), selected))
+                {
+                    std::shared_ptr<vke_render::Material> material =
+                        vke_common::AssetManager::LoadMaterial(assetHandle);
+                    renderable.SetMaterial(material);
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        bool castsShadow = renderable.castsShadow;
+        if (ImGui::Checkbox("Cast Shadow", &castsShadow))
+            renderable.SetCastShadow(castsShadow);
 
         const std::string selectedMesh = GetAssetDisplayName(meshHandle, assetManager->meshCache);
         if (ImGui::BeginCombo("Mesh", selectedMesh.c_str()))

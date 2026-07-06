@@ -397,9 +397,6 @@ namespace vke_editor
             return;
 
         vke_render::LightManager *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
-        if (lightManager == nullptr)
-            return;
-
         const vke_common::Transform &transform = scene->registry.get<vke_common::Transform>(selectedEntity);
         const glm::vec3 position = transform.GetGlobalPosition();
         const glm::vec3 direction = glm::normalize(TransformForward(transform));
@@ -408,6 +405,17 @@ namespace vke_editor
 
         switch (componentType)
         {
+        case vke_common::ComponentType::RenderableObject:
+        {
+            std::shared_ptr<vke_render::Material> material =
+                vke_common::AssetManager::LoadMaterial(vke_common::BUILTIN_MATERIAL_DEFAULT_ID);
+            std::shared_ptr<const vke_render::Mesh> mesh =
+                vke_common::AssetManager::LoadMesh(vke_common::BUILTIN_MESH_SPHERE_ID);
+            auto &renderable = scene->registry.emplace<vke_component::RenderableObject>(
+                selectedEntity, transform, material, mesh);
+            renderable.LoadToEngine();
+            break;
+        }
         case vke_common::ComponentType::DirectionalLight:
             lightManager->AddLight<vke_render::DirectionalLight>(
                 selectedEntity,
