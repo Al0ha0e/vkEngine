@@ -8,6 +8,8 @@
 
 namespace vke_editor
 {
+    extern const std::string EditorAssetLUTPath;
+
     enum class AssetBrowserMode
     {
         ByType,

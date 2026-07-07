@@ -1,0 +1,9 @@
+[
+  {
+    "type": 2,
+    "id": 512,
+    "name": "WireframeCollisionShader",
+    "path": "./editor_assets/shader/wireframe_collision_vert.spv",
+    "fragPath": "./editor_assets/shader/wireframe_collision_frag.spv"
+  }
+]

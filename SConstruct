@@ -157,6 +157,7 @@ commonsrc = (
         "./src/render/render.cpp",
         "./src/render/frame_graph.cpp",
         "./src/render/queue.cpp",
+        "./src/editor/wireframe_collision_pass.cpp",
         "./src/spatial_2d.cpp",
         "./src/component.cpp",
         "./src/scene.cpp",
@@ -314,6 +315,15 @@ shaders = [
     ["light_cull.comp", "light_cull.spv"],
 ]
 
+for s in shaders:
+    print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
+    os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
+
+sprefix = "./editor_assets/shader/"
+shaders = [
+    ["wireframe_collision.vert", "wireframe_collision_vert.spv"],
+    ["wireframe_collision.frag", "wireframe_collision_frag.spv"],
+]
 for s in shaders:
     print(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")
     os.system(glslc + f" {sprefix+s[0]} -I {sprefix} -o {sprefix+s[1]}")

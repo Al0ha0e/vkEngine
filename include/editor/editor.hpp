@@ -40,6 +40,8 @@ namespace vke_editor
     public:
         static Editor *GetInstance();
 
+        static entt::entity GetSelectedEntity() { return GetInstance()->selectedEntity; }
+
         static Editor *Init(GLFWwindow *window,
                             const vke_common::GameConfig &gameConfig,
                             vke_render::RenderContext *ctx,

@@ -1,10 +1,12 @@
 #include <editor/editor.hpp>
 #include <imgui_impl_vulkan.h>
+#include <common.hpp>
 #include <algorithm>
 #include <cstring>
 
 namespace vke_editor
 {
+    const std::string EditorAssetLUTPath = std::string(REL_DIR) + "/editor_assets/assets.json";
     static std::string NormalizeAssetPath(std::string path)
     {
         std::replace(path.begin(), path.end(), '\\', '/');

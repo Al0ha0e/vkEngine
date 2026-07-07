@@ -39,6 +39,7 @@ namespace vke_editor
         vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
         vke_render::RenderEnvironment::Init(window, gameConfig.enableVulkanValidationLayers);
         vke_common::AssetManager::Init();
+        vke_common::AssetManager::LoadAssetLUT(EditorAssetLUTPath);
         vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
         vke_render::DescriptorSetAllocator::Init();
         vke_common::Spatial2DLayerManager::Init();
@@ -110,6 +111,10 @@ namespace vke_editor
                 fixedUpdateAccumulator -= fixedStepTime;
             }
         }
+
+        WireframeCollisionPass *wireframePass = vke_render::Renderer::GetWireframeCollisionPass();
+        if (wireframePass)
+            wireframePass->SetSelectedEntity(selectedEntity);
 
         vke_render::Renderer::GetInstance()->Update();
         EditorRenderer::GetInstance()->Update();
