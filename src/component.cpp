@@ -88,9 +88,7 @@ namespace vke_common
                 continue;
 
             JPH::RVec3 position = controller.character->GetPosition();
-            JPH::Quat rotation = controller.character->GetRotation();
             scene.transformSystem.SetGlobalPosition(entity, glm::vec3(position.GetX(), position.GetY(), position.GetZ()));
-            scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
         }
     }
 

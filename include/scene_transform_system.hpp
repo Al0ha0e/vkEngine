@@ -20,24 +20,24 @@ namespace vke_common
         void InitializeHierarchy(const nlohmann::json &jsonObjs);
         void PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities);
         void RemoveChild(entt::entity entity, entt::entity childEntity);
-        void SetParent(entt::entity entity, entt::entity parentEntity);
-        void SetGlobalPosition(entt::entity entity, const glm::vec3 &position);
-        void SetGlobalRotation(entt::entity entity, const glm::quat &rotation);
-        void SetLocalPosition(entt::entity entity, const glm::vec3 &position);
-        void SetLocalRotation(entt::entity entity, const glm::quat &rotation);
-        void SetLocalScale(entt::entity entity, const glm::vec3 &scale);
-        void RotateGlobal(entt::entity entity, float det, const glm::vec3 &axis);
-        void RotateLocal(entt::entity entity, float det, const glm::vec3 &axis);
-        void TranslateLocal(entt::entity entity, const glm::vec3 &det);
-        void TranslateGlobal(entt::entity entity, const glm::vec3 &det);
-        void Scale(entt::entity entity, const glm::vec3 &scale);
+        void SetParent(entt::entity entity, entt::entity parentEntity, bool updatePhysicsComponents = false);
+        void SetGlobalPosition(entt::entity entity, const glm::vec3 &position, bool updatePhysicsComponents = false);
+        void SetGlobalRotation(entt::entity entity, const glm::quat &rotation, bool updatePhysicsComponents = false);
+        void SetLocalPosition(entt::entity entity, const glm::vec3 &position, bool updatePhysicsComponents = false);
+        void SetLocalRotation(entt::entity entity, const glm::quat &rotation, bool updatePhysicsComponents = false);
+        void SetLocalScale(entt::entity entity, const glm::vec3 &scale, bool updatePhysicsComponents = false);
+        void RotateGlobal(entt::entity entity, float det, const glm::vec3 &axis, bool updatePhysicsComponents = false);
+        void RotateLocal(entt::entity entity, float det, const glm::vec3 &axis, bool updatePhysicsComponents = false);
+        void TranslateLocal(entt::entity entity, const glm::vec3 &det, bool updatePhysicsComponents = false);
+        void TranslateGlobal(entt::entity entity, const glm::vec3 &det, bool updatePhysicsComponents = false);
+        void Scale(entt::entity entity, const glm::vec3 &scale, bool updatePhysicsComponents = false);
 
     private:
         entt::registry &registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity;
 
         void dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited);
-        void updateTransform(entt::entity entity, Transform &transform, bool first);
+        void updateTransform(entt::entity entity, Transform &transform, bool first, bool updatePhysicsComponents);
     };
 }
 

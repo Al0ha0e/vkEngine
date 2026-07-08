@@ -76,8 +76,19 @@ namespace vke_component
             return ret;
         }
 
-        void OnTransformed(vke_common::Transform &param) // TODO: syncing Transform back to physics here needs a guard to avoid physics <-> scene feedback loops.
+        void OnTransformed(vke_common::Transform &transform)
         {
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            settings.mPosition = JPH::RVec3(position.x, position.y, position.z);
+            settings.mRotation = JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w);
+
+            if (bodyID.IsInvalid() || vke_physics::PhysicsManager::GetInstance() == nullptr)
+                return;
+
+            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            if (interface.IsAdded(bodyID))
+                interface.SetPositionAndRotationWhenChanged(bodyID, settings.mPosition, settings.mRotation, JPH::EActivation::Activate);
         }
 
     private:

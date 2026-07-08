@@ -39,6 +39,8 @@ int main(int argc, char **argv)
     auto scene = vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);
     vke_common::SceneManager::SetCurrentScene(std::move(scene));
 
+    vke_common::InputManager::SetCursorMode(GLFW_CURSOR_NORMAL);
+
     glfwSetFramebufferSizeCallback(window, vke_editor::Editor::OnWindowResize);
     while (!glfwWindowShouldClose(window))
     {

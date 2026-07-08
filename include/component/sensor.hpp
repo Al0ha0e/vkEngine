@@ -59,6 +59,17 @@ namespace vke_component
 
         void OnTransformed(vke_common::Transform &param)
         {
+            const glm::vec3 position = param.GetGlobalPosition();
+            const glm::quat rotation = param.GetGlobalRotation();
+            settings.mPosition = JPH::RVec3(position.x, position.y, position.z);
+            settings.mRotation = JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w);
+
+            if (bodyID.IsInvalid() || vke_physics::PhysicsManager::GetInstance() == nullptr)
+                return;
+
+            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            if (interface.IsAdded(bodyID))
+                interface.SetPositionAndRotationWhenChanged(bodyID, settings.mPosition, settings.mRotation, JPH::EActivation::Activate);
         }
 
     private:

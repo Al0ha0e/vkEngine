@@ -2,6 +2,7 @@
 #include <glm/common.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/trigonometric.hpp>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <cstring>
 
 namespace vke_editor
@@ -11,6 +12,13 @@ namespace vke_editor
     static inline glm::vec3 TransformForward(const vke_common::Transform &transform)
     {
         return transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+
+    static std::shared_ptr<vke_physics::PhyscisShape> CreateDefaultPhysicsBoxShape()
+    {
+        auto shape = std::make_shared<vke_physics::PhyscisShape>(vke_physics::PHYSICS_SHAPE_BOX);
+        shape->shapeRef = new JPH::BoxShape(JPH::Vec3(0.5f, 0.5f, 0.5f));
+        return shape;
     }
 
     Editor *Editor::GetInstance()
@@ -183,10 +191,16 @@ namespace vke_editor
             ImGui::SameLine(nextX);
             if (ImGui::Button(buttonLabel, ImVec2(buttonWidth, 0.0f)))
             {
-                vke_common::EngineStateManager::SetState(
-                    state == vke_common::EngineState::Paused
-                        ? vke_common::EngineState::Running
-                        : vke_common::EngineState::Paused);
+                const vke_common::EngineState nextState = state == vke_common::EngineState::Paused
+                                                              ? vke_common::EngineState::Running
+                                                              : vke_common::EngineState::Paused;
+                vke_common::EngineStateManager::SetState(nextState);
+                vke_common::InputManager::SetCursorMode(nextState == vke_common::EngineState::Running ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+                ImGuiIO &io = ImGui::GetIO();
+                if (nextState == vke_common::EngineState::Running)
+                    io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+                else
+                    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
             }
         }
 
@@ -312,13 +326,15 @@ namespace vke_editor
             glm::vec3 position = transform.localPosition;
             glm::vec3 rotation = glm::degrees(glm::eulerAngles(transform.localRotation));
             glm::vec3 scale = transform.localScale;
+            const bool updatePhysicsComponents =
+                vke_common::EngineStateManager::GetState() == vke_common::EngineState::Paused;
 
             if (ImGui::InputFloat3("Position", glm::value_ptr(position)))
-                scene->transformSystem.SetLocalPosition(selectedEntity, position);
+                scene->transformSystem.SetLocalPosition(selectedEntity, position, updatePhysicsComponents);
             if (ImGui::InputFloat3("Rotation", glm::value_ptr(rotation)))
-                scene->transformSystem.SetLocalRotation(selectedEntity, glm::quat(glm::radians(rotation)));
+                scene->transformSystem.SetLocalRotation(selectedEntity, glm::quat(glm::radians(rotation)), updatePhysicsComponents);
             if (ImGui::InputFloat3("Scale", glm::value_ptr(scale)))
-                scene->transformSystem.SetLocalScale(selectedEntity, scale);
+                scene->transformSystem.SetLocalScale(selectedEntity, scale, updatePhysicsComponents);
 
             ImGui::TreePop();
         }
@@ -419,6 +435,34 @@ namespace vke_editor
             auto &renderable = scene->registry.emplace<vke_component::RenderableObject>(
                 selectedEntity, transform, material, mesh);
             renderable.LoadToEngine();
+            break;
+        }
+        case vke_common::ComponentType::RigidBody:
+        {
+            auto shape = CreateDefaultPhysicsBoxShape();
+            auto &body = scene->registry.emplace<vke_component::RigidBody>(
+                selectedEntity,
+                transform,
+                JPH::EMotionType::Dynamic,
+                vke_physics::DefaultObjectLayers::MOVING,
+                0.2f,
+                0.0f,
+                shape);
+            if (scene->loadedToEngine)
+                body.LoadToEngine(static_cast<uint32_t>(selectedEntity));
+            break;
+        }
+        case vke_common::ComponentType::Sensor:
+        {
+            auto shape = CreateDefaultPhysicsBoxShape();
+            auto &sensor = scene->registry.emplace<vke_component::Sensor>(
+                selectedEntity,
+                transform,
+                true,
+                vke_physics::DefaultObjectLayers::NON_MOVING,
+                shape);
+            if (scene->loadedToEngine)
+                sensor.LoadToEngine(static_cast<uint32_t>(selectedEntity));
             break;
         }
         case vke_common::ComponentType::DirectionalLight:

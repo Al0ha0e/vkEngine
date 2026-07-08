@@ -75,7 +75,7 @@ namespace vke_common
         registry.get<Transform>(entity).children.erase(childEntity);
     }
 
-    void SceneTransformSystem::SetParent(entt::entity entity, entt::entity parentEntity)
+    void SceneTransformSystem::SetParent(entt::entity entity, entt::entity parentEntity, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
 
@@ -90,96 +90,96 @@ namespace vke_common
         transform.parent = parentEntity;
         if (transform.parent == entt::null)
         {
-            updateTransform(entity, transform, true);
+            updateTransform(entity, transform, true, updatePhysicsComponents);
             return;
         }
 
         transform.SetParent(registry.get<Transform>(transform.parent));
         registry.get<Transform>(transform.parent).children.insert(entity);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::SetLocalPosition(entt::entity entity, const glm::vec3 &position)
+    void SceneTransformSystem::SetLocalPosition(entt::entity entity, const glm::vec3 &position, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.SetLocalPositionWithParent(registry.get<Transform>(transform.parent).model, position)
                                        : transform.SetLocalPosition(position);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::SetGlobalPosition(entt::entity entity, const glm::vec3 &position)
+    void SceneTransformSystem::SetGlobalPosition(entt::entity entity, const glm::vec3 &position, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.SetGlobalPositionWithParent(registry.get<Transform>(transform.parent).model, position)
                                        : transform.SetGlobalPosition(position);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::SetLocalRotation(entt::entity entity, const glm::quat &rotation)
+    void SceneTransformSystem::SetLocalRotation(entt::entity entity, const glm::quat &rotation, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.SetLocalRotationWithParent(registry.get<Transform>(transform.parent), rotation)
                                        : transform.SetLocalRotation(rotation);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::SetGlobalRotation(entt::entity entity, const glm::quat &rotation)
+    void SceneTransformSystem::SetGlobalRotation(entt::entity entity, const glm::quat &rotation, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.SetGlobalRotationWithParent(registry.get<Transform>(transform.parent), rotation)
                                        : transform.SetGlobalRotation(rotation);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::SetLocalScale(entt::entity entity, const glm::vec3 &scale)
+    void SceneTransformSystem::SetLocalScale(entt::entity entity, const glm::vec3 &scale, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.SetLocalScaleWithParent(registry.get<Transform>(transform.parent), scale)
                                        : transform.SetLocalScale(scale);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::RotateGlobal(entt::entity entity, float det, const glm::vec3 &axis)
+    void SceneTransformSystem::RotateGlobal(entt::entity entity, float det, const glm::vec3 &axis, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.RotateGlobalWithParent(registry.get<Transform>(transform.parent), det, axis)
                                        : transform.RotateGlobal(det, axis);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::RotateLocal(entt::entity entity, float det, const glm::vec3 &axis)
+    void SceneTransformSystem::RotateLocal(entt::entity entity, float det, const glm::vec3 &axis, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.RotateLocalWithParent(registry.get<Transform>(transform.parent), det, axis)
                                        : transform.RotateLocal(det, axis);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::TranslateLocal(entt::entity entity, const glm::vec3 &det)
+    void SceneTransformSystem::TranslateLocal(entt::entity entity, const glm::vec3 &det, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.TranslateLocalWithParent(registry.get<Transform>(transform.parent).model, det)
                                        : transform.TranslateLocal(det);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::TranslateGlobal(entt::entity entity, const glm::vec3 &det)
+    void SceneTransformSystem::TranslateGlobal(entt::entity entity, const glm::vec3 &det, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.TranslateGlobalWithParent(registry.get<Transform>(transform.parent).model, det)
                                        : transform.TranslateGlobal(det);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::Scale(entt::entity entity, const glm::vec3 &scale)
+    void SceneTransformSystem::Scale(entt::entity entity, const glm::vec3 &scale, bool updatePhysicsComponents)
     {
         Transform &transform = registry.get<Transform>(entity);
         transform.parent != entt::null ? transform.ScaleWithParent(registry.get<Transform>(transform.parent), scale)
                                        : transform.Scale(scale);
-        updateTransform(entity, transform, true);
+        updateTransform(entity, transform, true, updatePhysicsComponents);
     }
 
-    void SceneTransformSystem::updateTransform(entt::entity entity, Transform &transform, bool first)
+    void SceneTransformSystem::updateTransform(entt::entity entity, Transform &transform, bool first, bool updatePhysicsComponents)
     {
         if (!first)
             transform.UpdateWithParent(registry.get<Transform>(transform.parent));
@@ -187,13 +187,13 @@ namespace vke_common
         if (registry.all_of<vke_component::Camera>(entity))
             registry.get<vke_component::Camera>(entity).OnTransformed(transform);
 
-        if (registry.all_of<vke_component::RigidBody>(entity))
+        if (updatePhysicsComponents && registry.all_of<vke_component::RigidBody>(entity))
             registry.get<vke_component::RigidBody>(entity).OnTransformed(transform);
 
-        if (registry.all_of<vke_component::Sensor>(entity))
+        if (updatePhysicsComponents && registry.all_of<vke_component::Sensor>(entity))
             registry.get<vke_component::Sensor>(entity).OnTransformed(transform);
 
-        if (registry.all_of<vke_component::CharacterController>(entity))
+        if (updatePhysicsComponents && registry.all_of<vke_component::CharacterController>(entity))
             registry.get<vke_component::CharacterController>(entity).OnTransformed(transform);
 
         if (registry.all_of<vke_component::UIText>(entity))
@@ -228,7 +228,7 @@ namespace vke_common
         for (auto &child : transform.children)
         {
             auto &childTransform = registry.get<Transform>(child);
-            updateTransform(child, childTransform, false);
+            updateTransform(child, childTransform, false, updatePhysicsComponents);
         }
     }
 }

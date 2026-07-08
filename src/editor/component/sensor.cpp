@@ -1,4 +1,5 @@
 #include <editor/editor.hpp>
+#include <editor/physics_shape_editor.hpp>
 #include <component/sensor.hpp>
 #include <physics/physics.hpp>
 #include <algorithm>
@@ -30,6 +31,8 @@ namespace vke_editor
                                          ? bodyInterface.GetObjectLayer(sensor.bodyID)
                                          : static_cast<uint32_t>(sensor.settings.mObjectLayer);
         DrawReadOnlyUInt("Object Layer", objectLayer);
+
+        DrawPhysicsShapeEditor("SensorShape", sensor.shape, sensor.settings, bodyInterface, sensor.bodyID, loaded, false);
 
         const JPH::EMotionType currentMotionType = loaded
                                                        ? bodyInterface.GetMotionType(sensor.bodyID)

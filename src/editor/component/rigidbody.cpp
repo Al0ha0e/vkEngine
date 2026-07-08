@@ -1,4 +1,5 @@
 #include <editor/editor.hpp>
+#include <editor/physics_shape_editor.hpp>
 #include <component/rigidbody.hpp>
 #include <physics/physics.hpp>
 #include <algorithm>
@@ -13,6 +14,23 @@ namespace vke_editor
         ImGui::EndDisabled();
     }
 
+    static void ApplyRigidBodyMassSettings(vke_component::RigidBody &body, bool loaded)
+    {
+        if (body.hasMassOverride)
+        {
+            body.mass = std::max(body.mass, 0.001f);
+            body.settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
+            body.settings.mMassPropertiesOverride.mMass = body.mass;
+        }
+        else
+        {
+            body.settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateMassAndInertia;
+        }
+
+        if (loaded && body.settings.mMotionType != JPH::EMotionType::Static)
+            ApplyEditorMassProperties(body.settings, body.bodyID);
+    }
+
     void Editor::drawRigidBodyComponent(vke_common::Scene *scene)
     {
         if (scene == nullptr || selectedEntity == entt::null ||
@@ -25,11 +43,14 @@ namespace vke_editor
         vke_component::RigidBody &body = scene->registry.get<vke_component::RigidBody>(selectedEntity);
         JPH::BodyInterface &bodyInterface = vke_physics::PhysicsManager::GetBodyInterface();
         const bool loaded = scene->loadedToEngine;
+        const JPH::EMotionType currentMotionType = loaded ? bodyInterface.GetMotionType(body.bodyID) : body.settings.mMotionType;
 
         const uint32_t objectLayer = loaded
                                          ? bodyInterface.GetObjectLayer(body.bodyID)
                                          : static_cast<uint32_t>(body.settings.mObjectLayer);
         DrawReadOnlyUInt("Object Layer", objectLayer);
+
+        DrawPhysicsShapeEditor("RigidBodyShape", body.shape, body.settings, bodyInterface, body.bodyID, loaded, true, currentMotionType == JPH::EMotionType::Static);
 
         float restitution = loaded ? bodyInterface.GetRestitution(body.bodyID) : body.restitution;
         if (ImGui::InputFloat("Restitution", &restitution, 0.05f, 0.25f, "%.3f"))
@@ -55,14 +76,35 @@ namespace vke_editor
                 bodyInterface.SetGravityFactor(body.bodyID, gravityFactor);
         }
 
-        int motionType = static_cast<int>(loaded ? bodyInterface.GetMotionType(body.bodyID) : body.settings.mMotionType);
+        bool hasMassOverride = body.hasMassOverride;
+        if (ImGui::Checkbox("Override Mass", &hasMassOverride))
+        {
+            body.hasMassOverride = hasMassOverride;
+            if (body.hasMassOverride && body.mass <= 0.0f)
+                body.mass = std::max(body.settings.GetMassProperties().mMass, 0.001f);
+            ApplyRigidBodyMassSettings(body, loaded);
+        }
+
+        ImGui::BeginDisabled(!body.hasMassOverride);
+        float mass = body.mass;
+        if (ImGui::InputFloat("Mass", &mass, 0.1f, 1.0f, "%.3f"))
+        {
+            body.mass = std::max(mass, 0.001f);
+            ApplyRigidBodyMassSettings(body, loaded);
+        }
+        ImGui::EndDisabled();
+
+        int motionType = static_cast<int>(currentMotionType);
         const char *motionTypeItems[] = {"Static", "Kinematic", "Dynamic"};
         if (ImGui::Combo("Motion Type", &motionType, motionTypeItems, IM_ARRAYSIZE(motionTypeItems)))
         {
             motionType = std::clamp(motionType, 0, 2);
             body.settings.mMotionType = static_cast<JPH::EMotionType>(motionType);
+            if (body.settings.mMotionType != JPH::EMotionType::Static)
+                EnsureDynamicBodyShape(body.shape, body.settings, bodyInterface, body.bodyID, loaded);
             if (loaded)
                 bodyInterface.SetMotionType(body.bodyID, body.settings.mMotionType, JPH::EActivation::Activate);
+            ApplyRigidBodyMassSettings(body, loaded);
         }
 
         int motionQuality = static_cast<int>(loaded ? bodyInterface.GetMotionQuality(body.bodyID) : body.settings.mMotionQuality);

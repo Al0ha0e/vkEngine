@@ -354,7 +354,6 @@ namespace vke_editor
     void EditorRenderer::render()
     {
         uint32_t imageIndex = context->AcquireNextImage(currentFrame);
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
