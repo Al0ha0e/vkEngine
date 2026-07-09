@@ -204,11 +204,11 @@ targetinfo = [
         ],
     ],
     [
-        "tools/gltf_skin_conv",
+        "tools/gltf_anim_conv",
         [
             "./third_party/stb/stb_image.cpp",
             "./third_party/tinygltf/tiny_gltf.cpp",
-            "./src/tools/gltf_skin_conv.cpp",
+            "./src/tools/gltf_anim_conv.cpp",
         ]
         + ozzObjs,
     ],

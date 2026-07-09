@@ -41,8 +41,6 @@ namespace vke_editor
             animator.renderUnit == nullptr || animator.renderUnit->mesh == nullptr
                 ? 0
                 : animator.renderUnit->mesh->handle;
-        const vke_common::AssetHandle animationHandle =
-            animator.animation == nullptr ? 0 : animator.animation->handle;
         const vke_common::AssetHandle skeletonHandle =
             animator.skeleton == nullptr ? 0 : animator.skeleton->handle;
         vke_common::AssetManager *assetManager = vke_common::AssetManager::GetInstance();
@@ -56,9 +54,27 @@ namespace vke_editor
         DrawReadOnlyAsset(
             "Skeleton",
             GetAssetDisplayName(skeletonHandle, assetManager->skeletonCache));
-        DrawReadOnlyAsset(
-            "Animation",
-            GetAssetDisplayName(animationHandle, assetManager->animationCache));
+        if (ImGui::TreeNodeEx("Animations", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            for (size_t i = 0; i < animator.animations.size(); ++i)
+            {
+                const vke_component::SkeletonAnimator::AnimationState &state = animator.animations[i];
+                const vke_common::AssetHandle animationHandle =
+                    state.animation == nullptr ? 0 : state.animation->handle;
+                ImGui::PushID(static_cast<int>(i));
+                DrawReadOnlyAsset(
+                    "Animation",
+                    GetAssetDisplayName(animationHandle, assetManager->animationCache));
+                ImGui::Text("Weight: %.3f  Speed: %.3f  Time: %.3f  Loop: %s",
+                            state.weight,
+                            state.playbackSpeed,
+                            state.timeRatio,
+                            state.loop ? "true" : "false");
+                ImGui::Separator();
+                ImGui::PopID();
+            }
+            ImGui::TreePop();
+        }
 
         ImGui::TreePop();
     }

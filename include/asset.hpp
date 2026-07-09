@@ -127,8 +127,26 @@ namespace vke_common
     LEAF_ASSET_TYPE(MeshAsset, ASSET_MESH, vke_render::Mesh)
     LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ShaderModuleSet)
     LEAF_ASSET_TYPE(SkeletonAsset, ASSET_SKELETON, vke_common::Skeleton)
-    LEAF_ASSET_TYPE(AnimationAsset, ASSET_ANIMATION, vke_common::Animation)
     LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, int);
+
+    class AnimationAsset : public Asset<ASSET_ANIMATION, AnimationAsset, vke_common::Animation>
+    {
+    public:
+        bool hasRootMotion;
+
+        AnimationAsset() : hasRootMotion(false) {}
+
+        AnimationAsset(AssetHandle id, const nlohmann::json &json)
+            : Asset(id, json), hasRootMotion(json.value("hasRootMotion", false)) {}
+
+        AnimationAsset(AssetHandle id, const std::string &nm, const std::string &pth)
+            : Asset(id, nm, pth), hasRootMotion(false) {}
+
+        std::string toJSON()
+        {
+            return ", \"hasRootMotion\": " + std::string(hasRootMotion ? "true" : "false");
+        }
+    };
 
     class TextureAsset : public Asset<ASSET_TEXTURE, TextureAsset, vke_render::Texture2D>
     {

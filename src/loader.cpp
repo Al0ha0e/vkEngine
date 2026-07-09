@@ -226,6 +226,23 @@ namespace vke_common
             return nullptr;
         }
         archive >> ret->animation;
+        ret->hasRootMotion = asset.hasRootMotion;
+        if (ret->hasRootMotion)
+        {
+            if (!archive.TestTag<ozz::animation::Float3Track>())
+            {
+                VKE_LOG_ERROR("Failed to load root motion position track from file {}", asset.path)
+                return nullptr;
+            }
+            archive >> ret->rootMotionPosition;
+
+            if (!archive.TestTag<ozz::animation::QuaternionTrack>())
+            {
+                VKE_LOG_ERROR("Failed to load root motion rotation track from file {}", asset.path)
+                return nullptr;
+            }
+            archive >> ret->rootMotionRotation;
+        }
         return ret;
     }
 

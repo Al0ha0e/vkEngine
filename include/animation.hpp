@@ -1,7 +1,9 @@
 #ifndef ANIMATION_H
 #define ANIMATION_H
 
+#include <common.hpp>
 #include <ozz/animation/runtime/animation.h>
+#include <ozz/animation/runtime/track.h>
 #include <ozz/animation/runtime/skeleton.h>
 
 namespace vke_common
@@ -22,9 +24,12 @@ namespace vke_common
     public:
         vke_common::AssetHandle handle;
         ozz::animation::Animation animation;
+        bool hasRootMotion;
+        ozz::animation::Float3Track rootMotionPosition;
+        ozz::animation::QuaternionTrack rootMotionRotation;
 
-        Animation() = default;
-        Animation(vke_common::AssetHandle hdl) : handle(hdl) {}
+        Animation() : handle(0), hasRootMotion(false) {}
+        Animation(vke_common::AssetHandle hdl) : handle(hdl), hasRootMotion(false) {}
 
         float Duration() const
         {

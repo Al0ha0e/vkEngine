@@ -75,6 +75,8 @@ namespace vke_common
         ASSET_TO_JSON(vfShaderCache)
         ASSET_TO_JSON(computeShaderCache)
         ASSET_TO_JSON(materialCache)
+        ASSET_TO_JSON(skeletonCache)
+        ASSET_TO_JSON(animationCache)
         ASSET_TO_JSON(fontCache)
         for (auto &kv : sceneCache)
             ret += "\n" + kv.second.ToJSON() + ",";

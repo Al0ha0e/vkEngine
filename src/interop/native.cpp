@@ -1,5 +1,6 @@
 #include <script.hpp>
 #include <component/transform.hpp>
+#include <component/skeleton_animator.hpp>
 #include <component/character_controller.hpp>
 #include <input.hpp>
 #include <time.hpp>
@@ -204,6 +205,105 @@ namespace vke_interop
         return scene->HasComponent(ent, static_cast<vke_common::ComponentType>(componentType)) ? 1 : 0;
     }
 
+    static vke_component::SkeletonAnimator *GetSkeletonAnimator(vke_common::Scene *scene, uint32_t entity)
+    {
+        entt::entity ent = GetEntity(scene, entity);
+        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::SkeletonAnimator>(ent))
+            return nullptr;
+
+        return &scene->registry.get<vke_component::SkeletonAnimator>(ent);
+    }
+
+    static uint32_t VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationCount(uint32_t entity)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        return animator == nullptr ? 0 : animator->GetAnimationCount();
+    }
+
+    static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationSpeed(uint32_t entity, uint32_t index, float speed)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        if (animator != nullptr)
+            animator->SetAnimationSpeed(index, speed);
+    }
+
+    static float VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationSpeed(uint32_t entity, uint32_t index)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        return animator == nullptr ? 0.0f : animator->GetAnimationSpeed(index);
+    }
+
+    static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationTimeRatio(uint32_t entity, uint32_t index, float ratio)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        if (animator != nullptr)
+            animator->SetAnimationTimeRatio(index, ratio);
+    }
+
+    static float VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationTimeRatio(uint32_t entity, uint32_t index)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        return animator == nullptr ? 0.0f : animator->GetAnimationTimeRatio(index);
+    }
+
+    static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationLoop(uint32_t entity, uint32_t index, int32_t loop)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        if (animator != nullptr)
+            animator->SetAnimationLoop(index, loop != 0);
+    }
+
+    static int32_t VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationLoop(uint32_t entity, uint32_t index)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        return animator != nullptr && animator->GetAnimationLoop(index) ? 1 : 0;
+    }
+
+    static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationPlaying(uint32_t entity, uint32_t index, int32_t playing)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        if (animator != nullptr)
+            animator->SetAnimationPlaying(index, playing != 0);
+    }
+
+    static int32_t VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationPlaying(uint32_t entity, uint32_t index)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        return animator != nullptr && animator->GetAnimationPlaying(index) ? 1 : 0;
+    }
+
+    static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationWeight(uint32_t entity, uint32_t index, float weight)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        if (animator != nullptr)
+            animator->SetAnimationWeight(index, weight);
+    }
+
+    static float VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationWeight(uint32_t entity, uint32_t index)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        return animator == nullptr ? 0.0f : animator->GetAnimationWeight(index);
+    }
+
+    static void VKE_INTEROP_CDECL SetSkeletonAnimatorBlendWeights(uint32_t entity, const float *weights, uint32_t count)
+    {
+        vke_common::Scene *scene = GetCurrentScene();
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        if (animator != nullptr)
+            animator->SetBlendWeights(weights, count);
+    }
+
     static vke_component::CharacterController *GetCharacterController(vke_common::Scene *scene, uint32_t entity)
     {
         entt::entity ent = GetEntity(scene, entity);
@@ -271,6 +371,18 @@ namespace vke_common
             &vke_interop::GetPreviousFrameTime,
             &vke_interop::SetEngineState,
             &vke_interop::HasComponent,
+            &vke_interop::GetSkeletonAnimatorAnimationCount,
+            &vke_interop::SetSkeletonAnimatorAnimationSpeed,
+            &vke_interop::GetSkeletonAnimatorAnimationSpeed,
+            &vke_interop::SetSkeletonAnimatorAnimationTimeRatio,
+            &vke_interop::GetSkeletonAnimatorAnimationTimeRatio,
+            &vke_interop::SetSkeletonAnimatorAnimationLoop,
+            &vke_interop::GetSkeletonAnimatorAnimationLoop,
+            &vke_interop::SetSkeletonAnimatorAnimationPlaying,
+            &vke_interop::GetSkeletonAnimatorAnimationPlaying,
+            &vke_interop::SetSkeletonAnimatorAnimationWeight,
+            &vke_interop::GetSkeletonAnimatorAnimationWeight,
+            &vke_interop::SetSkeletonAnimatorBlendWeights,
             &vke_interop::GetUITextLength,
             &vke_interop::GetUITextText,
             &vke_interop::SetUITextText,

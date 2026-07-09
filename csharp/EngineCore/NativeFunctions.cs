@@ -32,6 +32,18 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<float> GetPreviousFrameTime;
         public delegate* unmanaged[Cdecl]<Int32, void> SetEngineState;
         public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> HasComponent;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetSkeletonAnimatorAnimationCount;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, float, void> SetSkeletonAnimatorAnimationSpeed;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, float> GetSkeletonAnimatorAnimationSpeed;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, float, void> SetSkeletonAnimatorAnimationTimeRatio;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, float> GetSkeletonAnimatorAnimationTimeRatio;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> SetSkeletonAnimatorAnimationLoop;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetSkeletonAnimatorAnimationLoop;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> SetSkeletonAnimatorAnimationPlaying;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetSkeletonAnimatorAnimationPlaying;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, float, void> SetSkeletonAnimatorAnimationWeight;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt32, float> GetSkeletonAnimatorAnimationWeight;
+        public delegate* unmanaged[Cdecl]<UInt32, float*, UInt32, void> SetSkeletonAnimatorBlendWeights;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetUITextLength;
         public delegate* unmanaged[Cdecl]<UInt32, byte*, UInt32, UInt32> GetUITextText;
         public delegate* unmanaged[Cdecl]<UInt32, byte*, UInt32, void> SetUITextText;
@@ -129,6 +141,7 @@ namespace vkEngine.EngineCore
             Time.RegisterNativeFunctions(functions);
             EngineStateManager.RegisterNativeFunctions(functions);
             EntityScript.RegisterNativeFunctions(functions);
+            SkeletonAnimator.RegisterNativeFunctions(functions);
             UIText.RegisterNativeFunctions(functions);
             Light.RegisterNativeFunctions(functions);
             CharacterController.RegisterNativeFunctions(functions);

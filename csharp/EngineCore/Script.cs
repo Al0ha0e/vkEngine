@@ -44,6 +44,7 @@ namespace vkEngine.EngineCore
         private static readonly Dictionary<Type, ComponentType> componentTypeMap = new()
         {
             [typeof(Transform)] = ComponentType.Transform,
+            [typeof(SkeletonAnimator)] = ComponentType.SkeletonAnimator,
             [typeof(RigidBody)] = ComponentType.RigidBody,
             [typeof(Sensor)] = ComponentType.Sensor,
             [typeof(CharacterController)] = ComponentType.CharacterController,
@@ -55,6 +56,7 @@ namespace vkEngine.EngineCore
         private static readonly Dictionary<ComponentType, Type> componentRuntimeTypeMap = new()
         {
             [ComponentType.Transform] = typeof(Transform),
+            [ComponentType.SkeletonAnimator] = typeof(SkeletonAnimator),
             [ComponentType.RigidBody] = typeof(RigidBody),
             [ComponentType.Sensor] = typeof(Sensor),
             [ComponentType.CharacterController] = typeof(CharacterController),
