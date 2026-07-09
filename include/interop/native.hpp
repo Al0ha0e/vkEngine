@@ -177,6 +177,7 @@ namespace vke_interop
         PhysicsCollideShapeFn PhysicsCollideShape;
         PhysicsCastShapeFn PhysicsCastShape;
         AudioSourcePlayFn AudioSourcePlay;
+        AudioSourceReplayFn AudioSourceReplay;
         AudioSourceStopFn AudioSourceStop;
         AudioSourcePauseFn AudioSourcePause;
         AudioSourceGetIsPlayingFn AudioSourceGetIsPlaying;

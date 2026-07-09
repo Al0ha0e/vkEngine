@@ -14,6 +14,7 @@ public sealed class TestCameraScript : EntityScript
     public float JumpSpeed = 5.0f;
     private Transform? transform;
     private CharacterController? characterController;
+    private AudioSource? audioSource;
 
     public TestCameraScript(UInt32 entity) : base(entity)
     {
@@ -26,6 +27,7 @@ public sealed class TestCameraScript : EntityScript
             $"TestCameraScript.Start entity={Entity} MoveSpeed={MoveSpeed} RotateSpeed={RotateSpeed}");
         transform = GetComponent<Transform>();
         characterController = GetComponent<CharacterController>();
+        audioSource = GetComponent<AudioSource>();
         Input.CursorMode = CursorMode.Disabled;
     }
 
@@ -99,7 +101,10 @@ public sealed class TestCameraScript : EntityScript
             transform.RotateLocal(-mouseDelta.y * rotateStep, new NVec3(1f, 0f, 0f));
 
         if (Input.IsMouseButtonPressed(MouseButton.Left))
+        {
+            audioSource?.Replay();
             ShootRaycastImpulse();
+        }
     }
 
     public override void Unload()

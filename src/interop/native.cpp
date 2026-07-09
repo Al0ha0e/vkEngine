@@ -465,6 +465,7 @@ namespace vke_common
             &vke_interop::PhysicsCollideShape,
             &vke_interop::PhysicsCastShape,
             &vke_interop::AudioSourcePlay,
+            &vke_interop::AudioSourceReplay,
             &vke_interop::AudioSourceStop,
             &vke_interop::AudioSourcePause,
             &vke_interop::AudioSourceGetIsPlaying,

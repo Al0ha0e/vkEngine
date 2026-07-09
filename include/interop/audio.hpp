@@ -33,8 +33,10 @@ namespace vke_interop
 
     using AudioListenerSetEnabledFn = void(VKE_INTEROP_CDECL *)(uint32_t, int32_t);
     using AudioListenerGetEnabledFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t);
+    using AudioSourceReplayFn = void(VKE_INTEROP_CDECL *)(uint32_t);
 
     void VKE_INTEROP_CDECL AudioSourcePlay(uint32_t entity);
+    void VKE_INTEROP_CDECL AudioSourceReplay(uint32_t entity);
     void VKE_INTEROP_CDECL AudioSourceStop(uint32_t entity);
     void VKE_INTEROP_CDECL AudioSourcePause(uint32_t entity);
     int32_t VKE_INTEROP_CDECL AudioSourceGetIsPlaying(uint32_t entity);

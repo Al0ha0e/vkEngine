@@ -137,6 +137,16 @@ namespace vke_component
                 ma_sound_start(sound);
         }
 
+        void Replay()
+        {
+            if (soundInitialized && sound != nullptr)
+            {
+                ma_sound_stop(sound);
+                ma_sound_seek_to_pcm_frame(sound, 0);
+                ma_sound_start(sound);
+            }
+        }
+
         void Stop()
         {
             if (soundInitialized && sound != nullptr)

@@ -84,5 +84,11 @@
       { "name": "materialFactors", "offset": 80, "component_cnt": 4, "component_type": "float", "data": [0.05, 0.18, 1.0, 1.0] },
       { "name": "emissiveAlpha", "offset": 96, "component_cnt": 4, "component_type": "float", "data": [0.0, 0.0, 0.0, 0.0] }
     ]
+  },
+  {
+    "type": 9,
+    "id": 1029,
+    "name": "Gunshot",
+    "path": "./tests/audio/gun1.wav"
   }
 ]

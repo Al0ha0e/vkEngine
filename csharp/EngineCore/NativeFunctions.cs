@@ -126,6 +126,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<Int32, void*, NVec3*, NQuat*, NVec3*, UInt32, UInt32, CollideShapeHit*, UInt32, UInt32> PhysicsCollideShape;
         public delegate* unmanaged[Cdecl]<Int32, void*, NVec3*, NQuat*, NVec3*, NVec3*, float, UInt32, UInt32, ShapeCastHit*, UInt32, UInt32> PhysicsCastShape;
         public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourcePlay;
+        public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourceReplay;
         public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourceStop;
         public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourcePause;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioSourceGetIsPlaying;

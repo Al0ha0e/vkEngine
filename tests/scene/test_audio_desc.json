@@ -1,0 +1,14 @@
+[
+  {
+    "type": 9,
+    "id": 1029,
+    "name": "Gunshot",
+    "path": "./tests/audio/gun1.wav"
+  },
+  {
+    "type": 9,
+    "id": 1030,
+    "name": "MusicLoop",
+    "path": "./tests/audio/music1.mp3"
+  }
+]

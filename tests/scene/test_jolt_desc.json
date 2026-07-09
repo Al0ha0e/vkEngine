@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "type": 9,
+    "id": 1029,
+    "name": "Gunshot",
+    "path": "./tests/audio/gun1.wav"
+  }
+]

@@ -8,6 +8,7 @@ namespace vkEngine.EngineCore
         private readonly UInt32 entity;
 
         private static delegate* unmanaged[Cdecl]<UInt32, void> play;
+        private static delegate* unmanaged[Cdecl]<UInt32, void> replay;
         private static delegate* unmanaged[Cdecl]<UInt32, void> stop;
         private static delegate* unmanaged[Cdecl]<UInt32, void> pause;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32> getIsPlaying;
@@ -35,6 +36,7 @@ namespace vkEngine.EngineCore
         internal static void RegisterNativeFunctions(NativeFunctions* functions)
         {
             play = functions->AudioSourcePlay;
+            replay = functions->AudioSourceReplay;
             stop = functions->AudioSourceStop;
             pause = functions->AudioSourcePause;
             getIsPlaying = functions->AudioSourceGetIsPlaying;
@@ -66,6 +68,7 @@ namespace vkEngine.EngineCore
         }
 
         public void Play() => play(entity);
+        public void Replay() => replay(entity);
         public void Stop() => stop(entity);
         public void Pause() => pause(entity);
 

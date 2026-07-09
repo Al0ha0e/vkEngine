@@ -1,0 +1,162 @@
+{
+  "maxid": 5,
+  "layers": ["default", "editor", "test"],
+  "objects": [
+    {
+      "id": 1,
+      "static": true,
+      "name": "scene_cam",
+      "layer": 1,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 1.15, 8.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.090626, -0.067783, -0.006184, 0.993539]
+      },
+      "components": [
+        {
+          "type": "camera",
+          "id": 1,
+          "fov": 70.0,
+          "width": 1920.0,
+          "height": 1080.0,
+          "near": 0.01,
+          "far": 1000.0
+        },
+        {
+          "type": "script",
+          "className": "TestProj.TestCameraScript",
+          "data": {
+            "fields": [
+              {
+                "name": "MoveSpeed",
+                "val": 4.0
+              },
+              {
+                "name": "RotateSpeed",
+                "val": 2.0
+              },
+              {
+                "name": "JumpSpeed",
+                "val": 5.0
+              }
+            ]
+          }
+        },
+        {
+          "type": "characterController",
+          "layer": 1,
+          "mass": 70.0,
+          "maxStrength": 2500.0,
+          "maxSlopeAngle": 50.0,
+          "predictiveContactDistance": 0.1,
+          "characterPadding": 0.02,
+          "createInnerBody": true,
+          "shape": { "type": 2, "radius": 0.35, "halfHeight": 0.6 }
+        },
+        {
+          "type": "audioListener",
+          "enabled": true
+        },
+        {
+          "type": "audioSource",
+          "clip": 1029,
+          "playOnStart": false,
+          "looping": false,
+          "volume": 0.5,
+          "spatializationEnabled": false
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 2,
+      "static": true,
+      "name": "sun_directional_light",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, 0.0, 0.0],
+        "scl": [1.0, 1.0, 1.0],
+        "rot": [-0.6324555, 0.3162278, 0.0, 0.7071068]
+      },
+      "components": [
+        {
+          "type": "directionalLight",
+          "color": [1.0, 0.96, 0.9],
+          "intensity": 2.5
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 3,
+      "static": true,
+      "name": "playground_floor",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [0.0, -2.0, 0.0],
+        "scl": [30.0, 0.2, 30.0],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 0,
+          "layer": 0,
+          "friction": 0.5,
+          "restitution": 0.0,
+          "shape": { "type": 1, "halfExtent": [30.0, 0.2, 30.0] }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": 4,
+      "static": false,
+      "name": "music_box",
+      "layer": 0,
+      "parent": 0,
+      "transform": {
+        "pos": [3.0, -1.2, -2.0],
+        "scl": [0.6, 0.6, 0.6],
+        "rot": [0.0, 0.0, 0.0, 1.0]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1,
+          "mesh": 2
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "layer": 1,
+          "friction": 0.35,
+          "restitution": 0.1,
+          "mass": 5.0,
+          "shape": { "type": 1, "halfExtent": [0.6, 0.6, 0.6] }
+        },
+        {
+          "type": "audioSource",
+          "clip": 1030,
+          "playOnStart": true,
+          "looping": true,
+          "volume": 2.0,
+          "spatializationEnabled": true,
+          "attenuationModel": 1,
+          "rolloff": 1.0,
+          "minDistance": 1.0,
+          "maxDistance": 50.0
+        }
+      ],
+      "children": []
+    }
+  ]
+}

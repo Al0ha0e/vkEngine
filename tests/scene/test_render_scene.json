@@ -53,6 +53,14 @@
           "characterPadding": 0.02,
           "createInnerBody": true,
           "shape": { "type": 2, "radius": 0.35, "halfHeight": 0.6 }
+        },
+        {
+          "type": "audioSource",
+          "clip": 1029,
+          "playOnStart": false,
+          "looping": false,
+          "volume": 0.5,
+          "spatializationEnabled": false
         }
       ],
       "children": [16]

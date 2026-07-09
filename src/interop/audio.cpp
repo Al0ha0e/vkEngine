@@ -12,7 +12,8 @@ namespace vke_interop
 
     static vke_component::AudioSource *GetAudioSource(vke_common::Scene *scene, uint32_t entity)
     {
-        if (scene == nullptr) return nullptr;
+        if (scene == nullptr)
+            return nullptr;
         entt::entity ent = static_cast<entt::entity>(entity);
         if (!scene->registry.valid(ent) || !scene->registry.all_of<vke_component::AudioSource>(ent))
             return nullptr;
@@ -21,7 +22,8 @@ namespace vke_interop
 
     static vke_component::AudioListener *GetAudioListener(vke_common::Scene *scene, uint32_t entity)
     {
-        if (scene == nullptr) return nullptr;
+        if (scene == nullptr)
+            return nullptr;
         entt::entity ent = static_cast<entt::entity>(entity);
         if (!scene->registry.valid(ent) || !scene->registry.all_of<vke_component::AudioListener>(ent))
             return nullptr;
@@ -31,19 +33,29 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourcePlay(uint32_t entity)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->Play();
+        if (src)
+            src->Play();
+    }
+
+    void VKE_INTEROP_CDECL AudioSourceReplay(uint32_t entity)
+    {
+        auto *src = GetAudioSource(GetCurrentScene(), entity);
+        if (src)
+            src->Replay();
     }
 
     void VKE_INTEROP_CDECL AudioSourceStop(uint32_t entity)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->Stop();
+        if (src)
+            src->Stop();
     }
 
     void VKE_INTEROP_CDECL AudioSourcePause(uint32_t entity)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->Pause();
+        if (src)
+            src->Pause();
     }
 
     int32_t VKE_INTEROP_CDECL AudioSourceGetIsPlaying(uint32_t entity)
@@ -55,7 +67,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetLooping(uint32_t entity, int32_t looping)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetLooping(looping != 0);
+        if (src)
+            src->SetLooping(looping != 0);
     }
 
     int32_t VKE_INTEROP_CDECL AudioSourceGetLooping(uint32_t entity)
@@ -67,7 +80,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetVolume(uint32_t entity, float volume)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetVolume(volume);
+        if (src)
+            src->SetVolume(volume);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetVolume(uint32_t entity)
@@ -79,7 +93,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetPitch(uint32_t entity, float pitch)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetPitch(pitch);
+        if (src)
+            src->SetPitch(pitch);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetPitch(uint32_t entity)
@@ -91,7 +106,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetTime(uint32_t entity, float time)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetTime(time);
+        if (src)
+            src->SetTime(time);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetTime(uint32_t entity)
@@ -103,7 +119,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetSpatializationEnabled(uint32_t entity, int32_t enabled)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetSpatializationEnabled(enabled != 0);
+        if (src)
+            src->SetSpatializationEnabled(enabled != 0);
     }
 
     int32_t VKE_INTEROP_CDECL AudioSourceGetSpatializationEnabled(uint32_t entity)
@@ -115,7 +132,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetAttenuationModel(uint32_t entity, int32_t model)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetAttenuationModel(model);
+        if (src)
+            src->SetAttenuationModel(model);
     }
 
     int32_t VKE_INTEROP_CDECL AudioSourceGetAttenuationModel(uint32_t entity)
@@ -127,7 +145,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetRolloff(uint32_t entity, float factor)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetRolloff(factor);
+        if (src)
+            src->SetRolloff(factor);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetRolloff(uint32_t entity)
@@ -139,7 +158,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetMinDistance(uint32_t entity, float distance)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetMinDistance(distance);
+        if (src)
+            src->SetMinDistance(distance);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetMinDistance(uint32_t entity)
@@ -151,7 +171,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetMaxDistance(uint32_t entity, float distance)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetMaxDistance(distance);
+        if (src)
+            src->SetMaxDistance(distance);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetMaxDistance(uint32_t entity)
@@ -163,7 +184,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioSourceSetDopplerFactor(uint32_t entity, float factor)
     {
         auto *src = GetAudioSource(GetCurrentScene(), entity);
-        if (src) src->SetDopplerFactor(factor);
+        if (src)
+            src->SetDopplerFactor(factor);
     }
 
     float VKE_INTEROP_CDECL AudioSourceGetDopplerFactor(uint32_t entity)
@@ -175,7 +197,8 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AudioListenerSetEnabled(uint32_t entity, int32_t enabled)
     {
         auto *lis = GetAudioListener(GetCurrentScene(), entity);
-        if (lis) lis->enabled = (enabled != 0);
+        if (lis)
+            lis->enabled = (enabled != 0);
     }
 
     int32_t VKE_INTEROP_CDECL AudioListenerGetEnabled(uint32_t entity)
