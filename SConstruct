@@ -180,6 +180,8 @@ commonsrc = (
         "./src/interop/light.cpp",
         "./src/interop/text.cpp",
         "./src/interop/physics.cpp",
+        "./src/audio/audio_manager.cpp",
+        "./src/interop/audio.cpp",
     ]
     + generated_files
 )

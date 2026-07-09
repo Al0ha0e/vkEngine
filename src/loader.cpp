@@ -294,4 +294,21 @@ namespace vke_common
         std::function<std::unique_ptr<Font>(FontAsset &)> op(loadFont);
         return loadFromCacheOrUpdate<Font>(instance->fontCache, hdl, op);
     }
+
+    static std::unique_ptr<vke_audio::AudioClip> loadAudioClip(AudioClipAsset &asset)
+    {
+        return std::make_unique<vke_audio::AudioClip>(asset.id, asset.path);
+    }
+
+    std::unique_ptr<vke_audio::AudioClip> AssetManager::LoadAudioClipUnique(const AssetHandle hdl)
+    {
+        auto &asset = tryGetAsset(instance->audioCache, hdl);
+        return loadAudioClip(asset);
+    }
+
+    std::shared_ptr<vke_audio::AudioClip> AssetManager::LoadAudioClip(const AssetHandle hdl)
+    {
+        std::function<std::unique_ptr<vke_audio::AudioClip>(AudioClipAsset &)> op(loadAudioClip);
+        return loadFromCacheOrUpdate<vke_audio::AudioClip>(instance->audioCache, hdl, op);
+    }
 }

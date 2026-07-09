@@ -55,6 +55,7 @@ namespace vke_common
                 LOAD_LUT_CASE(ASSET_ANIMATION, AnimationAsset, animationCache)
                 LOAD_LUT_CASE(ASSET_SCENE, SceneAsset, sceneCache)
                 LOAD_LUT_CASE(ASSET_FONT, FontAsset, fontCache)
+                LOAD_LUT_CASE(ASSET_AUDIO_CLIP, AudioClipAsset, audioCache)
             default:
                 break;
             }
@@ -78,6 +79,7 @@ namespace vke_common
         ASSET_TO_JSON(skeletonCache)
         ASSET_TO_JSON(animationCache)
         ASSET_TO_JSON(fontCache)
+        ASSET_TO_JSON(audioCache)
         for (auto &kv : sceneCache)
             ret += "\n" + kv.second.ToJSON() + ",";
 

@@ -4,6 +4,7 @@
 #include <render/mesh.hpp>
 #include <animation.hpp>
 #include <font.hpp>
+#include <audio/audio_clip.hpp>
 #include <nlohmann/json.hpp>
 
 #include <physics/physics.hpp>
@@ -64,11 +65,12 @@ namespace vke_common
         ASSET_ANIMATION,
         ASSET_SCENE,
         ASSET_FONT,
+        ASSET_AUDIO_CLIP,
         ASSET_CNT_FLAG
     };
 
     const std::string AssetTypeToName[] = {"Texture", "Mesh", "VFShader", "ComputeShader",
-                                           "Material", "Skeleton", "Animation", "Scene", "Font"};
+                                           "Material", "Skeleton", "Animation", "Scene", "Font", "AudioClip"};
 
     template <AssetType TID, typename T, typename VT>
     class Asset
@@ -147,6 +149,8 @@ namespace vke_common
             return ", \"hasRootMotion\": " + std::string(hasRootMotion ? "true" : "false");
         }
     };
+
+    LEAF_ASSET_TYPE(AudioClipAsset, ASSET_AUDIO_CLIP, vke_audio::AudioClip);
 
     class TextureAsset : public Asset<ASSET_TEXTURE, TextureAsset, vke_render::Texture2D>
     {
@@ -347,10 +351,9 @@ namespace vke_common
             if (textureBindingInfos != nullptr)
             {
                 for (const auto &bindingInfo : *textureBindingInfos)
-                    bindingInfosJSON.push_back({
-                        {"binding", bindingInfo.binding},
-                        {"offset", bindingInfo.offset},
-                        {"cnt", bindingInfo.cnt}});
+                    bindingInfosJSON.push_back({{"binding", bindingInfo.binding},
+                                                {"offset", bindingInfo.offset},
+                                                {"cnt", bindingInfo.cnt}});
             }
 
             nlohmann::json pushConstantInfosJSON = nlohmann::json::array();
@@ -376,20 +379,19 @@ namespace vke_common
                             data.push_back(value);
                         }
                     }
-                    pushConstantInfosJSON.push_back({
-                        {"name", "constant_" + std::to_string(constantIndex)},
-                        {"offset", info.offset},
-                        {"component_cnt", componentCnt},
-                        {"component_type", info.isFloat ? "float" : "int"},
-                        {"data", std::move(data)}});
+                    pushConstantInfosJSON.push_back({{"name", "constant_" + std::to_string(constantIndex)},
+                                                     {"offset", info.offset},
+                                                     {"component_cnt", componentCnt},
+                                                     {"component_type", info.isFloat ? "float" : "int"},
+                                                     {"data", std::move(data)}});
                 }
             }
 
             std::string ret = ", \"shader\": " + std::to_string(shader);
-            const char *renderModeName = renderMode == vke_render::MaterialRenderMode::CUTOFF_MODE ? "cutoff" :
-                                         renderMode == vke_render::MaterialRenderMode::BLEND_MODE ? "blend" : "opaque";
-            const char *blendModeName = blendMode == vke_render::MaterialBlendMode::PREMULTIPLIED_ALPHA ? "premultipliedAlpha" :
-                                        blendMode == vke_render::MaterialBlendMode::ADDITIVE ? "additive" : "alpha";
+            const char *renderModeName = renderMode == vke_render::MaterialRenderMode::CUTOFF_MODE ? "cutoff" : renderMode == vke_render::MaterialRenderMode::BLEND_MODE ? "blend"
+                                                                                                                                                                         : "opaque";
+            const char *blendModeName = blendMode == vke_render::MaterialBlendMode::PREMULTIPLIED_ALPHA ? "premultipliedAlpha" : blendMode == vke_render::MaterialBlendMode::ADDITIVE ? "additive"
+                                                                                                                                                                                      : "alpha";
             ret += ", \"renderMode\": \"" + std::string(renderModeName) + "\"";
             ret += ", \"blendMode\": \"" + std::string(blendModeName) + "\"";
             ret += ", \"textures\": " + texturesJSON.dump();
@@ -435,6 +437,7 @@ namespace vke_common
         AssetManager() : ftLibrary(nullptr) {};
         ~AssetManager()
         {
+            audioCache.clear();
             fontCache.clear();
             if (ftLibrary != nullptr)
                 FT_Done_FreeType(ftLibrary);
@@ -453,6 +456,7 @@ namespace vke_common
         std::map<AssetHandle, AnimationAsset> animationCache;
         std::map<AssetHandle, SceneAsset> sceneCache;
         std::map<AssetHandle, FontAsset> fontCache;
+        std::map<AssetHandle, AudioClipAsset> audioCache;
         FT_Library ftLibrary;
 
         static AssetManager *GetInstance()
@@ -489,6 +493,7 @@ namespace vke_common
         static std::unique_ptr<vke_common::Skeleton> LoadSkeletonUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_common::Animation> LoadAnimationUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_common::Font> LoadFontUnique(const AssetHandle hdl);
+        static std::unique_ptr<vke_audio::AudioClip> LoadAudioClipUnique(const AssetHandle hdl);
 
         static std::shared_ptr<vke_render::Texture2D> LoadTexture2D(const AssetHandle hdl);
         static std::shared_ptr<vke_render::Mesh> LoadMesh(const AssetHandle hdl);
@@ -498,6 +503,7 @@ namespace vke_common
         static std::shared_ptr<vke_common::Skeleton> LoadSkeleton(const AssetHandle hdl);
         static std::shared_ptr<vke_common::Animation> LoadAnimation(const AssetHandle hdl);
         static std::shared_ptr<vke_common::Font> LoadFont(const AssetHandle hdl);
+        static std::shared_ptr<vke_audio::AudioClip> LoadAudioClip(const AssetHandle hdl);
 
         ASSET_OP_FUNCS(TextureAsset, textureCache)
         ASSET_OP_FUNCS(MeshAsset, meshCache)
@@ -508,6 +514,7 @@ namespace vke_common
         ASSET_OP_FUNCS(AnimationAsset, animationCache)
         ASSET_OP_FUNCS(SceneAsset, sceneCache)
         ASSET_OP_FUNCS(FontAsset, fontCache)
+        ASSET_OP_FUNCS(AudioClipAsset, audioCache)
 
     private:
         void clearAssetLUT();

@@ -18,7 +18,9 @@ namespace vke_common
         PointLight = 8,
         SpotLight = 9,
         Script = 10,
-        UIText = 11
+        UIText = 11,
+        AudioSource = 12,
+        AudioListener = 13
     };
 }
 

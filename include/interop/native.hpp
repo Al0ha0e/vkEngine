@@ -7,6 +7,7 @@
 #include <interop/light.hpp>
 #include <interop/physics.hpp>
 #include <interop/text.hpp>
+#include <interop/audio.hpp>
 
 namespace vke_interop
 {
@@ -175,6 +176,32 @@ namespace vke_interop
         PhysicsCollidePointFn PhysicsCollidePoint;
         PhysicsCollideShapeFn PhysicsCollideShape;
         PhysicsCastShapeFn PhysicsCastShape;
+        AudioSourcePlayFn AudioSourcePlay;
+        AudioSourceStopFn AudioSourceStop;
+        AudioSourcePauseFn AudioSourcePause;
+        AudioSourceGetIsPlayingFn AudioSourceGetIsPlaying;
+        AudioSourceSetLoopingFn AudioSourceSetLooping;
+        AudioSourceGetLoopingFn AudioSourceGetLooping;
+        AudioSourceSetVolumeFn AudioSourceSetVolume;
+        AudioSourceGetVolumeFn AudioSourceGetVolume;
+        AudioSourceSetPitchFn AudioSourceSetPitch;
+        AudioSourceGetPitchFn AudioSourceGetPitch;
+        AudioSourceSetTimeFn AudioSourceSetTime;
+        AudioSourceGetTimeFn AudioSourceGetTime;
+        AudioSourceSetSpatializationEnabledFn AudioSourceSetSpatializationEnabled;
+        AudioSourceGetSpatializationEnabledFn AudioSourceGetSpatializationEnabled;
+        AudioSourceSetAttenuationModelFn AudioSourceSetAttenuationModel;
+        AudioSourceGetAttenuationModelFn AudioSourceGetAttenuationModel;
+        AudioSourceSetRolloffFn AudioSourceSetRolloff;
+        AudioSourceGetRolloffFn AudioSourceGetRolloff;
+        AudioSourceSetMinDistanceFn AudioSourceSetMinDistance;
+        AudioSourceGetMinDistanceFn AudioSourceGetMinDistance;
+        AudioSourceSetMaxDistanceFn AudioSourceSetMaxDistance;
+        AudioSourceGetMaxDistanceFn AudioSourceGetMaxDistance;
+        AudioSourceSetDopplerFactorFn AudioSourceSetDopplerFactor;
+        AudioSourceGetDopplerFactorFn AudioSourceGetDopplerFactor;
+        AudioListenerSetEnabledFn AudioListenerSetEnabled;
+        AudioListenerGetEnabledFn AudioListenerGetEnabled;
     };
 }
 

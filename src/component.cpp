@@ -41,6 +41,12 @@ namespace vke_common
         if (registry.all_of<vke_component::RigidBody>(entity))
             registry.get<vke_component::RigidBody>(entity).UnloadFromEngine();
 
+        if (registry.all_of<vke_component::AudioSource>(entity))
+            registry.get<vke_component::AudioSource>(entity).UnloadFromEngine();
+
+        if (registry.all_of<vke_component::AudioListener>(entity))
+            registry.get<vke_component::AudioListener>(entity).UnloadFromEngine();
+
         auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
 
         if (lightManager->HasLight<vke_render::DirectionalLight>(entity))
@@ -126,6 +132,14 @@ namespace vke_common
         {
             registry.emplace<vke_component::CharacterController>(entity, transform, component);
         }
+        else if (type == "audioSource")
+        {
+            registry.emplace<vke_component::AudioSource>(entity, component);
+        }
+        else if (type == "audioListener")
+        {
+            registry.emplace<vke_component::AudioListener>(entity, component);
+        }
         else if (type == "directionalLight")
         {
             auto &color = component["color"];
@@ -201,6 +215,10 @@ namespace vke_common
             return csharpScriptStates.find(entity) != csharpScriptStates.end();
         case ComponentType::UIText:
             return registry.all_of<vke_component::UIText>(entity);
+        case ComponentType::AudioSource:
+            return registry.all_of<vke_component::AudioSource>(entity);
+        case ComponentType::AudioListener:
+            return registry.all_of<vke_component::AudioListener>(entity);
         default:
             return false;
         }
@@ -230,6 +248,12 @@ namespace vke_common
 
         if (registry.all_of<vke_component::CharacterController>(entity))
             components.push_back(registry.get<vke_component::CharacterController>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::AudioSource>(entity))
+            components.push_back(registry.get<vke_component::AudioSource>(entity).ToJSON());
+
+        if (registry.all_of<vke_component::AudioListener>(entity))
+            components.push_back(registry.get<vke_component::AudioListener>(entity).ToJSON());
 
         if (lightData.HasLight<vke_render::DirectionalLight>(entity))
             components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::DirectionalLight>(entity).ToJSON());

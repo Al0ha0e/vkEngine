@@ -17,7 +17,9 @@ namespace vkEngine.EngineCore
         PointLight = 8,
         SpotLight = 9,
         Script = 10,
-        UIText = 11
+        UIText = 11,
+        AudioSource = 12,
+        AudioListener = 13
     }
 
     public interface IScriptLifecycle
@@ -51,7 +53,10 @@ namespace vkEngine.EngineCore
             [typeof(DirectionalLight)] = ComponentType.DirectionalLight,
             [typeof(PointLight)] = ComponentType.PointLight,
             [typeof(SpotLight)] = ComponentType.SpotLight,
-            [typeof(UIText)] = ComponentType.UIText
+            [typeof(UIText)] = ComponentType.UIText,
+            [typeof(AudioSource)] = ComponentType.AudioSource,
+            [typeof(AudioListener)] = ComponentType.AudioListener
+
         };
         private static readonly Dictionary<ComponentType, Type> componentRuntimeTypeMap = new()
         {
@@ -63,7 +68,10 @@ namespace vkEngine.EngineCore
             [ComponentType.DirectionalLight] = typeof(DirectionalLight),
             [ComponentType.PointLight] = typeof(PointLight),
             [ComponentType.SpotLight] = typeof(SpotLight),
-            [ComponentType.UIText] = typeof(UIText)
+            [ComponentType.UIText] = typeof(UIText),
+            [ComponentType.AudioSource] = typeof(AudioSource),
+            [ComponentType.AudioListener] = typeof(AudioListener)
+
         };
 
         protected EntityScript(UInt32 entity)

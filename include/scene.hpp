@@ -16,6 +16,8 @@
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
 #include <component/text.hpp>
+#include <component/audio_source.hpp>
+#include <component/audio_listener.hpp>
 #include <scene_transform_system.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -95,6 +97,12 @@ namespace vke_common
             for (auto entity : sensorView)
                 sensorView.get<vke_component::Sensor>(entity).LoadToEngine(static_cast<uint32_t>(entity));
             loadView.operator()<vke_component::CharacterController>();
+            auto audioSrcView = registry.view<vke_component::AudioSource>();
+            for (auto entity : audioSrcView)
+                audioSrcView.get<vke_component::AudioSource>(entity).LoadToEngine(static_cast<uint32_t>(entity));
+            auto audioLisView = registry.view<vke_component::AudioListener>();
+            for (auto entity : audioLisView)
+                audioLisView.get<vke_component::AudioListener>(entity).LoadToEngine(static_cast<uint32_t>(entity));
             vke_render::Renderer::GetInstance()->lightManager->LoadSceneLightData(lighting.cpuLightData);
 
             physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
@@ -133,6 +141,8 @@ namespace vke_common
                     view.template get<T>(entity).UnloadFromEngine();
             };
 
+            unloadView.operator()<vke_component::AudioSource>();
+            unloadView.operator()<vke_component::AudioListener>();
             unloadView.operator()<vke_component::CharacterController>();
             unloadView.operator()<vke_component::Sensor>();
             unloadView.operator()<vke_component::RigidBody>();

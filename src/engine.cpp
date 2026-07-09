@@ -32,6 +32,7 @@ namespace vke_common
             FixedUpdate();
             fixedUpdateAccumulator -= fixedStepTime;
         }
+        vke_audio::AudioManager::Update(vke_common::TimeManager::GetDeltaTime());
         vke_render::Renderer::GetInstance()->Update();
         vke_common::InputManager::EndFrame();
         return true;

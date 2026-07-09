@@ -125,6 +125,32 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<NVec3*, UInt32, UInt32, CollidePointHit*, UInt32, UInt32> PhysicsCollidePoint;
         public delegate* unmanaged[Cdecl]<Int32, void*, NVec3*, NQuat*, NVec3*, UInt32, UInt32, CollideShapeHit*, UInt32, UInt32> PhysicsCollideShape;
         public delegate* unmanaged[Cdecl]<Int32, void*, NVec3*, NQuat*, NVec3*, NVec3*, float, UInt32, UInt32, ShapeCastHit*, UInt32, UInt32> PhysicsCastShape;
+        public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourcePlay;
+        public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourceStop;
+        public delegate* unmanaged[Cdecl]<UInt32, void> AudioSourcePause;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioSourceGetIsPlaying;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, void> AudioSourceSetLooping;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioSourceGetLooping;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetVolume;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetVolume;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetPitch;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetPitch;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetTime;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetTime;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, void> AudioSourceSetSpatializationEnabled;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioSourceGetSpatializationEnabled;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, void> AudioSourceSetAttenuationModel;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioSourceGetAttenuationModel;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetRolloff;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetRolloff;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetMinDistance;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetMinDistance;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetMaxDistance;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetMaxDistance;
+        public delegate* unmanaged[Cdecl]<UInt32, float, void> AudioSourceSetDopplerFactor;
+        public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetDopplerFactor;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, void> AudioListenerSetEnabled;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioListenerGetEnabled;
     }
 
     public static class NativeFunctionRegistry
@@ -148,6 +174,8 @@ namespace vkEngine.EngineCore
             RigidBody.RegisterNativeFunctions(functions);
             Sensor.RegisterNativeFunctions(functions);
             Physics.RegisterNativeFunctions(functions);
+            AudioSource.RegisterNativeFunctions(functions);
+            AudioListener.RegisterNativeFunctions(functions);
         }
     }
 }

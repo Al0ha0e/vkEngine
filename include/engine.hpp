@@ -4,6 +4,7 @@
 #include <game_config.hpp>
 #include <render/render.hpp>
 #include <physics/physics.hpp>
+#include <audio/audio_manager.hpp>
 #include <scene.hpp>
 #include <event.hpp>
 #include <input.hpp>
@@ -43,6 +44,7 @@ namespace vke_common
             TimeManager::Init();
             InputManager::Init(window);
             EngineStateManager::Init();
+            vke_audio::AudioManager::Init();
             vke_render::RenderEnvironment::Init(window, gameConfig.enableVulkanValidationLayers);
             AssetManager::Init();
             vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
@@ -76,6 +78,7 @@ namespace vke_common
             vke_physics::PhysicsManager::Dispose();
             AssetManager::Dispose();
             vke_render::RenderEnvironment::Dispose();
+            vke_audio::AudioManager::Dispose();
             EngineStateManager::Dispose();
             InputManager::Dispose();
             TimeManager::Dispose();
