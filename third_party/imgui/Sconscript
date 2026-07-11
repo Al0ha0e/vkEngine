@@ -6,6 +6,7 @@ imgui_env.AppendUnique(
         ".",
         "backends",
         "../",
+        "dialog",
         VULKAN_PATH + "/Include",
     ]
 )
@@ -18,6 +19,7 @@ imgui_sources = [
     "imgui_demo.cpp",
     "backends/imgui_impl_vulkan.cpp",
     "backends/imgui_impl_glfw.cpp",
+    "dialog/ImGuiFileDialog.cpp",
 ]
 
 objs = imgui_env.Object(imgui_sources)

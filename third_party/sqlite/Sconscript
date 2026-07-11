@@ -1,0 +1,15 @@
+Import("env")
+
+sqlite_cppdefines = [
+    "SQLITE_THREADSAFE=1",
+    "SQLITE_OMIT_LOAD_EXTENSION",
+    "_CRT_SECURE_NO_WARNINGS",
+]
+
+objs = env.Object(
+    "sqlite3.c",
+    CPPPATH=["."],
+    CPPDEFINES=sqlite_cppdefines,
+)
+
+Return("objs")

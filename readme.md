@@ -46,6 +46,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 ./out/engine.exe ./tests/cfg/test_anim.json
 ./out/engine.exe ./tests/cfg/test_env.json
 ./out/engine.exe ./tests/cfg/test_render.json
+./out/engine.exe ./tests/cfg/test_audio.json
 ```
 
 ## Third Party Libraries 
@@ -65,6 +66,8 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 - [recastnavigation](https://github.com/recastnavigation/recastnavigation)
 - [miniaudio](https://github.com/mackron/miniaudio)
 - [imgui](https://github.com/ocornut/imgui)
+- [ImGuiFileDialog](https://github.com/aiekick/ImGuiFileDialog)
+- [sqlite](https://sqlite.org/)
 
 
 ## Roadmap 
@@ -104,3 +107,14 @@ The build will produce `out/engine.exe`. The executable expects a single game co
   - [x] CoreCLR integration
   - [x] script lifecycle
   - [ ] python-based preprocessing tool to generate metadata 
+- **Audio**:
+  - [x] audio source/listener
+  - [x] 3D spatial audio: attenuation, rolloff, doppler
+  - [ ] audio DSP filters
+  - [ ] audio bus / effect chain
+- **Editor**:
+  - [x] editor layout
+  - [ ] asset database
+  - [ ] gizmo
+  - [ ] assets preivew
+  - [ ] game state snapshot
