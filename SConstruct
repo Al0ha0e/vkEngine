@@ -250,6 +250,7 @@ editorsrc = [
     "./src/editor/editor.cpp",
     "./src/editor/render.cpp",
     "./src/editor/assets.cpp",
+    "./src/editor/create_project.cpp",
     "./src/editor/component/camera.cpp",
     "./src/editor/component/light.cpp",
     "./src/editor/component/renderable_object.cpp",

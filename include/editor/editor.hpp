@@ -3,7 +3,8 @@
 
 #include <editor/assets.hpp>
 #include <editor/render.hpp>
-#include <game_config.hpp>
+#include <editor/editor_config.hpp>
+#include <editor/editor_state.hpp>
 #include <render/render.hpp>
 #include <physics/physics.hpp>
 #include <scene.hpp>
@@ -43,22 +44,31 @@ namespace vke_editor
         static entt::entity GetSelectedEntity() { return GetInstance()->selectedEntity; }
 
         static Editor *Init(GLFWwindow *window,
-                            const vke_common::GameConfig &gameConfig,
-                            vke_render::RenderContext *ctx,
+                            const EditorConfig &editorConfig,
                             uint32_t sceneViewportWidth,
                             uint32_t sceneViewportHeight,
                             std::vector<vke_render::PassType> &passes,
                             std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses);
 
+        static Editor *PartialInit1(GLFWwindow *window,
+                                    const EditorConfig &editorConfig,
+                                    uint32_t sceneViewportWidth,
+                                    uint32_t sceneViewportHeight);
+        static void PartialInit2(const EditorConfig &editorConfig,
+                                 std::vector<vke_render::PassType> &passes,
+                                 std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses);
+
         static void Shutdown();
         static void WaitIdle();
         static void Dispose();
+        static void PartialDispose();
         static void OnWindowResize(GLFWwindow *window, int width, int height);
 
         bool Update();
+        bool PartialUpdate(bool &projectCreated, std::filesystem::path &projectPath);
         void FixedUpdate();
-        void MainLoop();
         void DrawGUI();
+        void EnterProjectCreationMode();
 
     private:
         void showMainMenuBar();
@@ -90,6 +100,15 @@ namespace vke_editor
         void showSelectedAssetInspector();
         void createEmptyObject();
         void ensureSelectedEntityValid();
+
+        char pendingProjectName[128] = {};
+        char pendingProjectDir[512] = {};
+        bool projectCreationActive = false;
+        bool projectCreationPending = false;
+        bool projectCancelRequested = false;
+
+        void showProjectCreationDialog();
+        std::filesystem::path finalizeProjectCreation();
     };
 }
 

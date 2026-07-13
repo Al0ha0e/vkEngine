@@ -40,6 +40,9 @@ namespace vke_editor
             currentFrame = (currentFrame + 1) % vke_render::MAX_FRAMES_IN_FLIGHT;
         }
 
+        static uint32_t AcquireSceneNextImage(uint32_t currentFrame);
+        static void PresentScene(uint32_t currentFrame, uint32_t imageIndex);
+
     private:
         uint32_t currentFrame;
         GLFWwindow *window;
@@ -60,9 +63,6 @@ namespace vke_editor
         VkCommandBuffer commandBuffers[vke_render::MAX_FRAMES_IN_FLIGHT];
         bool sceneTexturesRegistered;
         std::function<void()> updateGUIFunc;
-
-        static uint32_t AcquireSceneNextImage(uint32_t currentFrame);
-        static void PresentScene(uint32_t currentFrame, uint32_t imageIndex);
 
         void registerSceneTextures();
         void removeSceneTextures();

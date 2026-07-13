@@ -7,6 +7,8 @@
 
 namespace vke_editor
 {
+    EditorConfig *EditorConfig::instance = nullptr;
+    EditorStateManager *EditorStateManager::instance;
     Editor *Editor::instance = nullptr;
 
     static inline glm::vec3 TransformForward(const vke_common::Transform &transform)
@@ -28,12 +30,21 @@ namespace vke_editor
     }
 
     Editor *Editor::Init(GLFWwindow *window,
-                         const vke_common::GameConfig &gameConfig,
-                         vke_render::RenderContext *ctx,
+                         const EditorConfig &editorConfig,
                          uint32_t sceneViewportWidth,
                          uint32_t sceneViewportHeight,
                          std::vector<vke_render::PassType> &passes,
                          std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
+    {
+        PartialInit1(window, editorConfig, sceneViewportWidth, sceneViewportHeight);
+        PartialInit2(editorConfig, passes, customPasses);
+        return instance;
+    }
+
+    Editor *Editor::PartialInit1(GLFWwindow *window,
+                                 const EditorConfig &editorConfig,
+                                 uint32_t sceneViewportWidth,
+                                 uint32_t sceneViewportHeight)
     {
         instance = new Editor();
         instance->selectedEntity = entt::null;
@@ -45,22 +56,30 @@ namespace vke_editor
         vke_common::InputManager::Init(window);
         vke_common::EngineStateManager::Init();
         vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
-        vke_render::RenderEnvironment::Init(window, gameConfig.enableVulkanValidationLayers);
+        vke_editor::EditorStateManager::Init(vke_editor::EditorState::PartialInited);
+        vke_render::RenderEnvironment::Init(window, editorConfig.gameConfig->enableVulkanValidationLayers);
         vke_common::AssetManager::Init();
         vke_common::AssetManager::LoadAssetLUT(EditorAssetLUTPath);
-        vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
         vke_render::DescriptorSetAllocator::Init();
-        vke_common::Spatial2DLayerManager::Init();
-        if (ctx == nullptr)
-            ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
+        vke_render::RenderContext *ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
         EditorRenderer::Init(window, ctx, sceneViewportWidth, sceneViewportHeight,
                              []()
                              { instance->DrawGUI(); });
+
+        return instance;
+    }
+
+    void Editor::PartialInit2(const EditorConfig &editorConfig,
+                              std::vector<vke_render::PassType> &passes,
+                              std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
+    {
+        vke_physics::PhysicsManager::Init(editorConfig.gameConfig->physicsConfig);
+        vke_common::Spatial2DLayerManager::Init();
         vke_render::Renderer::Init(EditorRenderer::GetInstance()->GetSceneRenderContext(),
-                                   passes, customPasses, gameConfig.renderConfig);
+                                   passes, customPasses, editorConfig.gameConfig->renderConfig);
         vke_common::ScriptManager::Init();
         vke_common::SceneManager::Init();
-        return instance;
+        vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Edit);
     }
 
     void Editor::Shutdown()
@@ -79,12 +98,18 @@ namespace vke_editor
         vke_common::SceneManager::Dispose();
         vke_common::ScriptManager::Dispose();
         vke_render::Renderer::Dispose();
-        EditorRenderer::Dispose();
         vke_common::Spatial2DLayerManager::Dispose();
-        vke_render::DescriptorSetAllocator::Dispose();
         vke_physics::PhysicsManager::Dispose();
+        Editor::PartialDispose();
+    }
+
+    void Editor::PartialDispose()
+    {
+        EditorRenderer::Dispose();
+        vke_render::DescriptorSetAllocator::Dispose();
         vke_common::AssetManager::Dispose();
         vke_render::RenderEnvironment::Dispose();
+        vke_editor::EditorStateManager::Dispose();
         vke_common::EngineStateManager::Dispose();
         vke_common::InputManager::Dispose();
         vke_common::TimeManager::Dispose();
@@ -99,8 +124,8 @@ namespace vke_editor
 
     bool Editor::Update()
     {
-        const vke_common::EngineState state = vke_common::EngineStateManager::GetState();
-        if (state == vke_common::EngineState::Terminated)
+        const vke_common::EngineState engineState = vke_common::EngineStateManager::GetState();
+        if (engineState == vke_common::EngineState::Terminated)
         {
             Shutdown();
             return false;
@@ -108,7 +133,7 @@ namespace vke_editor
 
         vke_common::TimeManager::Update();
 
-        if (state != vke_common::EngineState::Paused)
+        if (vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Run)
         {
             vke_common::ScriptManager::GetInstance()->Update();
             fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
@@ -130,24 +155,53 @@ namespace vke_editor
         return true;
     }
 
+    bool Editor::PartialUpdate(bool &projectCreated, std::filesystem::path &projectPath)
+    {
+        if (projectCreationActive)
+        {
+            static uint32_t currentFrame = 1;
+            currentFrame = (currentFrame + 1) % vke_render::MAX_FRAMES_IN_FLIGHT;
+            if (projectCancelRequested)
+            {
+                projectCreated = false;
+                return false;
+            }
+
+            if (projectCreationPending)
+            {
+                projectCreationActive = false;
+                projectCreationPending = false;
+                projectPath = finalizeProjectCreation();
+                projectCreated = true;
+                return false;
+            }
+            else
+            {
+                uint32_t imageIndex = EditorRenderer::AcquireSceneNextImage(currentFrame);
+                EditorRenderer::PresentScene(currentFrame, imageIndex);
+                EditorRenderer::GetInstance()->Update();
+                vke_common::InputManager::EndFrame();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     void Editor::FixedUpdate()
     {
         vke_common::ScriptManager::FixedUpdate();
         vke_physics::PhysicsManager::FixedUpdate();
     }
 
-    void Editor::MainLoop()
-    {
-        while (!glfwWindowShouldClose(vke_render::RenderEnvironment::GetInstance()->window))
-        {
-            glfwPollEvents();
-            Update();
-        }
-        vkDeviceWaitIdle(vke_render::globalLogicalDevice);
-    }
-
     void Editor::DrawGUI()
     {
+        if (projectCreationActive)
+        {
+            showProjectCreationDialog();
+            return;
+        }
+
         ensureSelectedEntityValid();
         showMainMenuBar();
         showHierarchy();
@@ -179,10 +233,11 @@ namespace vke_editor
             ImGui::EndMenu();
         }
 
-        const vke_common::EngineState state = vke_common::EngineStateManager::GetState();
-        if (state == vke_common::EngineState::Paused || state == vke_common::EngineState::Running)
+        const vke_editor::EditorState editorState = vke_editor::EditorStateManager::GetState();
+        if (editorState == vke_editor::EditorState::Edit || editorState == vke_editor::EditorState::Run)
         {
-            const char *buttonLabel = state == vke_common::EngineState::Paused ? "Start" : "Pause";
+            const bool currentIsEdit = editorState == vke_editor::EditorState::Edit;
+            const char *buttonLabel = currentIsEdit ? "Start" : "Pause";
             const ImGuiStyle &style = ImGui::GetStyle();
             const float buttonWidth = ImGui::CalcTextSize(buttonLabel).x + style.FramePadding.x * 2.0f;
             const float centeredX = (ImGui::GetWindowWidth() - buttonWidth) * 0.5f;
@@ -191,13 +246,19 @@ namespace vke_editor
             ImGui::SameLine(nextX);
             if (ImGui::Button(buttonLabel, ImVec2(buttonWidth, 0.0f)))
             {
-                const vke_common::EngineState nextState = state == vke_common::EngineState::Paused
-                                                              ? vke_common::EngineState::Running
-                                                              : vke_common::EngineState::Paused;
-                vke_common::EngineStateManager::SetState(nextState);
-                vke_common::InputManager::SetCursorMode(nextState == vke_common::EngineState::Running ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+                if (currentIsEdit)
+                {
+                    vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Run);
+                    vke_common::EngineStateManager::SetState(vke_common::EngineState::Running);
+                }
+                else
+                {
+                    vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Edit);
+                    vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
+                }
+                vke_common::InputManager::SetCursorMode(currentIsEdit ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
                 ImGuiIO &io = ImGui::GetIO();
-                if (nextState == vke_common::EngineState::Running)
+                if (currentIsEdit)
                     io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
                 else
                     io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
@@ -327,7 +388,7 @@ namespace vke_editor
             glm::vec3 rotation = glm::degrees(glm::eulerAngles(transform.localRotation));
             glm::vec3 scale = transform.localScale;
             const bool updatePhysicsComponents =
-                vke_common::EngineStateManager::GetState() == vke_common::EngineState::Paused;
+                vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Edit;
 
             if (ImGui::InputFloat3("Position", glm::value_ptr(position)))
                 scene->transformSystem.SetLocalPosition(selectedEntity, position, updatePhysicsComponents);

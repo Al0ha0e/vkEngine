@@ -1,4 +1,5 @@
 #include <editor/render.hpp>
+#include <editor/editor_state.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_impl_glfw.h>
@@ -255,20 +256,44 @@ namespace vke_editor
         VKE_VK_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo), "Failed to begin editor scene init command buffer!")
         for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
         {
-            VkImageMemoryBarrier barrier{};
-            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            barrier.srcAccessMask = VK_ACCESS_NONE;
-            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.image = sceneDepthImages[i];
-            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            barrier.subresourceRange.baseMipLevel = 0;
-            barrier.subresourceRange.levelCount = 1;
-            barrier.subresourceRange.baseArrayLayer = 0;
-            barrier.subresourceRange.layerCount = 1;
+            VkImageMemoryBarrier colorBarrier{};
+            colorBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            colorBarrier.srcAccessMask = VK_ACCESS_NONE;
+            colorBarrier.dstAccessMask = VK_ACCESS_NONE;
+            colorBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            colorBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            colorBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            colorBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            colorBarrier.image = colorImages[i];
+            colorBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            colorBarrier.subresourceRange.baseMipLevel = 0;
+            colorBarrier.subresourceRange.levelCount = 1;
+            colorBarrier.subresourceRange.baseArrayLayer = 0;
+            colorBarrier.subresourceRange.layerCount = 1;
+
+            vkCmdPipelineBarrier(
+                commandBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                1, &colorBarrier);
+
+            VkImageMemoryBarrier depthBarrier{};
+            depthBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            depthBarrier.srcAccessMask = VK_ACCESS_NONE;
+            depthBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            depthBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            depthBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            depthBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            depthBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            depthBarrier.image = sceneDepthImages[i];
+            depthBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            depthBarrier.subresourceRange.baseMipLevel = 0;
+            depthBarrier.subresourceRange.levelCount = 1;
+            depthBarrier.subresourceRange.baseArrayLayer = 0;
+            depthBarrier.subresourceRange.layerCount = 1;
 
             vkCmdPipelineBarrier(
                 commandBuffer,
@@ -277,7 +302,7 @@ namespace vke_editor
                 0,
                 0, nullptr,
                 0, nullptr,
-                1, &barrier);
+                1, &depthBarrier);
         }
         VKE_VK_CHECK(vkEndCommandBuffer(commandBuffer), "Failed to end editor scene init command buffer!")
 
@@ -366,7 +391,8 @@ namespace vke_editor
             defaultDockLayoutBuilt = true;
         }
 
-        drawSceneViewport();
+        if (EditorStateManager::GetState() == EditorState::Edit || EditorStateManager::GetState() == EditorState::Run)
+            drawSceneViewport();
         if (updateGUIFunc)
             updateGUIFunc();
         ImGui::Render();

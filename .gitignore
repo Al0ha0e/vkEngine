@@ -16,3 +16,4 @@ vkEngine.sln
 imgui.ini
 
 tests/from_source2
+tests/editor_projects

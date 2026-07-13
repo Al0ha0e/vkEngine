@@ -29,7 +29,7 @@ namespace vke_common
         vke_render::RenderConfig renderConfig;
         nlohmann::json sourceJSON;
 
-        GameConfig() : windowWidth(800), windowHeight(600), enableVulkanValidationLayers(false),
+        GameConfig() : windowWidth(1920), windowHeight(1080), enableVulkanValidationLayers(true),
                        assetLUTPath(), defaultScenePath(), gameScriptPath(), physicsConfig(), renderConfig() {}
         GameConfig(const nlohmann::json &json) : GameConfig()
         {
