@@ -1,4 +1,5 @@
 #include <render/atmosphere_pass.hpp>
+#include <asset/asset_manager.hpp>
 
 namespace vke_render
 {
@@ -9,7 +10,8 @@ namespace vke_render
           hdrColorManager(hdrColorManager),
           gbuffer(GBuffer::GetInstance()),
           taskNodeID(0)
-    {}
+    {
+    }
 
     void AtmospherePass::Init(int subpassID,
                               FrameGraph &frameGraph,

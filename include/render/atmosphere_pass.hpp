@@ -1,7 +1,6 @@
 #ifndef ATMOSPHERE_PASS_H
 #define ATMOSPHERE_PASS_H
 
-#include <asset.hpp>
 #include <render/gbuffer.hpp>
 #include <render/hdr_color.hpp>
 #include <render/pipeline.hpp>

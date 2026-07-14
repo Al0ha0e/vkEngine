@@ -1,7 +1,7 @@
 #ifndef LAYERED_2D_RENDER_H
 #define LAYERED_2D_RENDER_H
 
-#include <asset.hpp>
+#include <font.hpp>
 #include <render/glyph_manager.hpp>
 #include <render/material.hpp>
 #include <render/pipeline.hpp>

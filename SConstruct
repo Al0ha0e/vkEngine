@@ -137,9 +137,9 @@ commonsrc = (
     + sqliteObjs
     + [
         "./src/render/environment.cpp",
-        "./src/asset.cpp",
-        "./src/loader.cpp",
-        "./src/builtin.cpp",
+        "./src/asset/asset.cpp",
+        "./src/asset/loader.cpp",
+        "./src/asset/builtin.cpp",
         "./src/render/descriptor.cpp",
         "./src/render/skybox.cpp",
         "./src/render/skybox_render.cpp",

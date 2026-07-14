@@ -1,4 +1,4 @@
-#include <asset.hpp>
+#include <asset/asset.hpp>
 
 namespace vke_common
 {

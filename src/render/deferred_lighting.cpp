@@ -1,5 +1,4 @@
 #include <render/deferred_lighting.hpp>
-#include <asset.hpp>
 
 namespace vke_render
 {

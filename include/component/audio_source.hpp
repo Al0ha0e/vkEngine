@@ -6,7 +6,7 @@
 #include <common.hpp>
 #include <nlohmann/json.hpp>
 #include <miniaudio/miniaudio.h>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <audio/audio_clip.hpp>
 #include <audio/audio_manager.hpp>
 #include <logger.hpp>

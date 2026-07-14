@@ -3,7 +3,7 @@
 
 #include <entt/entity/registry.hpp>
 #include <ds/id_allocator.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <component.hpp>
 #include <script.hpp>
 #include <gameobject.hpp>

@@ -1,5 +1,5 @@
 #include <render/skybox_render.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 
 namespace vke_render
 {

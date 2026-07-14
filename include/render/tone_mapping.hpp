@@ -5,7 +5,7 @@
 #include <render/subpass.hpp>
 #include <render/hdr_color.hpp>
 #include <render/render_config.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <functional>
 
 namespace vke_render
@@ -30,6 +30,7 @@ namespace vke_render
 
         void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) override;
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override {}
+
     private:
         VkDescriptorSet toneMappingDescriptorSets[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<GraphicsPipeline> renderPipeline;

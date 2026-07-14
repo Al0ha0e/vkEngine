@@ -1,5 +1,5 @@
 #include <render/transparent_pass.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <algorithm>
 
 namespace vke_render
@@ -132,16 +132,16 @@ namespace vke_render
         blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
         blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
         blendAttachment.dstColorBlendFactor = state.material->blendMode == MaterialBlendMode::ADDITIVE
-                                                   ? VK_BLEND_FACTOR_ONE
-                                                   : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                                                  ? VK_BLEND_FACTOR_ONE
+                                                  : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         blendAttachment.srcColorBlendFactor =
             state.material->blendMode == MaterialBlendMode::PREMULTIPLIED_ALPHA
                 ? VK_BLEND_FACTOR_ONE
                 : VK_BLEND_FACTOR_SRC_ALPHA;
         blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         blendAttachment.dstAlphaBlendFactor = state.material->blendMode == MaterialBlendMode::ADDITIVE
-                                                   ? VK_BLEND_FACTOR_ONE
-                                                   : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                                                  ? VK_BLEND_FACTOR_ONE
+                                                  : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 
         VkPipelineColorBlendStateCreateInfo blendState{};
         blendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

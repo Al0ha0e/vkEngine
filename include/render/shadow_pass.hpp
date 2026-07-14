@@ -4,7 +4,6 @@
 #include <render/renderinfo.hpp>
 #include <render/subpass.hpp>
 #include <render/shadow_manager.hpp>
-#include <asset.hpp>
 
 namespace vke_render
 {

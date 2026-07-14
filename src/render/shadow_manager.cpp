@@ -1,5 +1,6 @@
 #include <render/shadow_manager.hpp>
 #include <render/light.hpp>
+#include <asset/asset_manager.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
 #include <algorithm>

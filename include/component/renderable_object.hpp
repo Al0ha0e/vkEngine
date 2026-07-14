@@ -3,7 +3,7 @@
 
 #include <render/render.hpp>
 #include <render/buffer.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <component/transform.hpp>
 
 namespace vke_component

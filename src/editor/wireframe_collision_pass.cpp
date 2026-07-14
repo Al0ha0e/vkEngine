@@ -1,6 +1,6 @@
 #include <editor/wireframe_collision_pass.hpp>
 #include <scene.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <physics/physics.hpp>
@@ -108,7 +108,7 @@ namespace vke_editor
         pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.pColorBlendState = &blendState;
 
-        static const std::vector<uint32_t> vertexAttrSizes = { sizeof(glm::vec3) };
+        static const std::vector<uint32_t> vertexAttrSizes = {sizeof(glm::vec3)};
         pipeline = std::make_unique<vke_render::GraphicsPipeline>(
             shader, vertexAttrSizes, VK_VERTEX_INPUT_RATE_VERTEX, pipelineInfo);
     }

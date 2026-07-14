@@ -5,7 +5,7 @@
 #include <render/subpass.hpp>
 #include <render/hdr_color.hpp>
 #include <render/render_config.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <functional>
 
 namespace vke_render
@@ -16,8 +16,7 @@ namespace vke_render
         BloomPass(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets, HDRColorManager *hdrColorManager, const nlohmann::json &configJSON)
             : RenderPassBase(BLOOM_PASS, ctx, globalDescriptorSets),
               hdrColorManager(hdrColorManager),
-              constants(configJSON)
-        {}
+              constants(configJSON) {}
         ~BloomPass() override = default;
 
         void Init(int subpassID,

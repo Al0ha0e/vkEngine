@@ -1,4 +1,5 @@
 #include <render/layered_2d.hpp>
+#include <asset/asset_manager.hpp>
 #include <algorithm>
 #include <cstring>
 

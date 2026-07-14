@@ -6,7 +6,6 @@
 #include <render/frame_graph.hpp>
 #include <render/camera.hpp>
 #include <render/render_config.hpp>
-#include <asset.hpp>
 #include <array>
 #include <entt/entity/entity.hpp>
 #include <memory>

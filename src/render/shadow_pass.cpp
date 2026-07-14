@@ -1,4 +1,5 @@
 #include <render/shadow_pass.hpp>
+#include <asset/asset_manager.hpp>
 
 namespace vke_render
 {

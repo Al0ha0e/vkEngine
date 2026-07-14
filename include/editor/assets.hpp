@@ -1,7 +1,7 @@
 #ifndef EDITOR_ASSETS_H
 #define EDITOR_ASSETS_H
 
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <map>
 #include <string>
 #include <vector>

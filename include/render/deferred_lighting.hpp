@@ -8,7 +8,7 @@
 #include <render/light_manager.hpp>
 #include <render/shadow_manager.hpp>
 #include <render/hdr_color.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 #include <functional>
 
 namespace vke_render

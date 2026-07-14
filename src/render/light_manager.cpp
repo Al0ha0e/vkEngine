@@ -1,5 +1,5 @@
 #include <render/light_manager.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 
 namespace vke_render
 {

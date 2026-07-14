@@ -2,7 +2,6 @@
 #define RIGIDBODY_H
 
 #include <physics/shape.hpp>
-#include <asset.hpp>
 #include <component/transform.hpp>
 
 namespace vke_component

@@ -5,7 +5,7 @@
 #include <render/subpass.hpp>
 #include <render/gbuffer.hpp>
 #include <render/render_config.hpp>
-#include <asset.hpp>
+#include <asset/asset_manager.hpp>
 
 namespace vke_render
 {
