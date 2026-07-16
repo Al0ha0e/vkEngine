@@ -3,15 +3,11 @@
 
 namespace vke_editor
 {
-    template <typename AssetMap>
-    static std::string GetAssetDisplayName(vke_common::AssetHandle handle, const AssetMap &assets)
+    static std::string AssetDisplayName(vke_common::AssetHandle handle, const char *name)
     {
         if (handle == 0)
             return "0  <none>";
-
-        auto it = assets.find(handle);
-        const std::string name = it == assets.end() ? "<missing>" : it->second.name;
-        return std::to_string(handle) + "  " + name;
+        return std::to_string(handle) + "  " + (name ? name : "<missing>");
     }
 
     static void DrawReadOnlyAsset(const char *label, const std::string &displayName)
@@ -43,17 +39,19 @@ namespace vke_editor
                 : animator.renderUnit->mesh->handle;
         const vke_common::AssetHandle skeletonHandle =
             animator.skeleton == nullptr ? 0 : animator.skeleton->handle;
-        vke_common::AssetManager *assetManager = vke_common::AssetManager::GetInstance();
 
-        DrawReadOnlyAsset(
-            "Material",
-            GetAssetDisplayName(materialHandle, assetManager->materialCache));
-        DrawReadOnlyAsset(
-            "Mesh",
-            GetAssetDisplayName(meshHandle, assetManager->meshCache));
-        DrawReadOnlyAsset(
-            "Skeleton",
-            GetAssetDisplayName(skeletonHandle, assetManager->skeletonCache));
+        {
+            auto *mat = vke_common::AssetManager::GetMaterialAsset(materialHandle);
+            DrawReadOnlyAsset("Material", AssetDisplayName(materialHandle, mat ? mat->name.c_str() : nullptr));
+        }
+        {
+            auto *meshAsset = vke_common::AssetManager::GetMeshAsset(meshHandle);
+            DrawReadOnlyAsset("Mesh", AssetDisplayName(meshHandle, meshAsset ? meshAsset->name.c_str() : nullptr));
+        }
+        {
+            auto *skel = vke_common::AssetManager::GetSkeletonAsset(skeletonHandle);
+            DrawReadOnlyAsset("Skeleton", AssetDisplayName(skeletonHandle, skel ? skel->name.c_str() : nullptr));
+        }
         if (ImGui::TreeNodeEx("Animations", ImGuiTreeNodeFlags_DefaultOpen))
         {
             for (size_t i = 0; i < animator.animations.size(); ++i)
@@ -62,9 +60,10 @@ namespace vke_editor
                 const vke_common::AssetHandle animationHandle =
                     state.animation == nullptr ? 0 : state.animation->handle;
                 ImGui::PushID(static_cast<int>(i));
-                DrawReadOnlyAsset(
-                    "Animation",
-                    GetAssetDisplayName(animationHandle, assetManager->animationCache));
+                {
+                    auto *anim = vke_common::AssetManager::GetAnimationAsset(animationHandle);
+                    DrawReadOnlyAsset("Animation", AssetDisplayName(animationHandle, anim ? anim->name.c_str() : nullptr));
+                }
                 ImGui::Text("Weight: %.3f  Speed: %.3f  Time: %.3f  Loop: %s",
                             state.weight,
                             state.playbackSpeed,

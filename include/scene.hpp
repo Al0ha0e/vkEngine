@@ -253,7 +253,7 @@ namespace vke_common
 
         static std::unique_ptr<Scene> LoadScene(const std::string &pth) // load scene data only, not load to engine
         {
-            nlohmann::json json(vke_common::AssetManager::LoadJSON(pth));
+            nlohmann::json json(vke_common::LoadJSON(pth));
             return std::make_unique<Scene>(pth, json);
         }
 

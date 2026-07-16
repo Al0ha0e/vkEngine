@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     if (argc == 2)
     {
         const std::string configPath(argv[1]);
-        const nlohmann::json &configJSON = vke_common::AssetManager::LoadJSON(configPath);
+        const nlohmann::json &configJSON = vke_common::LoadJSON(configPath);
         vke_editor::EditorConfig *editorConfig = vke_editor::EditorConfig::Init(configJSON);
 
         GLFWwindow *window = initWindow(editorConfig->windowWidth, editorConfig->windowHeight);
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
             editorConfig->windowWidth, editorConfig->windowHeight,
             defaultPasses, customPasses);
 
-        vke_common::AssetManager::LoadAssetLUT(editorConfig->gameConfig->assetLUTPath);
+        vke_common::AssetManager::BulkLoad(editorConfig->gameConfig->assetLUTPath);
         auto scene = vke_common::SceneManager::LoadScene(editorConfig->gameConfig->defaultScenePath);
         vke_common::SceneManager::SetCurrentScene(std::move(scene));
 
@@ -84,12 +84,12 @@ int main(int argc, char **argv)
 
         vke_editor::EditorConfig::Dispose();
         const nlohmann::json editorConfigJSON =
-            vke_common::AssetManager::LoadJSON((projectPath / "editorconfig.json").string());
+            vke_common::LoadJSON((projectPath / "editorconfig.json").string());
         editorConfig = vke_editor::EditorConfig::Init(editorConfigJSON);
 
         vke_editor::Editor::PartialInit2(*editorConfig, defaultPasses, customPasses);
 
-        vke_common::AssetManager::LoadAssetLUT(editorConfig->gameConfig->assetLUTPath);
+        vke_common::AssetManager::BulkLoad(editorConfig->gameConfig->assetLUTPath);
 
         auto scene = vke_common::SceneManager::LoadScene(editorConfig->gameConfig->defaultScenePath);
         vke_common::SceneManager::SetCurrentScene(std::move(scene));

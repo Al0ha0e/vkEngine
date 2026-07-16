@@ -1,48 +1,28 @@
 #ifndef ASSET_MANAGER_H
 #define ASSET_MANAGER_H
 
-#include <asset/asset.hpp>
+#include <asset/asset_db_json.hpp>
+#include <filesystem>
 
 namespace vke_common
 {
-#define GET_ASSET_FUNC(tp, cache)           \
-    static tp *Get##tp(AssetHandle id)      \
-    {                                       \
-        auto it = instance->cache.find(id); \
-        if (it == instance->cache.end())    \
-            return nullptr;                 \
-        return &(it->second);               \
-    }
+#define AM_GET_FUNC(tp) \
+    static tp *Get##tp(AssetHandle id);
+#define AM_ITERATE_FUNC(tp) \
+    static void Iterate##tp(std::function<void(tp &)> op);
 
-#define SET_ASSET_FUNC(tp, cache)                  \
-    static void Set##tp(AssetHandle id, tp &asset) \
-    {                                              \
-        instance->cache[id] = asset;               \
-    }
-
-#define CREATE_ASSET_FUNC(tp, cache)                                    \
-    static AssetHandle Create##tp(std::string &name, std::string &path) \
-    {                                                                   \
-        AssetHandle id = AllocateAssetID(tp::type);                     \
-        tp asset(id, name, path);                                       \
-        Set##tp(id, asset);                                             \
-        return id;                                                      \
-    }
-
-#define ASSET_OP_FUNCS(tp, cache) \
-    GET_ASSET_FUNC(tp, cache)     \
-    SET_ASSET_FUNC(tp, cache)     \
-    CREATE_ASSET_FUNC(tp, cache)
+#define AM_OP_FUNCS(tp) \
+    AM_GET_FUNC(tp)     \
+    AM_ITERATE_FUNC(tp)
 
     class AssetManager
     {
     private:
         static AssetManager *instance;
-        AssetManager() : ftLibrary(nullptr) {};
+        AssetManager(const std::filesystem::path &prefix)
+            : ftLibrary(nullptr), pathPrefix(prefix), builtinAssets(std::make_unique<AssetDBJSON>(BuiltinAssetLUTPath)) {};
         ~AssetManager()
         {
-            audioCache.clear();
-            fontCache.clear();
             if (ftLibrary != nullptr)
                 FT_Done_FreeType(ftLibrary);
         }
@@ -50,17 +30,6 @@ namespace vke_common
         AssetManager &operator=(const AssetManager);
 
     public:
-        AssetHandle ids[ASSET_CNT_FLAG];
-        std::map<AssetHandle, TextureAsset> textureCache;
-        std::map<AssetHandle, MeshAsset> meshCache;
-        std::map<AssetHandle, VFShaderAsset> vfShaderCache;
-        std::map<AssetHandle, ComputeShaderAsset> computeShaderCache;
-        std::map<AssetHandle, MaterialAsset> materialCache;
-        std::map<AssetHandle, SkeletonAsset> skeletonCache;
-        std::map<AssetHandle, AnimationAsset> animationCache;
-        std::map<AssetHandle, SceneAsset> sceneCache;
-        std::map<AssetHandle, FontAsset> fontCache;
-        std::map<AssetHandle, AudioClipAsset> audioCache;
         FT_Library ftLibrary;
 
         static AssetManager *GetInstance()
@@ -69,7 +38,7 @@ namespace vke_common
             return instance;
         }
 
-        static AssetManager *Init();
+        static AssetManager *Init(std::unique_ptr<AssetDBBase> &&db, const std::filesystem::path &prefix);
 
         static void Dispose()
         {
@@ -77,17 +46,27 @@ namespace vke_common
             instance = nullptr;
         }
 
-        static void ClearAssetLUT() { instance->clearAssetLUT(); }
+        static void BulkLoad(const std::filesystem::path &pth, bool builtIn = false)
+        {
+            if (builtIn)
+                instance->builtinAssets->BulkLoad(pth);
+            else
+                instance->assetDB->BulkLoad(pth);
+        }
 
-        static void LoadAssetLUT(const std::string &pth) { instance->loadAssetLUT(pth); }
+        static AssetDBBase *GetAssetDB() { return instance->assetDB.get(); }
+        static AssetDBBase *GetBuiltinAssets() { return instance->builtinAssets.get(); }
 
-        static void SaveAssetLUT(const std::string &pth) { instance->saveAssetLUT(pth); }
-
-        static void ReadFile(const std::string &filename, std::vector<char> &buffer);
-
-        static nlohmann::json LoadJSON(const std::string &pth);
-
-        static AssetHandle AllocateAssetID(AssetType type);
+        AM_OP_FUNCS(TextureAsset)
+        AM_OP_FUNCS(MeshAsset)
+        AM_OP_FUNCS(VFShaderAsset)
+        AM_OP_FUNCS(ComputeShaderAsset)
+        AM_OP_FUNCS(MaterialAsset)
+        AM_OP_FUNCS(SkeletonAsset)
+        AM_OP_FUNCS(AnimationAsset)
+        AM_OP_FUNCS(SceneAsset)
+        AM_OP_FUNCS(FontAsset)
+        AM_OP_FUNCS(AudioClipAsset)
 
         static std::unique_ptr<vke_render::Texture2D> LoadTexture2DUnique(const AssetHandle hdl);
         static std::unique_ptr<vke_render::Mesh> LoadMeshUnique(const AssetHandle hdl);
@@ -109,23 +88,17 @@ namespace vke_common
         static std::shared_ptr<vke_common::Font> LoadFont(const AssetHandle hdl);
         static std::shared_ptr<vke_audio::AudioClip> LoadAudioClip(const AssetHandle hdl);
 
-        ASSET_OP_FUNCS(TextureAsset, textureCache)
-        ASSET_OP_FUNCS(MeshAsset, meshCache)
-        ASSET_OP_FUNCS(VFShaderAsset, vfShaderCache)
-        ASSET_OP_FUNCS(ComputeShaderAsset, computeShaderCache)
-        ASSET_OP_FUNCS(MaterialAsset, materialCache)
-        ASSET_OP_FUNCS(SkeletonAsset, skeletonCache)
-        ASSET_OP_FUNCS(AnimationAsset, animationCache)
-        ASSET_OP_FUNCS(SceneAsset, sceneCache)
-        ASSET_OP_FUNCS(FontAsset, fontCache)
-        ASSET_OP_FUNCS(AudioClipAsset, audioCache)
-
     private:
-        void clearAssetLUT();
-        void loadAssetLUT(const std::string &pth);
-        void saveAssetLUT(const std::string &pth);
-        void loadBuiltinAssets();
+        std::filesystem::path pathPrefix;
+        std::unique_ptr<AssetDBJSON> builtinAssets;
+        std::unique_ptr<AssetDBBase> assetDB;
+
+        void initBuiltinAssets();
     };
 }
+
+#undef AM_GET_FUNC
+#undef AM_ITERATE_FUNC
+#undef AM_OP_FUNCS
 
 #endif

@@ -2,6 +2,7 @@
 #define COMMON_H
 
 #include <logger.hpp>
+#include <filesystem>
 
 #define VKE_EXIT(code) std::exit(code);
 
@@ -37,6 +38,7 @@
 namespace vke_common
 {
     using AssetHandle = uint64_t;
+    const std::filesystem::path RelDir = REL_DIR;
 }
 
 #endif

@@ -40,7 +40,7 @@ namespace vke_editor
         static EditorConfig *Init(const nlohmann::json &json)
         {
             instance = new EditorConfig(json);
-            const nlohmann::json &gameConfigJSON = vke_common::AssetManager::LoadJSON(
+            const nlohmann::json &gameConfigJSON = vke_common::LoadJSON(
                 GetFullPath(instance->gameConfigPath).string());
             instance->gameConfig = vke_common::GameConfig::Init(gameConfigJSON);
             return instance;

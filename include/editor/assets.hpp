@@ -2,13 +2,14 @@
 #define EDITOR_ASSETS_H
 
 #include <asset/asset_manager.hpp>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
 
 namespace vke_editor
 {
-    extern const std::string EditorAssetLUTPath;
+    extern const std::filesystem::path EditorAssetLUTPath;
 
     enum class AssetBrowserMode
     {

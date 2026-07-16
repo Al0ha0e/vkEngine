@@ -3,13 +3,13 @@
     "type": 0,
     "id": 1,
     "name": "DefaultTex",
-    "path": "/builtin_assets/texture/default.png"
+    "path": "builtin_assets/texture/default.png"
   },
   {
     "type": 0,
     "id": 2,
     "name": "BRDFLUT",
-    "path": "/builtin_assets/texture/brdf_lut.png",
+    "path": "builtin_assets/texture/brdf_lut.png",
     "format": 91,
     "addressMode": 2,
     "anisotropy": false,
@@ -19,140 +19,140 @@
     "type": 1,
     "id": 2,
     "name": "Cube",
-    "path": "/builtin_assets/mesh/cube.mesh"
+    "path": "builtin_assets/mesh/cube.mesh"
   },
   {
     "type": 1,
     "id": 3,
     "name": "Sphere",
-    "path": "/builtin_assets/mesh/sphere.mesh"
+    "path": "builtin_assets/mesh/sphere.mesh"
   },
   {
     "type": 1,
     "id": 4,
     "name": "Cylinder",
-    "path": "/builtin_assets/mesh/cylinder.mesh"
+    "path": "builtin_assets/mesh/cylinder.mesh"
   },
   {
     "type": 1,
     "id": 5,
     "name": "Monkey",
-    "path": "/builtin_assets/mesh/monkey.mesh"
+    "path": "builtin_assets/mesh/monkey.mesh"
   },
   {
     "type": 2,
     "id": 1,
     "name": "DefaultShader",
-    "path": "/builtin_assets/shader/default_vert.spv",
-    "fragPath": "/builtin_assets/shader/default_frag.spv"
+    "path": "builtin_assets/shader/default_vert.spv",
+    "fragPath": "builtin_assets/shader/default_frag.spv"
   },
   {
     "type": 2,
     "id": 2,
     "name": "SkyboxShader",
-    "path": "/builtin_assets/shader/skyvert.spv",
-    "fragPath": "/builtin_assets/shader/skyfrag.spv"
+    "path": "builtin_assets/shader/skyvert.spv",
+    "fragPath": "builtin_assets/shader/skyfrag.spv"
   },
   {
     "type": 2,
     "id": 3,
     "name": "DefaultMultiShader",
-    "path": "/builtin_assets/shader/default_multi_vert.spv",
-    "fragPath": "/builtin_assets/shader/default_multi_frag.spv"
+    "path": "builtin_assets/shader/default_multi_vert.spv",
+    "fragPath": "builtin_assets/shader/default_multi_frag.spv"
   },
   {
     "type": 2,
     "id": 4,
     "name": "DefaultSkinShader",
-    "path": "/builtin_assets/shader/default_skin_vert.spv",
-    "fragPath": "/builtin_assets/shader/default_frag.spv"
+    "path": "builtin_assets/shader/default_skin_vert.spv",
+    "fragPath": "builtin_assets/shader/default_frag.spv"
   },
   {
     "type": 2,
     "id": 5,
     "name": "DeferredLightingShader",
-    "path": "/builtin_assets/shader/deferred_lighting_vert.spv",
-    "fragPath": "/builtin_assets/shader/deferred_lighting_frag.spv"
+    "path": "builtin_assets/shader/deferred_lighting_vert.spv",
+    "fragPath": "builtin_assets/shader/deferred_lighting_frag.spv"
   },
   {
     "type": 2,
     "id": 6,
     "name": "TextShader",
-    "path": "/builtin_assets/shader/text_vert.spv",
-    "fragPath": "/builtin_assets/shader/text_frag.spv"
+    "path": "builtin_assets/shader/text_vert.spv",
+    "fragPath": "builtin_assets/shader/text_frag.spv"
   },
   {
     "type": 2,
     "id": 7,
     "name": "ShadowShader",
-    "path": "/builtin_assets/shader/shadow_vert.spv",
-    "fragPath": "/builtin_assets/shader/shadow_frag.spv"
+    "path": "builtin_assets/shader/shadow_vert.spv",
+    "fragPath": "builtin_assets/shader/shadow_frag.spv"
   },
   {
     "type": 2,
     "id": 8,
     "name": "ShadowSkinShader",
-    "path": "/builtin_assets/shader/shadow_skin_vert.spv",
-    "fragPath": "/builtin_assets/shader/shadow_frag.spv"
+    "path": "builtin_assets/shader/shadow_skin_vert.spv",
+    "fragPath": "builtin_assets/shader/shadow_frag.spv"
   },
   {
     "type": 2,
     "id": 9,
     "name": "ToneMappingShader",
-    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
-    "fragPath": "/builtin_assets/shader/tone_mapping_frag.spv"
+    "path": "builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "builtin_assets/shader/tone_mapping_frag.spv"
   },
   {
     "type": 2,
     "id": 10,
     "name": "BloomShader",
-    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
-    "fragPath": "/builtin_assets/shader/bloom_frag.spv"
+    "path": "builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "builtin_assets/shader/bloom_frag.spv"
   },
   {
     "type": 2,
     "id": 11,
     "name": "SSAOShader",
-    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
-    "fragPath": "/builtin_assets/shader/ssao_frag.spv"
+    "path": "builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "builtin_assets/shader/ssao_frag.spv"
   },
   {
     "type": 2,
     "id": 12,
     "name": "SSAOBlurShader",
-    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
-    "fragPath": "/builtin_assets/shader/ssao_blur_frag.spv"
+    "path": "builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "builtin_assets/shader/ssao_blur_frag.spv"
   },
   {
     "type": 2,
     "id": 13,
     "name": "AtmospherePostShader",
-    "path": "/builtin_assets/shader/fullscreen_triangle_vert.spv",
-    "fragPath": "/builtin_assets/shader/atmosphere_post_frag.spv"
+    "path": "builtin_assets/shader/fullscreen_triangle_vert.spv",
+    "fragPath": "builtin_assets/shader/atmosphere_post_frag.spv"
   },
   {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",
-    "path": "./builtin_assets/shader/sky_lut.spv"
+    "path": "builtin_assets/shader/sky_lut.spv"
   },
   {
     "type": 3,
     "id": 2,
     "name": "LightCuller",
-    "path": "./builtin_assets/shader/light_cull.spv"
+    "path": "builtin_assets/shader/light_cull.spv"
   },
   {
     "type": 3,
     "id": 3,
     "name": "IBLLUTGenerator",
-    "path": "./builtin_assets/shader/ibl_lut.spv"
+    "path": "builtin_assets/shader/ibl_lut.spv"
   },
   {
     "type": 3,
     "id": 4,
     "name": "AtmosphereLUTGenerator",
-    "path": "./builtin_assets/shader/atmosphere_lut.spv"
+    "path": "builtin_assets/shader/atmosphere_lut.spv"
   },
   {
     "type": 4,
@@ -176,7 +176,7 @@
     "type": 8,
     "id": 1,
     "name": "Arial",
-    "path": "/builtin_assets/fonts/arial.ttf",
+    "path": "builtin_assets/fonts/arial.ttf",
     "pixelSize": 48,
     "characterCount": 128,
     "firstCodepoint": 32,

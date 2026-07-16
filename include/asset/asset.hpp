@@ -15,10 +15,11 @@
 #include <cstring>
 #include <stdexcept>
 #include <unordered_map>
+#include <filesystem>
 
 namespace vke_common
 {
-    extern const std::string BuiltinAssetLUTPath;
+    extern const std::filesystem::path BuiltinAssetLUTPath;
 
     const AssetHandle CUSTOM_ASSET_ID_ST = 1024;
 
@@ -72,6 +73,10 @@ namespace vke_common
     const std::string AssetTypeToName[] = {"Texture", "Mesh", "VFShader", "ComputeShader",
                                            "Material", "Skeleton", "Animation", "Scene", "Font", "AudioClip"};
 
+    void ReadFile(const std::string &filename, std::vector<char> &buffer);
+
+    nlohmann::json LoadJSON(const std::string &pth);
+
     template <AssetType TID, typename T, typename VT>
     class Asset
     {
@@ -79,13 +84,13 @@ namespace vke_common
         static const AssetType type = TID;
         AssetHandle id;
         std::string name;
-        std::string path;
+        std::filesystem::path path;
         std::shared_ptr<VT> val;
 
         Asset() : id(0), val(nullptr) {}
 
         Asset(AssetHandle id, const nlohmann::json &json)
-            : id(id), name(json["name"]), path(json["path"]), val(nullptr) {}
+            : id(id), name(json["name"]), path(json["path"].get<std::string>()), val(nullptr) {}
         Asset(AssetHandle id, const std::string &nm, const std::string &pth)
             : id(id), name(nm), path(pth), val(nullptr) {}
 
@@ -103,7 +108,7 @@ namespace vke_common
             std::string ret = "{\"type\": " + std::to_string(type) + ", ";
             ret += "\"id\": " + std::to_string(id) + ", ";
             ret += "\"name\": \"" + name + "\", ";
-            ret += "\"path\": \"" + path + "\"";
+            ret += "\"path\": \"" + path.string() + "\"";
             ret += static_cast<T *>(this)->toJSON() + " }\n";
             return ret;
         }
@@ -232,12 +237,12 @@ namespace vke_common
     class VFShaderAsset : public Asset<ASSET_VF_SHADER, VFShaderAsset, vke_render::ShaderModuleSet>
     {
     public:
-        std::string fragPath;
+        std::filesystem::path fragPath;
 
         VFShaderAsset() {}
 
         VFShaderAsset(AssetHandle id, const nlohmann::json &json)
-            : fragPath(json["fragPath"]), Asset(id, json) {}
+            : fragPath(json["fragPath"].get<std::string>()), Asset(id, json) {}
 
         DEFAULT_CONSTRUCTOR2(VFShaderAsset)
 
@@ -246,7 +251,7 @@ namespace vke_common
 
         std::string toJSON()
         {
-            std::string ret = ", \"fragPath\": \"" + fragPath + "\"";
+            std::string ret = ", \"fragPath\": \"" + fragPath.string() + "\"";
             return ret;
         }
     };

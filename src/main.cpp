@@ -11,7 +11,7 @@ int main(int argc, char **argv)
 {
     VKE_FATAL_IF(argc != 2, "arg count mismatch")
     const std::string configPath(argv[1]);
-    const nlohmann::json &configJSON = vke_common::AssetManager::LoadJSON(configPath);
+    const nlohmann::json &configJSON = vke_common::LoadJSON(configPath);
     vke_common::GameConfig::Init(configJSON);
     const vke_common::GameConfig *gameConfig = vke_common::GameConfig::GetInstance();
 
@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     GLFWwindow *window = initWindow(gameConfig->windowWidth, gameConfig->windowHeight);
     vke_common::Engine *engine = vke_common::Engine::Init(window, *gameConfig, nullptr, passes, customPasses);
 
-    vke_common::AssetManager::LoadAssetLUT(gameConfig->assetLUTPath);
+    vke_common::AssetManager::BulkLoad(gameConfig->assetLUTPath);
     auto scene = vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);
     vke_common::SceneManager::SetCurrentScene(std::move(scene));
 

@@ -58,8 +58,8 @@ namespace vke_editor
         vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
         vke_editor::EditorStateManager::Init(vke_editor::EditorState::PartialInited);
         vke_render::RenderEnvironment::Init(window, editorConfig.gameConfig->enableVulkanValidationLayers);
-        vke_common::AssetManager::Init();
-        vke_common::AssetManager::LoadAssetLUT(EditorAssetLUTPath);
+        vke_common::AssetManager::Init(std::make_unique<vke_common::AssetDBJSON>("", vke_common::CUSTOM_ASSET_ID_ST), "");
+        vke_common::AssetManager::BulkLoad(EditorAssetLUTPath, true);
         vke_render::DescriptorSetAllocator::Init();
         vke_render::RenderContext *ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
         EditorRenderer::Init(window, ctx, sceneViewportWidth, sceneViewportHeight,

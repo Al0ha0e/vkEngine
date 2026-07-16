@@ -140,6 +140,7 @@ commonsrc = (
         "./src/asset/asset.cpp",
         "./src/asset/loader.cpp",
         "./src/asset/builtin.cpp",
+        "./src/asset/asset_db_json.cpp",
         "./src/render/descriptor.cpp",
         "./src/render/skybox.cpp",
         "./src/render/skybox_render.cpp",

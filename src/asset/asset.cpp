@@ -9,117 +9,67 @@ namespace vke_common
 {
     AssetManager *AssetManager::instance = nullptr;
 
-    AssetManager *AssetManager::Init()
-    {
-        instance = new AssetManager();
-        instance->ftLibrary = nullptr;
-        for (int i = 0; i < ASSET_CNT_FLAG; i++)
-            instance->ids[i] = CUSTOM_ASSET_ID_ST;
-        instance->ids[ASSET_SCENE] = 1;
-        VKE_FATAL_IF(FT_Init_FreeType(&(instance->ftLibrary)), "Failed to initialize FreeType library!")
-        instance->loadBuiltinAssets();
-        return instance;
-    }
-
-    AssetHandle AssetManager::AllocateAssetID(AssetType type)
-    {
-        return instance->ids[type]++;
-    }
-
-    void AssetManager::clearAssetLUT()
-    {
-        // TODO
-    }
-
-#define LOAD_LUT_CASE(tpid, tp, assets)          \
-    case tpid:                                   \
-        assets[id] = tp(id, asset);              \
-        ids[type] = std::max(ids[type], id + 1); \
-        break;
-
-    void AssetManager::loadAssetLUT(const std::string &pth)
-    {
-        const nlohmann::json &json = LoadJSON(pth);
-        for (const auto &asset : json)
-        {
-            AssetType type = asset["type"];
-            AssetHandle id = asset["id"];
-            switch (type)
-            {
-                LOAD_LUT_CASE(ASSET_TEXTURE, TextureAsset, textureCache)
-                LOAD_LUT_CASE(ASSET_MESH, MeshAsset, meshCache)
-                LOAD_LUT_CASE(ASSET_VF_SHADER, VFShaderAsset, vfShaderCache)
-                LOAD_LUT_CASE(ASSET_COMPUTE_SHADER, ComputeShaderAsset, computeShaderCache)
-                LOAD_LUT_CASE(ASSET_MATERIAL, MaterialAsset, materialCache)
-                LOAD_LUT_CASE(ASSET_SKELETON, SkeletonAsset, skeletonCache)
-                LOAD_LUT_CASE(ASSET_ANIMATION, AnimationAsset, animationCache)
-                LOAD_LUT_CASE(ASSET_SCENE, SceneAsset, sceneCache)
-                LOAD_LUT_CASE(ASSET_FONT, FontAsset, fontCache)
-                LOAD_LUT_CASE(ASSET_AUDIO_CLIP, AudioClipAsset, audioCache)
-            default:
-                break;
-            }
-        }
-    }
-
-#define ASSET_TO_JSON(cache)                \
-    for (auto &kv : cache)                  \
-        if (kv.first >= CUSTOM_ASSET_ID_ST) \
-            ret += "\n" + kv.second.ToJSON() + ",";
-
-    void AssetManager::saveAssetLUT(const std::string &pth)
-    {
-        std::string ret = "[ ";
-
-        ASSET_TO_JSON(textureCache)
-        ASSET_TO_JSON(meshCache)
-        ASSET_TO_JSON(vfShaderCache)
-        ASSET_TO_JSON(computeShaderCache)
-        ASSET_TO_JSON(materialCache)
-        ASSET_TO_JSON(skeletonCache)
-        ASSET_TO_JSON(animationCache)
-        ASSET_TO_JSON(fontCache)
-        ASSET_TO_JSON(audioCache)
-        for (auto &kv : sceneCache)
-            ret += "\n" + kv.second.ToJSON() + ",";
-
-        ret[ret.length() - 1] = ' ';
-        ret += "]";
-
-        std::ofstream ofs(pth);
-        ofs << ret;
-        ofs.close();
-    }
-
     extern const std::vector<vke_render::Vertex> planeVertices;
     extern const std::vector<uint32_t> planeIndices;
 
-#define LOAD_BUILTIN_ASSET(cache, load)                         \
-    for (auto &kv : cache)                                      \
-    {                                                           \
-        kv.second.path = std::string(REL_DIR) + kv.second.path; \
-        load(kv.first);                                         \
+    AssetManager *AssetManager::Init(std::unique_ptr<AssetDBBase> &&db, const std::filesystem::path &prefix)
+    {
+        instance = new AssetManager(prefix);
+        instance->assetDB = std::move(db);
+        instance->ftLibrary = nullptr;
+        VKE_FATAL_IF(FT_Init_FreeType(&(instance->ftLibrary)), "Failed to initialize FreeType library!")
+        instance->initBuiltinAssets();
+        return instance;
     }
 
-    void AssetManager::loadBuiltinAssets()
+    void AssetManager::initBuiltinAssets()
     {
-        loadAssetLUT(BuiltinAssetLUTPath);
-
-        LOAD_BUILTIN_ASSET(textureCache, LoadTexture2D)
-        LOAD_BUILTIN_ASSET(meshCache, LoadMesh)
-        for (auto &kv : vfShaderCache)
-        {
-            kv.second.path = std::string(REL_DIR) + kv.second.path;
-            kv.second.fragPath = std::string(REL_DIR) + kv.second.fragPath;
-            LoadVertFragShader(kv.first);
-        }
-        LOAD_BUILTIN_ASSET(materialCache, LoadMaterial)
-        LOAD_BUILTIN_ASSET(fontCache, LoadFont)
-
+        builtinAssets->Init();
         MeshAsset plane(BUILTIN_MESH_PLANE_ID, "Plane", "");
         plane.val = std::make_shared<vke_render::Mesh>(BUILTIN_MESH_PLANE_ID,
                                                        std::span<const vke_render::Vertex>(planeVertices),
                                                        std::span<const uint32_t>(planeIndices));
-        meshCache[BUILTIN_MESH_PLANE_ID] = plane;
+        builtinAssets->SetMeshAsset(plane);
     }
+
+#define AM_GET_IMPL(tp)                                  \
+    tp *AssetManager::Get##tp(AssetHandle id)            \
+    {                                                    \
+        if (id < CUSTOM_ASSET_ID_ST)                     \
+            return instance->builtinAssets->Get##tp(id); \
+        return instance->assetDB->Get##tp(id);           \
+    }
+
+    AM_GET_IMPL(TextureAsset)
+    AM_GET_IMPL(MeshAsset)
+    AM_GET_IMPL(VFShaderAsset)
+    AM_GET_IMPL(ComputeShaderAsset)
+    AM_GET_IMPL(MaterialAsset)
+    AM_GET_IMPL(SkeletonAsset)
+    AM_GET_IMPL(AnimationAsset)
+    AM_GET_IMPL(SceneAsset)
+    AM_GET_IMPL(FontAsset)
+    AM_GET_IMPL(AudioClipAsset)
+
+#undef AM_GET_IMPL
+
+#define AM_ITERATE_IMPL(tp)                                      \
+    void AssetManager::Iterate##tp(std::function<void(tp &)> op) \
+    {                                                            \
+        instance->builtinAssets->Iterate##tp(op);                \
+        instance->assetDB->Iterate##tp(op);                      \
+    }
+
+    AM_ITERATE_IMPL(TextureAsset)
+    AM_ITERATE_IMPL(MeshAsset)
+    AM_ITERATE_IMPL(VFShaderAsset)
+    AM_ITERATE_IMPL(ComputeShaderAsset)
+    AM_ITERATE_IMPL(MaterialAsset)
+    AM_ITERATE_IMPL(SkeletonAsset)
+    AM_ITERATE_IMPL(AnimationAsset)
+    AM_ITERATE_IMPL(SceneAsset)
+    AM_ITERATE_IMPL(FontAsset)
+    AM_ITERATE_IMPL(AudioClipAsset)
+
+#undef AM_ITERATE_IMPL
 };
