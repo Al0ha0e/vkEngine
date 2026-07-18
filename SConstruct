@@ -261,6 +261,7 @@ editorsrc = [
     "./src/editor/component/rigidbody.cpp",
     "./src/editor/component/sensor.cpp",
     "./src/editor/component/text.cpp",
+    "./src/editor/component/audio.cpp",
 ]
 
 ### tests

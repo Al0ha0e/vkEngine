@@ -229,6 +229,8 @@ namespace vke_editor
                        { vke_common::AssetManager::IterateFontAsset(op); });
         showAssetGroup("Animations", vke_common::ASSET_ANIMATION, [](auto &&op)
                        { vke_common::AssetManager::IterateAnimationAsset(op); });
+        showAssetGroup("Audio Clips", vke_common::ASSET_AUDIO_CLIP, [](auto &&op)
+                       { vke_common::AssetManager::IterateAudioClipAsset(op); });
     }
 
     void Editor::showAssetsByDirectory(vke_common::AssetManager *assetManager)

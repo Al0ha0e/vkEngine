@@ -71,6 +71,8 @@ namespace vke_editor
         void drawRigidBodyComponent(vke_common::Scene *scene);
         void drawSensorComponent(vke_common::Scene *scene);
         void drawUITextComponent(vke_common::Scene *scene);
+        void drawAudioSourceComponent(vke_common::Scene *scene);
+        void drawAudioListenerComponent(vke_common::Scene *scene);
         void showAddComponentMenu();
         void addComponent(vke_common::ComponentType componentType);
         void showAssets();

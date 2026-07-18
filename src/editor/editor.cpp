@@ -1,5 +1,6 @@
 #include <editor/editor.hpp>
 #include <asset/asset_db_sqlite.hpp>
+#include <audio/audio_manager.hpp>
 #include <glm/common.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/trigonometric.hpp>
@@ -47,6 +48,7 @@ namespace vke_editor
         vke_common::InputManager::Init(window);
         vke_common::EngineStateManager::Init();
         vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
+        vke_audio::AudioManager::Init();
         vke_editor::EditorStateManager::Init(vke_editor::EditorState::Edit);
         vke_render::RenderEnvironment::Init(window, editorConfig.gameConfig->enableVulkanValidationLayers);
         vke_common::AssetManager::Init(
@@ -95,6 +97,7 @@ namespace vke_editor
         vke_render::DescriptorSetAllocator::Dispose();
         vke_common::AssetManager::Dispose();
         vke_render::RenderEnvironment::Dispose();
+        vke_audio::AudioManager::Dispose();
         vke_editor::EditorStateManager::Dispose();
         vke_common::EngineStateManager::Dispose();
         vke_common::InputManager::Dispose();
@@ -129,6 +132,7 @@ namespace vke_editor
                 FixedUpdate();
                 fixedUpdateAccumulator -= fixedStepTime;
             }
+            vke_audio::AudioManager::Update(vke_common::TimeManager::GetDeltaTime());
         }
 
         WireframeCollisionPass *wireframePass = vke_render::Renderer::GetWireframeCollisionPass();
@@ -389,6 +393,8 @@ namespace vke_editor
         drawRigidBodyComponent(scene);
         drawSensorComponent(scene);
         drawUITextComponent(scene);
+        drawAudioSourceComponent(scene);
+        drawAudioListenerComponent(scene);
         showAddComponentMenu();
 
         ImGui::End();
@@ -416,7 +422,9 @@ namespace vke_editor
             {"PointLight", vke_common::ComponentType::PointLight},
             {"SpotLight", vke_common::ComponentType::SpotLight},
             {"Script", vke_common::ComponentType::Script},
-            {"UIText", vke_common::ComponentType::UIText}};
+            {"UIText", vke_common::ComponentType::UIText},
+            {"AudioSource", vke_common::ComponentType::AudioSource},
+            {"AudioListener", vke_common::ComponentType::AudioListener}};
 
         if (!ImGui::BeginCombo("Add Component", "Select component"))
             return;
@@ -493,6 +501,16 @@ namespace vke_editor
                 shape);
             if (scene->loadedToEngine)
                 sensor.LoadToEngine(static_cast<uint32_t>(selectedEntity));
+            break;
+        }
+        case vke_common::ComponentType::AudioSource:
+            scene->registry.emplace<vke_component::AudioSource>(selectedEntity);
+            break;
+        case vke_common::ComponentType::AudioListener:
+        {
+            auto &listener = scene->registry.emplace<vke_component::AudioListener>(selectedEntity);
+            if (scene->loadedToEngine)
+                listener.LoadToEngine(static_cast<uint32_t>(selectedEntity));
             break;
         }
         case vke_common::ComponentType::DirectionalLight:

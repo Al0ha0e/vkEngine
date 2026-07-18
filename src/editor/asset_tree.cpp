@@ -85,6 +85,8 @@ namespace vke_editor
                                  { builtinDB->IterateSceneAsset(op); });
         AddAssetsToDirectoryTree(builtinRoot, vke_common::ASSET_FONT, [&](auto &&op)
                                  { builtinDB->IterateFontAsset(op); });
+        AddAssetsToDirectoryTree(builtinRoot, vke_common::ASSET_AUDIO_CLIP, [&](auto &&op)
+                                 { builtinDB->IterateAudioClipAsset(op); });
 
         AssetTreeNode &projectRoot = assetDirectoryTree.children["Project"];
         projectRoot.name = "Project";
@@ -107,6 +109,8 @@ namespace vke_editor
                                  { projectDB->IterateSceneAsset(op); });
         AddAssetsToDirectoryTree(projectRoot, vke_common::ASSET_FONT, [&](auto &&op)
                                  { projectDB->IterateFontAsset(op); });
+        AddAssetsToDirectoryTree(projectRoot, vke_common::ASSET_AUDIO_CLIP, [&](auto &&op)
+                                 { projectDB->IterateAudioClipAsset(op); });
     }
 
 }
