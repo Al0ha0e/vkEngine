@@ -49,6 +49,18 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 ./out/engine.exe ./tests/cfg/test_audio.json
 ```
 
+The editor can be launched directly with an editor config json:
+
+```
+./out/editor.exe ./tests/editor_projects/proj1/editorconfig.json
+```
+
+Alternatively, use the editor launcher to create or open a project:
+
+```
+python ./tools/editor_launcher.py
+```
+
 ## Third Party Libraries 
 
 - [glfw](https://github.com/glfw/glfw) 
@@ -114,7 +126,7 @@ The build will produce `out/engine.exe`. The executable expects a single game co
   - [ ] audio bus / effect chain
 - **Editor**:
   - [x] editor layout
-  - [ ] asset database
+  - [x] asset database
   - [ ] gizmo
   - [ ] assets preivew
   - [ ] game state snapshot

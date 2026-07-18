@@ -34,6 +34,7 @@ namespace vke_editor
         ImGui::DockBuilderDockWindow("Hierarchy", leftDock);
         ImGui::DockBuilderDockWindow("Inspector", rightDock);
         ImGui::DockBuilderDockWindow("Assets", bottomDock);
+        ImGui::DockBuilderDockWindow("Log", bottomDock);
         ImGui::DockBuilderDockWindow("Scene", mainDock);
         ImGui::DockBuilderFinish(dockspaceId);
     }

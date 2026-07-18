@@ -76,6 +76,7 @@ namespace vke_editor
         void showAddComponentMenu();
         void addComponent(vke_common::ComponentType componentType);
         void showAssets();
+        void showLog();
         void showAssetsByType(vke_common::AssetManager *assetManager);
         void showAssetsByDirectory(vke_common::AssetManager *assetManager);
         void rebuildAssetDirectoryTree(vke_common::AssetManager *assetManager);

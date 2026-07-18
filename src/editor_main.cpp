@@ -25,6 +25,7 @@ std::vector<std::unique_ptr<vke_render::RenderPassBase>> customPasses;
 
 int main(int argc, char **argv)
 {
+    vke_common::Logger::Init(vke_common::LoggerOutput::EngineUI);
     VKE_FATAL_IF(argc != 2, "Usage: editor.exe <path/to/editorconfig.json>")
 
     const std::string configPath(argv[1]);
@@ -52,6 +53,7 @@ int main(int argc, char **argv)
     vke_editor::Editor::WaitIdle();
     vke_editor::Editor::Dispose();
     vke_editor::EditorConfig::Dispose();
+    vke_common::Logger::Dispose();
 
     return 0;
 }

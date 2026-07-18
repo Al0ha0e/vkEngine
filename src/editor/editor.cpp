@@ -159,6 +159,7 @@ namespace vke_editor
         showHierarchy();
         showInspector();
         showAssets();
+        showLog();
     }
 
     void Editor::showMainMenuBar()

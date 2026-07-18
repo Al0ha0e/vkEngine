@@ -252,6 +252,7 @@ editorsrc = [
     "./src/editor/editor.cpp",
     "./src/editor/render.cpp",
     "./src/editor/assets.cpp",
+    "./src/editor/logger.cpp",
     "./src/editor/asset_tree.cpp",
     "./src/editor/asset_import.cpp",
     "./src/editor/component/camera.cpp",
