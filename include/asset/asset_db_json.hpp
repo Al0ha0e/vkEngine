@@ -24,7 +24,7 @@ namespace vke_common
     }
 
 #define DBJSON_SYNC_ASSET_FUNC(tp, cache) \
-    virtual bool Sync##tp(tp &asset) override { return false; } // json db cannot sync single
+    virtual bool Sync##tp(AssetHandle id) override { return false; } // json db cannot sync single
 
 #define DBJSON_CREATE_ASSET_FUNC(tp, cache)            \
     virtual AssetHandle Create##tp(tp &asset) override \
@@ -38,12 +38,15 @@ namespace vke_common
 #define DBJSON_REMOVE_ASSET_FUNC(tp, cache) \
     virtual bool Remove##tp(AssetHandle id) override { return cache.erase(id) > 0; }
 
-#define DBJSON_ITERATE_ASSET_FUNC(tp, cache)                        \
-    virtual void Iterate##tp(std::function<void(tp &)> op) override \
-    {                                                               \
-        for (auto &kv : cache)                                      \
-            op(kv.second);                                          \
+#define DBJSON_ITERATE_ASSET_FUNC(tp, cache)                              \
+    virtual void Iterate##tp(std::function<void(const tp &)> op) override \
+    {                                                                     \
+        for (auto &kv : cache)                                            \
+            op(kv.second);                                                \
     }
+
+#define DBJSON_MARKDIRTY_ASSET_FUNC(tp) \
+    virtual void MarkDirty##tp(AssetHandle id) override {}
 
 #define DBJSON_ASSET_OP_FUNCS(tp, cache) \
     DBJSON_GET_ASSET_FUNC(tp, cache)     \
@@ -51,7 +54,8 @@ namespace vke_common
     DBJSON_SYNC_ASSET_FUNC(tp, cache)    \
     DBJSON_CREATE_ASSET_FUNC(tp, cache)  \
     DBJSON_REMOVE_ASSET_FUNC(tp, cache)  \
-    DBJSON_ITERATE_ASSET_FUNC(tp, cache)
+    DBJSON_ITERATE_ASSET_FUNC(tp, cache) \
+    DBJSON_MARKDIRTY_ASSET_FUNC(tp)
 
     class AssetDBJSON : public AssetDBBase
     {
@@ -66,9 +70,9 @@ namespace vke_common
         virtual ~AssetDBJSON() {}
 
         virtual void Init() override { bulkLoad(path); }
-        virtual void ClearAll() override;
-        virtual void BulkLoad(const std::filesystem::path &pth) override { bulkLoad(pth); }
-        virtual void SyncAll() override { saveAll(path); }
+        virtual bool ClearAll() override;
+        virtual bool BulkLoad(const std::filesystem::path &pth) override { return bulkLoad(pth); }
+        virtual bool SyncAll() override { return saveAll(path); }
 
         DBJSON_ASSET_OP_FUNCS(TextureAsset, textureCache)
         DBJSON_ASSET_OP_FUNCS(MeshAsset, meshCache)
@@ -94,8 +98,8 @@ namespace vke_common
         std::map<AssetHandle, FontAsset> fontCache;
         std::map<AssetHandle, AudioClipAsset> audioCache;
 
-        void bulkLoad(const std::filesystem::path &pth);
-        void saveAll(const std::filesystem::path &pth);
+        bool bulkLoad(const std::filesystem::path &pth);
+        bool saveAll(const std::filesystem::path &pth);
     };
 }
 

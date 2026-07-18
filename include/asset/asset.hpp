@@ -103,17 +103,19 @@ namespace vke_common
             return *this;
         }
 
-        std::string ToJSON()
+        nlohmann::json ToJSON() const
         {
-            std::string ret = "{\"type\": " + std::to_string(type) + ", ";
-            ret += "\"id\": " + std::to_string(id) + ", ";
-            ret += "\"name\": \"" + name + "\", ";
-            ret += "\"path\": \"" + path.string() + "\"";
-            ret += static_cast<T *>(this)->toJSON() + " }\n";
-            return ret;
+            nlohmann::json json = {
+                {"type", type},
+                {"id", id},
+                {"name", name},
+                {"path", path.generic_string()}};
+            static_cast<const T *>(this)->writeJSON(json);
+            return json;
         }
 
-        std::string toJSON() { return ""; }
+    protected:
+        void writeJSON(nlohmann::json &) const {}
     };
 
 #define DEFAULT_CONSTRUCTOR(type) \
@@ -149,9 +151,9 @@ namespace vke_common
         AnimationAsset(AssetHandle id, const std::string &nm, const std::string &pth)
             : Asset(id, nm, pth), hasRootMotion(false) {}
 
-        std::string toJSON()
+        void writeJSON(nlohmann::json &json) const
         {
-            return ", \"hasRootMotion\": " + std::string(hasRootMotion ? "true" : "false");
+            json["hasRootMotion"] = hasRootMotion;
         }
     };
 
@@ -186,19 +188,18 @@ namespace vke_common
         TextureAsset(AssetHandle id, const std::string &nm, const std::string &pth)
             : Asset(id, nm, pth),
               format(VK_FORMAT_R8G8B8A8_SRGB), usage(VK_IMAGE_USAGE_SAMPLED_BIT), layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL),
-              minFilter(VK_FILTER_LINEAR), magFilter(VK_FILTER_LINEAR), addressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT), anisotropyEnable(VK_TRUE), generateMipMap(true) {}
+              minFilter(VK_FILTER_LINEAR), magFilter(VK_FILTER_LINEAR), addressMode(VK_SAMPLER_ADDRESS_MODE_REPEAT), anisotropyEnable(true), generateMipMap(true) {}
 
-        std::string toJSON()
+        void writeJSON(nlohmann::json &json) const
         {
-            std::string ret = ", \"format\": " + std::to_string(format) +
-                              ", \"usage\": " + std::to_string(usage) +
-                              ", \"layout\": " + std::to_string(layout) +
-                              ", \"minFilter\": " + std::to_string(minFilter) +
-                              ", \"magFilter\": " + std::to_string(magFilter) +
-                              ", \"addressMode\": " + std::to_string(addressMode) +
-                              ", \"anisotropy\": " + std::to_string(anisotropyEnable) +
-                              ", \"genMipMap\": " + std::to_string(generateMipMap);
-            return ret;
+            json["format"] = format;
+            json["usage"] = usage;
+            json["layout"] = layout;
+            json["minFilter"] = minFilter;
+            json["magFilter"] = magFilter;
+            json["addressMode"] = addressMode;
+            json["anisotropy"] = anisotropyEnable;
+            json["genMipMap"] = generateMipMap;
         }
     };
 
@@ -223,14 +224,13 @@ namespace vke_common
         FontAsset(AssetHandle id, const std::string &nm, const std::string &pth)
             : Asset(id, nm, pth), pixelSize(48), characterCount(128), firstCodepoint(32) {}
 
-        std::string toJSON()
+        void writeJSON(nlohmann::json &json) const
         {
-            std::string ret = ", \"pixelSize\": " + std::to_string(pixelSize) +
-                              ", \"characterCount\": " + std::to_string(characterCount) +
-                              ", \"firstCodepoint\": " + std::to_string(firstCodepoint);
+            json["pixelSize"] = pixelSize;
+            json["characterCount"] = characterCount;
+            json["firstCodepoint"] = firstCodepoint;
             if (!characters.empty())
-                ret += ", \"characters\": " + nlohmann::json(characters).dump();
-            return ret;
+                json["characters"] = characters;
         }
     };
 
@@ -249,10 +249,9 @@ namespace vke_common
         VFShaderAsset(AssetHandle id, const std::string &nm, const std::string &pth, const std::string &fragpth)
             : fragPath(fragpth), Asset(id, nm, pth) {}
 
-        std::string toJSON()
+        void writeJSON(nlohmann::json &json) const
         {
-            std::string ret = ", \"fragPath\": \"" + fragPath.string() + "\"";
-            return ret;
+            json["fragPath"] = fragPath.generic_string();
         }
     };
 
@@ -349,9 +348,8 @@ namespace vke_common
               renderMode(vke_render::MaterialRenderMode::OPAQUE_MODE),
               blendMode(vke_render::MaterialBlendMode::ALPHA) {}
 
-        std::string toJSON()
+        void writeJSON(nlohmann::json &json) const
         {
-            nlohmann::json texturesJSON = textures;
             nlohmann::json bindingInfosJSON = nlohmann::json::array();
             if (textureBindingInfos != nullptr)
             {
@@ -392,17 +390,16 @@ namespace vke_common
                 }
             }
 
-            std::string ret = ", \"shader\": " + std::to_string(shader);
             const char *renderModeName = renderMode == vke_render::MaterialRenderMode::CUTOFF_MODE ? "cutoff" : renderMode == vke_render::MaterialRenderMode::BLEND_MODE ? "blend"
                                                                                                                                                                          : "opaque";
             const char *blendModeName = blendMode == vke_render::MaterialBlendMode::PREMULTIPLIED_ALPHA ? "premultipliedAlpha" : blendMode == vke_render::MaterialBlendMode::ADDITIVE ? "additive"
                                                                                                                                                                                       : "alpha";
-            ret += ", \"renderMode\": \"" + std::string(renderModeName) + "\"";
-            ret += ", \"blendMode\": \"" + std::string(blendModeName) + "\"";
-            ret += ", \"textures\": " + texturesJSON.dump();
-            ret += ", \"bindingInfos\": " + bindingInfosJSON.dump();
-            ret += ", \"pushConstantInfos\": " + pushConstantInfosJSON.dump();
-            return ret;
+            json["shader"] = shader;
+            json["renderMode"] = renderModeName;
+            json["blendMode"] = blendModeName;
+            json["textures"] = textures;
+            json["bindingInfos"] = std::move(bindingInfosJSON);
+            json["pushConstantInfos"] = std::move(pushConstantInfosJSON);
         }
     };
 }

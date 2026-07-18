@@ -1,4 +1,5 @@
 #include <editor/editor.hpp>
+#include <asset/asset_db_sqlite.hpp>
 #include <glm/common.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/trigonometric.hpp>
@@ -36,16 +37,6 @@ namespace vke_editor
                          std::vector<vke_render::PassType> &passes,
                          std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
     {
-        PartialInit1(window, editorConfig, sceneViewportWidth, sceneViewportHeight);
-        PartialInit2(editorConfig, passes, customPasses);
-        return instance;
-    }
-
-    Editor *Editor::PartialInit1(GLFWwindow *window,
-                                 const EditorConfig &editorConfig,
-                                 uint32_t sceneViewportWidth,
-                                 uint32_t sceneViewportHeight)
-    {
         instance = new Editor();
         instance->selectedEntity = entt::null;
         instance->selectedAssetType = vke_common::ASSET_CNT_FLAG;
@@ -56,23 +47,21 @@ namespace vke_editor
         vke_common::InputManager::Init(window);
         vke_common::EngineStateManager::Init();
         vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
-        vke_editor::EditorStateManager::Init(vke_editor::EditorState::PartialInited);
+        vke_editor::EditorStateManager::Init(vke_editor::EditorState::Edit);
         vke_render::RenderEnvironment::Init(window, editorConfig.gameConfig->enableVulkanValidationLayers);
-        vke_common::AssetManager::Init(std::make_unique<vke_common::AssetDBJSON>("", vke_common::CUSTOM_ASSET_ID_ST), "");
-        vke_common::AssetManager::BulkLoad(EditorAssetLUTPath, true);
+        vke_common::AssetManager::Init(
+            std::make_unique<vke_common::AssetDBSQLite>(
+                EditorConfig::GetFullPath(editorConfig.assetDBPath),
+                vke_common::CUSTOM_ASSET_ID_ST),
+            editorConfig.workingDirectory);
+        VKE_FATAL_IF(!vke_common::AssetManager::BulkLoad(EditorAssetLUTPath, true),
+                     "Failed to load editor assets from {}", EditorAssetLUTPath.string())
         vke_render::DescriptorSetAllocator::Init();
         vke_render::RenderContext *ctx = &(vke_render::RenderEnvironment::GetInstance()->rootRenderContext);
         EditorRenderer::Init(window, ctx, sceneViewportWidth, sceneViewportHeight,
                              []()
                              { instance->DrawGUI(); });
 
-        return instance;
-    }
-
-    void Editor::PartialInit2(const EditorConfig &editorConfig,
-                              std::vector<vke_render::PassType> &passes,
-                              std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses)
-    {
         vke_physics::PhysicsManager::Init(editorConfig.gameConfig->physicsConfig);
         vke_common::Spatial2DLayerManager::Init();
         vke_render::Renderer::Init(EditorRenderer::GetInstance()->GetSceneRenderContext(),
@@ -80,6 +69,8 @@ namespace vke_editor
         vke_common::ScriptManager::Init();
         vke_common::SceneManager::Init();
         vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Edit);
+
+        return instance;
     }
 
     void Editor::Shutdown()
@@ -100,11 +91,6 @@ namespace vke_editor
         vke_render::Renderer::Dispose();
         vke_common::Spatial2DLayerManager::Dispose();
         vke_physics::PhysicsManager::Dispose();
-        Editor::PartialDispose();
-    }
-
-    void Editor::PartialDispose()
-    {
         EditorRenderer::Dispose();
         vke_render::DescriptorSetAllocator::Dispose();
         vke_common::AssetManager::Dispose();
@@ -155,39 +141,6 @@ namespace vke_editor
         return true;
     }
 
-    bool Editor::PartialUpdate(bool &projectCreated, std::filesystem::path &projectPath)
-    {
-        if (projectCreationActive)
-        {
-            static uint32_t currentFrame = 1;
-            currentFrame = (currentFrame + 1) % vke_render::MAX_FRAMES_IN_FLIGHT;
-            if (projectCancelRequested)
-            {
-                projectCreated = false;
-                return false;
-            }
-
-            if (projectCreationPending)
-            {
-                projectCreationActive = false;
-                projectCreationPending = false;
-                projectPath = finalizeProjectCreation();
-                projectCreated = true;
-                return false;
-            }
-            else
-            {
-                uint32_t imageIndex = EditorRenderer::AcquireSceneNextImage(currentFrame);
-                EditorRenderer::PresentScene(currentFrame, imageIndex);
-                EditorRenderer::GetInstance()->Update();
-                vke_common::InputManager::EndFrame();
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     void Editor::FixedUpdate()
     {
         vke_common::ScriptManager::FixedUpdate();
@@ -196,14 +149,9 @@ namespace vke_editor
 
     void Editor::DrawGUI()
     {
-        if (projectCreationActive)
-        {
-            showProjectCreationDialog();
-            return;
-        }
-
         ensureSelectedEntityValid();
         showMainMenuBar();
+        showAssetImportDialog();
         showHierarchy();
         showInspector();
         showAssets();
@@ -230,6 +178,27 @@ namespace vke_editor
                 ImGui::EndMenu();
             }
 
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Asset"))
+        {
+            if (ImGui::MenuItem("Import Mesh"))
+                openAssetImport(vke_common::ASSET_MESH);
+            if (ImGui::MenuItem("Import VF Shader"))
+                openAssetImport(vke_common::ASSET_VF_SHADER);
+            if (ImGui::MenuItem("Import Compute Shader"))
+                openAssetImport(vke_common::ASSET_COMPUTE_SHADER);
+            if (ImGui::MenuItem("Import Skeleton"))
+                openAssetImport(vke_common::ASSET_SKELETON);
+            if (ImGui::MenuItem("Import Audio Clip"))
+                openAssetImport(vke_common::ASSET_AUDIO_CLIP);
+            if (ImGui::MenuItem("Import Texture"))
+                openAssetImport(vke_common::ASSET_TEXTURE);
+            if (ImGui::MenuItem("Import Animation"))
+                openAssetImport(vke_common::ASSET_ANIMATION);
+            if (ImGui::MenuItem("Import Font"))
+                openAssetImport(vke_common::ASSET_FONT);
             ImGui::EndMenu();
         }
 

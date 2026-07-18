@@ -9,7 +9,7 @@ namespace vke_common
 #define AM_GET_FUNC(tp) \
     static tp *Get##tp(AssetHandle id);
 #define AM_ITERATE_FUNC(tp) \
-    static void Iterate##tp(std::function<void(tp &)> op);
+    static void Iterate##tp(std::function<void(const tp &)> op);
 
 #define AM_OP_FUNCS(tp) \
     AM_GET_FUNC(tp)     \
@@ -23,8 +23,13 @@ namespace vke_common
             : ftLibrary(nullptr), pathPrefix(prefix), builtinAssets(std::make_unique<AssetDBJSON>(BuiltinAssetLUTPath)) {};
         ~AssetManager()
         {
+            assetDB.reset();
+            builtinAssets.reset();
             if (ftLibrary != nullptr)
+            {
                 FT_Done_FreeType(ftLibrary);
+                ftLibrary = nullptr;
+            }
         }
         AssetManager(const AssetManager &);
         AssetManager &operator=(const AssetManager);
@@ -46,12 +51,11 @@ namespace vke_common
             instance = nullptr;
         }
 
-        static void BulkLoad(const std::filesystem::path &pth, bool builtIn = false)
+        static bool BulkLoad(const std::filesystem::path &pth, bool builtIn = false)
         {
             if (builtIn)
-                instance->builtinAssets->BulkLoad(pth);
-            else
-                instance->assetDB->BulkLoad(pth);
+                return instance->builtinAssets->BulkLoad(pth);
+            return instance->assetDB->BulkLoad(pth);
         }
 
         static AssetDBBase *GetAssetDB() { return instance->assetDB.get(); }

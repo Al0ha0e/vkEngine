@@ -46,7 +46,7 @@ namespace vke_common
             EngineStateManager::Init();
             vke_audio::AudioManager::Init();
             vke_render::RenderEnvironment::Init(window, gameConfig.enableVulkanValidationLayers);
-            AssetManager::Init(std::make_unique<AssetDBJSON>("", CUSTOM_ASSET_ID_ST), "");
+            AssetManager::Init(std::make_unique<AssetDBJSON>(gameConfig.assetLUTPath, CUSTOM_ASSET_ID_ST), "");
             vke_physics::PhysicsManager::Init(gameConfig.physicsConfig);
             vke_render::DescriptorSetAllocator::Init();
             Spatial2DLayerManager::Init();

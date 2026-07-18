@@ -50,25 +50,14 @@ namespace vke_editor
                             std::vector<vke_render::PassType> &passes,
                             std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses);
 
-        static Editor *PartialInit1(GLFWwindow *window,
-                                    const EditorConfig &editorConfig,
-                                    uint32_t sceneViewportWidth,
-                                    uint32_t sceneViewportHeight);
-        static void PartialInit2(const EditorConfig &editorConfig,
-                                 std::vector<vke_render::PassType> &passes,
-                                 std::vector<std::unique_ptr<vke_render::RenderPassBase>> &customPasses);
-
         static void Shutdown();
         static void WaitIdle();
         static void Dispose();
-        static void PartialDispose();
         static void OnWindowResize(GLFWwindow *window, int width, int height);
 
         bool Update();
-        bool PartialUpdate(bool &projectCreated, std::filesystem::path &projectPath);
         void FixedUpdate();
         void DrawGUI();
-        void EnterProjectCreationMode();
 
     private:
         void showMainMenuBar();
@@ -100,15 +89,8 @@ namespace vke_editor
         void showSelectedAssetInspector();
         void createEmptyObject();
         void ensureSelectedEntityValid();
-
-        char pendingProjectName[128] = {};
-        char pendingProjectDir[512] = {};
-        bool projectCreationActive = false;
-        bool projectCreationPending = false;
-        bool projectCancelRequested = false;
-
-        void showProjectCreationDialog();
-        std::filesystem::path finalizeProjectCreation();
+        void showAssetImportDialog();
+        void openAssetImport(vke_common::AssetType type);
     };
 }
 

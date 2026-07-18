@@ -7,37 +7,6 @@
 namespace vke_editor
 {
     const std::filesystem::path EditorAssetLUTPath = std::filesystem::path(REL_DIR) / "editor_assets" / "assets.json";
-    static std::string NormalizeAssetPath(std::string path)
-    {
-        std::replace(path.begin(), path.end(), '\\', '/');
-        while (!path.empty() && path.front() == '/')
-            path.erase(path.begin());
-        return path;
-    }
-
-    static std::vector<std::string> GetAssetDirectoryParts(const std::string &assetPath)
-    {
-        std::string normalizedPath = NormalizeAssetPath(assetPath);
-        const size_t fileNamePos = normalizedPath.find_last_of('/');
-        if (fileNamePos == std::string::npos)
-            return {};
-
-        std::vector<std::string> parts;
-        std::string directory = normalizedPath.substr(0, fileNamePos);
-        size_t begin = 0;
-        while (begin < directory.length())
-        {
-            const size_t end = directory.find('/', begin);
-            std::string part = directory.substr(begin, end == std::string::npos ? std::string::npos : end - begin);
-            if (!part.empty())
-                parts.push_back(part);
-            if (end == std::string::npos)
-                break;
-            begin = end + 1;
-        }
-        return parts;
-    }
-
     static const char *AssetBrowserModeName(AssetBrowserMode mode)
     {
         switch (mode)
@@ -52,27 +21,6 @@ namespace vke_editor
     static const char *AssetTypeName(vke_common::AssetType type)
     {
         return vke_common::AssetTypeToName[static_cast<int>(type)].c_str();
-    }
-
-    template <typename Fn>
-    static void AddAssetsToDirectoryTree(AssetTreeNode &root, vke_common::AssetType type, Fn &&iterate)
-    {
-        iterate([&](auto &asset)
-                {
-            AssetTreeNode *node = &root;
-            std::vector<std::string> directoryParts = GetAssetDirectoryParts(asset.path.string());
-            if (directoryParts.empty())
-                directoryParts.push_back("No Path");
-
-            for (const std::string &part : directoryParts)
-            {
-                AssetTreeNode &child = node->children[part];
-                if (child.name.empty())
-                    child.name = part;
-                node = &child;
-            }
-
-            node->assets.push_back({type, asset.id, asset.name, asset.path.string()}); });
     }
 
     static const char *RenderModeName(vke_render::MaterialRenderMode mode)
@@ -296,30 +244,6 @@ namespace vke_editor
         drawAssetDirectoryNode(assetDirectoryTree);
     }
 
-    void Editor::rebuildAssetDirectoryTree(vke_common::AssetManager * /*assetManager*/)
-    {
-        assetDirectoryTree = {};
-        assetDirectoryTree.name = "Assets";
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_TEXTURE, [](auto &&op)
-                                 { vke_common::AssetManager::IterateTextureAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_MESH, [](auto &&op)
-                                 { vke_common::AssetManager::IterateMeshAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_VF_SHADER, [](auto &&op)
-                                 { vke_common::AssetManager::IterateVFShaderAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_COMPUTE_SHADER, [](auto &&op)
-                                 { vke_common::AssetManager::IterateComputeShaderAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_MATERIAL, [](auto &&op)
-                                 { vke_common::AssetManager::IterateMaterialAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_SKELETON, [](auto &&op)
-                                 { vke_common::AssetManager::IterateSkeletonAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_ANIMATION, [](auto &&op)
-                                 { vke_common::AssetManager::IterateAnimationAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_SCENE, [](auto &&op)
-                                 { vke_common::AssetManager::IterateSceneAsset(op); });
-        AddAssetsToDirectoryTree(assetDirectoryTree, vke_common::ASSET_FONT, [](auto &&op)
-                                 { vke_common::AssetManager::IterateFontAsset(op); });
-    }
-
     void Editor::drawAssetDirectoryNode(const AssetTreeNode &node)
     {
         for (const auto &entry : node.assets)
@@ -328,7 +252,9 @@ namespace vke_editor
         for (const auto &[name, child] : node.children)
         {
             ImGui::PushID(name.c_str());
-            if (ImGui::TreeNodeEx(child.name.c_str(), ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick))
+            if (ImGui::TreeNodeEx(
+                    child.name.c_str(),
+                    ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick))
             {
                 drawAssetDirectoryNode(child);
                 ImGui::TreePop();

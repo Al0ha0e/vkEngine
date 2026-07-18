@@ -2,7 +2,7 @@
 
 namespace vke_common
 {
-    void AssetDBJSON::ClearAll()
+    bool AssetDBJSON::ClearAll()
     {
         textureCache.clear();
         meshCache.clear();
@@ -16,6 +16,7 @@ namespace vke_common
         audioCache.clear();
         for (auto &id : ids)
             id = stID;
+        return true;
     }
 
 #define LOAD_LUT_CASE(tpid, tp, assets)          \
@@ -24,7 +25,7 @@ namespace vke_common
         ids[type] = std::max(ids[type], id + 1); \
         break;
 
-    void AssetDBJSON::bulkLoad(const std::filesystem::path &pth)
+    bool AssetDBJSON::bulkLoad(const std::filesystem::path &pth)
     {
         const nlohmann::json &json = LoadJSON(pth.string());
         for (const auto &asset : json)
@@ -47,16 +48,17 @@ namespace vke_common
                 break;
             }
         }
+        return true;
     }
 
 #define ASSET_TO_JSON(cache)                \
     for (auto &kv : cache)                  \
         if (kv.first >= CUSTOM_ASSET_ID_ST) \
-            ret += "\n" + kv.second.ToJSON() + ",";
+            ret.push_back(kv.second.ToJSON());
 
-    void AssetDBJSON::saveAll(const std::filesystem::path &pth)
+    bool AssetDBJSON::saveAll(const std::filesystem::path &pth)
     {
-        std::string ret = "[ ";
+        nlohmann::json ret = nlohmann::json::array();
 
         ASSET_TO_JSON(textureCache)
         ASSET_TO_JSON(meshCache)
@@ -68,13 +70,11 @@ namespace vke_common
         ASSET_TO_JSON(fontCache)
         ASSET_TO_JSON(audioCache)
         for (auto &kv : sceneCache)
-            ret += "\n" + kv.second.ToJSON() + ",";
-
-        ret[ret.length() - 1] = ' ';
-        ret += "]";
+            ret.push_back(kv.second.ToJSON());
 
         std::ofstream ofs(pth);
-        ofs << ret;
+        ofs << ret.dump(4);
         ofs.close();
+        return !ofs.fail();
     }
 }

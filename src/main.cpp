@@ -31,7 +31,6 @@ int main(int argc, char **argv)
     GLFWwindow *window = initWindow(gameConfig->windowWidth, gameConfig->windowHeight);
     vke_common::Engine *engine = vke_common::Engine::Init(window, *gameConfig, nullptr, passes, customPasses);
 
-    vke_common::AssetManager::BulkLoad(gameConfig->assetLUTPath);
     auto scene = vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);
     vke_common::SceneManager::SetCurrentScene(std::move(scene));
 

@@ -45,12 +45,6 @@ namespace vke_editor
             instance->gameConfig = vke_common::GameConfig::Init(gameConfigJSON);
             return instance;
         }
-        static EditorConfig *Init()
-        {
-            instance = new EditorConfig();
-            instance->gameConfig = vke_common::GameConfig::Init();
-            return instance;
-        }
 
         static void Dispose()
         {

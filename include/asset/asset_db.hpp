@@ -14,7 +14,7 @@ namespace vke_common
     virtual bool Set##tp(tp &asset) = 0;
 
 #define DB_SYNC_ASSET_FUNC(tp) \
-    virtual bool Sync##tp(tp &asset) = 0;
+    virtual bool Sync##tp(AssetHandle id) = 0;
 
 #define DB_CREATE_ASSET_FUNC(tp) \
     virtual AssetHandle Create##tp(tp &asset) = 0;
@@ -23,7 +23,10 @@ namespace vke_common
     virtual bool Remove##tp(AssetHandle id) = 0;
 
 #define DB_ITERATE_ASSET_FUNC(tp) \
-    virtual void Iterate##tp(std::function<void(tp &)> op) = 0;
+    virtual void Iterate##tp(std::function<void(const tp &)> op) = 0;
+
+#define DB_MARKDIRTY_ASSET_FUNC(tp) \
+    virtual void MarkDirty##tp(AssetHandle id) = 0;
 
 #define DB_ASSET_OP_FUNCS(tp) \
     DB_GET_ASSET_FUNC(tp)     \
@@ -31,7 +34,8 @@ namespace vke_common
     DB_SYNC_ASSET_FUNC(tp)    \
     DB_CREATE_ASSET_FUNC(tp)  \
     DB_REMOVE_ASSET_FUNC(tp)  \
-    DB_ITERATE_ASSET_FUNC(tp)
+    DB_ITERATE_ASSET_FUNC(tp) \
+    DB_MARKDIRTY_ASSET_FUNC(tp)
 
     class AssetDBBase
     {
@@ -43,9 +47,9 @@ namespace vke_common
         virtual ~AssetDBBase() {}
 
         virtual void Init() = 0;
-        virtual void ClearAll() = 0;
-        virtual void BulkLoad(const std::filesystem::path &pth) = 0;
-        virtual void SyncAll() = 0;
+        virtual bool ClearAll() = 0;
+        virtual bool BulkLoad(const std::filesystem::path &pth) = 0;
+        virtual bool SyncAll() = 0;
 
         DB_ASSET_OP_FUNCS(TextureAsset)
         DB_ASSET_OP_FUNCS(MeshAsset)

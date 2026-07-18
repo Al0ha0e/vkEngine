@@ -33,7 +33,7 @@ namespace vke_editor
             const std::string selectedMaterial = AssetDisplayName(materialHandle, mat ? mat->name.c_str() : nullptr);
             if (ImGui::BeginCombo("Material", selectedMaterial.c_str()))
             {
-                vke_common::AssetManager::IterateMaterialAsset([&](vke_common::MaterialAsset &asset)
+                vke_common::AssetManager::IterateMaterialAsset([&](const vke_common::MaterialAsset &asset)
                                                                {
                     const vke_common::AssetHandle assetHandle = asset.id;
                     const bool selected = assetHandle == materialHandle;
@@ -59,7 +59,7 @@ namespace vke_editor
             const std::string selectedMesh = AssetDisplayName(meshHandle, meshAsset ? meshAsset->name.c_str() : nullptr);
             if (ImGui::BeginCombo("Mesh", selectedMesh.c_str()))
             {
-                vke_common::AssetManager::IterateMeshAsset([&](vke_common::MeshAsset &asset)
+                vke_common::AssetManager::IterateMeshAsset([&](const vke_common::MeshAsset &asset)
                                                            {
                     const vke_common::AssetHandle assetHandle = asset.id;
                     const bool selected = assetHandle == meshHandle;

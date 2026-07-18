@@ -16,6 +16,7 @@ namespace vke_common
     {
         instance = new AssetManager(prefix);
         instance->assetDB = std::move(db);
+        instance->assetDB->Init();
         instance->ftLibrary = nullptr;
         VKE_FATAL_IF(FT_Init_FreeType(&(instance->ftLibrary)), "Failed to initialize FreeType library!")
         instance->initBuiltinAssets();
@@ -53,11 +54,11 @@ namespace vke_common
 
 #undef AM_GET_IMPL
 
-#define AM_ITERATE_IMPL(tp)                                      \
-    void AssetManager::Iterate##tp(std::function<void(tp &)> op) \
-    {                                                            \
-        instance->builtinAssets->Iterate##tp(op);                \
-        instance->assetDB->Iterate##tp(op);                      \
+#define AM_ITERATE_IMPL(tp)                                            \
+    void AssetManager::Iterate##tp(std::function<void(const tp &)> op) \
+    {                                                                  \
+        instance->builtinAssets->Iterate##tp(op);                      \
+        instance->assetDB->Iterate##tp(op);                            \
     }
 
     AM_ITERATE_IMPL(TextureAsset)
