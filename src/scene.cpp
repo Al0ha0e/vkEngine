@@ -10,9 +10,6 @@ namespace vke_common
         ret["layers"] = layers;
         ret["maxid"] = idAllocator.id;
         nlohmann::json objectsJSON = nlohmann::json::array();
-        vke_render::SceneLightData lightData = loadedToEngine
-                                                   ? vke_render::SceneLightData(vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData())
-                                                   : lighting;
 
         for (auto &[id, entity] : idToEntity)
         {
@@ -29,7 +26,7 @@ namespace vke_common
                 objJSON["children"] = std::move(chidrenJSON);
 
                 nlohmann::json componentsJSON = nlohmann::json::array();
-                componentToJSON(id, componentsJSON, lightData);
+                componentToJSON(id, componentsJSON);
                 objJSON["components"] = componentsJSON;
 
                 objectsJSON.push_back(std::move(objJSON));

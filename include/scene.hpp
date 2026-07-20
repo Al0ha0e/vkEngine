@@ -18,6 +18,7 @@
 #include <component/text.hpp>
 #include <component/audio_source.hpp>
 #include <component/audio_listener.hpp>
+#include <component/light.hpp>
 #include <scene_transform_system.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -32,7 +33,6 @@ namespace vke_common
         std::vector<std::string> layers;
         entt::registry registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
-        vke_render::SceneLightData lighting;
         std::shared_ptr<vke_render::CPUGlyphData> glyphs;
         bool loadedToEngine;
         SceneTransformSystem transformSystem;
@@ -43,13 +43,13 @@ namespace vke_common
 
         Scene()
             : layers({"default", "editor"}),
-              registry(), idToEntity(), lighting(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              registry(), idToEntity(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
               loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(1),
               physicsUpdateListenerID(0), initialized(true) {}
 
         Scene(const nlohmann::json &json)
-            : registry(), idToEntity(), lighting(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+            : registry(), idToEntity(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
               loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
               physicsUpdateListenerID(0), initialized(false)
@@ -60,7 +60,7 @@ namespace vke_common
 
         Scene(const std::string &pth, const nlohmann::json &json)
             : path(pth),
-              registry(), idToEntity(), lighting(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              registry(), idToEntity(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
               loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
               physicsUpdateListenerID(0), initialized(false)
@@ -103,7 +103,16 @@ namespace vke_common
             auto audioLisView = registry.view<vke_component::AudioListener>();
             for (auto entity : audioLisView)
                 audioLisView.get<vke_component::AudioListener>(entity).LoadToEngine(static_cast<uint32_t>(entity));
-            vke_render::Renderer::GetInstance()->lightManager->LoadSceneLightData(lighting.cpuLightData);
+
+            auto directionalLightView = registry.view<vke_component::DirectionalLight>();
+            for (auto entity : directionalLightView)
+                directionalLightView.get<vke_component::DirectionalLight>(entity).LoadToEngine(entity);
+            auto pointLightView = registry.view<vke_component::PointLight>();
+            for (auto entity : pointLightView)
+                pointLightView.get<vke_component::PointLight>(entity).LoadToEngine(entity);
+            auto spotLightView = registry.view<vke_component::SpotLight>();
+            for (auto entity : spotLightView)
+                spotLightView.get<vke_component::SpotLight>(entity).LoadToEngine(entity);
 
             physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(this,
                                                                                           std::function<void(void *, void *)>(physicsUpdateCallback));
@@ -130,7 +139,6 @@ namespace vke_common
             ScriptManager::Unload();
             vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
             physicsUpdateListenerID = 0;
-            lighting = vke_render::SceneLightData(vke_render::Renderer::GetInstance()->lightManager->ToSceneLightData());
             glyphs = vke_render::Renderer::GetGlyphManager()->ToSceneGlyphData();
             vke_render::Renderer::GetInstance()->lightManager->ClearLights();
 
@@ -206,7 +214,7 @@ namespace vke_common
         void init(const nlohmann::json &json);
         void loadComponent(const vke_ds::id32_t id, const entt::entity entity,
                            const nlohmann::json &component);
-        void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json, const vke_render::SceneLightData &lightData);
+        void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json);
         void unloadEntityFromEngine(entt::entity entity);
 
         static void physicsUpdateCallback(void *self, void *info);

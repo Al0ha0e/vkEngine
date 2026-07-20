@@ -74,11 +74,11 @@ namespace vke_render
         return std::ceil(radius * 16.0f) / 16.0f;
     }
 
-    ShadowManager::ShadowManager(RenderContext *ctx, FrameGraph &frameGraph, std::shared_ptr<CPULightData> cpuLightData, const CameraInfo *cameraInfo,
+    ShadowManager::ShadowManager(RenderContext *ctx, FrameGraph &frameGraph, const CameraInfo *cameraInfo,
                                  const DirectionalShadowConfig &directionalConfig)
-        : context(ctx), cpuLightData(cpuLightData), cameraInfo(cameraInfo), directionalConfig(directionalConfig),
+        : context(ctx), cameraInfo(cameraInfo), directionalConfig(directionalConfig),
           shadowMapSampler(VK_NULL_HANDLE), directionalShadowMapResourceID(0), directionalShadowMapResourceNodeID(0),
-          spotShadowMapResourceID(0), spotShadowMapResourceNodeID(0)
+          spotShadowMapResourceID(0), spotShadowMapResourceNodeID(0), directionalShadowInfo()
     {
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
@@ -129,7 +129,6 @@ namespace vke_render
         createSampler();
         createDescriptorSets();
         registerFrameGraphResources(frameGraph);
-        UpdateDirectionalShadowInfo();
         frameGraph.AddTransientReadyCallback(std::bind(&ShadowManager::onTransientResourcesReady, this, std::placeholders::_1, std::placeholders::_2));
     }
 
@@ -198,23 +197,6 @@ namespace vke_render
                 continue;
             --spotShadowUpdateCnts[slot];
             spotShadowInfoBuffers[currentFrame]->ToBuffer(sizeof(SpotShadowInfoCPU) * slot, &spotShadowInfos[slot], sizeof(SpotShadowInfoCPU));
-        }
-    }
-
-    void ShadowManager::SetCPULightData(std::shared_ptr<CPULightData> data)
-    {
-        clearLights();
-        cpuLightData = std::move(data);
-
-        if (cpuLightData == nullptr)
-            return;
-
-        const int spotLightType = static_cast<int>(LightType::SPOT_LIGHT);
-        SpotLight *spotLights = reinterpret_cast<SpotLight *>(cpuLightData->cpuLightBuffers[spotLightType]->data);
-        for (uint32_t i = 0; i < cpuLightData->lightCnts[spotLightType]; ++i)
-        {
-            if (spotLights[i].CastShadow())
-                ActivateSpotShadow(cpuLightData->ownerMaps[spotLightType][i], spotLights[i]);
         }
     }
 
@@ -312,16 +294,14 @@ namespace vke_render
         vkUpdateDescriptorSets(globalLogicalDevice, 2, descriptorWrites, 0, nullptr);
     }
 
-    void ShadowManager::UpdateDirectionalShadowInfo()
+    void ShadowManager::UpdateDirectionalShadowInfo(const DirectionalLight *sun)
     {
-        if (cpuLightData->lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0)
+        if (sun == nullptr)
         {
             directionalShadowInfo = DirectionalShadowInfoCPU();
             return;
         }
 
-        const DirectionalLight *sun = reinterpret_cast<const DirectionalLight *>(
-            cpuLightData->cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
         glm::vec3 lightDir = glm::normalize(glm::vec3(sun->direction));
         if (glm::length(lightDir) < 0.0001f)
             lightDir = glm::vec3(0.0f, -1.0f, 0.0f);

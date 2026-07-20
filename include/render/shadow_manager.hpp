@@ -13,8 +13,8 @@
 
 namespace vke_render
 {
-    struct CPULightData;
     struct SpotLight;
+    struct DirectionalLight;
 
     constexpr uint32_t INVALID_SHADOW_LIGHT_INDEX = 0xFFFFFFFFu;
 
@@ -44,19 +44,19 @@ namespace vke_render
     class ShadowManager
     {
     public:
-        ShadowManager(RenderContext *ctx, FrameGraph &frameGraph, std::shared_ptr<CPULightData> cpuLightData, const CameraInfo *cameraInfo,
+        ShadowManager(RenderContext *ctx, FrameGraph &frameGraph, const CameraInfo *cameraInfo,
                       const DirectionalShadowConfig &directionalConfig);
         ~ShadowManager();
         ShadowManager(const ShadowManager &) = delete;
         ShadowManager &operator=(const ShadowManager &) = delete;
 
-        void UpdateDirectionalShadowInfo();
+        void UpdateDirectionalShadowInfo(const DirectionalLight *sun);
         void CalcSpotShadowVPMatrix(SpotLight &light);
         void SyncDirectionalShadowToGPU(uint32_t currentFrame);
         void SyncSpotShadowToGPU(uint32_t currentFrame);
-        void SetCPULightData(std::shared_ptr<CPULightData> data);
         uint32_t ActivateSpotShadow(entt::entity lightEntity, SpotLight &light);
         void DeactivateSpotShadow(entt::entity lightEntity, SpotLight &light);
+        void ClearLights() { clearLights(); }
 
         vke_ds::id32_t GetDirectionalShadowMapResourceID() const { return directionalShadowMapResourceID; }
         vke_ds::id32_t GetDirectionalShadowMapResourceNodeID() const { return directionalShadowMapResourceNodeID; }
@@ -73,7 +73,6 @@ namespace vke_render
 
     private:
         RenderContext *context;
-        std::shared_ptr<CPULightData> cpuLightData;
         const CameraInfo *cameraInfo;
         DirectionalShadowConfig directionalConfig;
         SpotShadowConfig spotConfig;

@@ -4,6 +4,7 @@
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
+#include <component/light.hpp>
 #include <component/text.hpp>
 #include <component/script.hpp>
 #include <scene.hpp>
@@ -142,40 +143,15 @@ namespace vke_common
         }
         else if (type == "directionalLight")
         {
-            auto &color = component["color"];
-            float intensity = component["intensity"];
-            lighting.AppendLight(
-                entity,
-                vke_render::DirectionalLight(
-                    glm::vec4(glm::normalize(TransformForward(transform)), 0.0f),
-                    glm::vec4(color[0], color[1], color[2], intensity)));
+            registry.emplace<vke_component::DirectionalLight>(entity, transform, component);
         }
         else if (type == "pointLight")
         {
-            auto &color = component["color"];
-            float radius = component["radius"];
-            float intensity = component["intensity"];
-            lighting.AppendLight(
-                entity,
-                vke_render::PointLight(
-                    glm::vec4(transform.GetGlobalPosition(), radius),
-                    glm::vec4(color[0], color[1], color[2], intensity)));
+            registry.emplace<vke_component::PointLight>(entity, transform, component);
         }
         else if (type == "spotLight")
         {
-            auto &color = component["color"];
-            float radius = component["radius"];
-            float intensity = component["intensity"];
-            float innerCone = glm::radians(component["innerCone"].get<float>());
-            float outerCone = glm::radians(component["outerCone"].get<float>());
-            bool castShadow = component.value("castShadow", component.value("shadowSlot", 0u) != 0u);
-            lighting.AppendLight(
-                entity,
-                vke_render::SpotLight(
-                    glm::vec4(transform.GetGlobalPosition(), radius),
-                    glm::vec4(glm::normalize(TransformForward(transform)), 0.0f),
-                    glm::vec4(color[0], color[1], color[2], intensity),
-                    glm::vec4(glm::cos(innerCone), glm::cos(outerCone), castShadow ? 1.0f : 0.0f, 0.0f)));
+            registry.emplace<vke_component::SpotLight>(entity, transform, component);
         }
         else if (type == "script")
         {
@@ -224,7 +200,7 @@ namespace vke_common
         }
     }
 
-    void Scene::componentToJSON(const vke_ds::id32_t id, nlohmann::json &components, const vke_render::SceneLightData &lightData)
+    void Scene::componentToJSON(const vke_ds::id32_t id, nlohmann::json &components)
     {
         const entt::entity entity = idToEntity[id];
 
@@ -255,14 +231,14 @@ namespace vke_common
         if (registry.all_of<vke_component::AudioListener>(entity))
             components.push_back(registry.get<vke_component::AudioListener>(entity).ToJSON());
 
-        if (lightData.HasLight<vke_render::DirectionalLight>(entity))
-            components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::DirectionalLight>(entity).ToJSON());
+        if (registry.all_of<vke_component::DirectionalLight>(entity))
+            components.push_back(registry.get<vke_component::DirectionalLight>(entity).ToJSON());
 
-        if (lightData.HasLight<vke_render::PointLight>(entity))
-            components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::PointLight>(entity).ToJSON());
+        if (registry.all_of<vke_component::PointLight>(entity))
+            components.push_back(registry.get<vke_component::PointLight>(entity).ToJSON());
 
-        if (lightData.HasLight<vke_render::SpotLight>(entity))
-            components.push_back(lightData.GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).ToJSON());
+        if (registry.all_of<vke_component::SpotLight>(entity))
+            components.push_back(registry.get<vke_component::SpotLight>(entity).ToJSON());
 
         auto scriptIt = csharpScriptStates.find(entity);
         if (scriptIt != csharpScriptStates.end())

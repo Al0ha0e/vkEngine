@@ -6,15 +6,17 @@ namespace vke_render
     LightManager::LightManager(RenderContext *ctx, FrameGraph &frameGraph, const CameraInfo *cameraInfo, const DirectionalShadowConfig &config)
     {
         init();
-        shadowManager = std::make_unique<ShadowManager>(ctx, frameGraph, cpuLightData, cameraInfo, config);
+        shadowManager = std::make_unique<ShadowManager>(ctx, frameGraph, cameraInfo, config);
         lightUpdateCnts[(int)LightType::DIRECTIONAL_LIGHT] = MAX_FRAMES_IN_FLIGHT;
     }
 
     void LightManager::init()
     {
-        cpuLightData = std::make_shared<CPULightData>();
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
         {
+            lightCnts[i] = 0;
+            cpuLightBuffers[i] = std::make_unique<HostCoherentBuffer>(LIGHT_SIZES[i] * MAX_LIGHT_CNTS[i],
+                                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
             lightUpdateCnts[i] = 0;
             dirtyFlags[i] = false;
         }
@@ -124,7 +126,7 @@ namespace vke_render
     {
         lightCullingTask->Dispatch(commandBuffer,
                                    std::vector<VkDescriptorSet>{globalDescriptorSets[currentFrame]},
-                                   cpuLightData->lightCnts + 1,
+                                   lightCnts + 1,
                                    glm::ivec3(CLUSTER_DIM_X / 8, CLUSTER_DIM_Y / 8, CLUSTER_DIM_Z));
     }
 
@@ -141,7 +143,9 @@ namespace vke_render
         }
 
         if (cameraUpdated || directionalDirty)
-            shadowManager->UpdateDirectionalShadowInfo();
+            shadowManager->UpdateDirectionalShadowInfo(lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0
+                                                           ? nullptr
+                                                           : reinterpret_cast<const DirectionalLight *>(cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data));
 
         bool directionalSync = lightUpdateCnts[(int)LightType::DIRECTIONAL_LIGHT] > 0;
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
@@ -149,8 +153,8 @@ namespace vke_render
             if (lightUpdateCnts[i] > 0)
             {
                 --lightUpdateCnts[i];
-                RenderEnvironment::CopyBuffer(cpuLightData->cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer,
-                                              cpuLightData->cpuLightBuffers[i]->bufferSize);
+                RenderEnvironment::CopyBuffer(cpuLightBuffers[i]->buffer, lightBuffers[i][currentFrame]->buffer,
+                                              cpuLightBuffers[i]->bufferSize);
             }
         }
         if (cameraUpdated || directionalSync)
@@ -160,39 +164,24 @@ namespace vke_render
 
     DirectionalLight *LightManager::GetSun()
     {
-        if (cpuLightData->lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0)
+        if (lightCnts[(int)LightType::DIRECTIONAL_LIGHT] == 0)
             return nullptr;
 
-        return reinterpret_cast<DirectionalLight *>(cpuLightData->cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
-    }
-
-    void LightManager::LoadSceneLightData(std::shared_ptr<CPULightData> lighting)
-    {
-        cpuLightData = lighting == nullptr ? std::make_shared<CPULightData>() : std::move(lighting);
-        for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
-        {
-            lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
-            dirtyFlags[i] = true;
-        }
-
-        shadowManager->SetCPULightData(cpuLightData);
-    }
-
-    std::shared_ptr<CPULightData> LightManager::ToSceneLightData() const
-    {
-        return cpuLightData;
+        return reinterpret_cast<DirectionalLight *>(cpuLightBuffers[(int)LightType::DIRECTIONAL_LIGHT]->data);
     }
 
     void LightManager::ClearLights()
     {
-        cpuLightData = std::make_shared<CPULightData>();
         for (int i = 0; i < (int)LightType::LIGHT_TYPE_CNT; ++i)
         {
+            lightCnts[i] = 0;
+            entityToLight[i].clear();
+            ownerMaps[i].clear();
             lightUpdateCnts[i] = MAX_FRAMES_IN_FLIGHT;
             dirtyFlags[i] = true;
         }
 
-        shadowManager->SetCPULightData(cpuLightData);
+        shadowManager->ClearLights();
     }
 
     void LightManager::UpdateSpotShadow(entt::entity entity)
