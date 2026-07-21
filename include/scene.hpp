@@ -33,7 +33,6 @@ namespace vke_common
         std::vector<std::string> layers;
         entt::registry registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
-        std::shared_ptr<vke_render::CPUGlyphData> glyphs;
         bool loadedToEngine;
         SceneTransformSystem transformSystem;
         std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptState>> csharpScriptStates;
@@ -43,13 +42,13 @@ namespace vke_common
 
         Scene()
             : layers({"default", "editor"}),
-              registry(), idToEntity(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              registry(), idToEntity(),
               loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(1),
               physicsUpdateListenerID(0), initialized(true) {}
 
         Scene(const nlohmann::json &json)
-            : registry(), idToEntity(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+            : registry(), idToEntity(),
               loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
               physicsUpdateListenerID(0), initialized(false)
@@ -60,7 +59,7 @@ namespace vke_common
 
         Scene(const std::string &pth, const nlohmann::json &json)
             : path(pth),
-              registry(), idToEntity(), glyphs(std::make_shared<vke_render::CPUGlyphData>()),
+              registry(), idToEntity(),
               loadedToEngine(false), transformSystem(registry, idToEntity),
               idAllocator(json["maxid"]),
               physicsUpdateListenerID(0), initialized(false)
@@ -85,7 +84,6 @@ namespace vke_common
                     view.template get<T>(entity).LoadToEngine();
             };
 
-            vke_render::Renderer::GetGlyphManager()->LoadSceneGlyphData(glyphs);
             loadView.operator()<vke_component::Camera>();
             loadView.operator()<vke_component::RenderableObject>();
             loadView.operator()<vke_component::SkeletonAnimator>();
@@ -139,7 +137,6 @@ namespace vke_common
             ScriptManager::Unload();
             vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
             physicsUpdateListenerID = 0;
-            glyphs = vke_render::Renderer::GetGlyphManager()->ToSceneGlyphData();
             vke_render::Renderer::GetInstance()->lightManager->ClearLights();
 
             auto unloadView = [this]<typename T>()

@@ -115,7 +115,7 @@ namespace vke_common
         }
         else if (type == "uiText")
         {
-            registry.emplace<vke_component::UIText>(entity, transform, component, glyphs.get());
+            registry.emplace<vke_component::UIText>(entity, transform, component);
         }
         else if (type == "animator")
         {

@@ -21,13 +21,10 @@ namespace vke_component
         static constexpr vke_ds::id32_t INVALID_ID = std::numeric_limits<vke_ds::id32_t>::max();
 
         explicit UIComponent(const vke_common::Transform &transform,
-                             std::shared_ptr<vke_render::Material> material,
-                             vke_render::CPUGlyphData *glyphData)
-            : transform(&transform), material(std::move(material)), glyphData(glyphData) {}
-        virtual ~UIComponent()
-        {
-            glyphData->Release(glyphIDs);
-        }
+                             std::shared_ptr<vke_render::Material> material)
+            : transform(&transform), material(std::move(material)) {}
+
+        virtual ~UIComponent() {}
 
         UIComponent(const UIComponent &) = delete;
         UIComponent &operator=(const UIComponent &) = delete;
@@ -63,6 +60,8 @@ namespace vke_component
         {
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             renderer->DestroyUnit(id);
+            vke_render::Renderer::GetGlyphManager()->Release(glyphIDs);
+            glyphIDs.clear();
             vke_common::Spatial2DLayerManager *spatialManager = vke_common::Spatial2DLayerManager::GetInstance();
             spatialManager->RemoveUnit(id);
             renderer->SetLayerOrder(spatialManager->GetLayerOrder());
@@ -88,11 +87,6 @@ namespace vke_component
         {
             if (!setGlyphs(std::move(newGlyphs)))
                 return false;
-            if (!IsLoaded())
-            {
-                localBounds = newLocalBounds;
-                return true;
-            }
 
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             if (!renderer->UpdateUnitGlyphIDs(id, glyphIDs))
@@ -104,15 +98,15 @@ namespace vke_component
 
         void SetGlyphColor(const glm::vec4 &color)
         {
+            vke_render::GlyphManager *glyphManager = vke_render::Renderer::GetGlyphManager();
             for (vke_render::GlyphID glyphID : glyphIDs)
-                glyphData->UpdateColor(glyphID, color);
+                glyphManager->UpdateColor(glyphID, color);
         }
 
         bool IsLoaded() const { return id != INVALID_ID; }
 
         const vke_common::Transform *transform;
         std::shared_ptr<vke_render::Material> material;
-        vke_render::CPUGlyphData *glyphData;
         std::vector<vke_render::GlyphID> glyphIDs;
 
     private:
@@ -161,12 +155,13 @@ namespace vke_component
 
         bool setGlyphs(std::vector<vke_render::GlyphInstanceGPU> newGlyphs)
         {
-            if (!glyphData->CanAllocate(newGlyphs.size(), glyphIDs.size()))
+            vke_render::GlyphManager *glyphManager = vke_render::Renderer::GetGlyphManager();
+            if (!glyphManager->CanAllocate(newGlyphs.size(), glyphIDs.size()))
                 return false;
 
-            glyphData->Release(glyphIDs);
+            glyphManager->Release(glyphIDs);
             std::vector<vke_render::GlyphID> newGlyphIDs;
-            glyphData->Allocate(newGlyphs, newGlyphIDs);
+            glyphManager->Allocate(newGlyphs, newGlyphIDs);
             glyphIDs = std::move(newGlyphIDs);
             return true;
         }

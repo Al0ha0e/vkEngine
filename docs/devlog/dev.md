@@ -23,3 +23,7 @@
 - 序列化用的entt，但是编辑器和C#脚本直接改的lightmanager的版本
 
 后面会把light组件给变成纯数据放scenedata里，引擎端只要lightmanager的，只有序列化/反序列化流程才用到scenedata
+
+## 087696926f97120f34c89c1d0b31117e94a13d7e light data refactor
+
+glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据，不然就只是存了字符串和颜色，这个也比较容易拆出纯数据类

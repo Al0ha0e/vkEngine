@@ -15,20 +15,17 @@ namespace vke_component
     public:
         UIText(const vke_common::Transform &transform, std::string text,
                const glm::vec4 &color = glm::vec4(1.0f),
-               std::shared_ptr<vke_render::Material> material = nullptr,
-               vke_render::CPUGlyphData *glyphData = nullptr)
-            : UIComponent(transform, std::move(material), glyphData), text(std::move(text)), color(color),
+               std::shared_ptr<vke_render::Material> material = nullptr)
+            : UIComponent(transform, std::move(material)), text(std::move(text)), color(color),
               font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
         {
-            rebuild();
         }
 
-        UIText(const vke_common::Transform &transform, const nlohmann::json &json, vke_render::CPUGlyphData *glyphData)
+        UIText(const vke_common::Transform &transform, const nlohmann::json &json)
             : UIComponent(transform,
                           json.contains("material") && json["material"].get<vke_common::AssetHandle>() != 0
                               ? vke_common::AssetManager::LoadMaterial(json["material"].get<vke_common::AssetHandle>())
-                              : nullptr,
-                          glyphData),
+                              : nullptr),
               text(json.value("text", std::string())),
               font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
         {
@@ -38,24 +35,30 @@ namespace vke_component
                 color = glm::vec4(value[0].get<float>(), value[1].get<float>(),
                                   value[2].get<float>(), value[3].get<float>());
             }
-            rebuild();
         }
 
         bool LoadToEngine()
         {
-            return UIComponent::LoadToEngine();
+            if (!UIComponent::LoadToEngine() || !rebuild())
+            {
+                UnloadFromEngine();
+                return false;
+            }
+            return true;
         }
 
         void SetText(std::string_view newText)
         {
             text.assign(newText);
-            rebuild();
+            if (IsLoaded())
+                rebuild();
         }
 
         void SetColor(const glm::vec4 &newColor)
         {
             color = newColor;
-            SetGlyphColor(newColor);
+            if (IsLoaded())
+                SetGlyphColor(newColor);
         }
 
         const std::string &GetText() const { return text; }

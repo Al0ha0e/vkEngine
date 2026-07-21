@@ -30,19 +30,35 @@ namespace vke_render
     inline uint32_t GetGlyphSlotIndex(GlyphID glyphID) { return glyphID & (GLYPHS_PER_BUFFER - 1); }
     inline VkDeviceSize GetGlyphBufferOffset(uint32_t bufferIndex) { return GLYPH_BUFFER_SIZE * bufferIndex; }
 
-    struct CPUGlyphData
+    class GlyphManager
     {
-        HostCoherentBuffer cpuGlyphs;
-        std::array<uint32_t, MAX_GLYPH_BUFFER_CNT> updateCnts{};
-        std::vector<GlyphID> freeGlyphs;
-
-        CPUGlyphData()
-            : cpuGlyphs(GLYPH_DATA_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
+    public:
+        GlyphManager() : cpuGlyphs(GLYPH_DATA_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
         {
             freeGlyphs.reserve(MAX_GLYPH_CNT);
             for (uint32_t bufferIndex = MAX_GLYPH_BUFFER_CNT; bufferIndex-- > 0;)
                 for (uint32_t slot = GLYPHS_PER_BUFFER; slot-- > 0;)
                     freeGlyphs.push_back((bufferIndex << 9) | slot);
+            for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+                deviceBuffers[frame] = std::make_unique<DeviceBuffer>(GLYPH_DATA_SIZE, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        }
+
+        void Sync(uint32_t currentFrame)
+        {
+            for (uint32_t bufferIndex = 0; bufferIndex < MAX_GLYPH_BUFFER_CNT; ++bufferIndex)
+            {
+                if (updateCnts[bufferIndex] == 0)
+                    continue;
+                --updateCnts[bufferIndex];
+                const VkDeviceSize offset = GetGlyphBufferOffset(bufferIndex);
+                RenderEnvironment::CopyBuffer(cpuGlyphs.buffer, deviceBuffers[currentFrame]->buffer,
+                                              GLYPH_BUFFER_SIZE, offset, offset);
+            }
+        }
+
+        bool CanAllocate(size_t glyphCount, size_t reclaimCount) const
+        {
+            return glyphCount <= freeGlyphs.size() + reclaimCount;
         }
 
         void Allocate(const std::vector<GlyphInstanceGPU> &glyphs, std::vector<GlyphID> &glyphIDs)
@@ -59,28 +75,28 @@ namespace vke_render
                 glyphIDs.push_back(glyphID);
             }
         }
-        bool CanAllocate(size_t glyphCount, size_t reclaimCount) const
-        {
-            return glyphCount <= freeGlyphs.size() + reclaimCount;
-        }
+
         void Update(GlyphID glyphID, const GlyphInstanceGPU &glyph)
         {
             const uint32_t bufferIndex = GetGlyphBufferIndex(glyphID);
             glyphAt(glyphID) = glyph;
             markDirty(bufferIndex);
         }
+
         void UpdateColor(GlyphID glyphID, const glm::vec4 &color)
         {
             const uint32_t bufferIndex = GetGlyphBufferIndex(glyphID);
             glyphAt(glyphID).color = color;
             markDirty(bufferIndex);
         }
+
         void Release(const std::vector<GlyphID> &glyphIDs)
         {
             for (GlyphID glyphID : glyphIDs)
                 freeGlyphs.push_back(glyphID);
         }
-        void Clear()
+
+        void ClearGlyphs()
         {
             updateCnts.fill(MAX_FRAMES_IN_FLIGHT);
             freeGlyphs.clear();
@@ -88,58 +104,6 @@ namespace vke_render
             for (uint32_t bufferIndex = MAX_GLYPH_BUFFER_CNT; bufferIndex-- > 0;)
                 for (uint32_t slot = GLYPHS_PER_BUFFER; slot-- > 0;)
                     freeGlyphs.push_back((bufferIndex << 9) | slot);
-        }
-
-    private:
-        GlyphInstanceGPU &glyphAt(GlyphID glyphID)
-        {
-            return reinterpret_cast<GlyphInstanceGPU *>(cpuGlyphs.data)[glyphID];
-        }
-
-        void markDirty(uint32_t bufferIndex)
-        {
-            updateCnts[bufferIndex] = MAX_FRAMES_IN_FLIGHT;
-        }
-    };
-
-    class GlyphManager
-    {
-    public:
-        GlyphManager() : cpuGlyphData(std::make_shared<CPUGlyphData>())
-        {
-            for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
-                deviceBuffers[frame] = std::make_unique<DeviceBuffer>(GLYPH_DATA_SIZE, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-        }
-
-        void Sync(uint32_t currentFrame)
-        {
-            for (uint32_t bufferIndex = 0; bufferIndex < MAX_GLYPH_BUFFER_CNT; ++bufferIndex)
-            {
-                if (cpuGlyphData->updateCnts[bufferIndex] == 0)
-                    continue;
-                --cpuGlyphData->updateCnts[bufferIndex];
-                const VkDeviceSize offset = GetGlyphBufferOffset(bufferIndex);
-                RenderEnvironment::CopyBuffer(cpuGlyphData->cpuGlyphs.buffer, deviceBuffers[currentFrame]->buffer,
-                                              GLYPH_BUFFER_SIZE, offset, offset);
-            }
-        }
-        const std::shared_ptr<CPUGlyphData> &GetCPUGlyphData() const { return cpuGlyphData; }
-
-        void LoadSceneGlyphData(std::shared_ptr<CPUGlyphData> glyphData)
-        {
-            cpuGlyphData = glyphData == nullptr ? std::make_shared<CPUGlyphData>() : std::move(glyphData);
-            cpuGlyphData->updateCnts.fill(MAX_FRAMES_IN_FLIGHT);
-        }
-
-        std::shared_ptr<CPUGlyphData> ToSceneGlyphData() const
-        {
-            return cpuGlyphData;
-        }
-
-        void ClearGlyphs()
-        {
-            cpuGlyphData = std::make_shared<CPUGlyphData>();
-            cpuGlyphData->updateCnts.fill(MAX_FRAMES_IN_FLIGHT);
         }
 
         VkDescriptorBufferInfo GetDescriptorBufferInfo(uint32_t currentFrame) const
@@ -152,8 +116,20 @@ namespace vke_render
         }
 
     private:
-        std::shared_ptr<CPUGlyphData> cpuGlyphData;
+        HostCoherentBuffer cpuGlyphs;
+        std::array<uint32_t, MAX_GLYPH_BUFFER_CNT> updateCnts{};
+        std::vector<GlyphID> freeGlyphs;
         std::unique_ptr<DeviceBuffer> deviceBuffers[MAX_FRAMES_IN_FLIGHT];
+
+        GlyphInstanceGPU &glyphAt(GlyphID glyphID)
+        {
+            return reinterpret_cast<GlyphInstanceGPU *>(cpuGlyphs.data)[glyphID];
+        }
+
+        void markDirty(uint32_t bufferIndex)
+        {
+            updateCnts[bufferIndex] = MAX_FRAMES_IN_FLIGHT;
+        }
     };
 }
 
