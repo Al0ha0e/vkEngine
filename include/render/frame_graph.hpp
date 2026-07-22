@@ -349,6 +349,9 @@ namespace vke_render
 
         ~FrameGraph()
         {
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            cleanupProfiler();
+#endif
             cleanupTransientResources();
             for (int i = 1; i < TASK_TYPE_CNT - 1; i++)
                 if (RenderEnvironment::HasQueue(QueueType(i)))
@@ -551,6 +554,9 @@ namespace vke_render
         void Sync(const uint32_t currentFrame);
         void PrepareForExecute(const uint32_t currentFrame);
         void Execute(const uint32_t currentFrame, const uint32_t imageIndex);
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+        void LogProfile(const uint32_t currentFrame);
+#endif
 
     private:
         uint32_t framesInFlight;
@@ -573,6 +579,40 @@ namespace vke_render
         std::unordered_map<vke_ds::id32_t, TransientMemoryAllocation> transientMemoryAllocationMap;
         uint32_t transientMemoryUpdateCnt;
         std::vector<std::unique_ptr<std::atomic<bool>>> cpuSemaphores;
+
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+        static constexpr uint32_t PROFILE_QUERY_COUNT_PER_TASK = 4;
+        static constexpr uint32_t PROFILE_MAX_TASKS_PER_QUEUE = 256;
+        static constexpr uint32_t PROFILE_QUERY_POOL_SIZE = PROFILE_QUERY_COUNT_PER_TASK * PROFILE_MAX_TASKS_PER_QUEUE;
+
+        struct TaskProfile
+        {
+            vke_ds::id32_t taskID;
+            std::string name;
+            TaskType actualTaskType;
+            uint32_t queryIndex;
+            double cpuRecordMs;
+            bool hasGpuTimestamps;
+            bool hasPreBarrier;
+            bool hasPostBarrier;
+        };
+
+        struct FrameProfile
+        {
+            uint64_t frameNumber = 0;
+            bool pending = false;
+            std::vector<TaskProfile> tasks;
+        };
+
+        VkQueryPool profileQueryPools[TASK_TYPE_CNT - 1][MAX_FRAMES_IN_FLIGHT]{};
+        uint32_t profileTimestampValidBits[TASK_TYPE_CNT - 1]{};
+        FrameProfile frameProfiles[MAX_FRAMES_IN_FLIGHT];
+        uint64_t profileFrameNumber = 0;
+
+        void initProfiler();
+        void cleanupProfiler();
+        double timestampDeltaMs(TaskType taskType, uint64_t begin, uint64_t end) const;
+#endif
 
         void init();
         void ensureTaskSemaphore(const uint32_t currentFrame, TaskNode &taskNode);

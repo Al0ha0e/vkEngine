@@ -1,6 +1,9 @@
 #include <render/frame_graph.hpp>
 #include <logger.hpp>
 #include <algorithm>
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+#include <chrono>
+#endif
 
 namespace vke_render
 {
@@ -32,6 +35,10 @@ namespace vke_render
 
         for (int j = 0; j < framesInFlight; j++)
             semaphorePools[j] = std::make_unique<SemaphorePool>();
+
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+        initProfiler();
+#endif
     }
 
     void FrameGraph::ensureTaskSemaphore(const uint32_t currentFrame, TaskNode &taskNode)
@@ -715,6 +722,15 @@ namespace vke_render
         for (auto taskID : orderedTasks)
             taskNodes[taskID]->ResetCurrentSemaphore();
 
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+        FrameProfile &frameProfile = frameProfiles[currentFrame];
+        frameProfile.frameNumber = profileFrameNumber++;
+        frameProfile.pending = false;
+        frameProfile.tasks.clear();
+        frameProfile.tasks.reserve(orderedTasks.size());
+        uint32_t profileTaskCounts[TASK_TYPE_CNT - 1]{};
+#endif
+
         VkCommandBuffer commandBuffers[TASK_TYPE_CNT] = {nullptr, nullptr, nullptr, nullptr};
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -726,6 +742,11 @@ namespace vke_render
                 commandPool->Reset();
                 commandPool->PreAllocateCommandBuffer(submitCntEstimates[i]);
                 commandBuffers[i] = commandPool->AllocateAndBegin(&beginInfo);
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+                if (i != CPU_TASK && profileQueryPools[i][currentFrame] != VK_NULL_HANDLE)
+                    vkCmdResetQueryPool(commandBuffers[i], profileQueryPools[i][currentFrame],
+                                        0, PROFILE_QUERY_POOL_SIZE);
+#endif
             }
         VKE_LOG_DEBUG("---------------------EXE-------------------")
         uint32_t actualSubmitCnts[TASK_TYPE_CNT] = {0, 0, 0, 0};
@@ -763,6 +784,23 @@ namespace vke_render
             TaskType actualTaskType = taskNode.actualTaskType;
             bool needQueueSubmit = taskNode.isFinalTask;
             VkCommandBuffer commandBuffer = commandBuffers[actualTaskType];
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            const bool profileTask = actualTaskType != CPU_TASK;
+            const bool hasGpuTimestamps = profileTask &&
+                                          profileQueryPools[actualTaskType][currentFrame] != VK_NULL_HANDLE;
+            uint32_t profileQueryIndex = 0;
+            std::chrono::steady_clock::time_point cpuRecordBegin;
+            if (profileTask)
+            {
+                cpuRecordBegin = std::chrono::steady_clock::now();
+                if (hasGpuTimestamps)
+                {
+                    VKE_FATAL_IF(profileTaskCounts[actualTaskType] >= PROFILE_MAX_TASKS_PER_QUEUE,
+                                 "too many FrameGraph tasks for profile query pool")
+                    profileQueryIndex = profileTaskCounts[actualTaskType]++ * PROFILE_QUERY_COUNT_PER_TASK;
+                }
+            }
+#endif
             VKE_LOG_DEBUG("-----------TASK <{}> TYPE {} ACTUAL {}", taskNode.name, (uint32_t)taskNode.taskType, (uint32_t)actualTaskType)
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
@@ -774,10 +812,26 @@ namespace vke_render
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
             dependencyInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
             dependencyInfo.pImageMemoryBarriers = imageMemoryBarriers.data();
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            const bool hasPreBarrier = dependencyInfo.bufferMemoryBarrierCount > 0 || dependencyInfo.imageMemoryBarrierCount > 0;
+            if (hasGpuTimestamps)
+                vkCmdWriteTimestamp2(commandBuffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                     profileQueryPools[actualTaskType][currentFrame], profileQueryIndex);
+#endif
             if (dependencyInfo.bufferMemoryBarrierCount > 0 || dependencyInfo.imageMemoryBarrierCount > 0)
                 vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
 
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            if (hasGpuTimestamps)
+                vkCmdWriteTimestamp2(commandBuffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                     profileQueryPools[actualTaskType][currentFrame], profileQueryIndex + 1);
+#endif
             taskNode.executeCallback(taskNode, *this, commandBuffer, currentFrame, imageIndex);
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            if (hasGpuTimestamps)
+                vkCmdWriteTimestamp2(commandBuffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                     profileQueryPools[actualTaskType][currentFrame], profileQueryIndex + 2);
+#endif
 
             bufferMemoryBarriers.clear();
             imageMemoryBarriers.clear();
@@ -815,8 +869,29 @@ namespace vke_render
             dependencyInfo.pBufferMemoryBarriers = bufferMemoryBarriers.data();
             dependencyInfo.imageMemoryBarrierCount = imageMemoryBarriers.size();
             dependencyInfo.pImageMemoryBarriers = imageMemoryBarriers.data();
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            const bool hasPostBarrier = dependencyInfo.bufferMemoryBarrierCount > 0 || dependencyInfo.imageMemoryBarrierCount > 0;
+#endif
             if (dependencyInfo.bufferMemoryBarrierCount > 0 || dependencyInfo.imageMemoryBarrierCount > 0)
                 vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+            if (profileTask)
+            {
+                if (hasGpuTimestamps)
+                    vkCmdWriteTimestamp2(commandBuffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                                         profileQueryPools[actualTaskType][currentFrame], profileQueryIndex + 3);
+                const auto cpuRecordEnd = std::chrono::steady_clock::now();
+                frameProfile.tasks.push_back(TaskProfile{
+                    .taskID = taskNode.taskID,
+                    .name = taskNode.name,
+                    .actualTaskType = actualTaskType,
+                    .queryIndex = profileQueryIndex,
+                    .cpuRecordMs = std::chrono::duration<double, std::milli>(cpuRecordEnd - cpuRecordBegin).count(),
+                    .hasGpuTimestamps = hasGpuTimestamps,
+                    .hasPreBarrier = hasPreBarrier,
+                    .hasPostBarrier = hasPostBarrier});
+            }
+#endif
 
             if (needQueueSubmit)
             {
@@ -885,5 +960,8 @@ namespace vke_render
         for (auto &[id, resource] : resources)
             if (resource->isTransient || resource->framesInFlight)
                 resource->ResetPrev();
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+        frameProfile.pending = !frameProfile.tasks.empty();
+#endif
     }
 }

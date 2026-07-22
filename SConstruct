@@ -23,6 +23,9 @@ selflibs = GetFileWithExt("./libs", ".lib")
 print(dlls)
 print(selflibs)
 
+DEBUG = False
+ENABLE_FRAME_GRAPH_PROFILING = True
+
 ######################### CodeGen ######################
 
 files_need_reflect = ["game_config.hpp"]
@@ -40,7 +43,6 @@ USE_AVX = True
 USE_FMADD = False
 CROSS_PLATFORM_DETERMINISTIC = True
 OBJECT_LAYER_BITS = 32
-DEBUG = False
 
 jolt_ccflags = []
 
@@ -125,6 +127,8 @@ cpppath = [
 ]
 cpppath.append("./third_party/freetype/include")
 cppdefines = ["JSON_NOEXCEPTION", "SPDLOG_NO_EXCEPTIONS"]
+if ENABLE_FRAME_GRAPH_PROFILING:
+    cppdefines.append("VKE_ENABLE_FRAME_GRAPH_PROFILING")
 if DEBUG:
     cppdefines.append("VKE_DEBUG")
 else:
@@ -160,6 +164,7 @@ commonsrc = (
         "./src/render/layered_2d.cpp",
         "./src/render/render.cpp",
         "./src/render/frame_graph.cpp",
+        "./src/render/profile.cpp",
         "./src/render/queue.cpp",
         "./src/editor/wireframe_collision_pass.cpp",
         "./src/spatial_2d.cpp",

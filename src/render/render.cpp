@@ -105,6 +105,9 @@ namespace vke_render
         uint32_t imageIndex = context->AcquireNextImage(currentFrame);
 
         frameGraph->Sync(currentFrame);
+#ifdef VKE_ENABLE_FRAME_GRAPH_PROFILING
+        frameGraph->LogProfile(currentFrame);
+#endif
 
         bool cameraUpdated = cameraInfoUpdateCnt > 0;
         if (cameraUpdated)
