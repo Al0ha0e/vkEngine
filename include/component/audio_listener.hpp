@@ -6,6 +6,19 @@
 
 namespace vke_component
 {
+    struct AudioListenerData
+    {
+        bool enabled = true;
+
+        AudioListenerData() = default;
+        AudioListenerData(const nlohmann::json &json) : enabled(json.value("enabled", true)) {}
+
+        nlohmann::json ToJSON() const
+        {
+            return {{"type", "audioListener"}, {"enabled", enabled}};
+        }
+    };
+
     class AudioListener
     {
     public:
@@ -16,12 +29,14 @@ namespace vke_component
 
         AudioListener() = default;
 
-        AudioListener(const nlohmann::json &json)
+        AudioListener(const AudioListenerData &componentData) : enabled(componentData.enabled) {}
+
+        void FillData(AudioListenerData &data) const
         {
-            enabled = json.value("enabled", true);
+            data.enabled = enabled;
         }
 
-        void LoadToEngine(uint32_t entity)
+        void LoadToEngine()
         {
             listenerLoaded = true;
         }
@@ -29,13 +44,6 @@ namespace vke_component
         void UnloadFromEngine()
         {
             listenerLoaded = false;
-        }
-
-        nlohmann::json ToJSON()
-        {
-            return {
-                {"type", "audioListener"},
-                {"enabled", enabled}};
         }
     };
 }

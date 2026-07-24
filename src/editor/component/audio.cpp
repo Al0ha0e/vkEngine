@@ -15,8 +15,7 @@ namespace vke_editor
 
     static void SetAudioClip(vke_component::AudioSource &source,
                              vke_common::AssetHandle handle,
-                             bool loaded,
-                             uint32_t entity)
+                             bool loaded)
     {
         if (loaded)
             source.UnloadFromEngine();
@@ -24,7 +23,7 @@ namespace vke_editor
         source.clip = handle == 0 ? nullptr : vke_common::AssetManager::LoadAudioClip(handle);
 
         if (loaded && source.clip && source.clip->IsValid())
-            source.LoadToEngine(entity);
+            source.LoadToEngine();
     }
 
     void Editor::drawAudioSourceComponent(vke_common::Scene *scene)
@@ -39,7 +38,6 @@ namespace vke_editor
         vke_component::AudioSource &source =
             scene->registry.get<vke_component::AudioSource>(selectedEntity);
         const bool loaded = scene->loadedToEngine;
-        const uint32_t entity = static_cast<uint32_t>(selectedEntity);
         const vke_common::AssetHandle clipHandle = source.clip ? source.clip->handle : 0;
         const vke_common::AudioClipAsset *clipAsset =
             vke_common::AssetManager::GetAudioClipAsset(clipHandle);
@@ -49,7 +47,7 @@ namespace vke_editor
         if (ImGui::BeginCombo("Clip", selectedClip.c_str()))
         {
             if (ImGui::Selectable("0  <none>", clipHandle == 0))
-                SetAudioClip(source, 0, loaded, entity);
+                SetAudioClip(source, 0, loaded);
 
             vke_common::AssetManager::IterateAudioClipAsset(
                 [&](const vke_common::AudioClipAsset &asset)
@@ -57,7 +55,7 @@ namespace vke_editor
                     const bool selected = asset.id == clipHandle;
                     const std::string label = std::to_string(asset.id) + "  " + asset.name;
                     if (ImGui::Selectable(label.c_str(), selected))
-                        SetAudioClip(source, asset.id, loaded, entity);
+                        SetAudioClip(source, asset.id, loaded);
                     if (selected)
                         ImGui::SetItemDefaultFocus();
                 });

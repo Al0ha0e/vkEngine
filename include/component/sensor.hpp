@@ -6,6 +6,29 @@
 
 namespace vke_component
 {
+    struct SensorData
+    {
+        vke_physics::PhyscisShapeData shape;
+        bool isStatic;
+        JPH::EMotionQuality motionQuality = JPH::EMotionQuality::Discrete;
+        JPH::ObjectLayer layer;
+
+        SensorData() = default;
+        SensorData(const nlohmann::json &json)
+            : shape(json["shape"]),
+              isStatic(json.value("isStatic", true)),
+              motionQuality(json.value("motionQuality", JPH::EMotionQuality::Discrete)),
+              layer(json["layer"]) {}
+        nlohmann::json ToJSON() const
+        {
+            return {{"type", "sensor"},
+                    {"isStatic", isStatic},
+                    {"motionQuality", motionQuality},
+                    {"layer", (int)layer},
+                    {"shape", shape.ToJSON()}};
+        }
+    };
+
     class Sensor
     {
     public:
@@ -23,16 +46,24 @@ namespace vke_component
         }
 
         Sensor(const vke_common::Transform &transform,
-               const nlohmann::json &json)
-            : shape(new vke_physics::PhyscisShape(json["shape"]))
+               const SensorData &componentData)
+            : shape(std::make_shared<vke_physics::PhyscisShape>(componentData.shape))
         {
-            init(transform, json.value("isStatic", true), json["layer"]);
-            settings.mMotionQuality = json.value("motionQuality", JPH::EMotionQuality::Discrete);
+            init(transform, componentData.isStatic, componentData.layer);
+            settings.mMotionQuality = componentData.motionQuality;
         }
 
         ~Sensor() {}
 
-        void LoadToEngine(uint32_t entity = 0)
+        void FillData(SensorData &data) const
+        {
+            data.isStatic = settings.mMotionType == JPH::EMotionType::Static;
+            data.motionQuality = settings.mMotionQuality;
+            data.layer = settings.mObjectLayer;
+            shape->FillData(data.shape);
+        }
+
+        void LoadToEngine(entt::entity entity)
         {
             settings.mUserData = static_cast<uint64_t>(entity);
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
@@ -44,16 +75,6 @@ namespace vke_component
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
-        }
-
-        nlohmann::json ToJSON()
-        {
-            return {
-                {"type", "sensor"},
-                {"isStatic", settings.mMotionType == JPH::EMotionType::Static},
-                {"motionQuality", settings.mMotionQuality},
-                {"layer", (int)settings.mObjectLayer},
-                {"shape", shape->ToJSON()}};
         }
 
         void OnTransformed(vke_common::Transform &param)

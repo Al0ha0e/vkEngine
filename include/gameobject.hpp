@@ -1,8 +1,8 @@
 #ifndef GAMEOBJECT_H
 #define GAMEOBJECT_H
 
-#include <nlohmann/json.hpp>
 #include <ds/id_allocator.hpp>
+#include <string>
 
 namespace vke_common
 {
@@ -17,23 +17,10 @@ namespace vke_common
         GameObject(const GameObject &) = delete;
         GameObject &operator=(const GameObject &) = delete;
 
-        GameObject(const nlohmann::json &json)
-            : id(json["id"]), layer(json["layer"]), isStatic(json["static"]), name(json["name"]) {}
-
         GameObject(vke_ds::id32_t id, std::string &name, int layer, bool isStatic)
             : id(id), layer(layer), isStatic(isStatic), name(name) {}
 
         ~GameObject() {}
-
-        nlohmann::json ToJSON()
-        {
-            nlohmann::json ret;
-            ret["id"] = id;
-            ret["static"] = isStatic;
-            ret["name"] = name;
-            ret["layer"] = layer;
-            return ret;
-        }
     };
 }
 

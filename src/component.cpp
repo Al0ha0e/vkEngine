@@ -99,64 +99,63 @@ namespace vke_common
         }
     }
 
-    void Scene::loadComponent(const vke_ds::id32_t id, const entt::entity entity,
-                              const nlohmann::json &component)
+    void SceneData::loadComponent(const entt::entity entity,
+                                  const nlohmann::json &component)
     {
-        Transform &transform = registry.get<Transform>(entity);
-
         std::string type = component["type"];
         if (type == "camera")
         {
-            registry.emplace<vke_component::Camera>(entity, transform, component);
+            registry.emplace<vke_component::CameraData>(entity, component);
         }
         else if (type == "renderableObject")
         {
-            registry.emplace<vke_component::RenderableObject>(entity, transform, component);
+            registry.emplace<vke_component::RenderableObjectData>(entity, component);
         }
         else if (type == "uiText")
         {
-            registry.emplace<vke_component::UIText>(entity, transform, component);
+            registry.emplace<vke_component::UITextData>(entity, component);
         }
         else if (type == "animator")
         {
-            registry.emplace<vke_component::SkeletonAnimator>(entity, transform, component);
+            registry.emplace<vke_component::SkeletonAnimatorData>(entity, component);
         }
         else if (type == "rigidbody")
         {
-            registry.emplace<vke_component::RigidBody>(entity, transform, component);
+            registry.emplace<vke_component::RigidBodyData>(entity, component);
         }
         else if (type == "sensor")
         {
-            registry.emplace<vke_component::Sensor>(entity, transform, component);
+            registry.emplace<vke_component::SensorData>(entity, component);
         }
         else if (type == "characterController")
         {
-            registry.emplace<vke_component::CharacterController>(entity, transform, component);
+            registry.emplace<vke_component::CharacterControllerData>(entity, component);
         }
         else if (type == "audioSource")
         {
-            registry.emplace<vke_component::AudioSource>(entity, component);
+            registry.emplace<vke_component::AudioSourceData>(entity, component);
         }
         else if (type == "audioListener")
         {
-            registry.emplace<vke_component::AudioListener>(entity, component);
+            registry.emplace<vke_component::AudioListenerData>(entity, component);
         }
         else if (type == "directionalLight")
         {
-            registry.emplace<vke_component::DirectionalLight>(entity, transform, component);
+            registry.emplace<vke_component::DirectionalLightData>(entity, component);
         }
         else if (type == "pointLight")
         {
-            registry.emplace<vke_component::PointLight>(entity, transform, component);
+            registry.emplace<vke_component::PointLightData>(entity, component);
         }
         else if (type == "spotLight")
         {
-            registry.emplace<vke_component::SpotLight>(entity, transform, component);
+            registry.emplace<vke_component::SpotLightData>(entity, component);
         }
         else if (type == "script")
         {
-            vke_component::ScriptState scriptState(component);
-            csharpScriptStates[entity].emplace(scriptState.className, std::move(scriptState));
+            if (!registry.all_of<ScriptDataList>(entity))
+                registry.emplace<ScriptDataList>(entity);
+            registry.get<ScriptDataList>(entity).emplace_back(component);
         }
     }
 
@@ -182,11 +181,11 @@ namespace vke_common
         case ComponentType::CharacterController:
             return registry.all_of<vke_component::CharacterController>(entity);
         case ComponentType::DirectionalLight:
-            return vke_render::Renderer::GetInstance()->lightManager->HasLight<vke_render::DirectionalLight>(entity);
+            return registry.all_of<vke_component::DirectionalLight>(entity);
         case ComponentType::PointLight:
-            return vke_render::Renderer::GetInstance()->lightManager->HasLight<vke_render::PointLight>(entity);
+            return registry.all_of<vke_component::PointLight>(entity);
         case ComponentType::SpotLight:
-            return vke_render::Renderer::GetInstance()->lightManager->HasLight<vke_render::SpotLight>(entity);
+            return registry.all_of<vke_component::SpotLight>(entity);
         case ComponentType::Script:
             return csharpScriptStates.find(entity) != csharpScriptStates.end();
         case ComponentType::UIText:
@@ -200,52 +199,48 @@ namespace vke_common
         }
     }
 
-    void Scene::componentToJSON(const vke_ds::id32_t id, nlohmann::json &components)
+    void SceneData::componentToJSON(entt::entity entity, nlohmann::json &components) const
     {
-        const entt::entity entity = idToEntity[id];
+        if (registry.all_of<vke_component::CameraData>(entity))
+            components.push_back(registry.get<vke_component::CameraData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::Camera>(entity))
-            components.push_back(registry.get<vke_component::Camera>(entity).ToJSON());
+        if (registry.all_of<vke_component::RenderableObjectData>(entity))
+            components.push_back(registry.get<vke_component::RenderableObjectData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::RenderableObject>(entity))
-            components.push_back(registry.get<vke_component::RenderableObject>(entity).ToJSON());
+        if (registry.all_of<vke_component::UITextData>(entity))
+            components.push_back(registry.get<vke_component::UITextData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::UIText>(entity))
-            components.push_back(registry.get<vke_component::UIText>(entity).ToJSON());
+        if (registry.all_of<vke_component::SkeletonAnimatorData>(entity))
+            components.push_back(registry.get<vke_component::SkeletonAnimatorData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::SkeletonAnimator>(entity))
-            components.push_back(registry.get<vke_component::SkeletonAnimator>(entity).ToJSON());
+        if (registry.all_of<vke_component::RigidBodyData>(entity))
+            components.push_back(registry.get<vke_component::RigidBodyData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::RigidBody>(entity))
-            components.push_back(registry.get<vke_component::RigidBody>(entity).ToJSON());
+        if (registry.all_of<vke_component::SensorData>(entity))
+            components.push_back(registry.get<vke_component::SensorData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::Sensor>(entity))
-            components.push_back(registry.get<vke_component::Sensor>(entity).ToJSON());
+        if (registry.all_of<vke_component::CharacterControllerData>(entity))
+            components.push_back(registry.get<vke_component::CharacterControllerData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::CharacterController>(entity))
-            components.push_back(registry.get<vke_component::CharacterController>(entity).ToJSON());
+        if (registry.all_of<vke_component::AudioSourceData>(entity))
+            components.push_back(registry.get<vke_component::AudioSourceData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::AudioSource>(entity))
-            components.push_back(registry.get<vke_component::AudioSource>(entity).ToJSON());
+        if (registry.all_of<vke_component::AudioListenerData>(entity))
+            components.push_back(registry.get<vke_component::AudioListenerData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::AudioListener>(entity))
-            components.push_back(registry.get<vke_component::AudioListener>(entity).ToJSON());
+        if (registry.all_of<vke_component::DirectionalLightData>(entity))
+            components.push_back(registry.get<vke_component::DirectionalLightData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::DirectionalLight>(entity))
-            components.push_back(registry.get<vke_component::DirectionalLight>(entity).ToJSON());
+        if (registry.all_of<vke_component::PointLightData>(entity))
+            components.push_back(registry.get<vke_component::PointLightData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::PointLight>(entity))
-            components.push_back(registry.get<vke_component::PointLight>(entity).ToJSON());
+        if (registry.all_of<vke_component::SpotLightData>(entity))
+            components.push_back(registry.get<vke_component::SpotLightData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::SpotLight>(entity))
-            components.push_back(registry.get<vke_component::SpotLight>(entity).ToJSON());
-
-        auto scriptIt = csharpScriptStates.find(entity);
-        if (scriptIt != csharpScriptStates.end())
-        {
-            for (const auto &[className, scriptState] : scriptIt->second)
-                components.push_back(scriptState.ToJSON());
-        }
+        if (registry.all_of<ScriptDataList>(entity))
+            for (const vke_component::ScriptStateData &script :
+                 registry.get<ScriptDataList>(entity))
+                components.push_back(script.ToJSON());
     }
 
 }

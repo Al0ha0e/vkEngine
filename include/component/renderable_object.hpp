@@ -8,6 +8,32 @@
 
 namespace vke_component
 {
+    struct RenderableObjectData
+    {
+        std::shared_ptr<vke_render::Material> material;
+        std::shared_ptr<const vke_render::Mesh> mesh;
+        std::vector<glm::ivec4> textureIndices;
+        bool castsShadow = true;
+
+        RenderableObjectData() = default;
+        RenderableObjectData(const nlohmann::json &json)
+            : material(vke_common::AssetManager::LoadMaterial(json["material"])),
+              mesh(vke_common::AssetManager::LoadMesh(json["mesh"])),
+              castsShadow(json.value("castsShadow", true))
+        {
+            if (json.contains("textureIndices"))
+                for (const auto &index : json["textureIndices"])
+                    textureIndices.emplace_back(index[0].get<int>(), index[1].get<int>(), index[2].get<int>(), 0);
+        }
+        nlohmann::json ToJSON() const
+        {
+            nlohmann::json indices = nlohmann::json::array();
+            for (const glm::ivec4 &index : textureIndices)
+                indices.push_back({index.x, index.y, index.z});
+            return {{"type", "renderableObject"}, {"material", material->handle}, {"mesh", mesh->handle}, {"textureIndices", indices}, {"castsShadow", castsShadow}};
+        }
+    };
+
     class RenderableObject
     {
     public:
@@ -26,21 +52,24 @@ namespace vke_component
             init(transform, mesh);
         }
 
-        RenderableObject(const vke_common::Transform &transform, const nlohmann::json &json)
-            : castsShadow(json.contains("castsShadow") ? json["castsShadow"].get<bool>() : true), renderID(0), shadowRenderID(0)
+        RenderableObject(const vke_common::Transform &transform, const RenderableObjectData &componentData)
+            : material(componentData.material),
+              textureIndices(componentData.textureIndices), castsShadow(componentData.castsShadow),
+              renderID(0), shadowRenderID(0)
         {
-            material = vke_common::AssetManager::LoadMaterial(json["material"]);
-            std::shared_ptr<const vke_render::Mesh> mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
-            if (json.contains("textureIndices"))
-            {
-                auto &indices = json["textureIndices"];
-                for (auto &index : indices)
-                    textureIndices.push_back(glm::ivec4(index[0].get<int>(), index[1].get<int>(), index[2].get<int>(), 0));
-            }
+            auto mesh = componentData.mesh;
             init(transform, mesh);
         }
 
         ~RenderableObject() {}
+
+        void FillData(RenderableObjectData &data) const
+        {
+            data.material = material;
+            data.mesh = renderUnit->mesh;
+            data.textureIndices = textureIndices;
+            data.castsShadow = castsShadow;
+        }
 
         void LoadToEngine()
         {
@@ -104,16 +133,6 @@ namespace vke_component
                 renderUnit->mesh = mesh;
             if (shadowRenderUnit != nullptr)
                 shadowRenderUnit->mesh = mesh;
-        }
-
-        nlohmann::json ToJSON()
-        {
-            nlohmann::json ret = {
-                {"type", "renderableObject"},
-                {"material", material->handle},
-                {"mesh", renderUnit->mesh->handle},
-                {"castsShadow", castsShadow}};
-            return ret;
         }
 
     private:

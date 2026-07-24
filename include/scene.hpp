@@ -25,6 +25,26 @@
 
 namespace vke_common
 {
+    struct SceneData
+    {
+        using ScriptDataList = std::vector<vke_component::ScriptStateData>;
+
+        std::vector<std::string> layers{"default", "editor"};
+        vke_ds::id32_t maxID = 1;
+        entt::registry registry;
+        std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
+        std::unordered_map<entt::entity, entt::entity> parents;
+
+        SceneData() = default;
+        SceneData(const nlohmann::json &json);
+
+        nlohmann::json ToJSON() const;
+
+    private:
+        void loadComponent(entt::entity entity, const nlohmann::json &component);
+        void componentToJSON(entt::entity entity, nlohmann::json &components) const;
+    };
+
     class Scene
     {
     public:
@@ -35,7 +55,7 @@ namespace vke_common
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
         bool loadedToEngine;
         SceneTransformSystem transformSystem;
-        std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptState>> csharpScriptStates;
+        std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptStateData>> csharpScriptStates;
 
         Scene(const Scene &) = delete;
         Scene &operator=(const Scene &) = delete;
@@ -47,30 +67,28 @@ namespace vke_common
               idAllocator(1),
               physicsUpdateListenerID(0), initialized(true) {}
 
-        Scene(const nlohmann::json &json)
+        Scene(const SceneData &data)
             : registry(), idToEntity(),
               loadedToEngine(false), transformSystem(registry, idToEntity),
-              idAllocator(json["maxid"]),
+              idAllocator(data.maxID),
               physicsUpdateListenerID(0), initialized(false)
         {
-            init(json);
+            init(data);
             initialized = true;
         }
 
-        Scene(const std::string &pth, const nlohmann::json &json)
+        Scene(const std::string &pth, const SceneData &data)
             : path(pth),
               registry(), idToEntity(),
               loadedToEngine(false), transformSystem(registry, idToEntity),
-              idAllocator(json["maxid"]),
+              idAllocator(data.maxID),
               physicsUpdateListenerID(0), initialized(false)
         {
-            init(json);
+            init(data);
             initialized = true;
         }
 
         ~Scene() {}
-
-        nlohmann::json ToJSON();
 
         void LoadToEngine()
         {
@@ -90,17 +108,13 @@ namespace vke_common
             loadView.operator()<vke_component::UIText>();
             auto rigidBodyView = registry.view<vke_component::RigidBody>();
             for (auto entity : rigidBodyView)
-                rigidBodyView.get<vke_component::RigidBody>(entity).LoadToEngine(static_cast<uint32_t>(entity));
+                rigidBodyView.get<vke_component::RigidBody>(entity).LoadToEngine(entity);
             auto sensorView = registry.view<vke_component::Sensor>();
             for (auto entity : sensorView)
-                sensorView.get<vke_component::Sensor>(entity).LoadToEngine(static_cast<uint32_t>(entity));
+                sensorView.get<vke_component::Sensor>(entity).LoadToEngine(entity);
             loadView.operator()<vke_component::CharacterController>();
-            auto audioSrcView = registry.view<vke_component::AudioSource>();
-            for (auto entity : audioSrcView)
-                audioSrcView.get<vke_component::AudioSource>(entity).LoadToEngine(static_cast<uint32_t>(entity));
-            auto audioLisView = registry.view<vke_component::AudioListener>();
-            for (auto entity : audioLisView)
-                audioLisView.get<vke_component::AudioListener>(entity).LoadToEngine(static_cast<uint32_t>(entity));
+            loadView.operator()<vke_component::AudioSource>();
+            loadView.operator()<vke_component::AudioListener>();
 
             auto directionalLightView = registry.view<vke_component::DirectionalLight>();
             for (auto entity : directionalLightView)
@@ -182,6 +196,8 @@ namespace vke_common
             return entity;
         }
 
+        void FillData(SceneData &data) const;
+
         void RemoveObject(entt::entity entity)
         {
             if (!registry.valid(entity))
@@ -208,10 +224,7 @@ namespace vke_common
         vke_ds::id32_t physicsUpdateListenerID;
         bool initialized;
 
-        void init(const nlohmann::json &json);
-        void loadComponent(const vke_ds::id32_t id, const entt::entity entity,
-                           const nlohmann::json &component);
-        void componentToJSON(const vke_ds::id32_t id, nlohmann::json &json);
+        void init(const SceneData &data);
         void unloadEntityFromEngine(entt::entity entity);
 
         static void physicsUpdateCallback(void *self, void *info);
@@ -259,15 +272,18 @@ namespace vke_common
         static std::unique_ptr<Scene> LoadScene(const std::string &pth) // load scene data only, not load to engine
         {
             nlohmann::json json(vke_common::LoadJSON(pth));
-            return std::make_unique<Scene>(pth, json);
+            SceneData data(json);
+            return std::make_unique<Scene>(pth, data);
         }
 
         static void SaveScene(const std::string &pth)
         {
             if (instance->currentScene != nullptr)
             {
+                SceneData data;
+                instance->currentScene->FillData(data);
                 std::ofstream ofs(pth);
-                ofs << instance->currentScene->ToJSON().dump(4);
+                ofs << data.ToJSON().dump(4);
                 ofs.close();
             }
         }

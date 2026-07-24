@@ -14,6 +14,31 @@
 
 namespace vke_component
 {
+    struct CameraData
+    {
+        float fovRadians;
+        float width;
+        float height;
+        float aspect;
+        float nearPlane;
+        float farPlane;
+
+        CameraData() = default;
+        CameraData(const nlohmann::json &json)
+            : fovRadians(glm::radians(json["fov"].get<float>())),
+              width(json["width"]), height(json["height"]), aspect(width / height),
+              nearPlane(json["near"]), farPlane(json["far"]) {}
+        nlohmann::json ToJSON() const
+        {
+            return {{"type", "camera"},
+                    {"fov", glm::degrees(fovRadians)},
+                    {"width", width},
+                    {"height", height},
+                    {"near", nearPlane},
+                    {"far", farPlane}};
+        }
+    };
+
     class Camera // TODO only CameraInfo in renderer
     {
     public:
@@ -25,20 +50,32 @@ namespace vke_component
         Camera(const vke_common::Transform &transform,
                float fov, float width, float height,
                float near, float far)
-            : id(0), resizeListenerID(0), width(width), height(height),
-              cameraInfo(near, far, glm::radians(fov), width / height)
+            : id(0), cameraInfo(near, far, glm::radians(fov), width / height),
+              width(width), height(height), resizeListenerID(0)
         {
             init(transform);
         }
 
-        Camera(const vke_common::Transform &transform, const nlohmann::json &json)
-            : id(0), resizeListenerID(0), width(json["width"]), height(json["height"]),
-              cameraInfo(json["near"], json["far"], glm::radians((float)json["fov"]), width / height)
+        Camera(const vke_common::Transform &transform, const CameraData &componentData)
+            : id(0),
+              cameraInfo(componentData.nearPlane, componentData.farPlane,
+                         componentData.fovRadians, componentData.aspect),
+              width(componentData.width), height(componentData.height), resizeListenerID(0)
         {
             init(transform);
         }
 
         ~Camera() {}
+
+        void FillData(CameraData &data) const
+        {
+            data.fovRadians = cameraInfo.fov;
+            data.width = width;
+            data.height = height;
+            data.aspect = cameraInfo.aspect;
+            data.nearPlane = cameraInfo.near;
+            data.farPlane = cameraInfo.far;
+        }
 
         void LoadToEngine()
         {
@@ -57,18 +94,6 @@ namespace vke_component
             renderer->resizeEventHub.RemoveEventListener(resizeListenerID);
         }
 
-        nlohmann::json ToJSON()
-        {
-            nlohmann::json ret = {
-                {"type", "camera"},
-                {"fov", glm::degrees(cameraInfo.fov)},
-                {"width", width},
-                {"height", height},
-                {"near", cameraInfo.near},
-                {"far", cameraInfo.far}};
-            return ret;
-        }
-
         void OnTransformed(vke_common::Transform &transform)
         {
             const glm::vec3 position = transform.GetGlobalPosition();
@@ -84,8 +109,8 @@ namespace vke_component
 
         void UpdateProjection(uint32_t w, uint32_t h)
         {
-            width = w;
-            height = h;
+            width = static_cast<float>(w);
+            height = static_cast<float>(h);
             cameraInfo.aspect = width / height;
             cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
             cameraInfo.projection[1][1] *= -1;

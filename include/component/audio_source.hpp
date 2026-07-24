@@ -13,9 +13,9 @@
 
 namespace vke_component
 {
-    class AudioSource
+    struct AudioSourceData
     {
-    public:
+        std::shared_ptr<vke_audio::AudioClip> clip;
         bool playOnStart = true;
         bool looping = false;
         float volume = 1.0f;
@@ -27,13 +27,9 @@ namespace vke_component
         float maxDistance = 100.0f;
         float dopplerFactor = 1.0f;
 
-        std::shared_ptr<vke_audio::AudioClip> clip;
-        ma_sound *sound = nullptr;
-        bool soundInitialized = false;
+        AudioSourceData() = default;
 
-        AudioSource() = default;
-
-        AudioSource(const nlohmann::json &json)
+        AudioSourceData(const nlohmann::json &json)
         {
             auto clipHandle = json.value("clip", 0);
             if (clipHandle != 0)
@@ -51,7 +47,72 @@ namespace vke_component
             dopplerFactor = json.value("dopplerFactor", 1.0f);
         }
 
-        void LoadToEngine(uint32_t entity)
+        nlohmann::json ToJSON() const
+        {
+            return {
+                {"type", "audioSource"},
+                {"clip", clip ? clip->handle : 0},
+                {"playOnStart", playOnStart},
+                {"looping", looping},
+                {"volume", volume},
+                {"pitch", pitch},
+                {"spatializationEnabled", spatializationEnabled},
+                {"attenuationModel", attenuationModel},
+                {"rolloff", rolloff},
+                {"minDistance", minDistance},
+                {"maxDistance", maxDistance},
+                {"dopplerFactor", dopplerFactor}};
+        }
+    };
+
+    class AudioSource
+    {
+    public:
+        std::shared_ptr<vke_audio::AudioClip> clip;
+        bool playOnStart = true;
+        bool looping = false;
+        float volume = 1.0f;
+        float pitch = 1.0f;
+        bool spatializationEnabled = true;
+        int attenuationModel = 1;
+        float rolloff = 1.0f;
+        float minDistance = 1.0f;
+        float maxDistance = 100.0f;
+        float dopplerFactor = 1.0f;
+        ma_sound *sound = nullptr;
+        bool soundInitialized = false;
+
+        AudioSource() = default;
+
+        AudioSource(const AudioSourceData &componentData)
+            : clip(componentData.clip),
+              playOnStart(componentData.playOnStart),
+              looping(componentData.looping),
+              volume(componentData.volume),
+              pitch(componentData.pitch),
+              spatializationEnabled(componentData.spatializationEnabled),
+              attenuationModel(componentData.attenuationModel),
+              rolloff(componentData.rolloff),
+              minDistance(componentData.minDistance),
+              maxDistance(componentData.maxDistance),
+              dopplerFactor(componentData.dopplerFactor) {}
+
+        void FillData(AudioSourceData &data) const
+        {
+            data.clip = clip;
+            data.playOnStart = playOnStart;
+            data.looping = looping;
+            data.volume = volume;
+            data.pitch = pitch;
+            data.spatializationEnabled = spatializationEnabled;
+            data.attenuationModel = attenuationModel;
+            data.rolloff = rolloff;
+            data.minDistance = minDistance;
+            data.maxDistance = maxDistance;
+            data.dopplerFactor = dopplerFactor;
+        }
+
+        void LoadToEngine()
         {
             if (soundInitialized)
                 return;
@@ -112,23 +173,6 @@ namespace vke_component
                 sound = nullptr;
                 soundInitialized = false;
             }
-        }
-
-        nlohmann::json ToJSON()
-        {
-            return {
-                {"type", "audioSource"},
-                {"clip", clip ? clip->handle : 0},
-                {"playOnStart", playOnStart},
-                {"looping", looping},
-                {"volume", volume},
-                {"pitch", pitch},
-                {"spatializationEnabled", spatializationEnabled},
-                {"attenuationModel", attenuationModel},
-                {"rolloff", rolloff},
-                {"minDistance", minDistance},
-                {"maxDistance", maxDistance},
-                {"dopplerFactor", dopplerFactor}};
         }
 
         void Play()

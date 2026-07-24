@@ -13,11 +13,6 @@ namespace vke_editor
     EditorStateManager *EditorStateManager::instance;
     Editor *Editor::instance = nullptr;
 
-    static inline glm::vec3 TransformForward(const vke_common::Transform &transform)
-    {
-        return transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
-    }
-
     static std::shared_ptr<vke_physics::PhyscisShape> CreateDefaultPhysicsBoxShape()
     {
         auto shape = std::make_shared<vke_physics::PhyscisShape>(vke_physics::PHYSICS_SHAPE_BOX);
@@ -456,12 +451,7 @@ namespace vke_editor
             !scene->registry.all_of<vke_common::Transform>(selectedEntity))
             return;
 
-        vke_render::LightManager *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
         const vke_common::Transform &transform = scene->registry.get<vke_common::Transform>(selectedEntity);
-        const glm::vec3 position = transform.GetGlobalPosition();
-        const glm::vec3 direction = glm::normalize(TransformForward(transform));
-        constexpr float defaultRadius = 5.0f;
-        const glm::vec4 defaultColor(1.0f, 1.0f, 1.0f, 1.0f);
 
         switch (componentType)
         {
@@ -488,7 +478,7 @@ namespace vke_editor
                 0.0f,
                 shape);
             if (scene->loadedToEngine)
-                body.LoadToEngine(static_cast<uint32_t>(selectedEntity));
+                body.LoadToEngine(selectedEntity);
             break;
         }
         case vke_common::ComponentType::Sensor:
@@ -501,7 +491,7 @@ namespace vke_editor
                 vke_physics::DefaultObjectLayers::NON_MOVING,
                 shape);
             if (scene->loadedToEngine)
-                sensor.LoadToEngine(static_cast<uint32_t>(selectedEntity));
+                sensor.LoadToEngine(selectedEntity);
             break;
         }
         case vke_common::ComponentType::AudioSource:
@@ -511,29 +501,47 @@ namespace vke_editor
         {
             auto &listener = scene->registry.emplace<vke_component::AudioListener>(selectedEntity);
             if (scene->loadedToEngine)
-                listener.LoadToEngine(static_cast<uint32_t>(selectedEntity));
+                listener.LoadToEngine();
             break;
         }
         case vke_common::ComponentType::DirectionalLight:
-            lightManager->AddLight<vke_render::DirectionalLight>(
-                selectedEntity,
-                glm::vec4(direction, 0.0f),
-                defaultColor);
+        {
+            vke_component::DirectionalLightData data;
+            data.color = glm::vec3(1.0f);
+            data.intensity = 1.0f;
+            auto &light = scene->registry.emplace<vke_component::DirectionalLight>(
+                selectedEntity, transform, data);
+            if (scene->loadedToEngine)
+                light.LoadToEngine(selectedEntity);
             break;
+        }
         case vke_common::ComponentType::PointLight:
-            lightManager->AddLight<vke_render::PointLight>(
-                selectedEntity,
-                glm::vec4(position, defaultRadius),
-                defaultColor);
+        {
+            vke_component::PointLightData data;
+            data.color = glm::vec3(1.0f);
+            data.radius = 5.0f;
+            data.intensity = 1.0f;
+            auto &light = scene->registry.emplace<vke_component::PointLight>(
+                selectedEntity, transform, data);
+            if (scene->loadedToEngine)
+                light.LoadToEngine(selectedEntity);
             break;
+        }
         case vke_common::ComponentType::SpotLight:
-            lightManager->AddLight<vke_render::SpotLight>(
-                selectedEntity,
-                glm::vec4(position, defaultRadius),
-                glm::vec4(direction, 0.0f),
-                defaultColor,
-                glm::vec4(glm::cos(glm::radians(15.0f)), glm::cos(glm::radians(30.0f)), 0.0f, 0.0f));
+        {
+            vke_component::SpotLightData data;
+            data.color = glm::vec3(1.0f);
+            data.radius = 5.0f;
+            data.intensity = 1.0f;
+            data.innerConeCos = glm::cos(glm::radians(15.0f));
+            data.outerConeCos = glm::cos(glm::radians(30.0f));
+            data.castShadow = false;
+            auto &light = scene->registry.emplace<vke_component::SpotLight>(
+                selectedEntity, transform, data);
+            if (scene->loadedToEngine)
+                light.LoadToEngine(selectedEntity);
             break;
+        }
         default:
             break;
         }

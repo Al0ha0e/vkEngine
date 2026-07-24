@@ -9,6 +9,45 @@
 
 namespace vke_component
 {
+    struct CharacterControllerData
+    {
+        vke_physics::PhyscisShapeData shape;
+        JPH::ObjectLayer layer;
+        float mass = 70.0f;
+        float maxStrength = 100.0f;
+        float maxSlopeAngleRadians = glm::radians(50.0f);
+        float predictiveContactDistance = 0.1f;
+        float characterPadding = 0.02f;
+        bool createInnerBody = true;
+
+        CharacterControllerData() = default;
+        CharacterControllerData(const nlohmann::json &json)
+            : shape(json["shape"]),
+              layer(json.value("layer", (int)vke_physics::DefaultObjectLayers::MOVING))
+        {
+            mass = json.value("mass", mass);
+            maxStrength = json.value("maxStrength", maxStrength);
+            maxSlopeAngleRadians =
+                glm::radians(json.value("maxSlopeAngle",
+                                        glm::degrees(maxSlopeAngleRadians)));
+            predictiveContactDistance = json.value("predictiveContactDistance", predictiveContactDistance);
+            characterPadding = json.value("characterPadding", characterPadding);
+            createInnerBody = json.value("createInnerBody", true);
+        }
+        nlohmann::json ToJSON() const
+        {
+            return {{"type", "characterController"},
+                    {"layer", (int)layer},
+                    {"mass", mass},
+                    {"maxStrength", maxStrength},
+                    {"maxSlopeAngle", glm::degrees(maxSlopeAngleRadians)},
+                    {"predictiveContactDistance", predictiveContactDistance},
+                    {"characterPadding", characterPadding},
+                    {"createInnerBody", createInnerBody},
+                    {"shape", shape.ToJSON()}};
+        }
+    };
+
     class CharacterController
     {
     public:
@@ -29,23 +68,35 @@ namespace vke_component
         }
 
         CharacterController(const vke_common::Transform &transform,
-                            const nlohmann::json &json)
-            : shape(new vke_physics::PhyscisShape(json["shape"])),
+                            const CharacterControllerData &componentData)
+            : shape(std::make_shared<vke_physics::PhyscisShape>(componentData.shape)),
               settings(new JPH::CharacterVirtualSettings()),
-              layer(json.value("layer", (int)vke_physics::DefaultObjectLayers::MOVING)),
+              layer(componentData.layer),
               desiredVelocity(JPH::Vec3::sZero()), verticalVelocity(0.0f)
         {
-            settings->mMass = json.value("mass", settings->mMass);
-            settings->mMaxStrength = json.value("maxStrength", settings->mMaxStrength);
-            settings->mMaxSlopeAngle = glm::radians(json.value("maxSlopeAngle", glm::degrees(settings->mMaxSlopeAngle)));
-            settings->mPredictiveContactDistance = json.value("predictiveContactDistance", settings->mPredictiveContactDistance);
-            settings->mCharacterPadding = json.value("characterPadding", settings->mCharacterPadding);
-            if (json.value("createInnerBody", true))
+            settings->mMass = componentData.mass;
+            settings->mMaxStrength = componentData.maxStrength;
+            settings->mMaxSlopeAngle = componentData.maxSlopeAngleRadians;
+            settings->mPredictiveContactDistance = componentData.predictiveContactDistance;
+            settings->mCharacterPadding = componentData.characterPadding;
+            if (componentData.createInnerBody)
                 settings->mInnerBodyShape = shape->shapeRef;
             init(transform);
         }
 
         ~CharacterController() {}
+
+        void FillData(CharacterControllerData &data) const
+        {
+            data.layer = layer;
+            data.mass = settings->mMass;
+            data.maxStrength = settings->mMaxStrength;
+            data.maxSlopeAngleRadians = settings->mMaxSlopeAngle;
+            data.predictiveContactDistance = settings->mPredictiveContactDistance;
+            data.characterPadding = settings->mCharacterPadding;
+            data.createInnerBody = settings->mInnerBodyShape != nullptr;
+            shape->FillData(data.shape);
+        }
 
         void LoadToEngine()
         {
@@ -108,21 +159,6 @@ namespace vke_component
             JPH::ShapeFilter shapeFilter;
             character->Update(deltaTime, gravity, broadPhaseFilter, objectLayerFilter, bodyFilter, shapeFilter,
                               vke_physics::PhysicsManager::GetTempAllocator());
-        }
-
-        nlohmann::json ToJSON()
-        {
-            nlohmann::json ret = {
-                {"type", "characterController"},
-                {"layer", (int)layer},
-                {"mass", settings->mMass},
-                {"maxStrength", settings->mMaxStrength},
-                {"maxSlopeAngle", glm::degrees(settings->mMaxSlopeAngle)},
-                {"predictiveContactDistance", settings->mPredictiveContactDistance},
-                {"characterPadding", settings->mCharacterPadding},
-                {"createInnerBody", settings->mInnerBodyShape != nullptr},
-                {"shape", shape->ToJSON()}};
-            return ret;
         }
 
         void OnTransformed(vke_common::Transform &transform)

@@ -6,6 +6,37 @@
 
 namespace vke_component
 {
+    struct RigidBodyData
+    {
+        vke_physics::PhyscisShapeData shape;
+        JPH::EMotionType motionType;
+        JPH::EMotionQuality motionQuality = JPH::EMotionQuality::Discrete;
+        JPH::ObjectLayer layer;
+        float friction;
+        float restitution;
+        float gravityFactor = 1.0f;
+        bool hasMassOverride = false;
+        float mass = 0.0f;
+
+        RigidBodyData() = default;
+        RigidBodyData(const nlohmann::json &json)
+            : shape(json["shape"]), motionType(json["motionType"]),
+              motionQuality(json.value("motionQuality", JPH::EMotionQuality::Discrete)),
+              layer(json["layer"]), friction(json["friction"]), restitution(json["restitution"]),
+              gravityFactor(json.value("gravityFactor", 1.0f)), hasMassOverride(json.contains("mass")),
+              mass(hasMassOverride ? json["mass"].get<float>() : 0.0f) {}
+        nlohmann::json ToJSON() const
+        {
+            nlohmann::json json = {{"type", "rigidbody"}, {"motionType", motionType},
+                                   {"motionQuality", motionQuality}, {"layer", (int)layer},
+                                   {"friction", friction}, {"restitution", restitution},
+                                   {"gravityFactor", gravityFactor}, {"shape", shape.ToJSON()}};
+            if (hasMassOverride)
+                json["mass"] = mass;
+            return json;
+        }
+    };
+
     class RigidBody
     {
     public:
@@ -22,26 +53,39 @@ namespace vke_component
                   JPH::ObjectLayer layer,
                   float friction, float restitution,
                   std::shared_ptr<vke_physics::PhyscisShape> &shape)
-            : shape(shape), friction(friction), restitution(restitution), hasMassOverride(false), mass(0.0f)
+            : shape(shape), friction(friction), restitution(restitution),
+              hasMassOverride(false), mass(0.0f)
         {
             init(transform, motionType, layer);
         }
 
         RigidBody(const vke_common::Transform &transform,
-                  const nlohmann::json &json)
-            : shape(new vke_physics::PhyscisShape(json["shape"])),
-              friction(json["friction"]), restitution(json["restitution"]),
-              hasMassOverride(json.contains("mass")),
-              mass(hasMassOverride ? json["mass"].get<float>() : 0.0f)
+                  const RigidBodyData &componentData)
+            : shape(std::make_shared<vke_physics::PhyscisShape>(componentData.shape)),
+              friction(componentData.friction), restitution(componentData.restitution),
+              hasMassOverride(componentData.hasMassOverride), mass(componentData.mass)
         {
-            init(transform, json["motionType"], json["layer"]);
-            settings.mMotionQuality = json.value("motionQuality", JPH::EMotionQuality::Discrete);
-            settings.mGravityFactor = json.value("gravityFactor", 1.0f);
+            init(transform, componentData.motionType, componentData.layer);
+            settings.mMotionQuality = componentData.motionQuality;
+            settings.mGravityFactor = componentData.gravityFactor;
         }
 
         ~RigidBody() {}
 
-        void LoadToEngine(uint32_t entity = 0)
+        void FillData(RigidBodyData &data) const
+        {
+            data.motionType = settings.mMotionType;
+            data.motionQuality = settings.mMotionQuality;
+            data.layer = settings.mObjectLayer;
+            data.friction = friction;
+            data.restitution = restitution;
+            data.gravityFactor = settings.mGravityFactor;
+            data.hasMassOverride = hasMassOverride;
+            data.mass = mass;
+            shape->FillData(data.shape);
+        }
+
+        void LoadToEngine(entt::entity entity)
         {
             settings.mUserData = static_cast<uint64_t>(entity);
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
@@ -55,24 +99,6 @@ namespace vke_component
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
-        }
-
-        nlohmann::json ToJSON()
-        {
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
-
-            nlohmann::json ret = {
-                {"type", "rigidbody"},
-                {"motionType", settings.mMotionType},
-                {"motionQuality", settings.mMotionQuality},
-                {"layer", (int)settings.mObjectLayer},
-                {"friction", friction},
-                {"restitution", restitution},
-                {"gravityFactor", settings.mGravityFactor},
-                {"shape", shape->ToJSON()}};
-            if (hasMassOverride)
-                ret["mass"] = mass;
-            return ret;
         }
 
         void OnTransformed(vke_common::Transform &transform)

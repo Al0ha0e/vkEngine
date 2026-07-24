@@ -10,6 +10,35 @@
 
 namespace vke_component
 {
+    struct UITextData
+    {
+        std::string text;
+        glm::vec4 color{1.0f};
+        std::shared_ptr<vke_render::Material> material;
+
+        UITextData() = default;
+        UITextData(const nlohmann::json &json)
+            : text(json.value("text", std::string())),
+              material(json.contains("material") && json["material"].get<vke_common::AssetHandle>() != 0
+                           ? vke_common::AssetManager::LoadMaterial(json["material"].get<vke_common::AssetHandle>())
+                           : nullptr)
+        {
+            if (json.contains("color"))
+            {
+                const auto &value = json["color"];
+                color = glm::vec4(value[0].get<float>(), value[1].get<float>(),
+                                  value[2].get<float>(), value[3].get<float>());
+            }
+        }
+        nlohmann::json ToJSON() const
+        {
+            return {{"type", "uiText"},
+                    {"text", text},
+                    {"color", {color.r, color.g, color.b, color.a}},
+                    {"material", material == nullptr ? 0 : material->handle}};
+        }
+    };
+
     class UIText : public UIComponent
     {
     public:
@@ -21,20 +50,11 @@ namespace vke_component
         {
         }
 
-        UIText(const vke_common::Transform &transform, const nlohmann::json &json)
-            : UIComponent(transform,
-                          json.contains("material") && json["material"].get<vke_common::AssetHandle>() != 0
-                              ? vke_common::AssetManager::LoadMaterial(json["material"].get<vke_common::AssetHandle>())
-                              : nullptr),
-              text(json.value("text", std::string())),
+        UIText(const vke_common::Transform &transform, const UITextData &componentData)
+            : UIComponent(transform, componentData.material),
+              text(componentData.text), color(componentData.color),
               font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
         {
-            if (json.contains("color"))
-            {
-                const auto &value = json["color"];
-                color = glm::vec4(value[0].get<float>(), value[1].get<float>(),
-                                  value[2].get<float>(), value[3].get<float>());
-            }
         }
 
         bool LoadToEngine()
@@ -45,6 +65,13 @@ namespace vke_component
                 return false;
             }
             return true;
+        }
+
+        void FillData(UITextData &data) const
+        {
+            data.text = text;
+            data.color = color;
+            data.material = GetMaterial();
         }
 
         void SetText(std::string_view newText)
@@ -63,14 +90,6 @@ namespace vke_component
 
         const std::string &GetText() const { return text; }
         const glm::vec4 &GetColor() const { return color; }
-        nlohmann::json ToJSON() const
-        {
-            return {
-                {"type", "uiText"},
-                {"text", text},
-                {"color", {color.r, color.g, color.b, color.a}},
-                {"material", GetMaterial() == nullptr ? 0 : GetMaterial()->handle}};
-        }
 
     private:
         std::string text;

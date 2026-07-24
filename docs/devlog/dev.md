@@ -27,3 +27,9 @@
 ## 087696926f97120f34c89c1d0b31117e94a13d7e light data refactor
 
 glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据，不然就只是存了字符串和颜色，这个也比较容易拆出纯数据类
+
+## f0297deb85cf742697d1f5675510db6c070707e1 glyph data refactor
+## f7ac11272799fddf532776a93b1066e7076f7cbe frame graph profiler（从render分支合并而来）
+
+这一轮更改把每个组件的纯数据部分都单独抽出来了，scene的纯数据也抽出来了。
+还留下一个问题，transform 中父子级的解析以及相应的transform更新到底是在data加载时进行，还是在scene加载scenedata的时候进行，暂时没想好，目前倾向于在加载scenedata时进行。下一步就是scenedata的资源化。另外，下一个版本里，loadtoengine就是把scenedata加载到scenemanager中的唯一结构中，最后只会剩两种，一种是数据，另一种是全局唯一的加载到引擎的组件状态，现在中间还剩了个完成加载scenedata没有loadtoengine的scene是多余的，这也是为啥光源相关组件目前仍保存有光源结构体的副本，把中间状态去掉会清爽很多。

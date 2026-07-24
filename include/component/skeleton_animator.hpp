@@ -21,27 +21,90 @@ namespace vke_component
 
     const uint32_t MAX_BONE_PER_SKELETON = 256;
 
+    struct SkeletonAnimationData
+    {
+        std::shared_ptr<vke_common::Animation> animation;
+        float weight = 0.0f;
+        float playbackSpeed = 1.0f;
+        float timeRatio = 0.0f;
+        bool playing = true;
+        bool loop = true;
+
+        SkeletonAnimationData() = default;
+        SkeletonAnimationData(const nlohmann::json &json)
+            : animation(vke_common::AssetManager::LoadAnimation(json["animation"])),
+              weight(json.value("weight", 0.0f)), playbackSpeed(json.value("speed", 1.0f)),
+              timeRatio(json.value("timeRatio", 0.0f)), playing(json.value("playing", true)),
+              loop(json.value("loop", true)) {}
+        nlohmann::json ToJSON() const
+        {
+            return {{"animation", animation ? animation->handle : 0}, {"weight", weight}, {"speed", playbackSpeed}, {"timeRatio", timeRatio}, {"loop", loop}, {"playing", playing}};
+        }
+    };
+
+    struct SkeletonAnimatorData
+    {
+        std::shared_ptr<vke_render::Material> material;
+        std::shared_ptr<const vke_render::Mesh> mesh;
+        std::shared_ptr<vke_common::Skeleton> skeleton;
+        std::vector<SkeletonAnimationData> animations;
+        bool castsShadow = true;
+
+        SkeletonAnimatorData() = default;
+        SkeletonAnimatorData(const nlohmann::json &json)
+            : material(vke_common::AssetManager::LoadMaterial(json["material"])),
+              mesh(vke_common::AssetManager::LoadMesh(json["mesh"])),
+              skeleton(vke_common::AssetManager::LoadSkeleton(json["skeleton"])),
+              castsShadow(json.value("castsShadow", true))
+        {
+            if (json.contains("animations") && json["animations"].is_array())
+                for (const nlohmann::json &state : json["animations"])
+                    if (state.contains("animation"))
+                    {
+                        animations.emplace_back(state);
+                        if (animations.size() == 1 && !state.contains("weight"))
+                            animations.back().weight = 1.0f;
+                    }
+            if (animations.empty() && json.contains("animation"))
+            {
+                SkeletonAnimationData state;
+                state.animation = vke_common::AssetManager::LoadAnimation(json["animation"]);
+                state.weight = 1.0f;
+                animations.push_back(std::move(state));
+            }
+        }
+        nlohmann::json ToJSON() const
+        {
+            nlohmann::json animationArray = nlohmann::json::array();
+            for (const SkeletonAnimationData &state : animations)
+                if (state.animation)
+                    animationArray.push_back(state.ToJSON());
+            return {{"type", "animator"},
+                    {"material", material->handle},
+                    {"mesh", mesh->handle},
+                    {"skeleton", skeleton->handle},
+                    {"animation", animations.empty() || !animations[0].animation ? 0 : animations[0].animation->handle},
+                    {"animations", animationArray},
+                    {"castsShadow", castsShadow}};
+        }
+    };
+
     class SkeletonAnimator
     {
     public:
         struct AnimationState
         {
             std::shared_ptr<vke_common::Animation> animation;
-            float weight;
-            float playbackSpeed;
-            float timeRatio;
-            bool playing;
-            bool loop;
+            float weight = 0.0f;
+            float playbackSpeed = 1.0f;
+            float timeRatio = 0.0f;
+            bool playing = true;
+            bool loop = true;
             std::unique_ptr<ozz::animation::SamplingJob::Context> context;
             ozz::vector<ozz::math::SoaTransform> locals;
 
             AnimationState()
-                : weight(0.0f),
-                  playbackSpeed(1.0f),
-                  timeRatio(0.0f),
-                  playing(true),
-                  loop(true),
-                  context(std::make_unique<ozz::animation::SamplingJob::Context>()) {}
+                : context(std::make_unique<ozz::animation::SamplingJob::Context>()) {}
         };
 
         std::shared_ptr<vke_render::Material> material;
@@ -51,32 +114,53 @@ namespace vke_component
         std::unique_ptr<vke_render::RenderUnit> renderUnit;
         std::unique_ptr<vke_render::RenderUnit> shadowRenderUnit;
         bool castsShadow;
-
         SkeletonAnimator(
             vke_common::Transform &transform,
             std::shared_ptr<vke_render::Material> &mat,
             std::shared_ptr<const vke_render::Mesh> &mesh,
             std::shared_ptr<vke_common::Skeleton> &skeleton,
             std::shared_ptr<vke_common::Animation> &animation)
-            : material(mat), skeleton(skeleton), transform(&transform), castsShadow(true), shadowRenderID(0)
+            : material(mat), skeleton(skeleton), transform(&transform),
+              castsShadow(true), shadowRenderID(0)
         {
             AddAnimation(animation, 1.0f, 1.0f, 0.0f, true);
             init(transform, mesh);
         }
 
-        SkeletonAnimator(vke_common::Transform &transform, const nlohmann::json &json)
-            : transform(&transform),
-              castsShadow(json.contains("castsShadow") ? json["castsShadow"].get<bool>() : true),
+        SkeletonAnimator(vke_common::Transform &transform, const SkeletonAnimatorData &componentData)
+            : material(componentData.material), skeleton(componentData.skeleton),
+              transform(&transform), castsShadow(componentData.castsShadow),
               shadowRenderID(0)
         {
-            material = vke_common::AssetManager::LoadMaterial(json["material"]);
-            std::shared_ptr<const vke_render::Mesh> mesh = vke_common::AssetManager::LoadMesh(json["mesh"]);
-            skeleton = vke_common::AssetManager::LoadSkeleton(json["skeleton"]);
-            loadAnimations(json);
+            for (const SkeletonAnimationData &animation : componentData.animations)
+                AddAnimation(animation.animation, animation.weight, animation.playbackSpeed,
+                             animation.timeRatio, animation.loop, animation.playing);
+            std::shared_ptr<const vke_render::Mesh> mesh = componentData.mesh;
             init(transform, mesh);
         }
 
         ~SkeletonAnimator() {}
+
+        void FillData(SkeletonAnimatorData &data) const
+        {
+            data.material = material;
+            data.mesh = renderUnit->mesh;
+            data.skeleton = skeleton;
+            data.castsShadow = castsShadow;
+            data.animations.clear();
+            data.animations.reserve(animations.size());
+            for (const AnimationState &state : animations)
+            {
+                SkeletonAnimationData animationData;
+                animationData.animation = state.animation;
+                animationData.weight = state.weight;
+                animationData.playbackSpeed = state.playbackSpeed;
+                animationData.timeRatio = state.timeRatio;
+                animationData.playing = state.playing;
+                animationData.loop = state.loop;
+                data.animations.push_back(std::move(animationData));
+            }
+        }
 
         void LoadToEngine()
         {
@@ -103,33 +187,6 @@ namespace vke_component
                 shadowRenderID = 0;
             }
             renderer->RemoveRenderUpdateCallback(renderID);
-        }
-
-        nlohmann::json ToJSON()
-        {
-            nlohmann::json animationArray = nlohmann::json::array();
-            for (const AnimationState &state : animations)
-            {
-                if (state.animation == nullptr)
-                    continue;
-
-                animationArray.push_back({{"animation", state.animation->handle},
-                                          {"weight", state.weight},
-                                          {"speed", state.playbackSpeed},
-                                          {"timeRatio", state.timeRatio},
-                                          {"loop", state.loop},
-                                          {"playing", state.playing}});
-            }
-
-            nlohmann::json ret = {
-                {"type", "animator"},
-                {"material", material->handle},
-                {"mesh", renderUnit->mesh->handle},
-                {"skeleton", skeleton->handle},
-                {"animation", animations.empty() || animations[0].animation == nullptr ? 0 : animations[0].animation->handle},
-                {"animations", animationArray},
-                {"castsShadow", castsShadow}};
-            return ret;
         }
 
         void AddAnimation(
@@ -309,36 +366,6 @@ namespace vke_component
             }
         }
 
-        void loadAnimations(const nlohmann::json &json)
-        {
-            animations.clear();
-
-            if (json.contains("animations") && json["animations"].is_array())
-            {
-                for (const nlohmann::json &stateJson : json["animations"])
-                {
-                    if (!stateJson.contains("animation"))
-                        continue;
-
-                    std::shared_ptr<vke_common::Animation> anim =
-                        vke_common::AssetManager::LoadAnimation(stateJson["animation"]);
-                    AddAnimation(
-                        anim,
-                        stateJson.value("weight", animations.empty() ? 1.0f : 0.0f),
-                        stateJson.value("speed", 1.0f),
-                        stateJson.value("timeRatio", 0.0f),
-                        stateJson.value("loop", true),
-                        stateJson.value("playing", true));
-                }
-            }
-
-            if (animations.empty() && json.contains("animation"))
-            {
-                std::shared_ptr<vke_common::Animation> anim = vke_common::AssetManager::LoadAnimation(json["animation"]);
-                AddAnimation(anim, 1.0f, 1.0f, 0.0f, true);
-            }
-        }
-
         void init(vke_common::Transform &transform, std::shared_ptr<const vke_render::Mesh> &mesh)
         {
             int numSOAJoints = skeleton->skeleton.num_soa_joints();
@@ -401,8 +428,9 @@ namespace vke_component
             float rootMotionWeightSum = 0.0f;
             bool hasRootMotionRotation = false;
 
-            for (AnimationState &state : animations)
+            for (size_t animationIndex = 0; animationIndex < animations.size(); ++animationIndex)
             {
+                AnimationState &state = animations[animationIndex];
                 if (state.animation == nullptr)
                     continue;
 
@@ -411,7 +439,7 @@ namespace vke_component
                 {
                     float dt = vke_common::TimeManager::GetInstance()->deltaTime;
                     float newRatio = state.timeRatio + dt * state.playbackSpeed / state.animation->Duration();
-                    SetAnimationTimeRatio(&state - animations.data(), newRatio);
+                    SetAnimationTimeRatio(animationIndex, newRatio);
                 }
                 const float currentRatio = state.timeRatio;
 

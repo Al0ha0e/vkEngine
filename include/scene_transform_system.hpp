@@ -5,7 +5,6 @@
 #include <ds/id_allocator.hpp>
 #include <entt/entity/registry.hpp>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace vke_common
@@ -17,7 +16,6 @@ namespace vke_common
                              std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity)
             : registry(registry), idToEntity(idToEntity) {}
 
-        void InitializeHierarchy(const nlohmann::json &jsonObjs);
         void PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities);
         void RemoveChild(entt::entity entity, entt::entity childEntity);
         void SetParent(entt::entity entity, entt::entity parentEntity, bool updatePhysicsComponents = false);
@@ -36,7 +34,6 @@ namespace vke_common
         entt::registry &registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity;
 
-        void dfs(entt::entity entity, Transform &transform, std::unordered_set<entt::entity> &visited);
         void updateTransform(entt::entity entity, Transform &transform, bool first, bool updatePhysicsComponents);
     };
 }

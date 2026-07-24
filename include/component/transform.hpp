@@ -10,6 +10,31 @@
 
 namespace vke_common
 {
+    struct TransformData
+    {
+        glm::quat localRotation = glm::quat(glm::vec3(0));
+        glm::vec3 localPosition = glm::vec3(0);
+        glm::vec3 localScale = glm::vec3(1);
+
+        TransformData() = default;
+        TransformData(const nlohmann::json &json)
+        {
+            const auto &pos = json["pos"];
+            const auto &scl = json["scl"];
+            const auto &rot = json["rot"];
+            localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
+            localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
+            localRotation = glm::normalize(glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>()));
+        }
+        nlohmann::json ToJSON() const
+        {
+            return {
+                {"pos", {localPosition[0], localPosition[1], localPosition[2]}},
+                {"scl", {localScale[0], localScale[1], localScale[2]}},
+                {"rot", {localRotation[0], localRotation[1], localRotation[2], localRotation[3]}}};
+        }
+    };
+
     struct Transform
     {
         glm::mat4 model;
@@ -20,43 +45,44 @@ namespace vke_common
         std::set<entt::entity> children;
 
         Transform()
-            : model(1), localPosition(0), localScale(1), localRotation(glm::vec3(0))
+            : model(1), localRotation(glm::vec3(0)), localPosition(0), localScale(1)
         {
             init();
         }
 
         Transform(glm::vec3 pos, glm::vec3 scl, glm::quat rot)
-            : localPosition(pos), localScale(scl), localRotation(rot)
+            : localRotation(rot), localPosition(pos), localScale(scl)
         {
             init();
         }
 
         Transform(const Transform &fa, glm::vec3 pos, glm::vec3 scl, glm::quat rot)
-            : localPosition(pos), localScale(scl), localRotation(rot)
+            : localRotation(rot), localPosition(pos), localScale(scl)
         {
             initWithParent(fa);
         }
 
-        Transform(const nlohmann::json &json)
+        Transform(const TransformData &componentData)
+            : localRotation(componentData.localRotation),
+              localPosition(componentData.localPosition),
+              localScale(componentData.localScale)
         {
-            auto pos = json["pos"];
-            auto scl = json["scl"];
-            auto rot = json["rot"];
-            localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
-            localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
-            localRotation = glm::normalize(glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>()));
             init();
         }
 
-        Transform(const Transform &fa, const nlohmann::json &json)
+        Transform(const Transform &fa, const TransformData &componentData)
+            : localRotation(componentData.localRotation),
+              localPosition(componentData.localPosition),
+              localScale(componentData.localScale)
         {
-            auto pos = json["pos"];
-            auto scl = json["scl"];
-            auto rot = json["rot"];
-            localPosition = glm::vec3(pos[0].get<float>(), pos[1].get<float>(), pos[2].get<float>());
-            localScale = glm::vec3(scl[0].get<float>(), scl[1].get<float>(), scl[2].get<float>());
-            localRotation = glm::normalize(glm::quat(rot[3].get<float>(), rot[0].get<float>(), rot[1].get<float>(), rot[2].get<float>()));
             initWithParent(fa);
+        }
+
+        void FillData(TransformData &data) const
+        {
+            data.localPosition = localPosition;
+            data.localScale = localScale;
+            data.localRotation = localRotation;
         }
 
         glm::vec3 GetGlobalPosition() const
@@ -226,15 +252,6 @@ namespace vke_common
         {
             localScale *= scale;
             calcModelMatrixWithParent(fa.model);
-        }
-
-        nlohmann::json ToJSON()
-        {
-            nlohmann::json ret;
-            ret["pos"] = {localPosition[0], localPosition[1], localPosition[2]};
-            ret["scl"] = {localScale[0], localScale[1], localScale[2]};
-            ret["rot"] = {localRotation[0], localRotation[1], localRotation[2], localRotation[3]};
-            return ret;
         }
 
         void UpdateWithParent(const Transform &fa)
