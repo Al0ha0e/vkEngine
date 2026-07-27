@@ -114,15 +114,12 @@ def create_project_files(project_dir: str, width: int, height: int) -> None:
 
     scene = {
         "maxid": 3,
-        "layers": ["default", "editor"],
         "objects": [
             {
                 "id": 1,
                 "static": False,
                 "name": "Camera",
-                "layer": 0,
                 "parent": 0,
-                "children": [],
                 "transform": {
                     "pos": [0.0, 0.0, 5.0],
                     "scl": [1.0, 1.0, 1.0],
@@ -143,9 +140,7 @@ def create_project_files(project_dir: str, width: int, height: int) -> None:
                 "id": 2,
                 "static": False,
                 "name": "Directional Light",
-                "layer": 0,
                 "parent": 0,
-                "children": [],
                 "transform": {
                     "pos": [0.0, 0.0, 0.0],
                     "scl": [1.0, 1.0, 1.0],

@@ -13,31 +13,25 @@ namespace vke_editor
         return std::to_string(handle) + "  " + (name ? name : "<missing>");
     }
 
-    static void SetAudioClip(vke_component::AudioSource &source,
-                             vke_common::AssetHandle handle,
-                             bool loaded)
+    static void SetAudioClip(vke_component::AudioSource &source, vke_common::AssetHandle handle)
     {
-        if (loaded)
-            source.UnloadFromEngine();
-
+        source.UnloadFromEngine();
         source.clip = handle == 0 ? nullptr : vke_common::AssetManager::LoadAudioClip(handle);
-
-        if (loaded && source.clip && source.clip->IsValid())
+        if (source.clip && source.clip->IsValid())
             source.LoadToEngine();
     }
 
-    void Editor::drawAudioSourceComponent(vke_common::Scene *scene)
+    void Editor::drawAudioSourceComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::AudioSource>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::AudioSource>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("AudioSource", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
         vke_component::AudioSource &source =
-            scene->registry.get<vke_component::AudioSource>(selectedEntity);
-        const bool loaded = scene->loadedToEngine;
+            sceneManager->registry.get<vke_component::AudioSource>(selectedEntity);
         const vke_common::AssetHandle clipHandle = source.clip ? source.clip->handle : 0;
         const vke_common::AudioClipAsset *clipAsset =
             vke_common::AssetManager::GetAudioClipAsset(clipHandle);
@@ -47,7 +41,7 @@ namespace vke_editor
         if (ImGui::BeginCombo("Clip", selectedClip.c_str()))
         {
             if (ImGui::Selectable("0  <none>", clipHandle == 0))
-                SetAudioClip(source, 0, loaded);
+                SetAudioClip(source, 0);
 
             vke_common::AssetManager::IterateAudioClipAsset(
                 [&](const vke_common::AudioClipAsset &asset)
@@ -55,7 +49,7 @@ namespace vke_editor
                     const bool selected = asset.id == clipHandle;
                     const std::string label = std::to_string(asset.id) + "  " + asset.name;
                     if (ImGui::Selectable(label.c_str(), selected))
-                        SetAudioClip(source, asset.id, loaded);
+                        SetAudioClip(source, asset.id);
                     if (selected)
                         ImGui::SetItemDefaultFocus();
                 });
@@ -127,17 +121,17 @@ namespace vke_editor
         ImGui::TreePop();
     }
 
-    void Editor::drawAudioListenerComponent(vke_common::Scene *scene)
+    void Editor::drawAudioListenerComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::AudioListener>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::AudioListener>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("AudioListener", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
         vke_component::AudioListener &listener =
-            scene->registry.get<vke_component::AudioListener>(selectedEntity);
+            sceneManager->registry.get<vke_component::AudioListener>(selectedEntity);
         ImGui::Checkbox("Enabled", &listener.enabled);
 
         ImGui::TreePop();

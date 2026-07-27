@@ -31,8 +31,10 @@ int main(int argc, char **argv)
     GLFWwindow *window = initWindow(gameConfig->windowWidth, gameConfig->windowHeight);
     vke_common::Engine *engine = vke_common::Engine::Init(window, *gameConfig, nullptr, passes, customPasses);
 
-    auto scene = vke_common::SceneManager::LoadScene(gameConfig->defaultScenePath);
-    vke_common::SceneManager::SetCurrentScene(std::move(scene));
+    {
+        vke_common::SceneData sceneData(vke_common::LoadJSON(gameConfig->defaultScenePath));
+        vke_common::SceneManager::LoadSceneData(sceneData);
+    }
 
     glfwSetFramebufferSizeCallback(window, vke_common::Engine::OnWindowResize);
     while (!glfwWindowShouldClose(window))

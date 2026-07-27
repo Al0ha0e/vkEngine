@@ -1,12 +1,10 @@
 {
   "maxid": 25,
-  "layers": ["default", "editor", "test"],
   "objects": [
     {
       "id": 1,
       "static": true,
       "name": "scene_cam",
-      "layer": 1,
       "parent": 0,
       "transform": {
         "pos": [0.0, 1.15, 8.0],
@@ -69,7 +67,6 @@
       "id": 2,
       "static": true,
       "name": "playground_floor",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, -2.0, 0.0],
@@ -97,7 +94,6 @@
       "id": 3,
       "static": false,
       "name": "box_stack_base",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-3.0, -1.35, -1.0],
@@ -126,7 +122,6 @@
       "id": 4,
       "static": false,
       "name": "box_stack_mid",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-2.8, -0.55, -1.1],
@@ -155,7 +150,6 @@
       "id": 5,
       "static": false,
       "name": "box_stack_top",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-3.15, 0.05, -1.0],
@@ -184,7 +178,6 @@
       "id": 6,
       "static": false,
       "name": "sphere_large",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [1.5, -1.2, -2.5],
@@ -213,7 +206,6 @@
       "id": 7,
       "static": false,
       "name": "sphere_small",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [2.4, 0.15, -2.1],
@@ -242,7 +234,6 @@
       "id": 8,
       "static": false,
       "name": "sphere_medium",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.8, -0.25, -1.7],
@@ -271,7 +262,6 @@
       "id": 9,
       "static": false,
       "name": "cylinder_tall",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [4.0, -1.1, 0.5],
@@ -300,7 +290,6 @@
       "id": 10,
       "static": false,
       "name": "cylinder_wide",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [3.35, -0.85, 0.45],
@@ -329,7 +318,6 @@
       "id": 11,
       "static": false,
       "name": "cylinder_short",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [4.6, -0.25, 0.35],
@@ -358,7 +346,6 @@
       "id": 12,
       "static": false,
       "name": "long_box_bridge",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-0.5, -1.4, 3.0],
@@ -387,7 +374,6 @@
       "id": 13,
       "static": false,
       "name": "cube_left",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-1.8, -1.35, 3.15],
@@ -416,7 +402,6 @@
       "id": 14,
       "static": false,
       "name": "cube_right",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [1.2, -1.45, 2.7],
@@ -445,7 +430,6 @@
       "id": 15,
       "static": false,
       "name": "sphere_on_bridge",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-0.3, -0.75, 3.0],
@@ -474,7 +458,6 @@
       "id": 16,
       "static": false,
       "name": "scatter_box_a",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-6.0, -1.4, 1.5],
@@ -503,7 +486,6 @@
       "id": 17,
       "static": false,
       "name": "scatter_box_b",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [6.0, -1.55, -2.5],
@@ -532,7 +514,6 @@
       "id": 18,
       "static": false,
       "name": "scatter_cylinder",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [6.5, -1.4, 1.8],
@@ -561,7 +542,6 @@
       "id": 19,
       "static": false,
       "name": "scatter_sphere",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [-5.2, -1.45, -3.4],
@@ -590,7 +570,6 @@
       "id": 20,
       "static": false,
       "name": "small_cube_top",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [3.8, 0.0, 0.4],
@@ -619,7 +598,6 @@
       "id": 21,
       "static": false,
       "name": "large_contact_logger_cube",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, 3.0, -5.0],
@@ -655,7 +633,6 @@
       "id": 22,
       "static": true,
       "name": "large_static_sensor_sphere",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [7.0, -0.5, 3.5],
@@ -688,7 +665,6 @@
       "id": 23,
       "static": true,
       "name": "sun_directional_light",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, 0.0, 0.0],
@@ -708,7 +684,6 @@
       "id": 24,
       "static": true,
       "name": "fps_text",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [60.0, 60.0, 12.0],

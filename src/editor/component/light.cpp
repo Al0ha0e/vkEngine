@@ -54,9 +54,9 @@ namespace vke_editor
         return true;
     }
 
-    void Editor::drawLightComponents(vke_common::Scene *scene)
+    void Editor::drawLightComponents()
     {
-        if (scene == nullptr || selectedEntity == entt::null)
+        if (selectedEntity == entt::null)
             return;
 
         auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();

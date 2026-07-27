@@ -10,17 +10,17 @@ namespace vke_editor
         return std::to_string(handle) + "  " + (name ? name : "<missing>");
     }
 
-    void Editor::drawRenderableObjectComponent(vke_common::Scene *scene)
+    void Editor::drawRenderableObjectComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::RenderableObject>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::RenderableObject>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("RenderableObject", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
         vke_component::RenderableObject &renderable =
-            scene->registry.get<vke_component::RenderableObject>(selectedEntity);
+            sceneManager->registry.get<vke_component::RenderableObject>(selectedEntity);
         const vke_common::AssetHandle materialHandle =
             renderable.material == nullptr ? 0 : renderable.material->handle;
         const vke_common::AssetHandle meshHandle =

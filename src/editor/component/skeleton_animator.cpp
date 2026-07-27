@@ -20,17 +20,17 @@ namespace vke_editor
         ImGui::EndDisabled();
     }
 
-    void Editor::drawSkeletonAnimatorComponent(vke_common::Scene *scene)
+    void Editor::drawSkeletonAnimatorComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::SkeletonAnimator>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::SkeletonAnimator>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("SkeletonAnimator", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
         const vke_component::SkeletonAnimator &animator =
-            scene->registry.get<vke_component::SkeletonAnimator>(selectedEntity);
+            sceneManager->registry.get<vke_component::SkeletonAnimator>(selectedEntity);
         const vke_common::AssetHandle materialHandle =
             animator.material == nullptr ? 0 : animator.material->handle;
         const vke_common::AssetHandle meshHandle =

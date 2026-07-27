@@ -62,7 +62,6 @@ namespace vke_editor
                                  JPH::BodyCreationSettings &settings,
                                  JPH::BodyInterface &bodyInterface,
                                  JPH::BodyID bodyID,
-                                 bool loaded,
                                  bool updateMassProperties,
                                  vke_physics::PhyscisShapeType type,
                                  const JPH::ShapeRefC &shapeRef)
@@ -74,12 +73,9 @@ namespace vke_editor
         shape->shapeRef = shapeRef;
         settings.SetShape(shapeRef.GetPtr());
 
-        if (loaded)
-        {
-            bodyInterface.SetShape(bodyID, shapeRef.GetPtr(), false, JPH::EActivation::Activate);
-            if (updateMassProperties)
-                ApplyEditorMassProperties(settings, bodyID);
-        }
+        bodyInterface.SetShape(bodyID, shapeRef.GetPtr(), false, JPH::EActivation::Activate);
+        if (updateMassProperties)
+            ApplyEditorMassProperties(settings, bodyID);
     }
 
     static bool DrawPhysicsShapeEditor(const char *id,
@@ -87,7 +83,6 @@ namespace vke_editor
                                        JPH::BodyCreationSettings &settings,
                                        JPH::BodyInterface &bodyInterface,
                                        JPH::BodyID bodyID,
-                                       bool loaded,
                                        bool updateMassProperties,
                                        bool allowStaticOnlyShapes = true)
     {
@@ -95,14 +90,14 @@ namespace vke_editor
         ImGui::PushID(id);
 
         if (shape == nullptr || shape->shapeRef == nullptr)
-            ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, vke_physics::PHYSICS_SHAPE_SPHERE, CreateEditorShape(vke_physics::PHYSICS_SHAPE_SPHERE));
+            ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, vke_physics::PHYSICS_SHAPE_SPHERE, CreateEditorShape(vke_physics::PHYSICS_SHAPE_SPHERE));
 
         int shapeType = static_cast<int>(shape->type);
         const char *shapeTypeItems[] = {"Sphere", "Box", "Capsule", "Cylinder", "Triangle", "Plane"};
         const int shapeTypeCount = allowStaticOnlyShapes ? IM_ARRAYSIZE(shapeTypeItems) : 4;
         if (!allowStaticOnlyShapes && !IsDynamicBodyShape(shape->type))
         {
-            ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, vke_physics::PHYSICS_SHAPE_BOX, CreateEditorShape(vke_physics::PHYSICS_SHAPE_BOX));
+            ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, vke_physics::PHYSICS_SHAPE_BOX, CreateEditorShape(vke_physics::PHYSICS_SHAPE_BOX));
             shapeType = static_cast<int>(shape->type);
             changed = true;
         }
@@ -111,7 +106,7 @@ namespace vke_editor
         {
             shapeType = std::clamp(shapeType, 0, static_cast<int>(vke_physics::PHYSICS_SHAPE_PLANE));
             const auto type = static_cast<vke_physics::PhyscisShapeType>(shapeType);
-            ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, CreateEditorShape(type));
+            ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, CreateEditorShape(type));
             changed = true;
         }
 
@@ -125,7 +120,7 @@ namespace vke_editor
             if (ImGui::InputFloat("Radius", &radius, 0.05f, 0.25f, "%.3f"))
             {
                 radius = std::max(radius, 0.001f);
-                ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, new JPH::SphereShape(radius));
+                ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, new JPH::SphereShape(radius));
                 changed = true;
             }
             break;
@@ -140,7 +135,7 @@ namespace vke_editor
                 halfExtent[0] = std::max(halfExtent[0], 0.001f);
                 halfExtent[1] = std::max(halfExtent[1], 0.001f);
                 halfExtent[2] = std::max(halfExtent[2], 0.001f);
-                ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, new JPH::BoxShape(JPH::Vec3(halfExtent[0], halfExtent[1], halfExtent[2])));
+                ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, new JPH::BoxShape(JPH::Vec3(halfExtent[0], halfExtent[1], halfExtent[2])));
                 changed = true;
             }
             break;
@@ -156,7 +151,7 @@ namespace vke_editor
             {
                 halfHeight = std::max(halfHeight, 0.001f);
                 radius = std::max(radius, 0.001f);
-                ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, new JPH::CapsuleShape(halfHeight, radius));
+                ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, new JPH::CapsuleShape(halfHeight, radius));
                 changed = true;
             }
             break;
@@ -172,7 +167,7 @@ namespace vke_editor
             {
                 halfHeight = std::max(halfHeight, 0.001f);
                 radius = std::max(radius, 0.001f);
-                ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, new JPH::CylinderShape(halfHeight, radius));
+                ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, new JPH::CylinderShape(halfHeight, radius));
                 changed = true;
             }
             break;
@@ -191,7 +186,7 @@ namespace vke_editor
             valueChanged |= ImGui::InputFloat3("V3", v3, "%.3f");
             if (valueChanged)
             {
-                ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, new JPH::TriangleShape(JPH::Vec3(v1[0], v1[1], v1[2]), JPH::Vec3(v2[0], v2[1], v2[2]), JPH::Vec3(v3[0], v3[1], v3[2])));
+                ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, new JPH::TriangleShape(JPH::Vec3(v1[0], v1[1], v1[2]), JPH::Vec3(v2[0], v2[1], v2[2]), JPH::Vec3(v3[0], v3[1], v3[2])));
                 changed = true;
             }
             break;
@@ -215,7 +210,7 @@ namespace vke_editor
                     normal[2] = 0.0f;
                     length = 1.0f;
                 }
-                ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, updateMassProperties, type, new JPH::PlaneShape(JPH::Plane(JPH::Vec3(normal[0] / length, normal[1] / length, normal[2] / length), constant)));
+                ApplyEditorShape(shape, settings, bodyInterface, bodyID, updateMassProperties, type, new JPH::PlaneShape(JPH::Plane(JPH::Vec3(normal[0] / length, normal[1] / length, normal[2] / length), constant)));
                 changed = true;
             }
             break;
@@ -231,13 +226,12 @@ namespace vke_editor
     static bool EnsureDynamicBodyShape(std::shared_ptr<vke_physics::PhyscisShape> &shape,
                                        JPH::BodyCreationSettings &settings,
                                        JPH::BodyInterface &bodyInterface,
-                                       JPH::BodyID bodyID,
-                                       bool loaded)
+                                       JPH::BodyID bodyID)
     {
         if (shape != nullptr && IsDynamicBodyShape(shape->type))
             return false;
 
-        ApplyEditorShape(shape, settings, bodyInterface, bodyID, loaded, true, vke_physics::PHYSICS_SHAPE_BOX, CreateEditorShape(vke_physics::PHYSICS_SHAPE_BOX));
+        ApplyEditorShape(shape, settings, bodyInterface, bodyID, true, vke_physics::PHYSICS_SHAPE_BOX, CreateEditorShape(vke_physics::PHYSICS_SHAPE_BOX));
         return true;
     }
 }

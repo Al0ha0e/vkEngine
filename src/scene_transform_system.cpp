@@ -14,6 +14,28 @@ namespace vke_common
         return transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
     }
 
+    void SceneTransformSystem::CollectEntitySubtree(std::vector<entt::entity> &entities) const
+    {
+        size_t current = 0;
+        while (current < entities.size())
+        {
+            const Transform &transform = registry.get<Transform>(entities[current++]);
+            entities.insert(entities.end(), transform.children.begin(), transform.children.end());
+        }
+    }
+
+    void SceneTransformSystem::CollectEntitiesSubtree(std::unordered_set<entt::entity> &entitySet, std::vector<entt::entity> &entities) const
+    {
+        size_t current = 0;
+        while (current < entities.size())
+        {
+            const Transform &transform = registry.get<Transform>(entities[current++]);
+            for (const entt::entity child : transform.children)
+                if (entitySet.insert(child).second)
+                    entities.push_back(child);
+        }
+    }
+
     void SceneTransformSystem::PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities)
     {
         Transform &transform = registry.get<Transform>(entity);
@@ -21,14 +43,7 @@ namespace vke_common
             RemoveChild(transform.parent, entity);
 
         entities = {entity};
-        int now = 0;
-        while (now < entities.size())
-        {
-            entt::entity deadEntity = entities[now++];
-            const Transform &deadTransform = registry.get<Transform>(deadEntity);
-            for (auto &child : deadTransform.children)
-                entities.push_back(child);
-        }
+        CollectEntitySubtree(entities);
     }
 
     void SceneTransformSystem::RemoveChild(entt::entity entity, entt::entity childEntity)

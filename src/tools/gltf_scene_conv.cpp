@@ -972,7 +972,6 @@ json Converter::MakeObject(uint32_t id, const std::string &name, uint32_t parent
         {"id", id},
         {"static", true},
         {"name", name},
-        {"layer", 0},
         {"parent", parent},
         {"transform", TransformJSON(transform)},
         {"components", std::move(components)},
@@ -1016,7 +1015,6 @@ bool Converter::WriteScene(size_t sceneIndex)
         {"id", 1},
         {"static", true},
         {"name", "scene_cam"},
-        {"layer", 1},
         {"parent", 0},
         {"transform",
          {{"pos", {0.0, 0.0, 3.0}},
@@ -1128,7 +1126,6 @@ bool Converter::WriteScene(size_t sceneIndex)
                  (gltfScene.name.empty() ? "scene_" + std::to_string(sceneIndex) : gltfScene.name));
     const fs::path scenePath = outputDir / (sceneName + ".json");
     const json sceneJSON = {
-        {"layers", json::array({"default", "editor"})},
         {"maxid", nextObjectId},
         {"objects", std::move(objects)}};
     if (!WriteJSON(scenePath, sceneJSON))

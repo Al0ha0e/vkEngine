@@ -6,14 +6,10 @@
 
 namespace vke_interop
 {
-    static vke_common::Scene *GetCurrentScene()
-    {
-        return vke_common::SceneManager::GetInstance()->currentScene.get();
-    }
 
     static vke_component::UIText *GetUIText(uint32_t entity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
+        auto *scene = vke_common::SceneManager::GetInstance();
         entt::entity ent = static_cast<entt::entity>(entity);
         return &scene->registry.get<vke_component::UIText>(ent);
     }

@@ -14,7 +14,7 @@ namespace vke_editor
         ImGui::EndDisabled();
     }
 
-    static void ApplyRigidBodyMassSettings(vke_component::RigidBody &body, bool loaded)
+    static void ApplyRigidBodyMassSettings(vke_component::RigidBody &body)
     {
         if (body.hasMassOverride)
         {
@@ -27,53 +27,47 @@ namespace vke_editor
             body.settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateMassAndInertia;
         }
 
-        if (loaded && body.settings.mMotionType != JPH::EMotionType::Static)
+        if (body.settings.mMotionType != JPH::EMotionType::Static)
             ApplyEditorMassProperties(body.settings, body.bodyID);
     }
 
-    void Editor::drawRigidBodyComponent(vke_common::Scene *scene)
+    void Editor::drawRigidBodyComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::RigidBody>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::RigidBody>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("RigidBody", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
-        vke_component::RigidBody &body = scene->registry.get<vke_component::RigidBody>(selectedEntity);
+        vke_component::RigidBody &body = sceneManager->registry.get<vke_component::RigidBody>(selectedEntity);
         JPH::BodyInterface &bodyInterface = vke_physics::PhysicsManager::GetBodyInterface();
-        const bool loaded = scene->loadedToEngine;
-        const JPH::EMotionType currentMotionType = loaded ? bodyInterface.GetMotionType(body.bodyID) : body.settings.mMotionType;
+        const JPH::EMotionType currentMotionType = bodyInterface.GetMotionType(body.bodyID);
 
-        const uint32_t objectLayer = loaded
-                                         ? bodyInterface.GetObjectLayer(body.bodyID)
-                                         : static_cast<uint32_t>(body.settings.mObjectLayer);
+        const uint32_t objectLayer = bodyInterface.GetObjectLayer(body.bodyID);
         DrawReadOnlyUInt("Object Layer", objectLayer);
 
-        DrawPhysicsShapeEditor("RigidBodyShape", body.shape, body.settings, bodyInterface, body.bodyID, loaded, true, currentMotionType == JPH::EMotionType::Static);
+        DrawPhysicsShapeEditor("RigidBodyShape", body.shape, body.settings, bodyInterface, body.bodyID, true, currentMotionType == JPH::EMotionType::Static);
 
-        float restitution = loaded ? bodyInterface.GetRestitution(body.bodyID) : body.restitution;
+        float restitution = bodyInterface.GetRestitution(body.bodyID);
         if (ImGui::InputFloat("Restitution", &restitution, 0.05f, 0.25f, "%.3f"))
         {
             body.restitution = std::max(restitution, 0.0f);
-            if (loaded)
-                bodyInterface.SetRestitution(body.bodyID, body.restitution);
+            bodyInterface.SetRestitution(body.bodyID, body.restitution);
         }
 
-        float friction = loaded ? bodyInterface.GetFriction(body.bodyID) : body.friction;
+        float friction = bodyInterface.GetFriction(body.bodyID);
         if (ImGui::InputFloat("Friction", &friction, 0.05f, 0.25f, "%.3f"))
         {
             body.friction = std::max(friction, 0.0f);
-            if (loaded)
-                bodyInterface.SetFriction(body.bodyID, body.friction);
+            bodyInterface.SetFriction(body.bodyID, body.friction);
         }
 
-        float gravityFactor = loaded ? bodyInterface.GetGravityFactor(body.bodyID) : body.settings.mGravityFactor;
+        float gravityFactor = bodyInterface.GetGravityFactor(body.bodyID);
         if (ImGui::InputFloat("Gravity Factor", &gravityFactor, 0.05f, 0.25f, "%.3f"))
         {
             body.settings.mGravityFactor = gravityFactor;
-            if (loaded)
-                bodyInterface.SetGravityFactor(body.bodyID, gravityFactor);
+            bodyInterface.SetGravityFactor(body.bodyID, gravityFactor);
         }
 
         bool hasMassOverride = body.hasMassOverride;
@@ -82,7 +76,7 @@ namespace vke_editor
             body.hasMassOverride = hasMassOverride;
             if (body.hasMassOverride && body.mass <= 0.0f)
                 body.mass = std::max(body.settings.GetMassProperties().mMass, 0.001f);
-            ApplyRigidBodyMassSettings(body, loaded);
+            ApplyRigidBodyMassSettings(body);
         }
 
         ImGui::BeginDisabled(!body.hasMassOverride);
@@ -90,7 +84,7 @@ namespace vke_editor
         if (ImGui::InputFloat("Mass", &mass, 0.1f, 1.0f, "%.3f"))
         {
             body.mass = std::max(mass, 0.001f);
-            ApplyRigidBodyMassSettings(body, loaded);
+            ApplyRigidBodyMassSettings(body);
         }
         ImGui::EndDisabled();
 
@@ -101,20 +95,18 @@ namespace vke_editor
             motionType = std::clamp(motionType, 0, 2);
             body.settings.mMotionType = static_cast<JPH::EMotionType>(motionType);
             if (body.settings.mMotionType != JPH::EMotionType::Static)
-                EnsureDynamicBodyShape(body.shape, body.settings, bodyInterface, body.bodyID, loaded);
-            if (loaded)
-                bodyInterface.SetMotionType(body.bodyID, body.settings.mMotionType, JPH::EActivation::Activate);
-            ApplyRigidBodyMassSettings(body, loaded);
+                EnsureDynamicBodyShape(body.shape, body.settings, bodyInterface, body.bodyID);
+            bodyInterface.SetMotionType(body.bodyID, body.settings.mMotionType, JPH::EActivation::Activate);
+            ApplyRigidBodyMassSettings(body);
         }
 
-        int motionQuality = static_cast<int>(loaded ? bodyInterface.GetMotionQuality(body.bodyID) : body.settings.mMotionQuality);
+        int motionQuality = static_cast<int>(bodyInterface.GetMotionQuality(body.bodyID));
         const char *motionQualityItems[] = {"Discrete", "LinearCast"};
         if (ImGui::Combo("Motion Quality", &motionQuality, motionQualityItems, IM_ARRAYSIZE(motionQualityItems)))
         {
             motionQuality = std::clamp(motionQuality, 0, 1);
             body.settings.mMotionQuality = static_cast<JPH::EMotionQuality>(motionQuality);
-            if (loaded)
-                bodyInterface.SetMotionQuality(body.bodyID, body.settings.mMotionQuality);
+            bodyInterface.SetMotionQuality(body.bodyID, body.settings.mMotionQuality);
         }
 
         ImGui::TreePop();

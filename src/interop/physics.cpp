@@ -8,18 +8,6 @@
 
 namespace vke_interop
 {
-    static vke_common::Scene *GetCurrentScene()
-    {
-        return vke_common::SceneManager::GetInstance()->currentScene.get();
-    }
-
-    static inline entt::entity GetEntity(vke_common::Scene *scene, uint32_t entity)
-    {
-        entt::entity ent = static_cast<entt::entity>(entity);
-        // VKE_FATAL_IF(scene == nullptr || !scene->registry.valid(ent), "Invalid scene entity {}", entity)
-        return ent;
-    }
-
     static JPH::Vec3 ToJoltVec3(const Vector3<float> &value)
     {
         return JPH::Vec3(value.x, value.y, value.z);
@@ -94,9 +82,9 @@ namespace vke_interop
 
     uint32_t VKE_INTEROP_CDECL GetRigidBodyBodyID(uint32_t entity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        entt::entity ent = GetEntity(scene, entity);
-        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::RigidBody>(ent))
+        auto *scene = vke_common::SceneManager::GetInstance();
+        entt::entity ent = static_cast<entt::entity>(entity);
+        if (!scene->registry.valid(ent) || !scene->registry.all_of<vke_component::RigidBody>(ent))
             return JPH::BodyID::cInvalidBodyID;
 
         return scene->registry.get<vke_component::RigidBody>(ent).bodyID.GetIndexAndSequenceNumber();
@@ -104,9 +92,9 @@ namespace vke_interop
 
     uint32_t VKE_INTEROP_CDECL GetSensorBodyID(uint32_t entity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        entt::entity ent = GetEntity(scene, entity);
-        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::Sensor>(ent))
+        auto *scene = vke_common::SceneManager::GetInstance();
+        entt::entity ent = static_cast<entt::entity>(entity);
+        if (!scene->registry.valid(ent) || !scene->registry.all_of<vke_component::Sensor>(ent))
             return JPH::BodyID::cInvalidBodyID;
 
         return scene->registry.get<vke_component::Sensor>(ent).bodyID.GetIndexAndSequenceNumber();

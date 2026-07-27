@@ -1,12 +1,10 @@
 {
   "maxid": 6,
-  "layers": ["default", "editor", "test"],
   "objects": [
     {
       "id": 1,
       "static": true,
       "name": "scene_cam",
-      "layer": 1,
       "parent": 0,
       "transform": {
         "pos": [0, 0, 3],
@@ -46,7 +44,6 @@
       "id": 2,
       "static": true,
       "name": "taunt",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, 0.0, 0.0],
@@ -78,7 +75,6 @@
       "id": 3,
       "static": true,
       "name": "sun_directional_light",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, 0.0, 0.0],
@@ -98,7 +94,6 @@
       "id": 4,
       "static": true,
       "name": "ground",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, -0.04, 0.0],
@@ -118,7 +113,6 @@
       "id": 5,
       "static": true,
       "name": "fps_text",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [60.0, 60.0, 12.0],

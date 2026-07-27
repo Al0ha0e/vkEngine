@@ -31,6 +31,7 @@ namespace vke_editor
         Editor &operator=(const Editor &);
 
         float fixedUpdateAccumulator;
+        vke_common::SceneManager *sceneManager;
         entt::entity selectedEntity;
         vke_common::AssetType selectedAssetType;
         vke_common::AssetHandle selectedAsset;
@@ -64,15 +65,15 @@ namespace vke_editor
         void showHierarchy();
         void drawHierarchyEntity(entt::entity entity, ImGuiTreeNodeFlags commonFlags);
         void showInspector();
-        void drawCameraComponent(vke_common::Scene *scene);
-        void drawLightComponents(vke_common::Scene *scene);
-        void drawRenderableObjectComponent(vke_common::Scene *scene);
-        void drawSkeletonAnimatorComponent(vke_common::Scene *scene);
-        void drawRigidBodyComponent(vke_common::Scene *scene);
-        void drawSensorComponent(vke_common::Scene *scene);
-        void drawUITextComponent(vke_common::Scene *scene);
-        void drawAudioSourceComponent(vke_common::Scene *scene);
-        void drawAudioListenerComponent(vke_common::Scene *scene);
+        void drawCameraComponent();
+        void drawLightComponents();
+        void drawRenderableObjectComponent();
+        void drawSkeletonAnimatorComponent();
+        void drawRigidBodyComponent();
+        void drawSensorComponent();
+        void drawUITextComponent();
+        void drawAudioSourceComponent();
+        void drawAudioListenerComponent();
         void showAddComponentMenu();
         void addComponent(vke_common::ComponentType componentType);
         void showAssets();

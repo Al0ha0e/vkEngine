@@ -175,11 +175,6 @@ namespace vke_editor
     void Editor::showAssets()
     {
         ImGui::Begin("Assets");
-
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (scene != nullptr)
-            ImGui::Text("Scene: %s", scene->path.empty() ? "<unsaved>" : scene->path.c_str());
-
         vke_common::AssetManager *assetManager = vke_common::AssetManager::GetInstance();
         const bool byType = assetBrowserMode == AssetBrowserMode::ByType;
         if (ImGui::Button(byType ? "Directory View" : "Type View"))

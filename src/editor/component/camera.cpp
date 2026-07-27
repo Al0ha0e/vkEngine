@@ -35,16 +35,16 @@ namespace vke_editor
         ImGui::EndDisabled();
     }
 
-    void Editor::drawCameraComponent(vke_common::Scene *scene)
+    void Editor::drawCameraComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::Camera>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::Camera>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("Camera", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
-        vke_component::Camera &camera = scene->registry.get<vke_component::Camera>(selectedEntity);
+        vke_component::Camera &camera = sceneManager->registry.get<vke_component::Camera>(selectedEntity);
         float fov = glm::degrees(camera.cameraInfo.fov);
         float nearPlane = camera.cameraInfo.near;
         float farPlane = camera.cameraInfo.far;

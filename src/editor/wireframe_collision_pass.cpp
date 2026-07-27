@@ -117,8 +117,8 @@ namespace vke_editor
     {
         outVertices.clear();
 
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (!scene || !scene->registry.valid(entity))
+        vke_common::SceneManager *scene = vke_common::SceneManager::GetInstance();
+        if (!scene->registry.valid(entity))
             return;
 
         JPH::BodyID bodyID;

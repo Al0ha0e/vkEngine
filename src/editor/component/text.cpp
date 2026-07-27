@@ -30,16 +30,16 @@ namespace vke_editor
             &text);
     }
 
-    void Editor::drawUITextComponent(vke_common::Scene *scene)
+    void Editor::drawUITextComponent()
     {
-        if (scene == nullptr || selectedEntity == entt::null ||
-            !scene->registry.all_of<vke_component::UIText>(selectedEntity))
+        if (selectedEntity == entt::null ||
+            !sceneManager->registry.all_of<vke_component::UIText>(selectedEntity))
             return;
 
         if (!ImGui::TreeNodeEx("UIText", ImGuiTreeNodeFlags_DefaultOpen))
             return;
 
-        vke_component::UIText &text = scene->registry.get<vke_component::UIText>(selectedEntity);
+        vke_component::UIText &text = sceneManager->registry.get<vke_component::UIText>(selectedEntity);
 
         std::string textValue = text.GetText();
         const float textHeight = ImGui::GetTextLineHeight() * 6.0f;

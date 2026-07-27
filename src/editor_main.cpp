@@ -38,8 +38,11 @@ int main(int argc, char **argv)
         editorConfig->windowWidth, editorConfig->windowHeight,
         defaultPasses, customPasses);
 
-    auto scene = vke_common::SceneManager::LoadScene(editorConfig->gameConfig->defaultScenePath);
-    vke_common::SceneManager::SetCurrentScene(std::move(scene));
+    const std::string &scenePath = editorConfig->gameConfig->defaultScenePath;
+    {
+        vke_common::SceneData sceneData(vke_common::LoadJSON(scenePath));
+        vke_common::SceneManager::LoadSceneData(sceneData);
+    }
 
     vke_common::InputManager::SetCursorMode(GLFW_CURSOR_NORMAL);
 

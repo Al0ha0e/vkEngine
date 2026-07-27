@@ -6,6 +6,7 @@
 #include <glm/trigonometric.hpp>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <cstring>
+#include <fstream>
 
 namespace vke_editor
 {
@@ -64,7 +65,7 @@ namespace vke_editor
         vke_render::Renderer::Init(EditorRenderer::GetInstance()->GetSceneRenderContext(),
                                    passes, customPasses, editorConfig.gameConfig->renderConfig);
         vke_common::ScriptManager::Init();
-        vke_common::SceneManager::Init();
+        instance->sceneManager = vke_common::SceneManager::Init();
         vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Edit);
 
         return instance;
@@ -166,9 +167,14 @@ namespace vke_editor
         {
             if (ImGui::MenuItem("Save Scene"))
             {
-                vke_common::SceneManager *sceneManager = vke_common::SceneManager::GetInstance();
-                if (sceneManager->currentScene != nullptr && !sceneManager->currentScene->path.empty())
-                    vke_common::SceneManager::SaveScene(sceneManager->currentScene->path);
+                const std::string &scenePath =
+                    EditorConfig::GetInstance()->gameConfig->defaultScenePath;
+                if (!scenePath.empty())
+                {
+                    vke_common::SceneData data = sceneManager->ExportAllEntities();
+                    std::ofstream ofs(scenePath);
+                    ofs << data.ToJSON().dump(4);
+                }
             }
 
             if (ImGui::BeginMenu("New Object"))
@@ -241,25 +247,14 @@ namespace vke_editor
     {
         ImGui::Begin("Hierarchy");
 
-        vke_common::SceneManager *sceneManager = vke_common::SceneManager::GetInstance();
-        vke_common::Scene *scene = sceneManager->currentScene.get();
-        if (scene == nullptr)
-        {
-            ImGui::TextUnformatted("No scene loaded");
-            ImGui::End();
-            return;
-        }
-
         ImGuiTreeNodeFlags commonFlags = ImGuiTreeNodeFlags_OpenOnArrow |
                                          ImGuiTreeNodeFlags_OpenOnDoubleClick |
                                          ImGuiTreeNodeFlags_SpanAvailWidth;
 
-        for (auto &[id, entity] : scene->idToEntity)
+        auto hierarchyView = sceneManager->registry.view<vke_common::GameObject, vke_common::Transform>();
+        for (const entt::entity entity : hierarchyView)
         {
-            if (!scene->registry.valid(entity) || !scene->registry.all_of<vke_common::GameObject, vke_common::Transform>(entity))
-                continue;
-
-            const vke_common::Transform &transform = scene->registry.get<vke_common::Transform>(entity);
+            const vke_common::Transform &transform = sceneManager->registry.get<vke_common::Transform>(entity);
             if (transform.parent == entt::null)
                 drawHierarchyEntity(entity, commonFlags);
         }
@@ -275,18 +270,17 @@ namespace vke_editor
 
     void Editor::drawHierarchyEntity(entt::entity entity, ImGuiTreeNodeFlags commonFlags)
     {
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (scene == nullptr || !scene->registry.valid(entity))
+        if (!sceneManager->registry.valid(entity))
             return;
 
-        auto [object, transform] = scene->registry.get<vke_common::GameObject, vke_common::Transform>(entity);
+        auto [object, transform] = sceneManager->registry.get<vke_common::GameObject, vke_common::Transform>(entity);
         ImGuiTreeNodeFlags flags = commonFlags;
         if (entity == selectedEntity)
             flags |= ImGuiTreeNodeFlags_Selected;
         if (transform.children.empty())
             flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-        ImGui::PushID(static_cast<int>(object.id));
+        ImGui::PushID(static_cast<int>(entt::to_integral(entity)));
         const bool opened = ImGui::TreeNodeEx(object.name.c_str(), flags);
         if (ImGui::IsItemClicked())
         {
@@ -307,7 +301,6 @@ namespace vke_editor
     {
         ImGui::Begin("Inspector");
 
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
         if (selectedAsset != 0)
         {
             if (selectedAssetType == vke_common::ASSET_TEXTURE)
@@ -320,16 +313,16 @@ namespace vke_editor
             return;
         }
 
-        if (scene == nullptr || selectedEntity == entt::null || !scene->registry.valid(selectedEntity) ||
-            !scene->registry.all_of<vke_common::GameObject, vke_common::Transform>(selectedEntity))
+        if (selectedEntity == entt::null || !sceneManager->registry.valid(selectedEntity) ||
+            !sceneManager->registry.all_of<vke_common::GameObject, vke_common::Transform>(selectedEntity))
         {
             ImGui::TextUnformatted("No object selected");
             ImGui::End();
             return;
         }
 
-        vke_common::GameObject &object = scene->registry.get<vke_common::GameObject>(selectedEntity);
-        vke_common::Transform &transform = scene->registry.get<vke_common::Transform>(selectedEntity);
+        vke_common::GameObject &object = sceneManager->registry.get<vke_common::GameObject>(selectedEntity);
+        vke_common::Transform &transform = sceneManager->registry.get<vke_common::Transform>(selectedEntity);
 
         char nameBuffer[128]{};
         std::strncpy(nameBuffer, object.name.c_str(), sizeof(nameBuffer) - 1);
@@ -337,19 +330,6 @@ namespace vke_editor
             object.name = nameBuffer;
 
         ImGui::Checkbox("Static", &object.isStatic);
-        if (!scene->layers.empty())
-        {
-            std::vector<const char *> layers;
-            layers.reserve(scene->layers.size());
-            for (const std::string &layer : scene->layers)
-                layers.push_back(layer.c_str());
-
-            int layerIndex = object.layer;
-            if (layerIndex < 0 || layerIndex >= static_cast<int>(layers.size()))
-                layerIndex = 0;
-            if (ImGui::Combo("Layer", &layerIndex, layers.data(), static_cast<int>(layers.size())))
-                object.layer = layerIndex;
-        }
 
         if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -360,21 +340,21 @@ namespace vke_editor
                 vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Edit;
 
             if (ImGui::InputFloat3("Position", glm::value_ptr(position)))
-                scene->transformSystem.SetLocalPosition(selectedEntity, position, updatePhysicsComponents);
+                sceneManager->transformSystem.SetLocalPosition(selectedEntity, position, updatePhysicsComponents);
             if (ImGui::InputFloat3("Rotation", glm::value_ptr(rotation)))
-                scene->transformSystem.SetLocalRotation(selectedEntity, glm::quat(glm::radians(rotation)), updatePhysicsComponents);
+                sceneManager->transformSystem.SetLocalRotation(selectedEntity, glm::quat(glm::radians(rotation)), updatePhysicsComponents);
             if (ImGui::InputFloat3("Scale", glm::value_ptr(scale)))
-                scene->transformSystem.SetLocalScale(selectedEntity, scale, updatePhysicsComponents);
+                sceneManager->transformSystem.SetLocalScale(selectedEntity, scale, updatePhysicsComponents);
 
             ImGui::TreePop();
         }
 
         if (ImGui::TreeNodeEx("Components", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (scene->registry.all_of<vke_component::CharacterController>(selectedEntity))
+            if (sceneManager->registry.all_of<vke_component::CharacterController>(selectedEntity))
                 ImGui::BulletText("CharacterController");
-            auto scriptIt = scene->csharpScriptStates.find(selectedEntity);
-            if (scriptIt != scene->csharpScriptStates.end())
+            auto scriptIt = sceneManager->csharpScriptStates.find(selectedEntity);
+            if (scriptIt != sceneManager->csharpScriptStates.end())
             {
                 for (const auto &[className, state] : scriptIt->second)
                     ImGui::BulletText("Script: %s", className.c_str());
@@ -382,15 +362,15 @@ namespace vke_editor
             ImGui::TreePop();
         }
 
-        drawCameraComponent(scene);
-        drawLightComponents(scene);
-        drawRenderableObjectComponent(scene);
-        drawSkeletonAnimatorComponent(scene);
-        drawRigidBodyComponent(scene);
-        drawSensorComponent(scene);
-        drawUITextComponent(scene);
-        drawAudioSourceComponent(scene);
-        drawAudioListenerComponent(scene);
+        drawCameraComponent();
+        drawLightComponents();
+        drawRenderableObjectComponent();
+        drawSkeletonAnimatorComponent();
+        drawRigidBodyComponent();
+        drawSensorComponent();
+        drawUITextComponent();
+        drawAudioSourceComponent();
+        drawAudioListenerComponent();
         showAddComponentMenu();
 
         ImGui::End();
@@ -425,11 +405,10 @@ namespace vke_editor
         if (!ImGui::BeginCombo("Add Component", "Select component"))
             return;
 
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
         bool hasAvailableComponent = false;
         for (const ComponentMenuItem &item : componentMenuItems)
         {
-            if (scene == nullptr || scene->HasComponent(selectedEntity, item.type))
+            if (sceneManager->HasComponent(selectedEntity, item.type))
                 continue;
 
             hasAvailableComponent = true;
@@ -445,13 +424,12 @@ namespace vke_editor
 
     void Editor::addComponent(vke_common::ComponentType componentType)
     {
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (scene == nullptr || selectedEntity == entt::null || !scene->registry.valid(selectedEntity) ||
-            scene->HasComponent(selectedEntity, componentType) ||
-            !scene->registry.all_of<vke_common::Transform>(selectedEntity))
+        if (selectedEntity == entt::null || !sceneManager->registry.valid(selectedEntity) ||
+            sceneManager->HasComponent(selectedEntity, componentType) ||
+            !sceneManager->registry.all_of<vke_common::Transform>(selectedEntity))
             return;
 
-        const vke_common::Transform &transform = scene->registry.get<vke_common::Transform>(selectedEntity);
+        const vke_common::Transform &transform = sceneManager->registry.get<vke_common::Transform>(selectedEntity);
 
         switch (componentType)
         {
@@ -461,7 +439,7 @@ namespace vke_editor
                 vke_common::AssetManager::LoadMaterial(vke_common::BUILTIN_MATERIAL_DEFAULT_ID);
             std::shared_ptr<const vke_render::Mesh> mesh =
                 vke_common::AssetManager::LoadMesh(vke_common::BUILTIN_MESH_SPHERE_ID);
-            auto &renderable = scene->registry.emplace<vke_component::RenderableObject>(
+            auto &renderable = sceneManager->registry.emplace<vke_component::RenderableObject>(
                 selectedEntity, transform, material, mesh);
             renderable.LoadToEngine();
             break;
@@ -469,7 +447,7 @@ namespace vke_editor
         case vke_common::ComponentType::RigidBody:
         {
             auto shape = CreateDefaultPhysicsBoxShape();
-            auto &body = scene->registry.emplace<vke_component::RigidBody>(
+            auto &body = sceneManager->registry.emplace<vke_component::RigidBody>(
                 selectedEntity,
                 transform,
                 JPH::EMotionType::Dynamic,
@@ -477,31 +455,28 @@ namespace vke_editor
                 0.2f,
                 0.0f,
                 shape);
-            if (scene->loadedToEngine)
-                body.LoadToEngine(selectedEntity);
+            body.LoadToEngine(selectedEntity);
             break;
         }
         case vke_common::ComponentType::Sensor:
         {
             auto shape = CreateDefaultPhysicsBoxShape();
-            auto &sensor = scene->registry.emplace<vke_component::Sensor>(
+            auto &sensor = sceneManager->registry.emplace<vke_component::Sensor>(
                 selectedEntity,
                 transform,
                 true,
                 vke_physics::DefaultObjectLayers::NON_MOVING,
                 shape);
-            if (scene->loadedToEngine)
-                sensor.LoadToEngine(selectedEntity);
+            sensor.LoadToEngine(selectedEntity);
             break;
         }
         case vke_common::ComponentType::AudioSource:
-            scene->registry.emplace<vke_component::AudioSource>(selectedEntity);
+            sceneManager->registry.emplace<vke_component::AudioSource>(selectedEntity);
             break;
         case vke_common::ComponentType::AudioListener:
         {
-            auto &listener = scene->registry.emplace<vke_component::AudioListener>(selectedEntity);
-            if (scene->loadedToEngine)
-                listener.LoadToEngine();
+            auto &listener = sceneManager->registry.emplace<vke_component::AudioListener>(selectedEntity);
+            listener.LoadToEngine();
             break;
         }
         case vke_common::ComponentType::DirectionalLight:
@@ -509,10 +484,9 @@ namespace vke_editor
             vke_component::DirectionalLightData data;
             data.color = glm::vec3(1.0f);
             data.intensity = 1.0f;
-            auto &light = scene->registry.emplace<vke_component::DirectionalLight>(
+            auto &light = sceneManager->registry.emplace<vke_component::DirectionalLight>(
                 selectedEntity, transform, data);
-            if (scene->loadedToEngine)
-                light.LoadToEngine(selectedEntity);
+            light.LoadToEngine(selectedEntity);
             break;
         }
         case vke_common::ComponentType::PointLight:
@@ -521,10 +495,9 @@ namespace vke_editor
             data.color = glm::vec3(1.0f);
             data.radius = 5.0f;
             data.intensity = 1.0f;
-            auto &light = scene->registry.emplace<vke_component::PointLight>(
+            auto &light = sceneManager->registry.emplace<vke_component::PointLight>(
                 selectedEntity, transform, data);
-            if (scene->loadedToEngine)
-                light.LoadToEngine(selectedEntity);
+            light.LoadToEngine(selectedEntity);
             break;
         }
         case vke_common::ComponentType::SpotLight:
@@ -536,10 +509,9 @@ namespace vke_editor
             data.innerConeCos = glm::cos(glm::radians(15.0f));
             data.outerConeCos = glm::cos(glm::radians(30.0f));
             data.castShadow = false;
-            auto &light = scene->registry.emplace<vke_component::SpotLight>(
+            auto &light = sceneManager->registry.emplace<vke_component::SpotLight>(
                 selectedEntity, transform, data);
-            if (scene->loadedToEngine)
-                light.LoadToEngine(selectedEntity);
+            light.LoadToEngine(selectedEntity);
             break;
         }
         default:
@@ -549,20 +521,14 @@ namespace vke_editor
 
     void Editor::createEmptyObject()
     {
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (scene == nullptr)
-            return;
-
         std::string name = "GameObject";
         clearSelectedAsset();
-        selectedEntity = scene->AddObject(name, glm::vec3(0.0f), glm::vec3(1.0f), glm::quat(glm::vec3(0.0f)), 0, false);
+        selectedEntity = sceneManager->AddObject(name, glm::vec3(0.0f), glm::vec3(1.0f), glm::quat(glm::vec3(0.0f)), false);
     }
 
     void Editor::ensureSelectedEntityValid()
     {
-        vke_common::SceneManager *sceneManager = vke_common::SceneManager::GetInstance();
-        vke_common::Scene *scene = sceneManager->currentScene.get();
-        if (scene == nullptr || selectedEntity == entt::null || !scene->registry.valid(selectedEntity))
+        if (selectedEntity == entt::null || !sceneManager->registry.valid(selectedEntity))
             selectedEntity = entt::null;
     }
 }

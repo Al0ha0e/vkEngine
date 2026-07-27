@@ -12,21 +12,16 @@
 
 namespace vke_interop
 {
-    static vke_common::Scene *GetCurrentScene()
-    {
-        return vke_common::SceneManager::GetInstance()->currentScene.get();
-    }
-
-    static inline entt::entity GetEntity(vke_common::Scene *scene, uint32_t entity)
+    static inline entt::entity GetEntity(uint32_t entity)
     {
         entt::entity ent = static_cast<entt::entity>(entity);
-        // VKE_FATAL_IF(scene == nullptr || !scene->registry.valid(ent), "Invalid scene entity {}", entity)
+        // VKE_FATAL_IF(!vke_common::SceneManager::GetInstance()->registry.valid(ent), "Invalid scene entity {}", entity)
         return ent;
     }
 
-    static vke_common::Transform &GetTransform(vke_common::Scene *scene, uint32_t entity)
+    static vke_common::Transform &GetTransform(uint32_t entity)
     {
-        return scene->registry.get<vke_common::Transform>(GetEntity(scene, entity));
+        return vke_common::SceneManager::GetInstance()->registry.get<vke_common::Transform>(GetEntity(entity));
     }
 
     static glm::vec3 ToGlm(const Vector3<float> &value)
@@ -56,68 +51,57 @@ namespace vke_interop
 
     static void VKE_INTEROP_CDECL GetTransformLocalPosition(uint32_t entity, Vector3<float> *position)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        *position = ToInterop(GetTransform(scene, entity).localPosition);
+        *position = ToInterop(GetTransform(entity).localPosition);
     }
 
     static void VKE_INTEROP_CDECL SetTransformLocalPosition(uint32_t entity, const Vector3<float> *position)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.SetLocalPosition(GetEntity(scene, entity), ToGlm(*position));
+        vke_common::SceneManager::GetInstance()->transformSystem.SetLocalPosition(GetEntity(entity), ToGlm(*position));
     }
 
     static void VKE_INTEROP_CDECL GetTransformLocalRotation(uint32_t entity, Quaternion<float> *rotation)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        *rotation = ToInterop(GetTransform(scene, entity).localRotation);
+        *rotation = ToInterop(GetTransform(entity).localRotation);
     }
 
     static void VKE_INTEROP_CDECL SetTransformLocalRotation(uint32_t entity, const Quaternion<float> *rotation)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.SetLocalRotation(GetEntity(scene, entity), ToGlm(*rotation));
+        vke_common::SceneManager::GetInstance()->transformSystem.SetLocalRotation(GetEntity(entity), ToGlm(*rotation));
     }
 
     static void VKE_INTEROP_CDECL GetTransformLocalScale(uint32_t entity, Vector3<float> *scale)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        *scale = ToInterop(GetTransform(scene, entity).localScale);
+        *scale = ToInterop(GetTransform(entity).localScale);
     }
 
     static void VKE_INTEROP_CDECL SetTransformLocalScale(uint32_t entity, const Vector3<float> *scale)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.SetLocalScale(GetEntity(scene, entity), ToGlm(*scale));
+        vke_common::SceneManager::GetInstance()->transformSystem.SetLocalScale(GetEntity(entity), ToGlm(*scale));
     }
 
     static void VKE_INTEROP_CDECL TranslateTransformLocal(uint32_t entity, const Vector3<float> *det)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.TranslateLocal(GetEntity(scene, entity), ToGlm(*det));
+        vke_common::SceneManager::GetInstance()->transformSystem.TranslateLocal(GetEntity(entity), ToGlm(*det));
     }
 
     static void VKE_INTEROP_CDECL TranslateTransformGlobal(uint32_t entity, const Vector3<float> *det)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.TranslateGlobal(GetEntity(scene, entity), ToGlm(*det));
+        vke_common::SceneManager::GetInstance()->transformSystem.TranslateGlobal(GetEntity(entity), ToGlm(*det));
     }
 
     static void VKE_INTEROP_CDECL RotateTransformLocal(uint32_t entity, float det, const Vector3<float> *axis)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.RotateLocal(GetEntity(scene, entity), det, ToGlm(*axis));
+        vke_common::SceneManager::GetInstance()->transformSystem.RotateLocal(GetEntity(entity), det, ToGlm(*axis));
     }
 
     static void VKE_INTEROP_CDECL RotateTransformGlobal(uint32_t entity, float det, const Vector3<float> *axis)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.RotateGlobal(GetEntity(scene, entity), det, ToGlm(*axis));
+        vke_common::SceneManager::GetInstance()->transformSystem.RotateGlobal(GetEntity(entity), det, ToGlm(*axis));
     }
 
     static void VKE_INTEROP_CDECL ScaleTransform(uint32_t entity, const Vector3<float> *scale)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        scene->transformSystem.Scale(GetEntity(scene, entity), ToGlm(*scale));
+        vke_common::SceneManager::GetInstance()->transformSystem.Scale(GetEntity(entity), ToGlm(*scale));
     }
 
     static int32_t VKE_INTEROP_CDECL IsKeyDown(int32_t key)
@@ -197,18 +181,17 @@ namespace vke_interop
 
     static int32_t VKE_INTEROP_CDECL HasComponent(uint32_t entity, int32_t componentType)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        if (scene == nullptr)
-            return 0;
-
-        entt::entity ent = GetEntity(scene, entity);
-        return scene->HasComponent(ent, static_cast<vke_common::ComponentType>(componentType)) ? 1 : 0;
+        return vke_common::SceneManager::GetInstance()->HasComponent(
+                   GetEntity(entity), static_cast<vke_common::ComponentType>(componentType))
+                   ? 1
+                   : 0;
     }
 
-    static vke_component::SkeletonAnimator *GetSkeletonAnimator(vke_common::Scene *scene, uint32_t entity)
+    static vke_component::SkeletonAnimator *GetSkeletonAnimator(uint32_t entity)
     {
-        entt::entity ent = GetEntity(scene, entity);
-        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::SkeletonAnimator>(ent))
+        auto *scene = vke_common::SceneManager::GetInstance();
+        entt::entity ent = GetEntity(entity);
+        if (!scene->registry.valid(ent) || !scene->registry.all_of<vke_component::SkeletonAnimator>(ent))
             return nullptr;
 
         return &scene->registry.get<vke_component::SkeletonAnimator>(ent);
@@ -216,98 +199,87 @@ namespace vke_interop
 
     static uint32_t VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationCount(uint32_t entity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         return animator == nullptr ? 0 : animator->GetAnimationCount();
     }
 
     static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationSpeed(uint32_t entity, uint32_t index, float speed)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         if (animator != nullptr)
             animator->SetAnimationSpeed(index, speed);
     }
 
     static float VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationSpeed(uint32_t entity, uint32_t index)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         return animator == nullptr ? 0.0f : animator->GetAnimationSpeed(index);
     }
 
     static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationTimeRatio(uint32_t entity, uint32_t index, float ratio)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         if (animator != nullptr)
             animator->SetAnimationTimeRatio(index, ratio);
     }
 
     static float VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationTimeRatio(uint32_t entity, uint32_t index)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         return animator == nullptr ? 0.0f : animator->GetAnimationTimeRatio(index);
     }
 
     static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationLoop(uint32_t entity, uint32_t index, int32_t loop)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         if (animator != nullptr)
             animator->SetAnimationLoop(index, loop != 0);
     }
 
     static int32_t VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationLoop(uint32_t entity, uint32_t index)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         return animator != nullptr && animator->GetAnimationLoop(index) ? 1 : 0;
     }
 
     static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationPlaying(uint32_t entity, uint32_t index, int32_t playing)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         if (animator != nullptr)
             animator->SetAnimationPlaying(index, playing != 0);
     }
 
     static int32_t VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationPlaying(uint32_t entity, uint32_t index)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         return animator != nullptr && animator->GetAnimationPlaying(index) ? 1 : 0;
     }
 
     static void VKE_INTEROP_CDECL SetSkeletonAnimatorAnimationWeight(uint32_t entity, uint32_t index, float weight)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         if (animator != nullptr)
             animator->SetAnimationWeight(index, weight);
     }
 
     static float VKE_INTEROP_CDECL GetSkeletonAnimatorAnimationWeight(uint32_t entity, uint32_t index)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         return animator == nullptr ? 0.0f : animator->GetAnimationWeight(index);
     }
 
     static void VKE_INTEROP_CDECL SetSkeletonAnimatorBlendWeights(uint32_t entity, const float *weights, uint32_t count)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(scene, entity);
+        vke_component::SkeletonAnimator *animator = GetSkeletonAnimator(entity);
         if (animator != nullptr)
             animator->SetBlendWeights(weights, count);
     }
 
-    static vke_component::CharacterController *GetCharacterController(vke_common::Scene *scene, uint32_t entity)
+    static vke_component::CharacterController *GetCharacterController(uint32_t entity)
     {
-        entt::entity ent = GetEntity(scene, entity);
-        if (scene == nullptr || !scene->registry.valid(ent) || !scene->registry.all_of<vke_component::CharacterController>(ent))
+        auto *scene = vke_common::SceneManager::GetInstance();
+        entt::entity ent = GetEntity(entity);
+        if (!scene->registry.valid(ent) || !scene->registry.all_of<vke_component::CharacterController>(ent))
             return nullptr;
 
         return &scene->registry.get<vke_component::CharacterController>(ent);
@@ -315,8 +287,7 @@ namespace vke_interop
 
     static void VKE_INTEROP_CDECL SetCharacterControllerVelocity(uint32_t entity, const Vector3<float> *velocity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::CharacterController *controller = GetCharacterController(scene, entity);
+        vke_component::CharacterController *controller = GetCharacterController(entity);
         if (controller == nullptr)
             return;
 
@@ -325,15 +296,13 @@ namespace vke_interop
 
     static void VKE_INTEROP_CDECL GetCharacterControllerVelocity(uint32_t entity, Vector3<float> *velocity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::CharacterController *controller = GetCharacterController(scene, entity);
+        vke_component::CharacterController *controller = GetCharacterController(entity);
         *velocity = controller == nullptr ? Vector3<float>{0.0f, 0.0f, 0.0f} : ToInterop(controller->GetLinearVelocity());
     }
 
     static int32_t VKE_INTEROP_CDECL IsCharacterControllerGrounded(uint32_t entity)
     {
-        vke_common::Scene *scene = GetCurrentScene();
-        vke_component::CharacterController *controller = GetCharacterController(scene, entity);
+        vke_component::CharacterController *controller = GetCharacterController(entity);
         return controller != nullptr && controller->IsGrounded() ? 1 : 0;
     }
 }

@@ -59,9 +59,7 @@ namespace vke_audio
         if (instance == nullptr || instance->engine == nullptr)
             return;
 
-        vke_common::Scene *scene = vke_common::SceneManager::GetInstance()->currentScene.get();
-        if (scene == nullptr || !scene->loadedToEngine)
-            return;
+        vke_common::SceneManager *scene = vke_common::SceneManager::GetInstance();
 
         auto srcView = scene->registry.view<vke_common::Transform, vke_component::AudioSource>();
         for (auto [entity, transform, src] : srcView.each())

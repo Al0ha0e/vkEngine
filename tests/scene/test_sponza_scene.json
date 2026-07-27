@@ -1,5 +1,4 @@
 {
-  "layers": ["default", "editor", "test"],
   "maxid": 5,
   "objects": [
     {
@@ -41,7 +40,6 @@
         }
       ],
       "id": 1,
-      "layer": 1,
       "name": "scene_cam",
       "parent": 0,
       "static": false,
@@ -166,7 +164,6 @@
         }
       ],
       "id": 2,
-      "layer": 0,
       "name": "sponza",
       "parent": 0,
       "static": true,
@@ -180,7 +177,6 @@
       "id": 3,
       "static": true,
       "name": "sun_directional_light",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, 0.0, 0.0],
@@ -200,7 +196,6 @@
       "id": 4,
       "static": true,
       "name": "fps_text",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [60.0, 60.0, 12.0],

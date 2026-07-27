@@ -2,9 +2,8 @@
 #define SCENE_TRANSFORM_SYSTEM_H
 
 #include <component/transform.hpp>
-#include <ds/id_allocator.hpp>
 #include <entt/entity/registry.hpp>
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace vke_common
@@ -12,10 +11,11 @@ namespace vke_common
     class SceneTransformSystem
     {
     public:
-        SceneTransformSystem(entt::registry &registry,
-                             std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity)
-            : registry(registry), idToEntity(idToEntity) {}
+        SceneTransformSystem(entt::registry &registry)
+            : registry(registry) {}
 
+        void CollectEntitySubtree(std::vector<entt::entity> &entities) const;
+        void CollectEntitiesSubtree(std::unordered_set<entt::entity> &entitySet, std::vector<entt::entity> &entities) const;
         void PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities);
         void RemoveChild(entt::entity entity, entt::entity childEntity);
         void SetParent(entt::entity entity, entt::entity parentEntity, bool updatePhysicsComponents = false);
@@ -32,7 +32,6 @@ namespace vke_common
 
     private:
         entt::registry &registry;
-        std::unordered_map<vke_ds::id32_t, entt::entity> &idToEntity;
 
         void updateTransform(entt::entity entity, Transform &transform, bool first, bool updatePhysicsComponents);
     };

@@ -95,7 +95,6 @@ int main(int argc, char **argv)
         {"id", maxID},
         {"static", true},
         {"name", gltfName},
-        {"layer", 0},
         {"parent", 0},
         {"transform",
          {{"pos", nlohmann::json::array({0.0, 0.0, 0.0})},

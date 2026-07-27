@@ -1,12 +1,10 @@
 {
   "maxid": 5,
-  "layers": ["default", "editor", "test"],
   "objects": [
     {
       "id": 1,
       "static": true,
       "name": "scene_cam",
-      "layer": 1,
       "parent": 0,
       "transform": {
         "pos": [0.0, 1.15, 8.0],
@@ -73,7 +71,6 @@
       "id": 2,
       "static": true,
       "name": "sun_directional_light",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, 0.0, 0.0],
@@ -93,7 +90,6 @@
       "id": 3,
       "static": true,
       "name": "playground_floor",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [0.0, -2.0, 0.0],
@@ -121,7 +117,6 @@
       "id": 4,
       "static": false,
       "name": "music_box",
-      "layer": 0,
       "parent": 0,
       "transform": {
         "pos": [3.0, -1.2, -2.0],
