@@ -5,6 +5,7 @@ namespace TestProj;
 
 public sealed class FpsTextScript : EntityScript
 {
+    [Export]
     public float UpdateInterval = 0.25f;
     private UIText? text;
     private int frames;

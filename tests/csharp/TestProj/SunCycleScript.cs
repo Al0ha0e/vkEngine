@@ -5,6 +5,7 @@ namespace TestProj;
 
 public sealed class SunCycleScript : EntityScript
 {
+    [Export]
     public float Speed = 0.15f;
 
     private Transform? transform;

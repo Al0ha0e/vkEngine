@@ -9,8 +9,11 @@ public sealed class TestCameraScript : EntityScript
     private const float RaycastOriginOffset = 0.75f;
     private const float RaycastImpulse = 30.0f;
 
+    [Export]
     public float MoveSpeed = 2.5f;
+    [Export]
     public float RotateSpeed = 1.0f;
+    [Export]
     public float JumpSpeed = 5.0f;
     private Transform? transform;
     private CharacterController? characterController;

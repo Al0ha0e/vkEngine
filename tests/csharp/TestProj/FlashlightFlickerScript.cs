@@ -5,10 +5,15 @@ namespace TestProj;
 
 public sealed class FlashlightFlickerScript : EntityScript
 {
+    [Export]
     public float BaseIntensity = 2.5f;
+    [Export]
     public float FlickerAmplitude = 1.5f;
+    [Export]
     public float FlickerSpeed = 6.0f;
+    [Export]
     public float DropoutChance = 0.08f;
+    [Export]
     public float FollowSpeed = 8.0f;
 
     private SpotLight? spotLight;

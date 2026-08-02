@@ -5,13 +5,21 @@ namespace TestProj;
 
 public sealed class AnimatedSpotLightScript : EntityScript
 {
+    [Export]
     public float ColorSpeed = 1.2f;
+    [Export]
     public float IntensityBase = 8.0f;
+    [Export]
     public float IntensityAmplitude = 4.0f;
+    [Export]
     public float InnerConeBase = 0.35f;
+    [Export]
     public float InnerConeAmplitude = 0.12f;
+    [Export]
     public float OuterConeBase = 0.75f;
+    [Export]
     public float OuterConeAmplitude = 0.18f;
+    [Export]
     public float YawSpeed = 1.0f;
 
     private SpotLight? spotLight;

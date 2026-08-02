@@ -10,6 +10,24 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\csharp\EngineCore\EngineCore.csproj" />
+    <ProjectReference Include="..\..\..\tools\EntityScriptMetadataExporter\EntityScriptMetadataExporter.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <EntityScriptMetadataExporter>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../../tools/EntityScriptMetadataExporter/bin/$(Configuration)/net9.0/EntityScriptMetadataExporter.dll'))</EntityScriptMetadataExporter>
+    <EntityScriptMetadataOutput>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/generated/$(AssemblyName).entityscripts.json'))</EntityScriptMetadataOutput>
+    <EntityScriptMetadataDotNetHost Condition="'$(DotNetHostPath)' != ''">$(DotNetHostPath)</EntityScriptMetadataDotNetHost>
+    <EntityScriptMetadataDotNetHost Condition="'$(EntityScriptMetadataDotNetHost)' == ''">dotnet</EntityScriptMetadataDotNetHost>
+  </PropertyGroup>
+
+  <Target Name="GenerateEntityScriptMetadata"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true'"
+          Inputs="$(TargetPath);$(EntityScriptMetadataExporter)"
+          Outputs="$(EntityScriptMetadataOutput)">
+    <Exec Command="&quot;$(EntityScriptMetadataDotNetHost)&quot; &quot;$(EntityScriptMetadataExporter)&quot; &quot;$(TargetPath)&quot; &quot;$(EntityScriptMetadataOutput)&quot;" />
+  </Target>
 
 </Project>

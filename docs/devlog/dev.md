@@ -34,7 +34,7 @@ glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据�
 这一轮更改把每个组件的纯数据部分都单独抽出来了，scene的纯数据也抽出来了。
 还留下一个问题，transform 中父子级的解析以及相应的transform更新到底是在data加载时进行，还是在scene加载scenedata的时候进行，暂时没想好，目前倾向于在加载scenedata时进行。下一步就是scenedata的资源化。另外，下一个版本里，loadtoengine就是把scenedata加载到scenemanager中的唯一结构中，最后只会剩两种，一种是数据，另一种是全局唯一的加载到引擎的组件状态，现在中间还剩了个完成加载scenedata没有loadtoengine的scene是多余的，这也是为啥光源相关组件目前仍保存有光源结构体的副本，把中间状态去掉会清爽很多。
 
-# 1ced4e83d10c337ea789d3f07fb04e4573ce29fd ecs refactor1
+## 1ced4e83d10c337ea789d3f07fb04e4573ce29fd ecs refactor1
 
 这一轮修改去掉了scene，现在scenemanager维护加载到引擎的实体和组件，scenedata表示待加载到引擎的实体和组件状态，还去除了多余的layer标记。另外独立的实体id只在序列化和反序列化的阶段发挥作用，引擎内只有一个entt分配的entity，这个每次运行都可能不同，然后在序列化的时候重新构建序列化的id来标记父子关系（实际之前的id也只有标记父子关系的作用，但是引入了很多运行时的负担）
 
@@ -44,3 +44,21 @@ glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据�
 - scenemanager应该单独开一个 AddComponent 函数给编辑器和C#用，现在的 AddComponent 是编辑器单独实现的
 
 这一轮修改花费了很多时间和精力来确保重构之后功能一切正常
+
+## 6157dc39df73192f7d4d61fdc68e5c1fe68b89ec ecs refactor2
+
+最近几轮在真正实现scenedata资源化之前要先解决C#脚本 EntityScript 的序列化/反序列化和状态同步问题，主要有几点：
+- 场景加载的时候需要从C++侧加载脚本状态到C#
+- 编辑器需要在C++的UI面板和C#之间双向同步
+- 编辑场景保存的时候需要从C#到C++的同步
+
+需要以下能力：
+- 为 C# 的 EntityScript 生成元数据
+- C++ 侧能够识别元数据，在 JSON 转内存二进制和编辑器双向同步的场景下需要用到元数据
+
+所以需要以下几步：
+- C# 侧实现元数据的反射和导出
+- C++ 按元数据把 JSON 转成内存二进制格式，能够直接传指针给C#反序列化
+- C++ 编辑器端按元数据生成UI控件，并且与C#间进行双向同步
+
+这一轮基本实现了第一步
