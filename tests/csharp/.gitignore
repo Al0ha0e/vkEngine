@@ -5,3 +5,4 @@ obj/
 generated/
 *.dll
 *.runtimeconfig.json
+*.entityscripts.json

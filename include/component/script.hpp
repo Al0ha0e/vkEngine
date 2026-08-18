@@ -23,14 +23,6 @@ namespace vke_component
             return {{"type", "script"}, {"className", className}, {"data", serializedData}};
         }
 
-        std::string ToCSharp(entt::entity entity) const
-        {
-            nlohmann::json json = {
-                {"entity", (uint32_t)entity},
-                {"className", className},
-                {"data", serializedData}};
-            return json.dump();
-        }
     };
 }
 

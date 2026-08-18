@@ -2,19 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 
 namespace vkEngine.EngineCore
 {
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct SceneManagerFunctions
     {
-        public delegate* unmanaged<byte**, UInt32, void> Load;
+        public delegate* unmanaged<ScriptLoadData*, UInt32, void> Load;
         public delegate* unmanaged<void> Start;
         public delegate* unmanaged<void> Update;
         public delegate* unmanaged<void> FixedUpdate;
         public delegate* unmanaged<void> LateUpdate;
         public delegate* unmanaged<void> Unload;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct ScriptLoadData
+    {
+        public UInt32 Entity;
+        public byte* ClassName;
+        public byte* Data;
+        public Int32 DataSize;
     }
 
     [Flags]
@@ -37,60 +45,27 @@ namespace vkEngine.EngineCore
         private static readonly Dictionary<UInt32, List<EntityScript>> fixedUpdateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> lateUpdateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> unloadScripts = new();
-        private static readonly JsonSerializerOptions jsonOptions = new()
-        {
-            PropertyNameCaseInsensitive = true
-        };
         private static Assembly? gameAssembly;
-
-        private sealed class ScriptLoadState
-        {
-            public UInt32 Entity { get; set; }
-            public string ClassName { get; set; } = string.Empty;
-            public ScriptSerializedData Data { get; set; } = new();
-        }
-
-        private sealed class ScriptSerializedData
-        {
-            public List<ScriptFieldState> Fields { get; set; } = new();
-        }
-
-        private sealed class ScriptFieldState
-        {
-            public string Name { get; set; } = string.Empty;
-            public JsonElement Val { get; set; }
-        }
+        private unsafe delegate EntityScript BinaryParser(
+            string className, UInt32 entity, byte* data, Int32 dataSize);
+        private static BinaryParser? binaryParser;
 
         [UnmanagedCallersOnly]
-        public unsafe static void Load(byte** data, UInt32 cnt)
+        public unsafe static void Load(ScriptLoadData* data, UInt32 cnt)
         {
             if (data == null || cnt == 0)
                 return;
 
-            var assembly = GetGameAssembly();
+            BinaryParser parser = GetBinaryParser();
 
             for (UInt32 i = 0; i < cnt; i++)
             {
-                var json = Marshal.PtrToStringUTF8((nint)data[i]);
-                if (string.IsNullOrWhiteSpace(json))
-                    continue;
-
-                var state = JsonSerializer.Deserialize<ScriptLoadState>(json, jsonOptions)
-                    ?? throw new InvalidOperationException("Failed to deserialize script load state.");
-
-                if (string.IsNullOrWhiteSpace(state.ClassName))
+                ref ScriptLoadData state = ref data[i];
+                string? className = Marshal.PtrToStringUTF8((nint)state.ClassName);
+                if (string.IsNullOrWhiteSpace(className))
                     throw new InvalidOperationException("Script className is missing.");
-
-                var scriptType = assembly.GetType(state.ClassName, throwOnError: false)
-                    ?? throw new InvalidOperationException($"Script type '{state.ClassName}' was not found in {assembly.GetName().Name}.dll.");
-
-                if (!typeof(EntityScript).IsAssignableFrom(scriptType))
-                    throw new InvalidOperationException($"Script type '{state.ClassName}' does not inherit from EntityScript.");
-
-                var entity = state.Entity;
-                var fields = state.Data.Fields;
-                var script = CreateScriptInstance(scriptType, entity);
-                ApplyFields(scriptType, script, fields);
+                EntityScript script = parser(
+                    className, state.Entity, state.Data, state.DataSize);
                 Register(script);
             }
         }
@@ -257,30 +232,21 @@ namespace vkEngine.EngineCore
             return gameAssembly;
         }
 
-        private static EntityScript CreateScriptInstance(Type scriptType, UInt32 entity)
+        private static BinaryParser GetBinaryParser()
         {
-            var ctor = scriptType.GetConstructor(
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                binder: null,
-                types: new[] { typeof(UInt32) },
-                modifiers: null)
-                ?? throw new InvalidOperationException($"Script type '{scriptType.FullName}' does not have a constructor with a single UInt32 entity id parameter.");
-
-            return (EntityScript)ctor.Invoke(new object[] { entity });
-        }
-
-        private static void ApplyFields(Type scriptType, EntityScript script, List<ScriptFieldState> fields)
-        {
-            foreach (var fieldState in fields)
-            {
-                if (string.IsNullOrWhiteSpace(fieldState.Name))
-                    continue;
-                var field = scriptType.GetField(fieldState.Name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                    ?? throw new InvalidOperationException($"Field '{fieldState.Name}' was not found on script type '{scriptType.FullName}'.");
-
-                var value = JsonSerializer.Deserialize(fieldState.Val.GetRawText(), field.FieldType, jsonOptions);
-                field.SetValue(script, value);
-            }
+            if (binaryParser != null)
+                return binaryParser;
+            Assembly assembly = GetGameAssembly();
+            Type readerType = assembly.GetType(
+                "vkEngine.Generated.EntityScriptBinaryReaders", throwOnError: false)
+                ?? throw new InvalidOperationException(
+                    $"Generated EntityScript binary readers were not found in {assembly.GetName().Name}.dll.");
+            MethodInfo parseMethod = readerType.GetMethod(
+                "Parse", BindingFlags.Public | BindingFlags.Static)
+                ?? throw new InvalidOperationException(
+                    "Generated EntityScript binary reader Parse method was not found.");
+            binaryParser = parseMethod.CreateDelegate<BinaryParser>();
+            return binaryParser;
         }
     }
 }

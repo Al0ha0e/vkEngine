@@ -62,3 +62,13 @@ glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据�
 - C++ 编辑器端按元数据生成UI控件，并且与C#间进行双向同步
 
 这一轮基本实现了第一步
+
+## 3b7d1d61a57c03d93a924e8197ed130fd42feb8c C# metadata export
+
+这一轮需要把 EntityScript 反序列化从 JSON 转成二进制的方式
+
+需要从 ScriptManager 先加载脚本的信息，然后在加载的时候按名字匹配
+
+这里还有一个问题，C#会引用一些C++的类型信息，但是C#侧反射是运行时通过json解析动态加载进来，所以需要一个表来记录C++侧的类型信息，然后能够用字符串按名称动态索引
+
+具体的设计文档写在 docs\type_info.md 和 docs\interop.md 里

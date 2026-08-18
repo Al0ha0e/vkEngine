@@ -6,7 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <physics/physics_config.hpp>
 #include <render/render_config.hpp>
-#include <reflect.hpp>
+#include <reflect/reflect.hpp>
 
 namespace vke_common
 {
@@ -25,12 +25,14 @@ namespace vke_common
         REFLECT_FIELD(std::string, assetLUTPath);
         REFLECT_FIELD(std::string, defaultScenePath);
         REFLECT_FIELD(std::string, gameScriptPath);
+        REFLECT_FIELD(std::string, gameScriptTypeInfoPath);
         vke_physics::PhysicsConfig physicsConfig;
         vke_render::RenderConfig renderConfig;
         nlohmann::json sourceJSON;
 
         GameConfig() : windowWidth(1920), windowHeight(1080), enableVulkanValidationLayers(true),
-                       assetLUTPath(), defaultScenePath(), gameScriptPath(), physicsConfig(), renderConfig() {}
+                       assetLUTPath(), defaultScenePath(), gameScriptPath(),
+                       gameScriptTypeInfoPath(), physicsConfig(), renderConfig() {}
         GameConfig(const nlohmann::json &json) : GameConfig()
         {
             sourceJSON = json;

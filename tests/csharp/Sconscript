@@ -1,8 +1,16 @@
 import os
 import shutil
+import subprocess
 
-os.system("dotnet build ./TestProj/ -c Release")
+repo_root = os.path.abspath("../..")
+project = os.path.join(repo_root, "tests/csharp/TestProj/TestProj.csproj")
+subprocess.run(
+    ["dotnet", "build", project, "-c", "Release", "-m:1"],
+    cwd=repo_root,
+    check=True,
+)
 
 filenames = ["game.dll"]
 
 shutil.copy("./TestProj/bin/Release/net9.0/Game.dll", "./Game.dll")
+shutil.copy("./TestProj/generated/Game.entityscripts.json", "./Game.entityscripts.json")

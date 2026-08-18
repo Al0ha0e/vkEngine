@@ -5,6 +5,7 @@
   "assetLUTPath": "./tests/scene/test_audio_desc.json",
   "defaultScenePath": "./tests/scene/test_audio_scene.json",
   "gameScriptPath": "./tests/csharp/Game.dll",
+  "gameScriptTypeInfoPath": "./tests/csharp/Game.entityscripts.json",
   "renderConfig": {
     "directionalShadow": {
       "mapSize": 4096,

@@ -5,6 +5,7 @@
   "assetLUTPath": "./tests/from_source2/vertigo/de_vertigo_d_assets.json",
   "defaultScenePath": "./tests/from_source2/vertigo/de_vertigo_d_de_vertigo_vmap_c.json",
   "gameScriptPath": "./tests/csharp/Game.dll",
+  "gameScriptTypeInfoPath": "./tests/csharp/Game.entityscripts.json",
   "renderConfig": {
     "directionalShadow": {
       "mapSize": 4096,

@@ -177,6 +177,9 @@ commonsrc = (
         "./src/input.cpp",
         "./src/time.cpp",
         "./src/logger.cpp",
+        "./src/reflect/type_info.cpp",
+        "./src/reflect/type_info_json.cpp",
+        "./src/reflect/value_view.cpp",
         "./src/physics/physics_config.cpp",
         "./src/physics/physics.cpp",
         "./src/script.cpp",
@@ -251,6 +254,18 @@ for info in targetinfo:
         CPPPATH=cpppath,
         CPPDEFINES=cppdefines + jolt_cppdefines,
     )
+
+env.Program(
+    "out/test_reflect",
+    [
+        "./tests/test_reflect.cpp",
+        "./src/reflect/type_info.obj",
+        "./src/reflect/type_info_json.obj",
+        "./src/reflect/value_view.obj",
+    ],
+    CPPPATH=cpppath,
+    CPPDEFINES=cppdefines + jolt_cppdefines,
+)
 
 imguiObjs = SConscript(["third_party/imgui/Sconscript"], exports=["env", "VULKAN_PATH"])
 editorsrc = [

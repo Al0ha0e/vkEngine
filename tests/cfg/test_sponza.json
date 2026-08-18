@@ -5,6 +5,7 @@
   "assetLUTPath": "./tests/scene/test_sponza_desc.json",
   "defaultScenePath": "./tests/scene/test_sponza_scene.json",
   "gameScriptPath": "./tests/csharp/Game.dll",
+  "gameScriptTypeInfoPath": "./tests/csharp/Game.entityscripts.json",
   "renderConfig": {
     "directionalShadow": {
       "mapSize": 4096,

@@ -2,6 +2,7 @@
 #include <script.hpp>
 #include <logger.hpp>
 #include <iostream>
+#include <fstream>
 #include <game_config.hpp>
 
 #ifdef _WIN32
@@ -88,14 +89,56 @@ namespace vke_common
         getDotnetLoadAssembly(ENGINE_CORE_CSHARP_CONFIG_PATH, functionPointers);
         functionPointers.loadAssembly(ENGINE_CORE_CSHARP_ASSEMBLY_PATH, nullptr, nullptr);
 
-        std::string &gameAssemblyPath = GameConfig::GetInstance()->gameScriptPath;
+        const std::string &gameAssemblyPath = GameConfig::GetInstance()->gameScriptPath;
         if (gameAssemblyPath.length() > 0)
+        {
             functionPointers.loadAssembly(std::wstring(gameAssemblyPath.begin(), gameAssemblyPath.end()).c_str(), nullptr, nullptr);
+            const std::string &typeInfoPath =
+                GameConfig::GetInstance()->gameScriptTypeInfoPath;
+            VKE_FATAL_IF(typeInfoPath.empty(),
+                         "gameScriptTypeInfoPath is required when gameScriptPath is configured")
+            loadTypeInfos(typeInfoPath);
+        }
 
         getCSharpExports();
         int rc = csharpExports.init();
         VKE_FATAL_IF(rc != 0, "C# Init failed: {}", rc)
         registerNativeFunctions();
+    }
+
+    void ScriptManager::loadTypeInfos(const std::string &path)
+    {
+        std::ifstream input(path);
+        VKE_FATAL_IF(!input, "Failed to open game script type information: {}", path)
+
+        const nlohmann::json document = nlohmann::json::parse(input, nullptr, false);
+        VKE_FATAL_IF(document.is_discarded() || !document.is_object(),
+                     "Invalid game script type information JSON: {}", path)
+
+        const auto types = document.find("types");
+        VKE_FATAL_IF(types == document.end(),
+                     "Game script type information is missing field $.types: {}", path)
+        VKE_FATAL_IF(!types->is_array(),
+                     "Game script type information field $.types must be an array: {}", path)
+
+        typeInfos.clear();
+        typeInfos.reserve(types->size());
+        for (std::size_t i = 0; i < types->size(); ++i)
+        {
+            auto type = TypeInfo::FromJson((*types)[i]);
+            if (!type)
+            {
+                VKE_FATAL("Invalid game script TypeInfo at $.types[{}]{}: {} ({})",
+                          i, type.error().path.substr(1),
+                          ToString(type.error().code), path)
+            }
+
+            const std::string name = (*type)->Name();
+            const auto [_, inserted] = typeInfos.emplace(name, std::move(*type));
+            VKE_FATAL_IF(!inserted,
+                         "Duplicate game script TypeInfo name '{}' at $.types[{}]: {}",
+                         name, i, path)
+        }
     }
 
     void ScriptManager::getCSharpExports()

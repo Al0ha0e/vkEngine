@@ -1,5 +1,5 @@
-#ifndef REFLECT_H
-#define REFLECT_H
+#ifndef VKE_REFLECT_REFLECT_H
+#define VKE_REFLECT_REFLECT_H
 
 #define REFLECT_STRUCT(name) struct name
 #define REFLECT_CLASS(name) class name

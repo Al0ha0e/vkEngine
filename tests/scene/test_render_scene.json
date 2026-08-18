@@ -25,20 +25,9 @@
           "type": "script",
           "className": "TestProj.TestCameraScript",
           "data": {
-            "fields": [
-              {
-                "name": "MoveSpeed",
-                "val": 4.0
-              },
-              {
-                "name": "RotateSpeed",
-                "val": 2.0
-              },
-              {
-                "name": "JumpSpeed",
-                "val": 5.0
-              }
-            ]
+            "JumpSpeed": 5.0,
+            "MoveSpeed": 4.0,
+            "RotateSpeed": 2.0
           }
         },
         {
@@ -83,12 +72,7 @@
           "type": "script",
           "className": "TestProj.SunCycleScript",
           "data": {
-            "fields": [
-              {
-                "name": "Speed",
-                "val": 0.0
-              }
-            ]
+            "Speed": 0.0
           }
         }
       ],
@@ -453,7 +437,14 @@
           "type": "script",
           "className": "TestProj.AnimatedSpotLightScript",
           "data": {
-            "fields": []
+            "ColorSpeed": 1.2,
+            "InnerConeAmplitude": 0.12,
+            "InnerConeBase": 0.35,
+            "IntensityAmplitude": 4.0,
+            "IntensityBase": 8.0,
+            "OuterConeAmplitude": 0.18,
+            "OuterConeBase": 0.75,
+            "YawSpeed": 1.0
           }
         }
       ],
@@ -483,7 +474,11 @@
           "type": "script",
           "className": "TestProj.FlashlightFlickerScript",
           "data": {
-            "fields": []
+            "BaseIntensity": 2.5,
+            "DropoutChance": 0.08,
+            "FlickerAmplitude": 1.5,
+            "FlickerSpeed": 6.0,
+            "FollowSpeed": 8.0
           }
         }
       ],
@@ -608,7 +603,7 @@
           "type": "script",
           "className": "TestProj.FpsTextScript",
           "data": {
-            "fields": []
+            "UpdateInterval": 0.25
           }
         }
       ],

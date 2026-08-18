@@ -332,22 +332,50 @@ namespace vke_common
             if (registry.all_of<vke_component::SpotLight>(runtimeEntity))
                 registry.get<vke_component::SpotLight>(runtimeEntity).LoadToEngine(runtimeEntity);
 
-        std::vector<std::string> dataStrs;
+        struct EncodedScript
+        {
+            uint32_t entity;
+            std::string className;
+            TypeInfoDataPtr data;
+        };
+        std::vector<EncodedScript> encodedScripts;
         for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
         {
             auto scriptIt = csharpScriptStates.find(runtimeEntity);
             if (scriptIt == csharpScriptStates.end())
                 continue;
             for (const auto &[className, state] : scriptIt->second)
-                dataStrs.push_back(state.ToCSharp(runtimeEntity));
+            {
+                TypeInfoPtr type = ScriptManager::GetInstance()->FindTypeInfo(className);
+                VKE_FATAL_IF(!type, "No TypeInfo exists for EntityScript '{}'", className)
+                auto encoded = type->EncodeBinaryFromJson(state.serializedData);
+                if (!encoded)
+                {
+                    VKE_FATAL("Failed to encode EntityScript '{}' state at {}: {}",
+                              className, encoded.error().path,
+                              ToString(encoded.error().code))
+                }
+                encodedScripts.push_back(
+                    EncodedScript{
+                        static_cast<uint32_t>(runtimeEntity),
+                        className,
+                        std::move(*encoded)});
+            }
         }
 
-        std::vector<const char *> dataPtrs;
-        dataPtrs.reserve(dataStrs.size());
-        for (auto &data : dataStrs)
-            dataPtrs.push_back(data.c_str());
+        std::vector<CSharpScriptLoadData> loadData;
+        loadData.reserve(encodedScripts.size());
+        for (const EncodedScript &encoded : encodedScripts)
+        {
+            loadData.push_back(CSharpScriptLoadData{
+                .entity = encoded.entity,
+                .className = encoded.className.c_str(),
+                .data = encoded.data->data(),
+                .dataSize = static_cast<int32_t>(encoded.data->size()),
+            });
+        }
 
-        ScriptManager::Load(dataPtrs.data(), dataPtrs.size());
+        ScriptManager::Load(loadData.data(), static_cast<uint32_t>(loadData.size()));
         ScriptManager::Start();
     }
 

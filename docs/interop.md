@@ -1,61 +1,67 @@
-### loadScene流程
+# EntityScript 场景加载互操作
 
-- 加载所有gameobject数据并初始化组件
-- 收集所有脚本状态 Scene::csharpScriptStates，并调用 ScriptManager::Load一次性传递给C#做反序列化，
-  - 传递的第一个为const char **data, 是一个C风格字符串的数组，每个串表示一个需要反序列化的C#对象的信息
-  - uint32_t cnt，表示字符串数组长度
-- C# 端SceneManager.Load遍历每个字符串做JSON解析，并通过反射获取并构造对应的C#对象，将其中的字段进行赋值
+## loadScene 流程
 
-### Script组件的存储格式
+1. C++ 加载所有 GameObject 数据并初始化原生组件。
+2. `ScriptManager::init` 在加载 `gameAssemblyPath` 后，读取
+   `gameScriptTypeInfoPath`，将导出的脚本 `TypeInfo` 按完整类名加载到 map。
+3. `Scene::loadEntitiesToEngine` 收集脚本状态，根据 `className` 查找
+   `TypeInfo`，再调用 `TypeInfo::EncodeBinaryFromJson` 把场景 JSON 中的
+   `data` 编码为 [Data 二进制格式](binary.md)。
+4. C++ 将 `CSharpScriptLoadData[]` 一次性传给 `SceneManager.Load`：
 
-每个脚本状态在场景描述文件中表示为GameObject下的一个Component，但是没有对应的C++类与之对应，而是直接打包为一个JSON字符串供C#端解析，其组件格式为
+   ```cpp
+   struct CSharpScriptLoadData
+   {
+       uint32_t entity;
+       const char *className;  // UTF-8、以零结尾
+       const std::byte *data;
+       int32_t dataSize;
+   };
+   ```
 
-``` json
+   数组、类名和二进制缓冲区只保证在同步 `Load` 调用期间有效，C# 不得保存指针。
+5. C# 只把 `className` 转成托管字符串，然后调用游戏程序集内生成的
+   `vkEngine.Generated.EntityScriptBinaryReaders.Parse`。生成的 reader 直接构造
+   脚本并按确定的布局解析字段；加载热路径不再解析 JSON，也不再逐字段使用反射。
+
+## Script 组件的场景格式
+
+脚本仍然以 JSON 保存在场景文件中，`data` 是与导出的脚本 TypeInfo 对应的
+JSON 值。Struct 使用对象，字段必须完整且不能包含未知字段；数组使用 JSON
+数组。详细映射和校验规则见 [type_info.md](type_info.md)。
+
+```json
 {
-    "type"："script",
-    "className" : "XXX", // 表示对应的C#脚本类（具体格式为 namespace.clasname）
-    "data": "XXX" //见下方C#对象状态格式
-}   
-```
-
-### 传递给C#的数据格式
-
-``` json
-{
-    "entity" ：1, // 表示要挂载到的entity
-    "className" : "XXX", // 表示对应的C#脚本类（具体格式为 namespace.clasname）
-    "data": "XXX" //见下方C#对象状态格式
-}   
-```
-
-### C#对象状态格式
-
-C#对象表示为JSON格式：
-
-``` json
-{   
-    "fields" : [ //表示需要反序列化的字段
-        {
-            "name" : "name1", //字段名
-            "val" : "val1" //对应取值，可以是字符串或数值
-        },
-        {
-            "name" : "name2", //字段名
-            "val" : "val2" //对应取值，可以是字符串或数值
-        } 
-        //, ...
-    ]
+  "type": "script",
+  "className": "TestProj.TestCameraScript",
+  "data": {
+    "JumpSpeed": 5.0,
+    "MoveSpeed": 4.0,
+    "RotateSpeed": 2.0
+  }
 }
 ```
 
-C#端SceneManager.Load使用固定名称"Game.dll"找到游戏项目的程序集，并在其中通过反射查找className
+## EntityScript 元数据和 reader 生成
 
+游戏项目在编译期间运行 Roslyn `EntityScriptSourceGenerator`，分析所有继承
+`EntityScript` 的非抽象类，并把二进制 reader 直接加入当前 `Game.dll`。编译完成后，
+`EntityScriptMetadataExporter` 扫描生成的 `Game.dll`；导出器不会实例化脚本，只生成：
 
-### EntityScript 元数据生成
+- 递归 TypeInfo 文件 `generated/Game.entityscripts.json`，供 C++ 编码场景数据。
 
-游戏项目在`dotnet build`完成后运行`EntityScriptMetadataExporter`，扫描生成的`Game.dll`。导出器只读取程序集元数据，不实例化脚本；所有继承`EntityScript`的非抽象类都会写入`generated/Game.entityscripts.json`。`generated/`由`tests/csharp/.gitignore`忽略。
+Roslyn source generator 生成的 reader 只作为 compiler-generated source 参与编译，
+不写入项目的 `generated/` 目录。
 
-使用`[Export]`标记需要导出的public字段或property：
+TypeInfo JSON 的完整格式见 [type_info.md](type_info.md)。生成的 reader 遵守
+[binary.md](binary.md) 的 Data 布局，包括小端编码、类型对齐、零 padding、长度
+和资源限制、严格 UTF-8，以及根值必须完整消费。
+
+当前支持 `byte`、`int`、`long`、`float`、`double`、`string`、一维数组、
+`NVec2/NVec3/NVec4/NQuat`，以及由这些类型组成的值类型 Struct。被 `[Export]`
+标记的成员必须可写，脚本必须提供接受单个 `UInt32 entity` 的 public 或 internal
+构造函数。
 
 ```csharp
 [Export]
@@ -65,9 +71,6 @@ public float MoveSpeed = 2.5f;
 public float Speed { get; set; }
 ```
 
-每个脚本对象包含类名、命名空间、完整类型名，以及被标记成员的名称、导出名称、成员种类、C#完整类型名和读写能力。类型不会递归展开；C++端应优先根据`System.Single`等C#类型名完成基础类型映射。只有特殊类型或需要覆盖默认映射时才声明C++类型：
-
-```csharp
-[Export(CppType = "vke_common::Transform")]
-public Transform transform { get; set; }
-```
+示例项目只需执行一次构建：source generator 在本次编译中生成并编译 reader，
+随后 exporter 输出 metadata JSON。导出器在内容未变化时不会改写文件，因此后续
+构建不会形成时间戳循环。`generated/` 属于构建产物，不提交版本库。

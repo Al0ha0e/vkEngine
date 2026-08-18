@@ -6,13 +6,24 @@
 #include <dotnet/hostfxr.h>
 
 #include <interop/native.hpp>
+#include <reflect/type_info.hpp>
 
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 
 namespace vke_common
 {
     extern const std::string EngineCSharpPath;
+
+    struct CSharpScriptLoadData
+    {
+        uint32_t entity;
+        const char *className;
+        const std::byte *data;
+        int32_t dataSize;
+    };
 
     struct DelegateFunctionPointers
     {
@@ -28,7 +39,7 @@ namespace vke_common
 
     struct CSharpSceneManagerFunctions
     {
-        void (*load)(const char **, uint32_t);
+        void (*load)(const CSharpScriptLoadData *, uint32_t);
         void (*start)();
         void (*update)();
         void (*fixedUpdate)();
@@ -84,7 +95,7 @@ namespace vke_common
             instance = nullptr;
         }
 
-        static void Load(const char **data, uint32_t cnt)
+        static void Load(const CSharpScriptLoadData *data, uint32_t cnt)
         {
             instance->csharpExports.sceneManagerFunctions.load(data, cnt);
         }
@@ -109,11 +120,24 @@ namespace vke_common
             instance->csharpExports.sceneManagerFunctions.unload();
         }
 
+        TypeInfoPtr FindTypeInfo(std::string_view name) const
+        {
+            const auto value = typeInfos.find(std::string(name));
+            return value == typeInfos.end() ? nullptr : value->second;
+        }
+
+        const std::unordered_map<std::string, TypeInfoPtr> &TypeInfos() const noexcept
+        {
+            return typeInfos;
+        }
+
     private:
         DelegateFunctionPointers functionPointers;
         CSharpExports csharpExports;
+        std::unordered_map<std::string, TypeInfoPtr> typeInfos;
 
         void init();
+        void loadTypeInfos(const std::string &path);
 
         void registerNativeFunctions();
         void getCSharpExports();

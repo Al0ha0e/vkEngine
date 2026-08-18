@@ -5,6 +5,7 @@
   "assetLUTPath": "./tests/scene/test_anim_desc.json",
   "defaultScenePath": "./tests/scene/test_anim_scene.json",
   "gameScriptPath": "./tests/csharp/Game.dll",
+  "gameScriptTypeInfoPath": "./tests/csharp/Game.entityscripts.json",
   "renderConfig": {
     "directionalShadow": {
       "mapSize": 4096,

@@ -1032,11 +1032,9 @@ bool Converter::WriteScene(size_t sceneIndex)
              {{"type", "script"},
               {"className", "TestProj.TestCameraScript"},
               {"data",
-               {{"fields",
-                 json::array({
-                     {{"name", "MoveSpeed"}, {"val", 4.0}},
-                     {{"name", "RotateSpeed"}, {"val", 2.0}}
-                 })}}}}
+               {{"JumpSpeed", 5.0},
+                {"MoveSpeed", 4.0},
+                {"RotateSpeed", 2.0}}}}
          })},
         {"children", json::array()}});
 
