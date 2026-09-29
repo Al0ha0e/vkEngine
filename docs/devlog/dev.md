@@ -72,3 +72,9 @@ glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据�
 这里还有一个问题，C#会引用一些C++的类型信息，但是C#侧反射是运行时通过json解析动态加载进来，所以需要一个表来记录C++侧的类型信息，然后能够用字符串按名称动态索引
 
 具体的设计文档写在 docs\type_info.md 和 docs\interop.md 里
+
+## 09cdd851f475a9bf491c9c47e49139e9419687fe C# entity script binary packing & script manager type info management
+
+之前C#端scenemanager的start会调用所有注册的start，但是现在SceneManager::loadEntitiesToEngine会被多次调用，其中调用C#的start就会导致场景中所有注册的start被多次调用，这一版先修了这个
+
+还发现了一个问题，C#的dispatch会先把callback复制到list里，避免回调里改动集合。现在实体的延迟销毁已经实现了，但Dispose仍会直接注销脚本，所以暂时还不能去掉这个复制，后面要把注册和注销的时机一起理一下，细节在docs\script\lifecycle.md 里

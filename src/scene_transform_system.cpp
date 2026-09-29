@@ -36,16 +36,6 @@ namespace vke_common
         }
     }
 
-    void SceneTransformSystem::PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities)
-    {
-        Transform &transform = registry.get<Transform>(entity);
-        if (transform.parent != entt::null)
-            RemoveChild(transform.parent, entity);
-
-        entities = {entity};
-        CollectEntitySubtree(entities);
-    }
-
     void SceneTransformSystem::RemoveChild(entt::entity entity, entt::entity childEntity)
     {
         registry.get<Transform>(entity).children.erase(childEntity);

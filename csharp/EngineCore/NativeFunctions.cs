@@ -152,6 +152,8 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, float> AudioSourceGetDopplerFactor;
         public delegate* unmanaged[Cdecl]<UInt32, Int32, void> AudioListenerSetEnabled;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioListenerGetEnabled;
+        public delegate* unmanaged[Cdecl]<UInt32, void> DestroyEntity;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32> IsEntityPendingDestroy;
     }
 
     public static class NativeFunctionRegistry

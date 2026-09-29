@@ -40,6 +40,16 @@ namespace vkEngine.EngineCore
         private readonly ScriptLifecycleMask lifecycleMask;
         public ScriptLifecycleMask LifecycleMask { get { return lifecycleMask; } }
         private bool disposed;
+        internal bool IsDisposed => disposed;
+        internal bool IsUnloading { get; private set; }
+
+        internal bool TryBeginUnload()
+        {
+            if (IsUnloading)
+                return false;
+            IsUnloading = true;
+            return true;
+        }
         private static unsafe delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> hasComponent;
 
         private static readonly Dictionary<Type, ScriptLifecycleMask> overrideMaskCache = new();
@@ -81,6 +91,8 @@ namespace vkEngine.EngineCore
         }
 
         public UInt32 Entity { get; }
+        public bool IsPendingDestroy => SceneManager.IsPendingDestroy(Entity);
+        public void DestroyEntity() => SceneManager.DestroyEntity(Entity);
 
         internal static unsafe void RegisterNativeFunctions(NativeFunctions* functions)
         {
@@ -151,17 +163,8 @@ namespace vkEngine.EngineCore
             if (disposed)
                 return;
 
-            if (lifecycleMask != ScriptLifecycleMask.None)
-            {
-                SceneManager.Unregister(this);
-            }
-
+            SceneManager.Unregister(this);
             disposed = true;
-        }
-
-        ~EntityScript()
-        {
-            Dispose(false);
         }
 
         private static ScriptLifecycleMask GetOrAddLifecycleMask(Type type)

@@ -110,8 +110,17 @@ namespace vkEngine.EngineCore
             return callbacks;
         }
 
+        internal static void UnregisterEntity(UInt32 entity)
+        {
+            var bodyID = getBodyID(entity);
+            if (registeredCallbacks.Remove(bodyID, out var callbacks))
+                callbacks.Clear();
+        }
+
         internal static void ClearRegistered()
         {
+            foreach (var callbacks in registeredCallbacks.Values)
+                callbacks.Clear();
             registeredCallbacks.Clear();
         }
 
@@ -120,6 +129,13 @@ namespace vkEngine.EngineCore
             public Action<ContactEvent>? ContactAdded;
             public Action<ContactEvent>? ContactPersisted;
             public Action<ContactEvent>? ContactRemoved;
+
+            public void Clear()
+            {
+                ContactAdded = null;
+                ContactPersisted = null;
+                ContactRemoved = null;
+            }
 
             public void Dispatch(ContactEvent contactEvent)
             {

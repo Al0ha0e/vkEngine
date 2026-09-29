@@ -264,41 +264,66 @@ namespace vke_common
 
     void SceneManager::unloadSceneData(const EntityMap &dataToRuntime)
     {
-        std::unordered_set<entt::entity> dataEntities;
-        dataEntities.reserve(dataToRuntime.size());
-        std::vector<entt::entity> entities;
-        entities.reserve(dataToRuntime.size());
         for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+            DestroyEntity(runtimeEntity);
+    }
+
+    void SceneManager::DestroyEntity(entt::entity entity)
+    {
+        // Only collect and mark the subtree; keep its hierarchy until actual deletion.
+        std::vector<entt::entity> entities{entity};
+        for (size_t i = 0; i < entities.size(); ++i)
         {
-            if (registry.valid(runtimeEntity) && dataEntities.insert(runtimeEntity).second)
-                entities.push_back(runtimeEntity);
+            const auto current = entities[i];
+            if (!registry.valid(current) || !pendingDestroy.insert(current).second)
+                continue;
+            if (const auto *transform = registry.try_get<Transform>(current))
+                entities.insert(entities.end(), transform->children.begin(), transform->children.end());
         }
+    }
 
-        for (const entt::entity entity : entities)
+    void SceneManager::ProcessDestroyRequests()
+    {
+        if (processingDestroy)
+            return;
+        processingDestroy = true;
+        // Keep pending markers until reclamation; callback additions stay outside this snapshot.
+        const std::vector<entt::entity> current(pendingDestroy.begin(), pendingDestroy.end());
+
+        // Keep every native entity and hierarchy link alive throughout all Unload callbacks.
+        if (!current.empty())
+            ScriptManager::UnloadEntities(current);
+
+        for (const entt::entity entity : current)
         {
-            const entt::entity parent = registry.get<Transform>(entity).parent;
-            if (parent != entt::null && !dataEntities.contains(parent) &&
-                registry.valid(parent))
-                transformSystem.RemoveChild(parent, entity);
+            if (registry.valid(entity))
+            {
+                unloadEntityFromEngine(entity);
+                csharpScriptStates.erase(entity);
+                // Remove the parent's reference only when reclaiming this entity.
+                if (const auto *transform = registry.try_get<Transform>(entity);
+                    transform && registry.valid(transform->parent))
+                {
+                    if (auto *parent = registry.try_get<Transform>(transform->parent))
+                        parent->children.erase(entity);
+                }
+                registry.destroy(entity);
+            }
+            pendingDestroy.erase(entity);
         }
-
-        transformSystem.CollectEntitiesSubtree(dataEntities, entities);
-
-        for (const entt::entity entity : entities)
-        {
-            unloadEntityFromEngine(entity);
-            csharpScriptStates.erase(entity);
-        }
-
-        for (const entt::entity entity : entities)
-            registry.destroy(entity);
+        processingDestroy = false;
     }
 
     void SceneManager::loadEntitiesToEngine(const EntityMap &dataToRuntime)
     {
-        auto loadView = [this, &dataToRuntime]<typename T>()
+        std::vector<entt::entity> runtimeEntities;
+        runtimeEntities.reserve(dataToRuntime.size());
+        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+            runtimeEntities.push_back(runtimeEntity);
+
+        auto loadView = [this, &runtimeEntities]<typename T>()
         {
-            for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+            for (const entt::entity runtimeEntity : runtimeEntities)
                 if (registry.all_of<T>(runtimeEntity))
                     registry.get<T>(runtimeEntity).LoadToEngine();
         };
@@ -308,11 +333,11 @@ namespace vke_common
         loadView.operator()<vke_component::SkeletonAnimator>();
         loadView.operator()<vke_component::UIText>();
 
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+        for (const entt::entity runtimeEntity : runtimeEntities)
             if (registry.all_of<vke_component::RigidBody>(runtimeEntity))
                 registry.get<vke_component::RigidBody>(runtimeEntity).LoadToEngine(runtimeEntity);
 
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+        for (const entt::entity runtimeEntity : runtimeEntities)
             if (registry.all_of<vke_component::Sensor>(runtimeEntity))
                 registry.get<vke_component::Sensor>(runtimeEntity).LoadToEngine(runtimeEntity);
 
@@ -320,15 +345,15 @@ namespace vke_common
         loadView.operator()<vke_component::AudioSource>();
         loadView.operator()<vke_component::AudioListener>();
 
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+        for (const entt::entity runtimeEntity : runtimeEntities)
             if (registry.all_of<vke_component::DirectionalLight>(runtimeEntity))
                 registry.get<vke_component::DirectionalLight>(runtimeEntity).LoadToEngine(runtimeEntity);
 
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+        for (const entt::entity runtimeEntity : runtimeEntities)
             if (registry.all_of<vke_component::PointLight>(runtimeEntity))
                 registry.get<vke_component::PointLight>(runtimeEntity).LoadToEngine(runtimeEntity);
 
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+        for (const entt::entity runtimeEntity : runtimeEntities)
             if (registry.all_of<vke_component::SpotLight>(runtimeEntity))
                 registry.get<vke_component::SpotLight>(runtimeEntity).LoadToEngine(runtimeEntity);
 
@@ -339,7 +364,7 @@ namespace vke_common
             TypeInfoDataPtr data;
         };
         std::vector<EncodedScript> encodedScripts;
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+        for (const entt::entity runtimeEntity : runtimeEntities)
         {
             auto scriptIt = csharpScriptStates.find(runtimeEntity);
             if (scriptIt == csharpScriptStates.end())
@@ -376,7 +401,7 @@ namespace vke_common
         }
 
         ScriptManager::Load(loadData.data(), static_cast<uint32_t>(loadData.size()));
-        ScriptManager::Start();
+        ScriptManager::Start(runtimeEntities);
     }
 
     void SceneManager::unloadEntityFromEngine(entt::entity entity)
@@ -408,6 +433,9 @@ namespace vke_common
         if (registry.all_of<vke_component::AudioListener>(entity))
             registry.get<vke_component::AudioListener>(entity).UnloadFromEngine();
 
+        if (!registry.any_of<vke_component::DirectionalLight, vke_component::PointLight,
+                             vke_component::SpotLight>(entity))
+            return;
         auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
 
         if (lightManager->HasLight<vke_render::DirectionalLight>(entity))
@@ -422,30 +450,18 @@ namespace vke_common
 
     void SceneManager::dispose()
     {
+        shuttingDown = true;
+        for (const auto entity : registry.view<GameObject>())
+            DestroyEntity(entity);
+        // There is no next frame during shutdown. New creation is disabled above.
+        while (!pendingDestroy.empty())
+            ProcessDestroyRequests();
         ScriptManager::Unload();
         vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
         physicsUpdateListenerID = 0;
-        vke_render::Renderer::GetInstance()->lightManager->ClearLights();
-
-        auto unloadView = [this]<typename T>()
-        {
-            auto view = registry.view<T>();
-            for (auto entity : view)
-                view.template get<T>(entity).UnloadFromEngine();
-        };
-
-        unloadView.operator()<vke_component::AudioSource>();
-        unloadView.operator()<vke_component::AudioListener>();
-        unloadView.operator()<vke_component::CharacterController>();
-        unloadView.operator()<vke_component::Sensor>();
-        unloadView.operator()<vke_component::RigidBody>();
-        unloadView.operator()<vke_component::SkeletonAnimator>();
-        unloadView.operator()<vke_component::UIText>();
-        unloadView.operator()<vke_component::RenderableObject>();
-        unloadView.operator()<vke_component::Camera>();
-        vke_render::Renderer::GetGlyphManager()->ClearGlyphs();
         registry.clear();
         csharpScriptStates.clear();
+        pendingDestroy.clear();
     }
 
     void SceneManager::physicsUpdateCallback(void *self, void *info)

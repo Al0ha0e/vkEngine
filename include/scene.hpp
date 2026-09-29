@@ -21,6 +21,7 @@
 #include <component/light.hpp>
 #include <scene_transform_system.hpp>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace vke_common
 {
@@ -48,6 +49,9 @@ namespace vke_common
     private:
         static SceneManager *instance;
         vke_ds::id32_t physicsUpdateListenerID;
+        std::unordered_set<entt::entity> pendingDestroy;
+        bool processingDestroy = false;
+        bool shuttingDown = false;
 
         SceneManager()
             : transformSystem(registry), physicsUpdateListenerID(0) {}
@@ -86,6 +90,8 @@ namespace vke_common
 
         static EntityMap LoadSceneData(const SceneData &data)
         {
+            if (instance->shuttingDown)
+                return {};
             EntityMap dataToRuntime = instance->instantiateSceneData(data);
             instance->loadEntitiesToEngine(dataToRuntime);
             return dataToRuntime;
@@ -98,30 +104,21 @@ namespace vke_common
 
         bool HasComponent(entt::entity entity, ComponentType componentType) const; // component.cpp
 
-        entt::entity AddObject(std::string &name, glm::vec3 pos, glm::vec3 scl, glm::quat rot, bool isStatic)
+        entt::entity CreateEntity(std::string &name, glm::vec3 pos, glm::vec3 scl, glm::quat rot, bool isStatic)
         {
+            if (shuttingDown)
+                return entt::null;
             entt::entity entity = registry.create();
             registry.emplace<GameObject>(entity, name, isStatic);
             registry.emplace<Transform>(entity, pos, scl, rot);
             return entity;
         }
 
-        void RemoveObject(entt::entity entity)
-        {
-            if (!registry.valid(entity))
-                return;
+        // Marks the entire subtree now; actual teardown happens at the next frame boundary.
+        void DestroyEntity(entt::entity entity);
+        void ProcessDestroyRequests();
 
-            std::vector<entt::entity> entitiesToBeRemoved;
-            transformSystem.PrepareForRemove(entity, entitiesToBeRemoved);
-
-            for (entt::entity ent : entitiesToBeRemoved)
-                unloadEntityFromEngine(ent);
-
-            for (entt::entity ent : entitiesToBeRemoved)
-                registry.destroy(ent);
-
-            // TODO maybe unload from C# (or C# unload call this func)
-        }
+        bool IsPendingDestroy(entt::entity entity) const { return pendingDestroy.contains(entity); }
 
         SceneData ExportAllEntities() const;                    // scene.cpp
         SceneData ExportEntitySubtree(entt::entity root) const; // scene.cpp

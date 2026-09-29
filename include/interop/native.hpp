@@ -203,6 +203,8 @@ namespace vke_interop
         AudioSourceGetDopplerFactorFn AudioSourceGetDopplerFactor;
         AudioListenerSetEnabledFn AudioListenerSetEnabled;
         AudioListenerGetEnabledFn AudioListenerGetEnabled;
+        void(VKE_INTEROP_CDECL *DestroyEntity)(uint32_t);
+        int32_t(VKE_INTEROP_CDECL *IsEntityPendingDestroy)(uint32_t);
     };
 }
 

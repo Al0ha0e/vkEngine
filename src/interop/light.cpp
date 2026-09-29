@@ -1,3 +1,4 @@
+#include <interop/entity_access.hpp>
 #include <interop/light.hpp>
 #include <render/render.hpp>
 #include <scene.hpp>
@@ -71,82 +72,168 @@ namespace vke_interop
 
     void VKE_INTEROP_CDECL GetDirectionalLightColor(uint32_t entity, Vector3<float> *color)
     {
+        if (!IsEntityValid(entity))
+        {
+            if (color)
+                *color = {};
+            return;
+        }
+
         GetLightColor<vke_render::DirectionalLight>(entity, color);
     }
 
     void VKE_INTEROP_CDECL SetDirectionalLightColor(uint32_t entity, const Vector3<float> *color)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         SetLightColor<vke_render::DirectionalLight>(entity, color);
     }
 
     float VKE_INTEROP_CDECL GetDirectionalLightIntensity(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         return GetLightIntensity<vke_render::DirectionalLight>(entity);
     }
 
     void VKE_INTEROP_CDECL SetDirectionalLightIntensity(uint32_t entity, float intensity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         SetLightIntensity<vke_render::DirectionalLight>(entity, intensity);
     }
 
     void VKE_INTEROP_CDECL GetPointLightColor(uint32_t entity, Vector3<float> *color)
     {
+        if (!IsEntityValid(entity))
+        {
+            if (color)
+                *color = {};
+            return;
+        }
+
         GetLightColor<vke_render::PointLight>(entity, color);
     }
 
     void VKE_INTEROP_CDECL SetPointLightColor(uint32_t entity, const Vector3<float> *color)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         SetLightColor<vke_render::PointLight>(entity, color);
     }
 
     float VKE_INTEROP_CDECL GetPointLightIntensity(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         return GetLightIntensity<vke_render::PointLight>(entity);
     }
 
     void VKE_INTEROP_CDECL SetPointLightIntensity(uint32_t entity, float intensity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         SetLightIntensity<vke_render::PointLight>(entity, intensity);
     }
 
     float VKE_INTEROP_CDECL GetPointLightRadius(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         return GetLightWithoutCheckByEntity<vke_render::PointLight>(entity).positionWithRadius.w;
     }
 
     void VKE_INTEROP_CDECL SetPointLightRadius(uint32_t entity, float radius)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         GetLightWithoutCheckByEntity<vke_render::PointLight>(entity).positionWithRadius.w = radius;
         MarkLightDirty<vke_render::PointLight>();
     }
 
     void VKE_INTEROP_CDECL GetSpotLightColor(uint32_t entity, Vector3<float> *color)
     {
+        if (!IsEntityValid(entity))
+        {
+            if (color)
+                *color = {};
+            return;
+        }
+
         GetLightColor<vke_render::SpotLight>(entity, color);
     }
 
     void VKE_INTEROP_CDECL SetSpotLightColor(uint32_t entity, const Vector3<float> *color)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         SetLightColor<vke_render::SpotLight>(entity, color);
     }
 
     float VKE_INTEROP_CDECL GetSpotLightIntensity(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         return GetLightIntensity<vke_render::SpotLight>(entity);
     }
 
     void VKE_INTEROP_CDECL SetSpotLightIntensity(uint32_t entity, float intensity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         SetLightIntensity<vke_render::SpotLight>(entity, intensity);
     }
 
     float VKE_INTEROP_CDECL GetSpotLightRadius(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         return GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).positionWithRadius.w;
     }
 
     void VKE_INTEROP_CDECL SetSpotLightRadius(uint32_t entity, float radius)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         auto &light = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
         light.positionWithRadius.w = radius;
         UpdateSpotLight(entity, light);
@@ -154,12 +241,22 @@ namespace vke_interop
 
     float VKE_INTEROP_CDECL GetSpotLightInnerCone(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         const float cosValue = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).cone.x;
         return glm::acos(glm::clamp(cosValue, -1.0f, 1.0f));
     }
 
     void VKE_INTEROP_CDECL SetSpotLightInnerCone(uint32_t entity, float radians)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         auto &light = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
         light.cone.x = glm::cos(radians);
         UpdateSpotLight(entity, light);
@@ -167,12 +264,22 @@ namespace vke_interop
 
     float VKE_INTEROP_CDECL GetSpotLightOuterCone(uint32_t entity)
     {
+        if (!IsEntityValid(entity))
+        {
+            return {};
+        }
+
         const float cosValue = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity).cone.y;
         return glm::acos(glm::clamp(cosValue, -1.0f, 1.0f));
     }
 
     void VKE_INTEROP_CDECL SetSpotLightOuterCone(uint32_t entity, float radians)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         auto &light = GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
         light.cone.y = glm::cos(radians);
         UpdateSpotLight(entity, light);

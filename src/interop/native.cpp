@@ -1,3 +1,4 @@
+#include <interop/entity_access.hpp>
 #include <script.hpp>
 #include <component/transform.hpp>
 #include <component/skeleton_animator.hpp>
@@ -15,7 +16,6 @@ namespace vke_interop
     static inline entt::entity GetEntity(uint32_t entity)
     {
         entt::entity ent = static_cast<entt::entity>(entity);
-        // VKE_FATAL_IF(!vke_common::SceneManager::GetInstance()->registry.valid(ent), "Invalid scene entity {}", entity)
         return ent;
     }
 
@@ -51,56 +51,117 @@ namespace vke_interop
 
     static void VKE_INTEROP_CDECL GetTransformLocalPosition(uint32_t entity, Vector3<float> *position)
     {
+        if (!IsEntityValid(entity))
+        {
+            if (position)
+                *position = {};
+            return;
+        }
+
         *position = ToInterop(GetTransform(entity).localPosition);
     }
 
     static void VKE_INTEROP_CDECL SetTransformLocalPosition(uint32_t entity, const Vector3<float> *position)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.SetLocalPosition(GetEntity(entity), ToGlm(*position));
     }
 
     static void VKE_INTEROP_CDECL GetTransformLocalRotation(uint32_t entity, Quaternion<float> *rotation)
     {
+        if (!IsEntityValid(entity))
+        {
+            if (rotation)
+                *rotation = {};
+            return;
+        }
+
         *rotation = ToInterop(GetTransform(entity).localRotation);
     }
 
     static void VKE_INTEROP_CDECL SetTransformLocalRotation(uint32_t entity, const Quaternion<float> *rotation)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.SetLocalRotation(GetEntity(entity), ToGlm(*rotation));
     }
 
     static void VKE_INTEROP_CDECL GetTransformLocalScale(uint32_t entity, Vector3<float> *scale)
     {
+        if (!IsEntityValid(entity))
+        {
+            if (scale)
+                *scale = {};
+            return;
+        }
+
         *scale = ToInterop(GetTransform(entity).localScale);
     }
 
     static void VKE_INTEROP_CDECL SetTransformLocalScale(uint32_t entity, const Vector3<float> *scale)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.SetLocalScale(GetEntity(entity), ToGlm(*scale));
     }
 
     static void VKE_INTEROP_CDECL TranslateTransformLocal(uint32_t entity, const Vector3<float> *det)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.TranslateLocal(GetEntity(entity), ToGlm(*det));
     }
 
     static void VKE_INTEROP_CDECL TranslateTransformGlobal(uint32_t entity, const Vector3<float> *det)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.TranslateGlobal(GetEntity(entity), ToGlm(*det));
     }
 
     static void VKE_INTEROP_CDECL RotateTransformLocal(uint32_t entity, float det, const Vector3<float> *axis)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.RotateLocal(GetEntity(entity), det, ToGlm(*axis));
     }
 
     static void VKE_INTEROP_CDECL RotateTransformGlobal(uint32_t entity, float det, const Vector3<float> *axis)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.RotateGlobal(GetEntity(entity), det, ToGlm(*axis));
     }
 
     static void VKE_INTEROP_CDECL ScaleTransform(uint32_t entity, const Vector3<float> *scale)
     {
+        if (!IsEntityValid(entity))
+        {
+            return;
+        }
+
         vke_common::SceneManager::GetInstance()->transformSystem.Scale(GetEntity(entity), ToGlm(*scale));
     }
 
@@ -305,6 +366,16 @@ namespace vke_interop
         vke_component::CharacterController *controller = GetCharacterController(entity);
         return controller != nullptr && controller->IsGrounded() ? 1 : 0;
     }
+    static void VKE_INTEROP_CDECL DestroyEntity(uint32_t entity)
+    {
+        vke_common::SceneManager::GetInstance()->DestroyEntity(static_cast<entt::entity>(entity));
+    }
+
+    static int32_t VKE_INTEROP_CDECL IsEntityPendingDestroy(uint32_t entity)
+    {
+        return vke_common::SceneManager::GetInstance()->IsPendingDestroy(static_cast<entt::entity>(entity)) ? 1 : 0;
+    }
+
 }
 
 namespace vke_common
@@ -459,7 +530,9 @@ namespace vke_common
             &vke_interop::AudioSourceSetDopplerFactor,
             &vke_interop::AudioSourceGetDopplerFactor,
             &vke_interop::AudioListenerSetEnabled,
-            &vke_interop::AudioListenerGetEnabled};
+            &vke_interop::AudioListenerGetEnabled,
+            &vke_interop::DestroyEntity,
+            &vke_interop::IsEntityPendingDestroy};
         csharpExports.registerNativeFunctions(&nativeFunctions);
     }
 }

@@ -9,11 +9,12 @@ namespace vkEngine.EngineCore
     public unsafe struct SceneManagerFunctions
     {
         public delegate* unmanaged<ScriptLoadData*, UInt32, void> Load;
-        public delegate* unmanaged<void> Start;
+        public delegate* unmanaged<UInt32*, UInt32, void> Start;
         public delegate* unmanaged<void> Update;
         public delegate* unmanaged<void> FixedUpdate;
         public delegate* unmanaged<void> LateUpdate;
         public delegate* unmanaged<void> Unload;
+        public delegate* unmanaged<UInt32*, UInt32, void> UnloadEntities;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -39,16 +40,25 @@ namespace vkEngine.EngineCore
     public static class SceneManager
     {
         private const string GameAssemblyName = "Game";
-        private static readonly HashSet<EntityScript> allScripts = new();
+        private static readonly Dictionary<UInt32, HashSet<EntityScript>> scriptsByEntity = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> startScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> updateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> fixedUpdateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> lateUpdateScripts = new();
-        private static readonly Dictionary<UInt32, List<EntityScript>> unloadScripts = new();
         private static Assembly? gameAssembly;
         private unsafe delegate EntityScript BinaryParser(
             string className, UInt32 entity, byte* data, Int32 dataSize);
         private static BinaryParser? binaryParser;
+
+        public static unsafe void DestroyEntity(UInt32 entity)
+        {
+            if (NativeFunctionRegistry.IsRegistered)
+                NativeFunctionRegistry.Functions.DestroyEntity(entity);
+        }
+
+        public static unsafe bool IsPendingDestroy(UInt32 entity) =>
+            NativeFunctionRegistry.IsRegistered &&
+            NativeFunctionRegistry.Functions.IsEntityPendingDestroy(entity) != 0;
 
         [UnmanagedCallersOnly]
         public unsafe static void Load(ScriptLoadData* data, UInt32 cnt)
@@ -71,9 +81,12 @@ namespace vkEngine.EngineCore
         }
 
         [UnmanagedCallersOnly]
-        public static void Start()
+        public unsafe static void Start(UInt32* entities, UInt32 cnt)
         {
-            Dispatch(startScripts, script => script.Start());
+            if (entities == null || cnt == 0)
+                return;
+
+            Dispatch(startScripts, entities, cnt, script => script.Start());
         }
 
         [UnmanagedCallersOnly]
@@ -98,14 +111,52 @@ namespace vkEngine.EngineCore
         [UnmanagedCallersOnly]
         public static void Unload()
         {
-            Dispatch(unloadScripts, script => script.Unload());
-            var scripts = CollectAllScripts();
-            foreach (var script in scripts)
-                script.Dispose();
+            foreach (var entity in new List<UInt32>(scriptsByEntity.Keys))
+                UnloadEntityCore(entity);
             RigidBody.ClearRegistered();
             Sensor.ClearRegistered();
             ClearScriptCollections();
             Console.WriteLine("SceneManager.Unload");
+        }
+
+        [UnmanagedCallersOnly]
+        public unsafe static void UnloadEntities(UInt32* entities, UInt32 cnt)
+        {
+            if (entities == null || cnt == 0)
+                return;
+
+            for (UInt32 i = 0; i < cnt; i++)
+                UnloadEntityCore(entities[i]);
+        }
+
+        private static void UnloadEntityCore(UInt32 entity)
+        {
+            if (scriptsByEntity.TryGetValue(entity, out var registered))
+            {
+                var scripts = new List<EntityScript>(registered);
+                foreach (var script in scripts)
+                {
+                    if (!script.TryBeginUnload())
+                        continue;
+                    try { script.Unload(); }
+                    catch (Exception error) { Console.Error.WriteLine($"Entity {entity} Unload failed: {error}"); }
+                }
+
+                // Remove whole entries before Dispose, which otherwise removes each script from each list.
+                scriptsByEntity.Remove(entity);
+                startScripts.Remove(entity);
+                updateScripts.Remove(entity);
+                fixedUpdateScripts.Remove(entity);
+                lateUpdateScripts.Remove(entity);
+
+                foreach (var script in scripts)
+                {
+                    try { script.Dispose(); }
+                    catch (Exception error) { Console.Error.WriteLine($"Entity {entity} Dispose failed: {error}"); }
+                }
+            }
+            RigidBody.UnregisterEntity(entity);
+            Sensor.UnregisterEntity(entity);
         }
 
         public static unsafe SceneManagerFunctions GetFunctions()
@@ -117,13 +168,23 @@ namespace vkEngine.EngineCore
                 Update = &Update,
                 FixedUpdate = &FixedUpdate,
                 LateUpdate = &LateUpdate,
-                Unload = &Unload
+                Unload = &Unload,
+                UnloadEntities = &UnloadEntities
             };
         }
 
         internal static void Register(EntityScript script)
         {
-            if (script == null || !allScripts.Add(script))
+            if (script == null || script.IsDisposed || script.IsUnloading)
+                return;
+
+            if (!scriptsByEntity.TryGetValue(script.Entity, out var scripts))
+            {
+                scripts = new HashSet<EntityScript>(ReferenceEqualityComparer.Instance);
+                scriptsByEntity.Add(script.Entity, scripts);
+            }
+
+            if (!scripts.Add(script))
                 return;
 
             ScriptLifecycleMask mask = script.LifecycleMask;
@@ -138,19 +199,22 @@ namespace vkEngine.EngineCore
                 Add(script, fixedUpdateScripts);
             if (mask.HasFlag(ScriptLifecycleMask.LateUpdate))
                 Add(script, lateUpdateScripts);
-            if (mask.HasFlag(ScriptLifecycleMask.Unload))
-                Add(script, unloadScripts);
         }
 
         internal static void Unregister(EntityScript script)
         {
-            if (script == null || !allScripts.Remove(script))
+            if (script == null ||
+                !scriptsByEntity.TryGetValue(script.Entity, out var scripts) ||
+                !scripts.Remove(script))
                 return;
+
+            if (scripts.Count == 0)
+                scriptsByEntity.Remove(script.Entity);
+
             Remove(script, startScripts);
             Remove(script, updateScripts);
             Remove(script, fixedUpdateScripts);
             Remove(script, lateUpdateScripts);
-            Remove(script, unloadScripts);
         }
 
         private static void Add(EntityScript script, Dictionary<UInt32, List<EntityScript>> map)
@@ -159,12 +223,6 @@ namespace vkEngine.EngineCore
             {
                 scripts = new List<EntityScript>();
                 map.Add(script.Entity, scripts);
-            }
-
-            foreach (var existing in scripts)
-            {
-                if (ReferenceEquals(existing, script))
-                    return;
             }
 
             scripts.Add(script);
@@ -191,9 +249,32 @@ namespace vkEngine.EngineCore
         {
             foreach (var script in CollectScripts(map))
             {
-                callback(script);
+                if (CanDispatch(script))
+                    callback(script);
             }
         }
+
+        private unsafe static void Dispatch(
+            Dictionary<UInt32, List<EntityScript>> map,
+            UInt32* entities,
+            UInt32 cnt,
+            Action<EntityScript> callback)
+        {
+            var scripts = new List<EntityScript>();
+            for (UInt32 i = 0; i < cnt; i++)
+            {
+                if (map.TryGetValue(entities[i], out var entityScripts))
+                    scripts.AddRange(entityScripts);
+            }
+
+            foreach (var script in scripts)
+                if (CanDispatch(script))
+                    callback(script);
+        }
+
+        private static bool CanDispatch(EntityScript script) =>
+            !script.IsDisposed && !script.IsUnloading &&
+            scriptsByEntity.TryGetValue(script.Entity, out var scripts) && scripts.Contains(script);
 
         private static List<EntityScript> CollectScripts(Dictionary<UInt32, List<EntityScript>> map)
         {
@@ -207,19 +288,13 @@ namespace vkEngine.EngineCore
             return scripts;
         }
 
-        private static List<EntityScript> CollectAllScripts()
-        {
-            return new List<EntityScript>(allScripts);
-        }
-
         private static void ClearScriptCollections()
         {
-            allScripts.Clear();
+            scriptsByEntity.Clear();
             startScripts.Clear();
             updateScripts.Clear();
             fixedUpdateScripts.Clear();
             lateUpdateScripts.Clear();
-            unloadScripts.Clear();
         }
 
         private static Assembly GetGameAssembly()

@@ -16,7 +16,6 @@ namespace vke_common
 
         void CollectEntitySubtree(std::vector<entt::entity> &entities) const;
         void CollectEntitiesSubtree(std::unordered_set<entt::entity> &entitySet, std::vector<entt::entity> &entities) const;
-        void PrepareForRemove(entt::entity entity, std::vector<entt::entity> &entities);
         void RemoveChild(entt::entity entity, entt::entity childEntity);
         void SetParent(entt::entity entity, entt::entity parentEntity, bool updatePhysicsComponents = false);
         void SetGlobalPosition(entt::entity entity, const glm::vec3 &position, bool updatePhysicsComponents = false);

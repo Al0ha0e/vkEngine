@@ -8,10 +8,13 @@
 #include <interop/native.hpp>
 #include <reflect/type_info.hpp>
 
+#include <entt/entity/entity.hpp>
+
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace vke_common
 {
@@ -40,11 +43,12 @@ namespace vke_common
     struct CSharpSceneManagerFunctions
     {
         void (*load)(const CSharpScriptLoadData *, uint32_t);
-        void (*start)();
+        void (*start)(const entt::entity *, uint32_t);
         void (*update)();
         void (*fixedUpdate)();
         void (*lateUpdate)();
         void (*unload)();
+        void (*unloadEntities)(const entt::entity *, uint32_t);
 
         CSharpSceneManagerFunctions()
             : load(nullptr),
@@ -52,7 +56,8 @@ namespace vke_common
               update(nullptr),
               fixedUpdate(nullptr),
               lateUpdate(nullptr),
-              unload(nullptr) {}
+              unload(nullptr),
+              unloadEntities(nullptr) {}
     };
 
     struct CSharpExports
@@ -100,9 +105,10 @@ namespace vke_common
             instance->csharpExports.sceneManagerFunctions.load(data, cnt);
         }
 
-        static void Start()
+        static void Start(const std::vector<entt::entity> &entities)
         {
-            instance->csharpExports.sceneManagerFunctions.start();
+            instance->csharpExports.sceneManagerFunctions.start(
+                entities.data(), static_cast<uint32_t>(entities.size()));
         }
 
         static void Update()
@@ -118,6 +124,12 @@ namespace vke_common
         static void Unload()
         {
             instance->csharpExports.sceneManagerFunctions.unload();
+        }
+
+        static void UnloadEntities(const std::vector<entt::entity> &entities)
+        {
+            instance->csharpExports.sceneManagerFunctions.unloadEntities(
+                entities.data(), static_cast<uint32_t>(entities.size()));
         }
 
         TypeInfoPtr FindTypeInfo(std::string_view name) const

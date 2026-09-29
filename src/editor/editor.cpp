@@ -117,6 +117,7 @@ namespace vke_editor
         }
 
         vke_common::TimeManager::Update();
+        sceneManager->ProcessDestroyRequests();
 
         if (vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Run)
         {
@@ -523,7 +524,7 @@ namespace vke_editor
     {
         std::string name = "GameObject";
         clearSelectedAsset();
-        selectedEntity = sceneManager->AddObject(name, glm::vec3(0.0f), glm::vec3(1.0f), glm::quat(glm::vec3(0.0f)), false);
+        selectedEntity = sceneManager->CreateEntity(name, glm::vec3(0.0f), glm::vec3(1.0f), glm::quat(glm::vec3(0.0f)), false);
     }
 
     void Editor::ensureSelectedEntityValid()

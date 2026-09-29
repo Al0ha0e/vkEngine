@@ -16,6 +16,7 @@ namespace vke_common
         }
 
         vke_common::TimeManager::Update();
+        vke_common::SceneManager::GetInstance()->ProcessDestroyRequests();
 
         if (state == EngineState::Paused)
         {
