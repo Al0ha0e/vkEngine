@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <miniaudio/miniaudio.h>
 #include <asset/asset_manager.hpp>
+#include <asset/asset_ref.hpp>
 #include <audio/audio_clip.hpp>
 #include <audio/audio_manager.hpp>
 #include <logger.hpp>
@@ -15,7 +16,7 @@ namespace vke_component
 {
     struct AudioSourceData
     {
-        std::shared_ptr<vke_audio::AudioClip> clip;
+        vke_common::AssetRef<vke_audio::AudioClip> clip;
         bool playOnStart = true;
         bool looping = false;
         float volume = 1.0f;
@@ -31,9 +32,9 @@ namespace vke_component
 
         AudioSourceData(const nlohmann::json &json)
         {
-            auto clipHandle = json.value("clip", 0);
-            if (clipHandle != 0)
-                clip = vke_common::AssetManager::LoadAudioClip(clipHandle);
+            clip.SetHandle(json.value("clip", vke_common::AssetHandle{0}));
+            if (clip.Handle() != 0)
+                clip.Resolve(vke_common::AssetManager::LoadAudioClip(clip.Handle()));
 
             playOnStart = json.value("playOnStart", true);
             looping = json.value("looping", false);
@@ -51,7 +52,7 @@ namespace vke_component
         {
             return {
                 {"type", "audioSource"},
-                {"clip", clip ? clip->handle : 0},
+                {"clip", clip.Handle()},
                 {"playOnStart", playOnStart},
                 {"looping", looping},
                 {"volume", volume},
@@ -85,7 +86,7 @@ namespace vke_component
         AudioSource() = default;
 
         AudioSource(const AudioSourceData &componentData)
-            : clip(componentData.clip),
+            : clip(componentData.clip.Get()),
               playOnStart(componentData.playOnStart),
               looping(componentData.looping),
               volume(componentData.volume),
@@ -99,7 +100,7 @@ namespace vke_component
 
         void FillData(AudioSourceData &data) const
         {
-            data.clip = clip;
+            data.clip.SetResource(clip);
             data.playOnStart = playOnStart;
             data.looping = looping;
             data.volume = volume;

@@ -5,6 +5,7 @@
 #include <time.hpp>
 #include <component/transform.hpp>
 #include <animation.hpp>
+#include <asset/asset_ref.hpp>
 #include <render/render.hpp>
 #include <ozz/animation/runtime/blending_job.h>
 #include <ozz/animation/runtime/local_to_model_job.h>
@@ -23,7 +24,7 @@ namespace vke_component
 
     struct SkeletonAnimationData
     {
-        std::shared_ptr<vke_common::Animation> animation;
+        vke_common::AssetRef<vke_common::Animation> animation;
         float weight = 0.0f;
         float playbackSpeed = 1.0f;
         float timeRatio = 0.0f;
@@ -32,31 +33,37 @@ namespace vke_component
 
         SkeletonAnimationData() = default;
         SkeletonAnimationData(const nlohmann::json &json)
-            : animation(vke_common::AssetManager::LoadAnimation(json["animation"])),
+            : animation(json["animation"].get<vke_common::AssetHandle>()),
               weight(json.value("weight", 0.0f)), playbackSpeed(json.value("speed", 1.0f)),
               timeRatio(json.value("timeRatio", 0.0f)), playing(json.value("playing", true)),
-              loop(json.value("loop", true)) {}
+              loop(json.value("loop", true))
+        {
+            animation.Resolve(vke_common::AssetManager::LoadAnimation(animation.Handle()));
+        }
         nlohmann::json ToJSON() const
         {
-            return {{"animation", animation ? animation->handle : 0}, {"weight", weight}, {"speed", playbackSpeed}, {"timeRatio", timeRatio}, {"loop", loop}, {"playing", playing}};
+            return {{"animation", animation.Handle()}, {"weight", weight}, {"speed", playbackSpeed}, {"timeRatio", timeRatio}, {"loop", loop}, {"playing", playing}};
         }
     };
 
     struct SkeletonAnimatorData
     {
-        std::shared_ptr<vke_render::Material> material;
-        std::shared_ptr<const vke_render::Mesh> mesh;
-        std::shared_ptr<vke_common::Skeleton> skeleton;
+        vke_common::AssetRef<vke_render::Material> material;
+        vke_common::AssetRef<const vke_render::Mesh> mesh;
+        vke_common::AssetRef<vke_common::Skeleton> skeleton;
         std::vector<SkeletonAnimationData> animations;
         bool castsShadow = true;
 
         SkeletonAnimatorData() = default;
         SkeletonAnimatorData(const nlohmann::json &json)
-            : material(vke_common::AssetManager::LoadMaterial(json["material"])),
-              mesh(vke_common::AssetManager::LoadMesh(json["mesh"])),
-              skeleton(vke_common::AssetManager::LoadSkeleton(json["skeleton"])),
+            : material(json["material"].get<vke_common::AssetHandle>()),
+              mesh(json["mesh"].get<vke_common::AssetHandle>()),
+              skeleton(json["skeleton"].get<vke_common::AssetHandle>()),
               castsShadow(json.value("castsShadow", true))
         {
+            material.Resolve(vke_common::AssetManager::LoadMaterial(material.Handle()));
+            mesh.Resolve(vke_common::AssetManager::LoadMesh(mesh.Handle()));
+            skeleton.Resolve(vke_common::AssetManager::LoadSkeleton(skeleton.Handle()));
             if (json.contains("animations") && json["animations"].is_array())
                 for (const nlohmann::json &state : json["animations"])
                     if (state.contains("animation"))
@@ -68,7 +75,8 @@ namespace vke_component
             if (animations.empty() && json.contains("animation"))
             {
                 SkeletonAnimationData state;
-                state.animation = vke_common::AssetManager::LoadAnimation(json["animation"]);
+                state.animation.SetHandle(json["animation"].get<vke_common::AssetHandle>());
+                state.animation.Resolve(vke_common::AssetManager::LoadAnimation(state.animation.Handle()));
                 state.weight = 1.0f;
                 animations.push_back(std::move(state));
             }
@@ -77,13 +85,13 @@ namespace vke_component
         {
             nlohmann::json animationArray = nlohmann::json::array();
             for (const SkeletonAnimationData &state : animations)
-                if (state.animation)
+                if (state.animation.Handle() != 0)
                     animationArray.push_back(state.ToJSON());
             return {{"type", "animator"},
-                    {"material", material->handle},
-                    {"mesh", mesh->handle},
-                    {"skeleton", skeleton->handle},
-                    {"animation", animations.empty() || !animations[0].animation ? 0 : animations[0].animation->handle},
+                    {"material", material.Handle()},
+                    {"mesh", mesh.Handle()},
+                    {"skeleton", skeleton.Handle()},
+                    {"animation", animations.empty() ? 0 : animations[0].animation.Handle()},
                     {"animations", animationArray},
                     {"castsShadow", castsShadow}};
         }
@@ -128,14 +136,14 @@ namespace vke_component
         }
 
         SkeletonAnimator(vke_common::Transform &transform, const SkeletonAnimatorData &componentData)
-            : material(componentData.material), skeleton(componentData.skeleton),
+            : material(componentData.material.Get()), skeleton(componentData.skeleton.Get()),
               transform(&transform), castsShadow(componentData.castsShadow),
               shadowRenderID(0)
         {
             for (const SkeletonAnimationData &animation : componentData.animations)
-                AddAnimation(animation.animation, animation.weight, animation.playbackSpeed,
+                AddAnimation(animation.animation.Get(), animation.weight, animation.playbackSpeed,
                              animation.timeRatio, animation.loop, animation.playing);
-            std::shared_ptr<const vke_render::Mesh> mesh = componentData.mesh;
+            std::shared_ptr<const vke_render::Mesh> mesh = componentData.mesh.Get();
             init(transform, mesh);
         }
 
@@ -143,16 +151,16 @@ namespace vke_component
 
         void FillData(SkeletonAnimatorData &data) const
         {
-            data.material = material;
-            data.mesh = renderUnit->mesh;
-            data.skeleton = skeleton;
+            data.material.SetResource(material);
+            data.mesh.SetResource(renderUnit->mesh);
+            data.skeleton.SetResource(skeleton);
             data.castsShadow = castsShadow;
             data.animations.clear();
             data.animations.reserve(animations.size());
             for (const AnimationState &state : animations)
             {
                 SkeletonAnimationData animationData;
-                animationData.animation = state.animation;
+                animationData.animation.SetResource(state.animation);
                 animationData.weight = state.weight;
                 animationData.playbackSpeed = state.playbackSpeed;
                 animationData.timeRatio = state.timeRatio;

@@ -5,6 +5,7 @@
 #include <font.hpp>
 #include <nlohmann/json.hpp>
 #include <asset/asset_manager.hpp>
+#include <asset/asset_ref.hpp>
 #include <string>
 #include <string_view>
 
@@ -14,15 +15,15 @@ namespace vke_component
     {
         std::string text;
         glm::vec4 color{1.0f};
-        std::shared_ptr<vke_render::Material> material;
+        vke_common::AssetRef<vke_render::Material> material;
 
         UITextData() = default;
         UITextData(const nlohmann::json &json)
             : text(json.value("text", std::string())),
-              material(json.contains("material") && json["material"].get<vke_common::AssetHandle>() != 0
-                           ? vke_common::AssetManager::LoadMaterial(json["material"].get<vke_common::AssetHandle>())
-                           : nullptr)
+              material(json.value("material", vke_common::AssetHandle{0}))
         {
+            if (material.Handle() != 0)
+                material.Resolve(vke_common::AssetManager::LoadMaterial(material.Handle()));
             if (json.contains("color"))
             {
                 const auto &value = json["color"];
@@ -35,7 +36,7 @@ namespace vke_component
             return {{"type", "uiText"},
                     {"text", text},
                     {"color", {color.r, color.g, color.b, color.a}},
-                    {"material", material == nullptr ? 0 : material->handle}};
+                    {"material", material.Handle()}};
         }
     };
 
@@ -51,7 +52,7 @@ namespace vke_component
         }
 
         UIText(const vke_common::Transform &transform, const UITextData &componentData)
-            : UIComponent(transform, componentData.material),
+            : UIComponent(transform, componentData.material.Get()),
               text(componentData.text), color(componentData.color),
               font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
         {
@@ -71,7 +72,7 @@ namespace vke_component
         {
             data.text = text;
             data.color = color;
-            data.material = GetMaterial();
+            data.material.SetResource(GetMaterial());
         }
 
         void SetText(std::string_view newText)

@@ -4,23 +4,26 @@
 #include <render/render.hpp>
 #include <render/buffer.hpp>
 #include <asset/asset_manager.hpp>
+#include <asset/asset_ref.hpp>
 #include <component/transform.hpp>
 
 namespace vke_component
 {
     struct RenderableObjectData
     {
-        std::shared_ptr<vke_render::Material> material;
-        std::shared_ptr<const vke_render::Mesh> mesh;
+        vke_common::AssetRef<vke_render::Material> material;
+        vke_common::AssetRef<const vke_render::Mesh> mesh;
         std::vector<glm::ivec4> textureIndices;
         bool castsShadow = true;
 
         RenderableObjectData() = default;
         RenderableObjectData(const nlohmann::json &json)
-            : material(vke_common::AssetManager::LoadMaterial(json["material"])),
-              mesh(vke_common::AssetManager::LoadMesh(json["mesh"])),
+            : material(json["material"].get<vke_common::AssetHandle>()),
+              mesh(json["mesh"].get<vke_common::AssetHandle>()),
               castsShadow(json.value("castsShadow", true))
         {
+            material.Resolve(vke_common::AssetManager::LoadMaterial(material.Handle()));
+            mesh.Resolve(vke_common::AssetManager::LoadMesh(mesh.Handle()));
             if (json.contains("textureIndices"))
                 for (const auto &index : json["textureIndices"])
                     textureIndices.emplace_back(index[0].get<int>(), index[1].get<int>(), index[2].get<int>(), 0);
@@ -30,7 +33,7 @@ namespace vke_component
             nlohmann::json indices = nlohmann::json::array();
             for (const glm::ivec4 &index : textureIndices)
                 indices.push_back({index.x, index.y, index.z});
-            return {{"type", "renderableObject"}, {"material", material->handle}, {"mesh", mesh->handle}, {"textureIndices", indices}, {"castsShadow", castsShadow}};
+            return {{"type", "renderableObject"}, {"material", material.Handle()}, {"mesh", mesh.Handle()}, {"textureIndices", indices}, {"castsShadow", castsShadow}};
         }
     };
 
@@ -53,11 +56,11 @@ namespace vke_component
         }
 
         RenderableObject(const vke_common::Transform &transform, const RenderableObjectData &componentData)
-            : material(componentData.material),
+            : material(componentData.material.Get()),
               textureIndices(componentData.textureIndices), castsShadow(componentData.castsShadow),
               renderID(0), shadowRenderID(0)
         {
-            auto mesh = componentData.mesh;
+            auto mesh = componentData.mesh.Get();
             init(transform, mesh);
         }
 
@@ -65,8 +68,8 @@ namespace vke_component
 
         void FillData(RenderableObjectData &data) const
         {
-            data.material = material;
-            data.mesh = renderUnit->mesh;
+            data.material.SetResource(material);
+            data.mesh.SetResource(renderUnit->mesh);
             data.textureIndices = textureIndices;
             data.castsShadow = castsShadow;
         }
