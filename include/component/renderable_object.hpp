@@ -1,6 +1,7 @@
 #ifndef RDOBJECT_H
 #define RDOBJECT_H
 
+#include <json_validation.hpp>
 #include <render/render.hpp>
 #include <render/buffer.hpp>
 #include <asset/asset_manager.hpp>
@@ -16,18 +17,68 @@ namespace vke_component
         std::vector<glm::ivec4> textureIndices;
         bool castsShadow = true;
 
+        // Call before constructing from JSON; asset checks happen in ValidateAssets.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            auto result = Object(json).Require({"material", "mesh"})
+                .Unsigneds({"material", "mesh"}).Booleans({"castsShadow"}).Result();
+            if (!result) return result;
+            if (json.contains("textureIndices"))
+            {
+                if (!json["textureIndices"].is_array()) return std::unexpected("invalid textureIndices");
+                for (const auto &row : json["textureIndices"])
+                {
+                    if (!row.is_array() || row.size() != 3) return std::unexpected("invalid textureIndices row");
+                    for (const auto &index : row)
+                        if (!index.is_number_integer() || index.get<double>() < INT32_MIN || index.get<double>() > INT32_MAX)
+                            return std::unexpected("invalid texture index");
+                }
+            }
+            return {};
+        }
+
         RenderableObjectData() = default;
         RenderableObjectData(const nlohmann::json &json)
             : material(json["material"].get<vke_common::AssetHandle>()),
               mesh(json["mesh"].get<vke_common::AssetHandle>()),
               castsShadow(json.value("castsShadow", true))
         {
-            material.Resolve(vke_common::AssetManager::LoadMaterial(material.Handle()));
-            mesh.Resolve(vke_common::AssetManager::LoadMesh(mesh.Handle()));
             if (json.contains("textureIndices"))
                 for (const auto &index : json["textureIndices"])
                     textureIndices.emplace_back(index[0].get<int>(), index[1].get<int>(), index[2].get<int>(), 0);
         }
+        vke_common::SceneResult<void> ValidateAssets() const
+        {
+            using vke_common::AssetManager;
+            if (!material.Get())
+                if (auto result = AssetManager::ValidateMaterial(material.Handle()); !result)
+                    return std::unexpected("material: " + result.error());
+            if (!mesh.Get())
+                if (auto result = AssetManager::ValidateMesh(mesh.Handle()); !result)
+                    return std::unexpected("mesh: " + result.error());
+            return {};
+        }
+
+        // Requires successful ValidateAssets() before loading.
+        vke_common::SceneResult<void> LoadAssets()
+        {
+            using vke_common::AssetManager;
+            if (!material.Get())
+            {
+                material.Resolve(AssetManager::LoadMaterial(material.Handle()));
+                if (!material.Get())
+                    return std::unexpected("material asset " + std::to_string(material.Handle()) + ": loading failed");
+            }
+            if (!mesh.Get())
+            {
+                mesh.Resolve(AssetManager::LoadMesh(mesh.Handle()));
+                if (!mesh.Get())
+                    return std::unexpected("mesh asset " + std::to_string(mesh.Handle()) + ": loading failed");
+            }
+            return {};
+        }
+
         nlohmann::json ToJSON() const
         {
             nlohmann::json indices = nlohmann::json::array();
@@ -68,8 +119,8 @@ namespace vke_component
 
         void FillData(RenderableObjectData &data) const
         {
-            data.material.SetResource(material);
-            data.mesh.SetResource(renderUnit->mesh);
+            data.material.SetAsset(material);
+            data.mesh.SetAsset(renderUnit->mesh);
             data.textureIndices = textureIndices;
             data.castsShadow = castsShadow;
         }

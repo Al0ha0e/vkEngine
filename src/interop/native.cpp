@@ -366,6 +366,22 @@ namespace vke_interop
         vke_component::CharacterController *controller = GetCharacterController(entity);
         return controller != nullptr && controller->IsGrounded() ? 1 : 0;
     }
+    static int32_t VKE_INTEROP_CDECL InstantiatePrefab(uint64_t prefab,
+        const Vector3<float> *position, const Quaternion<float> *rotation,
+        const Vector3<float> *scale, uint32_t parent)
+    {
+        if (!position || !rotation || !scale) return 0;
+        vke_common::InstantiateOptions options;
+        options.parent = static_cast<entt::entity>(parent);
+        options.rootTransform = vke_common::TransformData{};
+        options.rootTransform->localPosition = ToGlm(*position);
+        options.rootTransform->localRotation = ToGlm(*rotation);
+        options.rootTransform->localScale = ToGlm(*scale);
+        auto result = vke_common::SceneManager::RequestInstantiate(prefab, options);
+        if (!result) VKE_LOG_ERROR("Prefab request rejected: {}", result.error());
+        return result ? 1 : 0;
+    }
+
     static void VKE_INTEROP_CDECL DestroyEntity(uint32_t entity)
     {
         vke_common::SceneManager::GetInstance()->DestroyEntity(static_cast<entt::entity>(entity));
@@ -532,7 +548,8 @@ namespace vke_common
             &vke_interop::AudioListenerSetEnabled,
             &vke_interop::AudioListenerGetEnabled,
             &vke_interop::DestroyEntity,
-            &vke_interop::IsEntityPendingDestroy};
+            &vke_interop::IsEntityPendingDestroy,
+            &vke_interop::InstantiatePrefab};
         csharpExports.registerNativeFunctions(&nativeFunctions);
     }
 }

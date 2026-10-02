@@ -1,0 +1,36 @@
+{
+  "prefabRoot": 1,
+  "objects": [
+    {
+      "id": 1,
+      "name": "PrefabBall",
+      "static": false,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 0],
+        "scl": [1, 1, 1],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "renderableObject",
+          "material": 1024,
+          "mesh": 3
+        },
+        {
+          "type": "rigidbody",
+          "motionType": 2,
+          "motionQuality": 1,
+          "layer": 1,
+          "friction": 0.4,
+          "restitution": 0.65,
+          "mass": 2.0,
+          "shape": {
+            "type": 0,
+            "radius": 1.0
+          }
+        }
+      ]
+    }
+  ]
+}

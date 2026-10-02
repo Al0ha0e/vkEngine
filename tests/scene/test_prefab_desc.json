@@ -1,0 +1,79 @@
+[
+  {
+    "type": 2,
+    "id": 1024,
+    "name": "MaterialConstantShader",
+    "path": "./tests/shader/material_constant_vert.spv",
+    "fragPath": "./tests/shader/material_constant_frag.spv"
+  },
+  {
+    "type": 4,
+    "id": 1024,
+    "name": "BallOrange",
+    "path": "",
+    "shader": 1024,
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      {
+        "name": "baseColor",
+        "offset": 64,
+        "component_cnt": 4,
+        "component_type": "float",
+        "data": [1.0, 0.24, 0.035, 1.0]
+      },
+      {
+        "name": "metallic",
+        "offset": 80,
+        "component_cnt": 1,
+        "component_type": "float",
+        "data": [0.1]
+      },
+      {
+        "name": "roughness",
+        "offset": 84,
+        "component_cnt": 1,
+        "component_type": "float",
+        "data": [0.35]
+      }
+    ]
+  },
+  {
+    "type": 4,
+    "id": 1025,
+    "name": "FloorGray",
+    "path": "",
+    "shader": 1024,
+    "textures": [],
+    "bindingInfos": [],
+    "pushConstantInfos": [
+      {
+        "name": "baseColor",
+        "offset": 64,
+        "component_cnt": 4,
+        "component_type": "float",
+        "data": [0.24, 0.28, 0.34, 1.0]
+      },
+      {
+        "name": "metallic",
+        "offset": 80,
+        "component_cnt": 1,
+        "component_type": "float",
+        "data": [0.0]
+      },
+      {
+        "name": "roughness",
+        "offset": 84,
+        "component_cnt": 1,
+        "component_type": "float",
+        "data": [0.8]
+      }
+    ]
+  },
+  {
+    "type": 7,
+    "id": 1024,
+    "name": "PhysicsBallPrefab",
+    "path": "./tests/scene/test_ball_prefab.json"
+  }
+]

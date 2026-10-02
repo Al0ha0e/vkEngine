@@ -154,6 +154,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, Int32> AudioListenerGetEnabled;
         public delegate* unmanaged[Cdecl]<UInt32, void> DestroyEntity;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> IsEntityPendingDestroy;
+        public delegate* unmanaged[Cdecl]<UInt64, NVec3*, NQuat*, NVec3*, UInt32, Int32> InstantiatePrefab;
     }
 
     public static class NativeFunctionRegistry

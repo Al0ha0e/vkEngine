@@ -40,8 +40,12 @@ int main(int argc, char **argv)
 
     const std::string &scenePath = editorConfig->gameConfig->defaultScenePath;
     {
-        vke_common::SceneData sceneData(vke_common::LoadJSON(scenePath));
-        vke_common::SceneManager::LoadSceneData(sceneData);
+        auto sceneData = vke_common::AssetManager::LoadSceneFile(scenePath);
+        VKE_FATAL_IF(!sceneData, "Cannot read scene: {}", sceneData.error())
+        auto prepared = vke_common::AssetManager::PrepareSceneData(*sceneData);
+        VKE_FATAL_IF(!prepared, "Cannot prepare scene: {}", prepared.error())
+        auto result = vke_common::SceneManager::Instantiate(*sceneData);
+        VKE_FATAL_IF(!result, "Cannot instantiate scene: {}", result.error())
     }
 
     vke_common::InputManager::SetCursorMode(GLFW_CURSOR_NORMAL);

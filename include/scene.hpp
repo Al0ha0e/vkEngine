@@ -22,9 +22,21 @@
 #include <scene_transform_system.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <optional>
+#include <asset/asset_ref.hpp>
 
 namespace vke_common
 {
+    enum class SceneDataStage { Parsed, Expanded, Ready };
+
+    struct PrefabReference
+    {
+        AssetRef<const SceneData> scene;
+        bool overrideName = false;
+        bool overrideStatic = false;
+        bool overrideTransform = false;
+    };
+
     struct SceneData
     {
         using ScriptDataList = std::vector<vke_component::ScriptStateData>;
@@ -33,15 +45,35 @@ namespace vke_common
         entt::registry registry;
         std::unordered_map<vke_ds::id32_t, entt::entity> idToEntity;
         std::unordered_map<entt::entity, entt::entity> parents;
+        SceneDataStage stage = SceneDataStage::Parsed;
+        entt::entity prefabRoot = entt::null;
 
         SceneData() = default;
         SceneData(const nlohmann::json &json);
 
+        static SceneResult<SceneData> FromJSON(const nlohmann::json &json);
+        // Requires validated input; checks the additional prefab contract only.
+        SceneResult<void> ValidatePrefab() const;
+        // Expansion postcondition, checked before advancing to Expanded.
+        SceneResult<void> ValidateExpanded() const;
+        // Runtime prerequisites only; does not revalidate the source hierarchy.
+        SceneResult<void> ValidateReady(bool requireSingleRoot = false) const;
+        SceneData Clone() const;
+        void CopyComponents(entt::entity source, SceneData &target, entt::entity destination) const;
+
         nlohmann::json ToJSON() const;
 
     private:
-        void loadComponent(entt::entity entity, const nlohmann::json &component);    // component.cpp
+        // Full structural check at ingestion; later stages preserve these invariants.
+        SceneResult<void> validateParsed() const;
+        SceneResult<void> loadComponent(entt::entity entity, const nlohmann::json &component);    // component.cpp
         void componentToJSON(entt::entity entity, nlohmann::json &components) const; // component.cpp
+    };
+
+    struct InstantiateOptions
+    {
+        entt::entity parent = entt::null;
+        std::optional<TransformData> rootTransform;
     };
 
     class SceneManager
@@ -52,6 +84,13 @@ namespace vke_common
         std::unordered_set<entt::entity> pendingDestroy;
         bool processingDestroy = false;
         bool shuttingDown = false;
+        struct InstantiateRequest
+        {
+            AssetHandle prefab;
+            InstantiateOptions options;
+        };
+        std::vector<InstantiateRequest> pendingInstantiations;
+        bool processingInstantiations = false;
 
         SceneManager()
             : transformSystem(registry), physicsUpdateListenerID(0) {}
@@ -88,19 +127,10 @@ namespace vke_common
             instance = nullptr;
         }
 
-        static EntityMap LoadSceneData(const SceneData &data)
-        {
-            if (instance->shuttingDown)
-                return {};
-            EntityMap dataToRuntime = instance->instantiateSceneData(data);
-            instance->loadEntitiesToEngine(dataToRuntime);
-            return dataToRuntime;
-        }
-
-        static void UnloadSceneData(const EntityMap &dataToRuntime)
-        {
-            instance->unloadSceneData(dataToRuntime);
-        }
+        static SceneResult<void> Instantiate(
+            const SceneData &data, const InstantiateOptions &options = {});
+        static SceneResult<void> RequestInstantiate(AssetHandle prefab, const InstantiateOptions &options = {});
+        void ProcessInstantiationRequests();
 
         bool HasComponent(entt::entity entity, ComponentType componentType) const; // component.cpp
 
@@ -124,9 +154,14 @@ namespace vke_common
         SceneData ExportEntitySubtree(entt::entity root) const; // scene.cpp
 
     private:
-        EntityMap instantiateSceneData(const SceneData &data);
-        void unloadSceneData(const EntityMap &dataToRuntime);
-        void loadEntitiesToEngine(const EntityMap &dataToRuntime);
+        struct PreparedScript
+        {
+            entt::entity entity;
+            std::string className;
+            TypeInfoDataPtr data;
+        };
+        EntityMap instantiateSceneData(const SceneData &data, const InstantiateOptions &options);
+        void loadEntitiesToEngine(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts);
         void unloadEntityFromEngine(entt::entity entity);
         SceneData exportEntities(const std::vector<entt::entity> &entities) const; // scene.cpp
         void dispose();

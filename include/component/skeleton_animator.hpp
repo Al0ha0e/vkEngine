@@ -1,10 +1,12 @@
 #ifndef SKELETON_ANIMATOR_H
 #define SKELETON_ANIMATOR_H
 
+#include <json_validation.hpp>
 #include <algorithm>
 #include <time.hpp>
 #include <component/transform.hpp>
 #include <animation.hpp>
+#include <asset/asset_manager.hpp>
 #include <asset/asset_ref.hpp>
 #include <render/render.hpp>
 #include <ozz/animation/runtime/blending_job.h>
@@ -31,15 +33,42 @@ namespace vke_component
         bool playing = true;
         bool loop = true;
 
+        // Call before constructing from JSON; asset checks happen in ValidateAssets.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Require({"animation"}).Unsigneds({"animation"})
+                .Numbers({"weight", "speed", "timeRatio"}).Booleans({"playing", "loop"}).Result();
+        }
+
         SkeletonAnimationData() = default;
         SkeletonAnimationData(const nlohmann::json &json)
             : animation(json["animation"].get<vke_common::AssetHandle>()),
               weight(json.value("weight", 0.0f)), playbackSpeed(json.value("speed", 1.0f)),
               timeRatio(json.value("timeRatio", 0.0f)), playing(json.value("playing", true)),
-              loop(json.value("loop", true))
+              loop(json.value("loop", true)) {}
+        vke_common::SceneResult<void> ValidateAssets() const
         {
-            animation.Resolve(vke_common::AssetManager::LoadAnimation(animation.Handle()));
+            using vke_common::AssetManager;
+            if (!animation.Get())
+                if (auto result = AssetManager::ValidateAnimation(animation.Handle()); !result)
+                    return std::unexpected("animation: " + result.error());
+            return {};
         }
+
+        // Requires successful ValidateAssets() before loading.
+        vke_common::SceneResult<void> LoadAssets()
+        {
+            using vke_common::AssetManager;
+            if (!animation.Get())
+            {
+                animation.Resolve(AssetManager::LoadAnimation(animation.Handle()));
+                if (!animation.Get())
+                    return std::unexpected("animation asset " + std::to_string(animation.Handle()) + ": loading failed");
+            }
+            return {};
+        }
+
         nlohmann::json ToJSON() const
         {
             return {{"animation", animation.Handle()}, {"weight", weight}, {"speed", playbackSpeed}, {"timeRatio", timeRatio}, {"loop", loop}, {"playing", playing}};
@@ -54,6 +83,27 @@ namespace vke_component
         std::vector<SkeletonAnimationData> animations;
         bool castsShadow = true;
 
+        // Call before constructing from JSON; asset checks happen in ValidateAssets.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            auto result = Object(json).Require({"material", "mesh", "skeleton"})
+                .Unsigneds({"material", "mesh", "skeleton", "animation"}).Booleans({"castsShadow"}).Result();
+            if (!result) return result;
+            if (json.contains("animations"))
+            {
+                if (!json["animations"].is_array()) return std::unexpected("invalid animations");
+                size_t index = 0;
+                for (const auto &state : json["animations"])
+                {
+                    if (auto valid = SkeletonAnimationData::ValidateJSON(state); !valid)
+                        return std::unexpected("animations[" + std::to_string(index) + "]: " + valid.error());
+                    ++index;
+                }
+            }
+            return {};
+        }
+
         SkeletonAnimatorData() = default;
         SkeletonAnimatorData(const nlohmann::json &json)
             : material(json["material"].get<vke_common::AssetHandle>()),
@@ -61,9 +111,6 @@ namespace vke_component
               skeleton(json["skeleton"].get<vke_common::AssetHandle>()),
               castsShadow(json.value("castsShadow", true))
         {
-            material.Resolve(vke_common::AssetManager::LoadMaterial(material.Handle()));
-            mesh.Resolve(vke_common::AssetManager::LoadMesh(mesh.Handle()));
-            skeleton.Resolve(vke_common::AssetManager::LoadSkeleton(skeleton.Handle()));
             if (json.contains("animations") && json["animations"].is_array())
                 for (const nlohmann::json &state : json["animations"])
                     if (state.contains("animation"))
@@ -76,11 +123,54 @@ namespace vke_component
             {
                 SkeletonAnimationData state;
                 state.animation.SetHandle(json["animation"].get<vke_common::AssetHandle>());
-                state.animation.Resolve(vke_common::AssetManager::LoadAnimation(state.animation.Handle()));
                 state.weight = 1.0f;
                 animations.push_back(std::move(state));
             }
         }
+        vke_common::SceneResult<void> ValidateAssets() const
+        {
+            using vke_common::AssetManager;
+            if (!material.Get())
+                if (auto result = AssetManager::ValidateMaterial(material.Handle()); !result)
+                    return std::unexpected("material: " + result.error());
+            if (!mesh.Get())
+                if (auto result = AssetManager::ValidateMesh(mesh.Handle()); !result)
+                    return std::unexpected("mesh: " + result.error());
+            if (!skeleton.Get())
+                if (auto result = AssetManager::ValidateSkeleton(skeleton.Handle()); !result)
+                    return std::unexpected("skeleton: " + result.error());
+            for (const auto &state : animations)
+                if (auto result = state.ValidateAssets(); !result) return result;
+            return {};
+        }
+
+        // Requires successful ValidateAssets() before loading.
+        vke_common::SceneResult<void> LoadAssets()
+        {
+            using vke_common::AssetManager;
+            if (!material.Get())
+            {
+                material.Resolve(AssetManager::LoadMaterial(material.Handle()));
+                if (!material.Get())
+                    return std::unexpected("material asset " + std::to_string(material.Handle()) + ": loading failed");
+            }
+            if (!mesh.Get())
+            {
+                mesh.Resolve(AssetManager::LoadMesh(mesh.Handle()));
+                if (!mesh.Get())
+                    return std::unexpected("mesh asset " + std::to_string(mesh.Handle()) + ": loading failed");
+            }
+            if (!skeleton.Get())
+            {
+                skeleton.Resolve(AssetManager::LoadSkeleton(skeleton.Handle()));
+                if (!skeleton.Get())
+                    return std::unexpected("skeleton asset " + std::to_string(skeleton.Handle()) + ": loading failed");
+            }
+            for (auto &state : animations)
+                if (auto result = state.LoadAssets(); !result) return result;
+            return {};
+        }
+
         nlohmann::json ToJSON() const
         {
             nlohmann::json animationArray = nlohmann::json::array();
@@ -151,16 +241,16 @@ namespace vke_component
 
         void FillData(SkeletonAnimatorData &data) const
         {
-            data.material.SetResource(material);
-            data.mesh.SetResource(renderUnit->mesh);
-            data.skeleton.SetResource(skeleton);
+            data.material.SetAsset(material);
+            data.mesh.SetAsset(renderUnit->mesh);
+            data.skeleton.SetAsset(skeleton);
             data.castsShadow = castsShadow;
             data.animations.clear();
             data.animations.reserve(animations.size());
             for (const AnimationState &state : animations)
             {
                 SkeletonAnimationData animationData;
-                animationData.animation.SetResource(state.animation);
+                animationData.animation.SetAsset(state.animation);
                 animationData.weight = state.weight;
                 animationData.playbackSpeed = state.playbackSpeed;
                 animationData.timeRatio = state.timeRatio;

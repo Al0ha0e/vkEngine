@@ -2,12 +2,12 @@
 
 ## loadScene 流程
 
-1. C++ 加载所有 GameObject 数据并初始化原生组件。
-2. `ScriptManager::init` 在加载 `gameAssemblyPath` 后，读取
+1. `ScriptManager::init` 在加载 `gameAssemblyPath` 后，读取
    `gameScriptTypeInfoPath`，将导出的脚本 `TypeInfo` 按完整类名加载到 map。
-3. `Scene::loadEntitiesToEngine` 收集脚本状态，根据 `className` 查找
+2. `SceneManager::Instantiate` 接受 Ready 状态的 SceneData，根据 `className` 查找
    `TypeInfo`，再调用 `TypeInfo::EncodeBinaryFromJson` 把场景 JSON 中的
-   `data` 编码为 [Data 二进制格式](binary.md)。
+   `data` 编码为二进制。编码失败直接返回错误。
+3. C++ 创建本批实体、建立层级，并初始化和注册原生组件。
 4. C++ 将 `CSharpScriptLoadData[]` 一次性传给 `SceneManager.Load`：
 
    ```cpp
@@ -24,6 +24,8 @@
 5. C# 只把 `className` 转成托管字符串，然后调用游戏程序集内生成的
    `vkEngine.Generated.EntityScriptBinaryReaders.Parse`。生成的 reader 直接构造
    脚本并按确定的布局解析字段；加载热路径不再解析 JSON，也不再逐字段使用反射。
+6. `SceneManager.Load` 返回 void，不捕获加载异常；加载完成后 C++ 仅调用本批实体的
+   Start。Load 和 Start 的异常均遵循 C# 未处理异常行为。
 
 ## Script 组件的场景格式
 

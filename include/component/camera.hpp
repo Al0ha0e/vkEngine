@@ -1,6 +1,7 @@
 #ifndef CAMERA_COMPONENT_H
 #define CAMERA_COMPONENT_H
 
+#include <json_validation.hpp>
 #include <render/render.hpp>
 #include <render/buffer.hpp>
 #include <event.hpp>
@@ -22,6 +23,19 @@ namespace vke_component
         float aspect;
         float nearPlane;
         float farPlane;
+
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            auto result = Object(json).Require({"fov", "width", "height", "near", "far"})
+                .Numbers({"fov", "width", "height", "near", "far"}).Result();
+            if (!result) return result;
+            if (json["height"].get<float>() <= 0 || json["width"].get<float>() <= 0 ||
+                json["near"].get<float>() <= 0 || json["far"].get<float>() <= json["near"].get<float>())
+                return std::unexpected("invalid camera dimensions or clipping planes");
+            return {};
+        }
 
         CameraData() = default;
         CameraData(const nlohmann::json &json)

@@ -1,6 +1,7 @@
 #ifndef UI_TEXT_COMPONENT_H
 #define UI_TEXT_COMPONENT_H
 
+#include <json_validation.hpp>
 #include <component/ui.hpp>
 #include <font.hpp>
 #include <nlohmann/json.hpp>
@@ -17,13 +18,18 @@ namespace vke_component
         glm::vec4 color{1.0f};
         vke_common::AssetRef<vke_render::Material> material;
 
+        // Call before constructing from JSON; asset checks happen in ValidateAssets.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Strings({"text"}).Unsigneds({"material"}).Vectors({"color"}, 4).Result();
+        }
+
         UITextData() = default;
         UITextData(const nlohmann::json &json)
             : text(json.value("text", std::string())),
               material(json.value("material", vke_common::AssetHandle{0}))
         {
-            if (material.Handle() != 0)
-                material.Resolve(vke_common::AssetManager::LoadMaterial(material.Handle()));
             if (json.contains("color"))
             {
                 const auto &value = json["color"];
@@ -31,6 +37,30 @@ namespace vke_component
                                   value[2].get<float>(), value[3].get<float>());
             }
         }
+        vke_common::SceneResult<void> ValidateAssets() const
+        {
+            using vke_common::AssetManager;
+            if (material.Handle() != 0 && !material.Get())
+                if (auto result = AssetManager::ValidateMaterial(material.Handle()); !result)
+                    return std::unexpected("material: " + result.error());
+            return AssetManager::ValidateFont(vke_common::BUILTIN_FONT_ARIAL_ID);
+        }
+
+        // Requires successful ValidateAssets() before loading.
+        vke_common::SceneResult<void> LoadAssets()
+        {
+            using vke_common::AssetManager;
+            if (material.Handle() != 0 && !material.Get())
+            {
+                material.Resolve(AssetManager::LoadMaterial(material.Handle()));
+                if (!material.Get())
+                    return std::unexpected("material asset " + std::to_string(material.Handle()) + ": loading failed");
+            }
+            if (!AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
+                return std::unexpected("built-in font loading failed");
+            return {};
+        }
+
         nlohmann::json ToJSON() const
         {
             return {{"type", "uiText"},
@@ -58,21 +88,17 @@ namespace vke_component
         {
         }
 
-        bool LoadToEngine()
+        void LoadToEngine()
         {
-            if (!UIComponent::LoadToEngine() || !rebuild())
-            {
-                UnloadFromEngine();
-                return false;
-            }
-            return true;
+            UIComponent::LoadToEngine();
+            rebuild();
         }
 
         void FillData(UITextData &data) const
         {
             data.text = text;
             data.color = color;
-            data.material.SetResource(GetMaterial());
+            data.material.SetAsset(GetMaterial());
         }
 
         void SetText(std::string_view newText)

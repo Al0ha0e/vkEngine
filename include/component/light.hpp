@@ -1,6 +1,7 @@
 #ifndef COMPONENT_LIGHT_H
 #define COMPONENT_LIGHT_H
 
+#include <json_validation.hpp>
 #include <component/transform.hpp>
 #include <render/render.hpp>
 
@@ -10,6 +11,14 @@ namespace vke_component
     {
         glm::vec3 color;
         float intensity;
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Require({"color", "intensity"}).Vectors({"color"}, 3)
+                .Numbers({"intensity"}).Result();
+        }
+
         DirectionalLightData() = default;
         DirectionalLightData(const nlohmann::json &json)
             : color(json["color"][0], json["color"][1], json["color"][2]), intensity(json["intensity"]) {}
@@ -24,6 +33,14 @@ namespace vke_component
         glm::vec3 color;
         float radius;
         float intensity;
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Require({"color", "intensity", "radius"}).Vectors({"color"}, 3)
+                .Numbers({"intensity", "radius"}).Result();
+        }
+
         PointLightData() = default;
         PointLightData(const nlohmann::json &json)
             : color(json["color"][0], json["color"][1], json["color"][2]),
@@ -42,6 +59,14 @@ namespace vke_component
         float innerConeCos;
         float outerConeCos;
         bool castShadow;
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Require({"color", "intensity", "radius", "innerCone", "outerCone"}).Vectors({"color"}, 3)
+                .Numbers({"intensity", "radius", "innerCone", "outerCone"}).Booleans({"castShadow"}).Unsigneds({"shadowSlot"}, UINT32_MAX).Result();
+        }
+
         SpotLightData() = default;
         SpotLightData(const nlohmann::json &json)
             : color(json["color"][0], json["color"][1], json["color"][2]),

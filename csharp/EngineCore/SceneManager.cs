@@ -56,6 +56,13 @@ namespace vkEngine.EngineCore
                 NativeFunctionRegistry.Functions.DestroyEntity(entity);
         }
 
+        public static unsafe bool InstantiatePrefab(
+            UInt64 prefab, NVec3 position, NQuat rotation, NVec3 scale, UInt32 parent = UInt32.MaxValue)
+        {
+            return NativeFunctionRegistry.IsRegistered &&
+                NativeFunctionRegistry.Functions.InstantiatePrefab(prefab, &position, &rotation, &scale, parent) != 0;
+        }
+
         public static unsafe bool IsPendingDestroy(UInt32 entity) =>
             NativeFunctionRegistry.IsRegistered &&
             NativeFunctionRegistry.Functions.IsEntityPendingDestroy(entity) != 0;

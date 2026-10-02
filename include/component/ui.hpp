@@ -31,7 +31,7 @@ namespace vke_component
         UIComponent(UIComponent &&) = delete;
         UIComponent &operator=(UIComponent &&) = delete;
 
-        bool LoadToEngine()
+        void LoadToEngine()
         {
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
 
@@ -42,22 +42,16 @@ namespace vke_component
 
             id = spatialManager->CreateUnit(getWorldBounds(), getZIndex());
             const vke_common::Spatial2DUnit *spatialUnit = spatialManager->GetUnit(id);
-            if (!renderer->AllocateUnit(id, material, &transform->model, glyphIDs) ||
-                !renderer->AddUnitToLayer(id, spatialUnit->layer))
-            {
-                renderer->DestroyUnit(id);
-                spatialManager->RemoveUnit(id);
-                id = INVALID_ID;
-                return false;
-            }
+            renderer->AllocateUnit(id, material, &transform->model, glyphIDs);
+            renderer->AddUnitToLayer(id, spatialUnit->layer);
 
             renderUnit = renderer->GetUnit(id);
             renderer->SetLayerOrder(spatialManager->GetLayerOrder());
-            return true;
         }
 
         void UnloadFromEngine()
         {
+            if (!IsLoaded()) return;
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             renderer->DestroyUnit(id);
             vke_render::Renderer::GetGlyphManager()->Release(glyphIDs);

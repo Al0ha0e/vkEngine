@@ -19,6 +19,7 @@
 
 namespace vke_common
 {
+    struct SceneData;
     extern const std::filesystem::path BuiltinAssetLUTPath;
 
     const AssetHandle CUSTOM_ASSET_ID_ST = 1024;
@@ -136,7 +137,7 @@ namespace vke_common
     LEAF_ASSET_TYPE(MeshAsset, ASSET_MESH, vke_render::Mesh)
     LEAF_ASSET_TYPE(ComputeShaderAsset, ASSET_COMPUTE_SHADER, vke_render::ShaderModuleSet)
     LEAF_ASSET_TYPE(SkeletonAsset, ASSET_SKELETON, vke_common::Skeleton)
-    LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, int);
+    LEAF_ASSET_TYPE(SceneAsset, ASSET_SCENE, const SceneData);
 
     class AnimationAsset : public Asset<ASSET_ANIMATION, AnimationAsset, vke_common::Animation>
     {

@@ -3,6 +3,9 @@
 
 #include <asset/asset_db_json.hpp>
 #include <filesystem>
+#include <common.hpp>
+#include <type_traits>
+#include <unordered_set>
 
 namespace vke_common
 {
@@ -92,10 +95,59 @@ namespace vke_common
         static std::shared_ptr<vke_common::Font> LoadFont(const AssetHandle hdl);
         static std::shared_ptr<vke_audio::AudioClip> LoadAudioClip(const AssetHandle hdl);
 
+        // Preflight checks only: these never load assets or populate caches.
+        static SceneResult<void> ValidateTexture2D(AssetHandle handle);
+        static SceneResult<void> ValidateMesh(AssetHandle handle);
+        static SceneResult<void> ValidateVertFragShader(AssetHandle handle);
+        static SceneResult<void> ValidateComputeShader(AssetHandle handle);
+        static SceneResult<void> ValidateMaterial(AssetHandle handle);
+        static SceneResult<void> ValidateSkeleton(AssetHandle handle);
+        static SceneResult<void> ValidateAnimation(AssetHandle handle);
+        static SceneResult<void> ValidateFont(AssetHandle handle);
+        static SceneResult<void> ValidateAudioClip(AssetHandle handle);
+
+        static SceneResult<std::shared_ptr<const SceneData>> LoadSceneData(AssetHandle handle);
+        static SceneResult<std::shared_ptr<const SceneData>> ReloadSceneData(AssetHandle handle);
+        static void InvalidateSceneData(AssetHandle handle);
+        static SceneResult<SceneData> LoadSceneFile(const std::filesystem::path &path);
+        static SceneResult<void> PrepareSceneData(SceneData &data);
+
     private:
         std::filesystem::path pathPrefix;
         std::unique_ptr<AssetDBJSON> builtinAssets;
         std::unique_ptr<AssetDBBase> assetDB;
+        std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>> sceneDependencies;
+        std::unordered_map<AssetHandle, std::unordered_set<AssetHandle>> sceneDependents;
+
+        SceneResult<std::shared_ptr<const SceneData>> loadSceneData(
+            AssetHandle handle, std::vector<AssetHandle> &stack);
+        SceneResult<void> expandSceneData(SceneData &data, std::vector<AssetHandle> &stack);
+        SceneResult<void> resolveSceneAssets(SceneData &data);
+
+        SceneResult<void> checkPath(AssetHandle handle, const std::filesystem::path &path) const;
+
+        template <typename Get>
+        static SceneResult<void> validateAsset(AssetHandle handle, Get get)
+        {
+            if (!instance) return std::unexpected("AssetManager is not initialized");
+            if (handle == 0) return std::unexpected("required asset is empty");
+            if (auto result = instance->checkAsset(get(handle)); !result)
+                return std::unexpected("asset " + std::to_string(handle) + ": " + result.error());
+            return {};
+        }
+
+        template <typename Asset>
+        SceneResult<void> checkAsset(const Asset *asset) const
+        {
+            if (!asset) return std::unexpected("asset not found");
+            if (asset->val) return {};
+            if constexpr (std::is_same_v<Asset, MeshAsset>)
+                if (asset->id == BUILTIN_MESH_PLANE_ID) return {};
+            return checkPath(asset->id, asset->path);
+        }
+
+        SceneResult<void> checkAsset(const MaterialAsset *material) const;
+        SceneResult<void> checkAsset(const VFShaderAsset *shader) const;
 
         void initBuiltinAssets();
     };

@@ -78,3 +78,7 @@ glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据�
 之前C#端scenemanager的start会调用所有注册的start，但是现在SceneManager::loadEntitiesToEngine会被多次调用，其中调用C#的start就会导致场景中所有注册的start被多次调用，这一版先修了这个
 
 还发现了一个问题，C#的dispatch会先把callback复制到list里，避免回调里改动集合。现在实体的延迟销毁已经实现了，但Dispose仍会直接注销脚本，所以暂时还不能去掉这个复制，后面要把注册和注销的时机一起理一下，细节在docs\script\lifecycle.md 里
+
+## e6ceb1cda0733b8a418a7b481a9ef8eccd895a4e assetref
+
+实现了scenedata的资源化以及实例化接口，相关设计细节比较多，在 `docs\script\lifecycle.md` 和 `docs\scene_data.md` 里

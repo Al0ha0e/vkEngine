@@ -1,6 +1,7 @@
 #ifndef SENSOR_H
 #define SENSOR_H
 
+#include <json_validation.hpp>
 #include <physics/shape.hpp>
 #include <component/transform.hpp>
 
@@ -12,6 +13,16 @@ namespace vke_component
         bool isStatic;
         JPH::EMotionQuality motionQuality = JPH::EMotionQuality::Discrete;
         JPH::ObjectLayer layer;
+
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            auto result = Object(json).Require({"shape", "layer"}).Booleans({"isStatic"})
+                .Unsigneds({"motionQuality"}, 1).Unsigneds({"layer"}, UINT32_MAX).Result();
+            if (!result) return result;
+            return vke_physics::PhyscisShapeData::ValidateJSON(json["shape"]);
+        }
 
         SensorData() = default;
         SensorData(const nlohmann::json &json)
@@ -72,9 +83,11 @@ namespace vke_component
 
         void UnloadFromEngine()
         {
+            if (bodyID.IsInvalid()) return;
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
+            bodyID = JPH::BodyID();
         }
 
         void OnTransformed(vke_common::Transform &param)

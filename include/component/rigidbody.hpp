@@ -1,6 +1,7 @@
 #ifndef RIGIDBODY_H
 #define RIGIDBODY_H
 
+#include <json_validation.hpp>
 #include <physics/shape.hpp>
 #include <component/transform.hpp>
 
@@ -17,6 +18,17 @@ namespace vke_component
         float gravityFactor = 1.0f;
         bool hasMassOverride = false;
         float mass = 0.0f;
+
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            auto result = Object(json).Require({"shape", "motionType", "layer", "friction", "restitution"})
+                .Unsigneds({"motionType"}, 2).Unsigneds({"motionQuality"}, 1).Unsigneds({"layer"}, UINT32_MAX)
+                .Numbers({"friction", "restitution", "gravityFactor", "mass"}).Result();
+            if (!result) return result;
+            return vke_physics::PhyscisShapeData::ValidateJSON(json["shape"]);
+        }
 
         RigidBodyData() = default;
         RigidBodyData(const nlohmann::json &json)
@@ -96,9 +108,11 @@ namespace vke_component
 
         void UnloadFromEngine()
         {
+            if (bodyID.IsInvalid()) return;
             JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
+            bodyID = JPH::BodyID();
         }
 
         void OnTransformed(vke_common::Transform &transform)

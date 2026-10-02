@@ -3,6 +3,8 @@
 
 #include <logger.hpp>
 #include <filesystem>
+#include <expected>
+#include <string>
 
 #define VKE_EXIT(code) std::exit(code);
 
@@ -38,6 +40,9 @@
 namespace vke_common
 {
     using AssetHandle = uint64_t;
+    template <typename T>
+    using SceneResult = std::expected<T, std::string>;
+
     const std::filesystem::path RelDir = REL_DIR;
 }
 

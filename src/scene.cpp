@@ -12,66 +12,83 @@ namespace vke_common
 {
     SceneManager *SceneManager::instance = nullptr;
 
-    SceneData::SceneData(const nlohmann::json &json)
-        : maxID(json.value("maxid", 1u))
+    SceneResult<void> SceneManager::RequestInstantiate(AssetHandle prefab, const InstantiateOptions &options)
     {
-        const nlohmann::json &objects = json["objects"];
-
-        for (const nlohmann::json &object : objects)
+        if (!instance || instance->shuttingDown)
+            return std::unexpected("SceneManager is unavailable");
+        if (prefab == 0)
+            return std::unexpected("prefab handle is empty");
+        if (options.parent != entt::null && (!instance->registry.valid(options.parent) ||
+                                             !instance->registry.all_of<Transform>(options.parent) || instance->IsPendingDestroy(options.parent)))
+            return std::unexpected("invalid or pending-destroy parent");
+        if (options.rootTransform)
         {
-            const vke_ds::id32_t id = object["id"];
-            entt::entity entity = registry.create();
-            idToEntity[id] = entity;
-
-            std::string name = object["name"];
-            registry.emplace<GameObject>(
-                entity, name, object["static"].get<bool>());
-            registry.emplace<TransformData>(entity, object["transform"]);
+            const auto &t = *options.rootTransform;
+            for (int i = 0; i < 3; ++i)
+                if (!std::isfinite(t.localPosition[i]) || !std::isfinite(t.localScale[i]))
+                    return std::unexpected("non-finite spawn transform");
+            const float length = glm::dot(t.localRotation, t.localRotation);
+            if (!std::isfinite(length) || length <= 0)
+                return std::unexpected("invalid spawn rotation");
         }
-
-        for (const nlohmann::json &object : objects)
-        {
-            const entt::entity entity = idToEntity.at(object["id"].get<vke_ds::id32_t>());
-            const vke_ds::id32_t parentID = object.value("parent", 0u);
-            parents[entity] = parentID == 0 ? entt::null : idToEntity.at(parentID);
-
-            for (const nlohmann::json &component : object["components"])
-                loadComponent(entity, component);
-        }
+        instance->pendingInstantiations.push_back({prefab, options});
+        if (auto &transform = instance->pendingInstantiations.back().options.rootTransform)
+            transform->localRotation = glm::normalize(transform->localRotation);
+        return {};
     }
 
-    nlohmann::json SceneData::ToJSON() const
+    void SceneManager::ProcessInstantiationRequests()
     {
-        nlohmann::json result = {
-            {"maxid", maxID},
-            {"objects", nlohmann::json::array()}};
-
-        std::unordered_map<entt::entity, vke_ds::id32_t> entityToID;
-        entityToID.reserve(idToEntity.size());
-        for (const auto &[id, entity] : idToEntity)
-            entityToID.emplace(entity, id);
-
-        for (const auto &[id, entity] : idToEntity)
+        if (shuttingDown || processingInstantiations)
+            return;
+        processingInstantiations = true;
+        auto requests = std::move(pendingInstantiations);
+        pendingInstantiations.clear();
+        // Requests issued by Start stay in the next batch.
+        for (const auto &request : requests)
         {
-            const GameObject &object = registry.get<GameObject>(entity);
-            const TransformData &transform = registry.get<TransformData>(entity);
-            nlohmann::json objectJSON = {
-                {"id", id},
-                {"static", object.isStatic},
-                {"name", object.name},
-                {"transform", transform.ToJSON()},
-                {"parent", 0},
-                {"components", nlohmann::json::array()}};
-
-            auto parentIt = parents.find(entity);
-            if (parentIt != parents.end() && parentIt->second != entt::null)
-                objectJSON["parent"] = entityToID.at(parentIt->second);
-
-            componentToJSON(entity, objectJSON["components"]);
-            result["objects"].push_back(std::move(objectJSON));
+            auto result = [&]() -> SceneResult<void>
+            {
+                if (request.options.parent != entt::null &&
+                    (!registry.valid(request.options.parent) || IsPendingDestroy(request.options.parent)))
+                    return std::unexpected("spawn parent was destroyed");
+                auto asset = AssetManager::LoadSceneData(request.prefab);
+                if (!asset)
+                    return std::unexpected(asset.error());
+                auto data = (*asset)->Clone();
+                if (auto prepared = AssetManager::PrepareSceneData(data); !prepared)
+                    return prepared;
+                return Instantiate(data, request.options);
+            }();
+            if (!result)
+                VKE_LOG_ERROR("Prefab {} instantiation failed: {}", request.prefab, result.error());
         }
+        processingInstantiations = false;
+    }
 
-        return result;
+    SceneResult<void> SceneManager::Instantiate(const SceneData &data, const InstantiateOptions &options)
+    {
+        if (!instance || instance->shuttingDown)
+            return std::unexpected("SceneManager is unavailable");
+        if (auto valid = data.ValidateReady(options.rootTransform.has_value()); !valid)
+            return std::unexpected(valid.error());
+        if (options.parent != entt::null && (!instance->registry.valid(options.parent) ||
+                                             !instance->registry.all_of<Transform>(options.parent) || instance->IsPendingDestroy(options.parent)))
+            return std::unexpected("invalid or pending-destroy parent");
+        std::vector<PreparedScript> scripts;
+        for (const auto entity : data.registry.view<const SceneData::ScriptDataList>())
+        {
+            for (const auto &script : data.registry.get<SceneData::ScriptDataList>(entity))
+            {
+                auto encoded = script.PrepareForInstantiation();
+                if (!encoded)
+                    return std::unexpected(encoded.error());
+                scripts.push_back({entity, script.className, std::move(*encoded)});
+            }
+        }
+        const auto dataToRuntime = instance->instantiateSceneData(data, options);
+        instance->loadEntitiesToEngine(dataToRuntime, scripts);
+        return {};
     }
 
     SceneData SceneManager::ExportAllEntities() const
@@ -88,7 +105,11 @@ namespace vke_common
     {
         std::vector<entt::entity> entities{root};
         transformSystem.CollectEntitySubtree(entities);
-        return exportEntities(entities);
+        auto data = exportEntities(entities);
+        for (const auto &[entity, parent] : data.parents)
+            if (parent == entt::null)
+                data.prefabRoot = entity;
+        return data;
     }
 
     SceneData SceneManager::exportEntities(const std::vector<entt::entity> &entities) const
@@ -159,10 +180,12 @@ namespace vke_common
         }
 
         data.maxID = nextID;
+        data.stage = SceneDataStage::Ready;
+
         return data;
     }
 
-    SceneManager::EntityMap SceneManager::instantiateSceneData(const SceneData &data)
+    SceneManager::EntityMap SceneManager::instantiateSceneData(const SceneData &data, const InstantiateOptions &options)
     {
         EntityMap dataToRuntime;
         dataToRuntime.reserve(data.idToEntity.size());
@@ -179,8 +202,11 @@ namespace vke_common
             std::string name = object.name;
             registry.emplace<GameObject>(
                 runtimeEntity, name, object.isStatic);
-            registry.emplace<Transform>(
-                runtimeEntity, data.registry.get<TransformData>(dataEntity));
+            auto parent = data.parents.find(dataEntity);
+            const bool root = parent == data.parents.end() || parent->second == entt::null;
+            registry.emplace<Transform>(runtimeEntity, root && options.rootTransform
+                                                           ? *options.rootTransform
+                                                           : data.registry.get<TransformData>(dataEntity));
         }
 
         ///////////////////////////// construct parent relation & update transform /////////////////////////
@@ -189,11 +215,11 @@ namespace vke_common
         {
             Transform &transform = registry.get<Transform>(runtimeEntity);
             auto parentIt = data.parents.find(dataEntity);
-            if (parentIt == data.parents.end() || parentIt->second == entt::null)
-                continue;
-
-            transform.parent = dataToRuntime.at(parentIt->second);
-            registry.get<Transform>(transform.parent).children.insert(runtimeEntity);
+            transform.parent = parentIt == data.parents.end() || parentIt->second == entt::null
+                                   ? options.parent
+                                   : dataToRuntime.at(parentIt->second);
+            if (transform.parent != entt::null)
+                registry.get<Transform>(transform.parent).children.insert(runtimeEntity);
         }
 
         std::unordered_set<entt::entity> visited;
@@ -208,7 +234,7 @@ namespace vke_common
                 updateHierarchy(child);
         };
         for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
-            if (registry.get<Transform>(runtimeEntity).parent == entt::null)
+            if (registry.get<Transform>(runtimeEntity).parent == options.parent)
                 updateHierarchy(runtimeEntity);
 
         /////////////////////////////////// construct components //////////////////////////////////////////
@@ -262,12 +288,6 @@ namespace vke_common
         return dataToRuntime;
     }
 
-    void SceneManager::unloadSceneData(const EntityMap &dataToRuntime)
-    {
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
-            DestroyEntity(runtimeEntity);
-    }
-
     void SceneManager::DestroyEntity(entt::entity entity)
     {
         // Only collect and mark the subtree; keep its hierarchy until actual deletion.
@@ -314,7 +334,7 @@ namespace vke_common
         processingDestroy = false;
     }
 
-    void SceneManager::loadEntitiesToEngine(const EntityMap &dataToRuntime)
+    void SceneManager::loadEntitiesToEngine(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts)
     {
         std::vector<entt::entity> runtimeEntities;
         runtimeEntities.reserve(dataToRuntime.size());
@@ -357,51 +377,23 @@ namespace vke_common
             if (registry.all_of<vke_component::SpotLight>(runtimeEntity))
                 registry.get<vke_component::SpotLight>(runtimeEntity).LoadToEngine(runtimeEntity);
 
-        struct EncodedScript
-        {
-            uint32_t entity;
-            std::string className;
-            TypeInfoDataPtr data;
-        };
-        std::vector<EncodedScript> encodedScripts;
-        for (const entt::entity runtimeEntity : runtimeEntities)
-        {
-            auto scriptIt = csharpScriptStates.find(runtimeEntity);
-            if (scriptIt == csharpScriptStates.end())
-                continue;
-            for (const auto &[className, state] : scriptIt->second)
-            {
-                TypeInfoPtr type = ScriptManager::GetInstance()->FindTypeInfo(className);
-                VKE_FATAL_IF(!type, "No TypeInfo exists for EntityScript '{}'", className)
-                auto encoded = type->EncodeBinaryFromJson(state.serializedData);
-                if (!encoded)
-                {
-                    VKE_FATAL("Failed to encode EntityScript '{}' state at {}: {}",
-                              className, encoded.error().path,
-                              ToString(encoded.error().code))
-                }
-                encodedScripts.push_back(
-                    EncodedScript{
-                        static_cast<uint32_t>(runtimeEntity),
-                        className,
-                        std::move(*encoded)});
-            }
-        }
-
         std::vector<CSharpScriptLoadData> loadData;
-        loadData.reserve(encodedScripts.size());
-        for (const EncodedScript &encoded : encodedScripts)
+        loadData.reserve(scripts.size());
+        for (const PreparedScript &encoded : scripts)
         {
             loadData.push_back(CSharpScriptLoadData{
-                .entity = encoded.entity,
+                .entity = static_cast<uint32_t>(dataToRuntime.at(encoded.entity)),
                 .className = encoded.className.c_str(),
                 .data = encoded.data->data(),
                 .dataSize = static_cast<int32_t>(encoded.data->size()),
             });
         }
 
-        ScriptManager::Load(loadData.data(), static_cast<uint32_t>(loadData.size()));
-        ScriptManager::Start(runtimeEntities);
+        if (!loadData.empty())
+        {
+            ScriptManager::Load(loadData.data(), static_cast<uint32_t>(loadData.size()));
+            ScriptManager::Start(runtimeEntities);
+        }
     }
 
     void SceneManager::unloadEntityFromEngine(entt::entity entity)
@@ -451,6 +443,7 @@ namespace vke_common
     void SceneManager::dispose()
     {
         shuttingDown = true;
+        pendingInstantiations.clear();
         for (const auto entity : registry.view<GameObject>())
             DestroyEntity(entity);
         // There is no next frame during shutdown. New creation is disabled above.

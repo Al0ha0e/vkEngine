@@ -121,6 +121,7 @@ namespace vke_editor
 
         if (vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Run)
         {
+            sceneManager->ProcessInstantiationRequests();
             vke_common::ScriptManager::GetInstance()->Update();
             fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
             const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;

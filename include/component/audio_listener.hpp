@@ -1,6 +1,7 @@
 #ifndef AUDIO_LISTENER_H
 #define AUDIO_LISTENER_H
 
+#include <json_validation.hpp>
 #include <cstdint>
 #include <nlohmann/json.hpp>
 
@@ -9,6 +10,13 @@ namespace vke_component
     struct AudioListenerData
     {
         bool enabled = true;
+
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Booleans({"enabled"}).Result();
+        }
 
         AudioListenerData() = default;
         AudioListenerData(const nlohmann::json &json) : enabled(json.value("enabled", true)) {}

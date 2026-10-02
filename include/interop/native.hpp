@@ -205,6 +205,7 @@ namespace vke_interop
         AudioListenerGetEnabledFn AudioListenerGetEnabled;
         void(VKE_INTEROP_CDECL *DestroyEntity)(uint32_t);
         int32_t(VKE_INTEROP_CDECL *IsEntityPendingDestroy)(uint32_t);
+        int32_t(VKE_INTEROP_CDECL *InstantiatePrefab)(uint64_t, const Vector3<float> *, const Quaternion<float> *, const Vector3<float> *, uint32_t);
     };
 }
 

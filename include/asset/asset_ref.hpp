@@ -14,25 +14,25 @@ namespace vke_common
         explicit AssetRef(AssetHandle handle) : handle(handle) {}
 
         AssetHandle Handle() const { return handle; }
-        const std::shared_ptr<T> &Get() const { return resource; }
-        bool IsResolved() const { return handle == 0 || resource != nullptr; }
+        const std::shared_ptr<T> &Get() const { return asset; }
+        bool IsResolved() const { return handle == 0 || asset != nullptr; }
 
         void SetHandle(AssetHandle value)
         {
             handle = value;
-            resource.reset();
+            asset.reset();
         }
 
-        void Resolve(std::shared_ptr<T> value) { resource = std::move(value); }
+        void Resolve(std::shared_ptr<T> value) { asset = std::move(value); }
 
-        void SetResource(std::shared_ptr<T> value)
+        void SetAsset(std::shared_ptr<T> value)
         {
             handle = value ? value->handle : 0;
-            resource = std::move(value);
+            asset = std::move(value);
         }
 
     private:
         AssetHandle handle = 0;
-        std::shared_ptr<T> resource;
+        std::shared_ptr<T> asset;
     };
 }

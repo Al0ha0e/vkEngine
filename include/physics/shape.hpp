@@ -1,6 +1,7 @@
 #ifndef PHYSICS_SHAPE_H
 #define PHYSICS_SHAPE_H
 
+#include <json_validation.hpp>
 #include <physics/physics.hpp>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
@@ -33,6 +34,30 @@ namespace vke_physics
         glm::vec3 v3{0.0f};
         glm::vec3 normal{0.0f, 1.0f, 0.0f};
         float c = 0.0f;
+
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            if (!json.is_object() || !json.contains("type") || !Unsigned(json["type"], 5))
+                return std::unexpected("invalid physics shape type");
+            const int type = json["type"].get<int>();
+            for (const auto *key : {"radius", "halfHeight", "c"})
+                if (json.contains(key) && !Number(json[key])) return std::unexpected(std::string("invalid shape ") + key);
+            for (const auto *key : {"halfExtent", "v1", "v2", "v3", "normal"})
+                if (json.contains(key) && !Vector(json[key], 3)) return std::unexpected(std::string("invalid shape ") + key);
+            if ((type == 0 || type == 2 || type == 3) && (!json.contains("radius") || json["radius"].get<float>() <= 0))
+                return std::unexpected("shape requires positive radius");
+            if ((type == 2 || type == 3) && (!json.contains("halfHeight") || json["halfHeight"].get<float>() < 0))
+                return std::unexpected("shape requires nonnegative halfHeight");
+            if (type == 1 && (!json.contains("halfExtent") || std::any_of(json["halfExtent"].begin(), json["halfExtent"].end(), [](const auto &x) { return x.template get<float>() <= 0; })))
+                return std::unexpected("box requires positive halfExtent");
+            if (type == 4 && (!json.contains("v1") || !json.contains("v2") || !json.contains("v3")))
+                return std::unexpected("triangle requires v1, v2 and v3");
+            if (type == 5 && (!json.contains("normal") || !json.contains("c")))
+                return std::unexpected("plane requires normal and c");
+            return {};
+        }
 
         PhyscisShapeData() = default;
         PhyscisShapeData(const nlohmann::json &json)

@@ -32,8 +32,12 @@ int main(int argc, char **argv)
     vke_common::Engine *engine = vke_common::Engine::Init(window, *gameConfig, nullptr, passes, customPasses);
 
     {
-        vke_common::SceneData sceneData(vke_common::LoadJSON(gameConfig->defaultScenePath));
-        vke_common::SceneManager::LoadSceneData(sceneData);
+        auto sceneData = vke_common::AssetManager::LoadSceneFile(gameConfig->defaultScenePath);
+        VKE_FATAL_IF(!sceneData, "Cannot read scene: {}", sceneData.error())
+        auto prepared = vke_common::AssetManager::PrepareSceneData(*sceneData);
+        VKE_FATAL_IF(!prepared, "Cannot prepare scene: {}", prepared.error())
+        auto result = vke_common::SceneManager::Instantiate(*sceneData);
+        VKE_FATAL_IF(!result, "Cannot instantiate scene: {}", result.error())
     }
 
     glfwSetFramebufferSizeCallback(window, vke_common::Engine::OnWindowResize);

@@ -1,6 +1,7 @@
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
 
+#include <json_validation.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -15,6 +16,19 @@ namespace vke_common
         glm::quat localRotation = glm::quat(glm::vec3(0));
         glm::vec3 localPosition = glm::vec3(0);
         glm::vec3 localScale = glm::vec3(1);
+
+        // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            auto result = Object(json).Require({"pos", "scl", "rot"})
+                .Vectors({"pos", "scl"}, 3).Vectors({"rot"}, 4).Result();
+            if (!result) return result;
+            double length = 0;
+            for (const auto &value : json["rot"]) length += value.get<double>() * value.get<double>();
+            if (length <= 0) return std::unexpected("invalid transform rotation");
+            return {};
+        }
 
         TransformData() = default;
         TransformData(const nlohmann::json &json)

@@ -9,6 +9,83 @@
 
 namespace vke_common
 {
+    SceneResult<void> AssetManager::ValidateTexture2D(AssetHandle handle)
+    {
+        return validateAsset(handle, GetTextureAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateMesh(AssetHandle handle)
+    {
+        return validateAsset(handle, GetMeshAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateVertFragShader(AssetHandle handle)
+    {
+        return validateAsset(handle, GetVFShaderAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateComputeShader(AssetHandle handle)
+    {
+        return validateAsset(handle, GetComputeShaderAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateMaterial(AssetHandle handle)
+    {
+        return validateAsset(handle, GetMaterialAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateSkeleton(AssetHandle handle)
+    {
+        return validateAsset(handle, GetSkeletonAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateAnimation(AssetHandle handle)
+    {
+        return validateAsset(handle, GetAnimationAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateFont(AssetHandle handle)
+    {
+        return validateAsset(handle, GetFontAsset);
+    }
+
+    SceneResult<void> AssetManager::ValidateAudioClip(AssetHandle handle)
+    {
+        return validateAsset(handle, GetAudioClipAsset);
+    }
+
+    SceneResult<void> AssetManager::checkPath(AssetHandle handle, const std::filesystem::path &path) const
+    {
+        const auto full = (handle < CUSTOM_ASSET_ID_ST ? RelDir : pathPrefix) / path;
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(full, error))
+            return std::unexpected("asset file not found: " + full.string());
+        return {};
+    }
+
+    SceneResult<void> AssetManager::checkAsset(const MaterialAsset *material) const
+    {
+        if (!material) return std::unexpected("material not found");
+        if (material->val) return {};
+        if (auto result = ValidateVertFragShader(material->shader); !result)
+            return std::unexpected("shader: " + result.error());
+        for (auto texture : material->textures)
+            if (auto result = ValidateTexture2D(texture); !result)
+                return std::unexpected("texture: " + result.error());
+        return {};
+    }
+
+    SceneResult<void> AssetManager::checkAsset(const VFShaderAsset *shader) const
+    {
+        if (!shader) return std::unexpected("shader not found");
+        if (shader->val) return {};
+        if (auto result = checkPath(shader->id, shader->path); !result)
+            return std::unexpected("vertex shader: " + result.error());
+        if (auto result = checkPath(shader->id, shader->fragPath); !result)
+            return std::unexpected("fragment shader: " + result.error());
+        return {};
+    }
+
     void ReadFile(const std::string &filename, std::vector<char> &buffer)
     {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);

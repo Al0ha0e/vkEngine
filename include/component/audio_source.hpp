@@ -1,6 +1,7 @@
 #ifndef AUDIO_SOURCE_H
 #define AUDIO_SOURCE_H
 
+#include <json_validation.hpp>
 #include <memory>
 #include <cstdint>
 #include <common.hpp>
@@ -28,13 +29,20 @@ namespace vke_component
         float maxDistance = 100.0f;
         float dopplerFactor = 1.0f;
 
+        // Call before constructing from JSON; asset checks happen in ValidateAssets.
+        static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
+        {
+            using namespace vke_common::json_validation;
+            return Object(json).Unsigneds({"clip"}).Unsigneds({"attenuationModel"}, 3)
+                .Booleans({"playOnStart", "looping", "spatializationEnabled"})
+                .Numbers({"volume", "pitch", "rolloff", "minDistance", "maxDistance", "dopplerFactor"}).Result();
+        }
+
         AudioSourceData() = default;
 
         AudioSourceData(const nlohmann::json &json)
         {
             clip.SetHandle(json.value("clip", vke_common::AssetHandle{0}));
-            if (clip.Handle() != 0)
-                clip.Resolve(vke_common::AssetManager::LoadAudioClip(clip.Handle()));
 
             playOnStart = json.value("playOnStart", true);
             looping = json.value("looping", false);
@@ -46,6 +54,28 @@ namespace vke_component
             minDistance = json.value("minDistance", 1.0f);
             maxDistance = json.value("maxDistance", 100.0f);
             dopplerFactor = json.value("dopplerFactor", 1.0f);
+        }
+
+        vke_common::SceneResult<void> ValidateAssets() const
+        {
+            using vke_common::AssetManager;
+            if (clip.Handle() != 0 && !clip.Get())
+                if (auto result = AssetManager::ValidateAudioClip(clip.Handle()); !result)
+                    return std::unexpected("clip: " + result.error());
+            return {};
+        }
+
+        // Requires successful ValidateAssets() before loading.
+        vke_common::SceneResult<void> LoadAssets()
+        {
+            using vke_common::AssetManager;
+            if (clip.Handle() != 0 && !clip.Get())
+            {
+                clip.Resolve(AssetManager::LoadAudioClip(clip.Handle()));
+                if (!clip.Get())
+                    return std::unexpected("clip asset " + std::to_string(clip.Handle()) + ": loading failed");
+            }
+            return {};
         }
 
         nlohmann::json ToJSON() const
@@ -100,7 +130,7 @@ namespace vke_component
 
         void FillData(AudioSourceData &data) const
         {
-            data.clip.SetResource(clip);
+            data.clip.SetAsset(clip);
             data.playOnStart = playOnStart;
             data.looping = looping;
             data.volume = volume;

@@ -9,66 +9,56 @@
 #include <component/script.hpp>
 #include <scene.hpp>
 
+namespace vke_component
+{
+    vke_common::SceneResult<vke_common::TypeInfoDataPtr> ScriptStateData::PrepareForInstantiation() const
+    {
+        using namespace vke_common;
+        auto *manager = ScriptManager::GetInstance();
+        if (!manager) return std::unexpected("ScriptManager is not initialized");
+        auto type = manager->FindTypeInfo(className);
+        if (!type) return std::unexpected("missing script TypeInfo: " + className);
+        auto encoded = type->EncodeBinaryFromJson(serializedData);
+        if (!encoded)
+            return std::unexpected(className + " at " + encoded.error().path + ": " + std::string(ToString(encoded.error().code)));
+        if ((*encoded)->size() > INT32_MAX)
+            return std::unexpected("script data exceeds interop size limit");
+        return std::move(*encoded);
+    }
+}
+
 namespace vke_common
 {
-    void SceneData::loadComponent(const entt::entity entity,
-                                  const nlohmann::json &component)
+    SceneResult<void> SceneData::loadComponent(const entt::entity entity,
+                                               const nlohmann::json &component)
     {
-        std::string type = component["type"];
-        if (type == "camera")
+        const std::string type = component["type"];
+        auto load = [&]<typename T>() -> SceneResult<void>
         {
-            registry.emplace<vke_component::CameraData>(entity, component);
-        }
-        else if (type == "renderableObject")
+            if (auto valid = T::ValidateJSON(component); !valid) return valid;
+            registry.emplace<T>(entity, component);
+            return {};
+        };
+        if (type == "camera") return load.operator()<vke_component::CameraData>();
+        if (type == "renderableObject") return load.operator()<vke_component::RenderableObjectData>();
+        if (type == "uiText") return load.operator()<vke_component::UITextData>();
+        if (type == "animator") return load.operator()<vke_component::SkeletonAnimatorData>();
+        if (type == "rigidbody") return load.operator()<vke_component::RigidBodyData>();
+        if (type == "sensor") return load.operator()<vke_component::SensorData>();
+        if (type == "characterController") return load.operator()<vke_component::CharacterControllerData>();
+        if (type == "audioSource") return load.operator()<vke_component::AudioSourceData>();
+        if (type == "audioListener") return load.operator()<vke_component::AudioListenerData>();
+        if (type == "directionalLight") return load.operator()<vke_component::DirectionalLightData>();
+        if (type == "pointLight") return load.operator()<vke_component::PointLightData>();
+        if (type == "spotLight") return load.operator()<vke_component::SpotLightData>();
+        if (type == "script")
         {
-            registry.emplace<vke_component::RenderableObjectData>(entity, component);
-        }
-        else if (type == "uiText")
-        {
-            registry.emplace<vke_component::UITextData>(entity, component);
-        }
-        else if (type == "animator")
-        {
-            registry.emplace<vke_component::SkeletonAnimatorData>(entity, component);
-        }
-        else if (type == "rigidbody")
-        {
-            registry.emplace<vke_component::RigidBodyData>(entity, component);
-        }
-        else if (type == "sensor")
-        {
-            registry.emplace<vke_component::SensorData>(entity, component);
-        }
-        else if (type == "characterController")
-        {
-            registry.emplace<vke_component::CharacterControllerData>(entity, component);
-        }
-        else if (type == "audioSource")
-        {
-            registry.emplace<vke_component::AudioSourceData>(entity, component);
-        }
-        else if (type == "audioListener")
-        {
-            registry.emplace<vke_component::AudioListenerData>(entity, component);
-        }
-        else if (type == "directionalLight")
-        {
-            registry.emplace<vke_component::DirectionalLightData>(entity, component);
-        }
-        else if (type == "pointLight")
-        {
-            registry.emplace<vke_component::PointLightData>(entity, component);
-        }
-        else if (type == "spotLight")
-        {
-            registry.emplace<vke_component::SpotLightData>(entity, component);
-        }
-        else if (type == "script")
-        {
-            if (!registry.all_of<ScriptDataList>(entity))
-                registry.emplace<ScriptDataList>(entity);
+            if (auto valid = vke_component::ScriptStateData::ValidateJSON(component); !valid) return valid;
+            if (!registry.all_of<ScriptDataList>(entity)) registry.emplace<ScriptDataList>(entity);
             registry.get<ScriptDataList>(entity).emplace_back(component);
+            return {};
         }
+        return std::unexpected("unknown component type: " + type);
     }
 
     void SceneData::componentToJSON(entt::entity entity, nlohmann::json &components) const

@@ -25,6 +25,7 @@ namespace vke_common
             return true;
         }
 
+        vke_common::SceneManager::GetInstance()->ProcessInstantiationRequests();
         vke_common::ScriptManager::GetInstance()->Update();
         fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
         const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
