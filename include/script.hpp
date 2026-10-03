@@ -6,6 +6,7 @@
 #include <dotnet/hostfxr.h>
 
 #include <interop/native.hpp>
+#include <component.hpp>
 #include <reflect/type_info.hpp>
 
 #include <entt/entity/entity.hpp>
@@ -50,6 +51,8 @@ namespace vke_common
         void (*unload)();
         void (*unloadEntities)(const entt::entity *, uint32_t);
 
+        void (*unregisterComponentCallbacks)(entt::entity, int32_t);
+
         CSharpSceneManagerFunctions()
             : load(nullptr),
               start(nullptr),
@@ -57,7 +60,8 @@ namespace vke_common
               fixedUpdate(nullptr),
               lateUpdate(nullptr),
               unload(nullptr),
-              unloadEntities(nullptr) {}
+              unloadEntities(nullptr),
+              unregisterComponentCallbacks(nullptr) {}
     };
 
     struct CSharpExports
@@ -130,6 +134,12 @@ namespace vke_common
         {
             instance->csharpExports.sceneManagerFunctions.unloadEntities(
                 entities.data(), static_cast<uint32_t>(entities.size()));
+        }
+
+        static void UnregisterComponentCallbacks(entt::entity entity, ComponentType componentType)
+        {
+            instance->csharpExports.sceneManagerFunctions.unregisterComponentCallbacks(
+                entity, static_cast<int32_t>(componentType));
         }
 
         TypeInfoPtr FindTypeInfo(std::string_view name) const

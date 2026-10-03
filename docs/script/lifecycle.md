@@ -191,14 +191,34 @@ C++ 的 `ScriptManager` 还提供以下静态生命周期桥接方法，返回�
 
 `CSharpSceneManagerFunctions` 中保留 `lateUpdate` 函数指针，但当前没有 `ScriptManager::LateUpdate()` 包装方法。反方向的原生函数表向 C# 提供 `InstantiatePrefab`、`DestroyEntity`、`IsEntityPendingDestroy` 三个实体生命周期入口，分别对应 C# 的实例化、销毁和待销毁查询接口。
 
-## 6. 访问规则与待完善事项
+## 6. 原生组件增删
+
+C++ `SceneManager` 统一提供以下同步接口，返回 `SceneResult<void>`：
+
+- `AddComponent(entity, ComponentType)`：创建默认组件并立即注册到子系统。
+- `AddComponent(entity, const XxxData&)`：为十二种原生组件提供数据重载，复制数据并在创建组件前验证、加载资源引用。调用方负责提供符合组件字段约束的完整 Data；从 JSON 构造 Data 前仍需调用相应的 `ValidateJSON`。
+- `RemoveComponent(entity, ComponentType)`：先注销子系统状态，再从 registry 删除组件。
+
+接口拒绝无效实体、待销毁实体及管理器退出期间的修改。重复添加、删除不存在的组件均返回错误，不修改现有状态。Transform 由实体创建流程建立，不能通过这些接口移除；Script 的按类型动态增删需要单独的托管生命周期接口，目前返回明确错误。
+
+SkeletonAnimator 必须通过数据重载提供材质、网格和骨骼；按枚举默认添加时返回错误。其他原生组件提供默认参数。编辑器的 Add/Remove Component 菜单直接使用 SceneManager；尚无动画资源选择流程，因此默认添加菜单禁用 SkeletonAnimator。
+
+默认参数由各组件的 Data 定义，SceneManager 的枚举入口只负责分派。Camera、物理组件和灯光的 Data 默认构造即可得到对应的默认参数，其中 CharacterController 默认使用胶囊体。RenderableObjectData 的普通默认构造保留空资源引用，`RenderableObjectData::Default()` 则提供内置球体和默认材质的句柄，实际资源验证、加载仍由添加流程负责。
+
+场景实例化与单组件添加共用原生组件构造、注册逻辑；整实体销毁与单组件移除共用原生卸载、删除逻辑。本批原生组件全部注册完成后再加载和启动脚本。
+
+移除 RigidBody 或 Sensor 时，通过新增的 `UnregisterComponentCallbacks(entity, componentType)` 托管导出，在原生 BodyID 仍可查询时清理对应类型的回调，不卸载实体脚本或另一种物理组件的回调。旧的 C# 物理包装对象仍持有旧 BodyID，组件重加后需要重新获取包装对象并订阅回调。原生与托管函数表必须一同重新编译、部署。
+
+组件添加不执行全局 WaitIdle：注册修改 CPU 状态或创建新资源，相机、灯光、文字和动画的帧缓冲更新沿用 FrameGraph::Sync 后的同步路径。相机、灯光、文字移除同样不执行全局等待。单独移除 RenderableObject 或 SkeletonAnimator 暂时保留 WaitIdle，因为它们可能分别释放最后一个网格引用或组件自有的骨骼 GPU 缓冲；后续应由资源延迟回收机制替代这类销毁等待。资源首次加载中的上传 fence 等待仍由原有资源加载器负责。这些接口只允许主线程同步调用，不能在遍历受影响的组件池或渲染回调中修改结构；当前尚未向 C# 游戏脚本开放组件增删函数。
+
+## 7. 访问规则与待完善事项
 
 - 标记待销毁不会限制普通组件访问和回调；`Unload` 中仍可访问尚未释放的原生组件。脚本开始卸载或已经 `Dispose` 后，不再参与普通生命周期分发。
 - 已失效实体的组件写入跳过、读取返回默认值，body ID 查询返回无效 ID。接受 body ID 的互操作接口直接调用 Jolt，由 Jolt 处理句柄有效性，不额外检查和加锁。
 - C# 尚无修改父子关系的接口。后续增加时，应检查被移动实体和目标父实体的待销毁状态，禁止修改待销毁子树；C++ 的 `SceneTransformSystem::SetParent` 目前也没有此检查。
 - C# 创建空实体及获取异步实例化结果的接口、主循环中的 `LateUpdate` 调用尚待补充。
 - 生命周期分发仍复制回调列表，因为 `Dispose` 会直接注销脚本；若要去掉快照，需要一起调整注册和注销时机。
-- 物理回调目前按实体清理，后面的 `Unload` 可能重新订阅前面已清理实体的回调，造成残留；应在整批脚本清理完成后统一注销。
+- 物理回调在托管卸载时按实体清理，并在原生刚体、传感器回收前按组件再次清理，避免本批后续 `Unload` 重新订阅前面实体的回调而造成残留。
 - 一个脚本在 `Unload` 中 `Dispose` 同实体的另一个脚本时，清理快照仍可能调用后者的 `Unload` 和 `Dispose`。`TryBeginUnload` 只检查是否已开始卸载，尚未检查已释放状态。
 
 实现入口：C++ 的 [scene.hpp](../../include/scene.hpp)、[scene.cpp](../../src/scene.cpp)、[script.hpp](../../include/script.hpp)；C# 的 [SceneManager.cs](../../csharp/EngineCore/SceneManager.cs)、[Script.cs](../../csharp/EngineCore/Script.cs)。

@@ -10,9 +10,9 @@ namespace vke_component
     struct SensorData
     {
         vke_physics::PhyscisShapeData shape;
-        bool isStatic;
+        bool isStatic = true;
         JPH::EMotionQuality motionQuality = JPH::EMotionQuality::Discrete;
-        JPH::ObjectLayer layer;
+        JPH::ObjectLayer layer = vke_physics::DefaultObjectLayers::NON_MOVING;
 
         // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)

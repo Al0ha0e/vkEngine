@@ -15,9 +15,11 @@ namespace vke_component
     {
         using namespace vke_common;
         auto *manager = ScriptManager::GetInstance();
-        if (!manager) return std::unexpected("ScriptManager is not initialized");
+        if (!manager)
+            return std::unexpected("ScriptManager is not initialized");
         auto type = manager->FindTypeInfo(className);
-        if (!type) return std::unexpected("missing script TypeInfo: " + className);
+        if (!type)
+            return std::unexpected("missing script TypeInfo: " + className);
         auto encoded = type->EncodeBinaryFromJson(serializedData);
         if (!encoded)
             return std::unexpected(className + " at " + encoded.error().path + ": " + std::string(ToString(encoded.error().code)));
@@ -35,26 +37,41 @@ namespace vke_common
         const std::string type = component["type"];
         auto load = [&]<typename T>() -> SceneResult<void>
         {
-            if (auto valid = T::ValidateJSON(component); !valid) return valid;
+            if (auto valid = T::ValidateJSON(component); !valid)
+                return valid;
             registry.emplace<T>(entity, component);
             return {};
         };
-        if (type == "camera") return load.operator()<vke_component::CameraData>();
-        if (type == "renderableObject") return load.operator()<vke_component::RenderableObjectData>();
-        if (type == "uiText") return load.operator()<vke_component::UITextData>();
-        if (type == "animator") return load.operator()<vke_component::SkeletonAnimatorData>();
-        if (type == "rigidbody") return load.operator()<vke_component::RigidBodyData>();
-        if (type == "sensor") return load.operator()<vke_component::SensorData>();
-        if (type == "characterController") return load.operator()<vke_component::CharacterControllerData>();
-        if (type == "audioSource") return load.operator()<vke_component::AudioSourceData>();
-        if (type == "audioListener") return load.operator()<vke_component::AudioListenerData>();
-        if (type == "directionalLight") return load.operator()<vke_component::DirectionalLightData>();
-        if (type == "pointLight") return load.operator()<vke_component::PointLightData>();
-        if (type == "spotLight") return load.operator()<vke_component::SpotLightData>();
+        if (type == "camera")
+            return load.operator()<vke_component::CameraData>();
+        if (type == "renderableObject")
+            return load.operator()<vke_component::RenderableObjectData>();
+        if (type == "uiText")
+            return load.operator()<vke_component::UITextData>();
+        if (type == "animator")
+            return load.operator()<vke_component::SkeletonAnimatorData>();
+        if (type == "rigidbody")
+            return load.operator()<vke_component::RigidBodyData>();
+        if (type == "sensor")
+            return load.operator()<vke_component::SensorData>();
+        if (type == "characterController")
+            return load.operator()<vke_component::CharacterControllerData>();
+        if (type == "audioSource")
+            return load.operator()<vke_component::AudioSourceData>();
+        if (type == "audioListener")
+            return load.operator()<vke_component::AudioListenerData>();
+        if (type == "directionalLight")
+            return load.operator()<vke_component::DirectionalLightData>();
+        if (type == "pointLight")
+            return load.operator()<vke_component::PointLightData>();
+        if (type == "spotLight")
+            return load.operator()<vke_component::SpotLightData>();
         if (type == "script")
         {
-            if (auto valid = vke_component::ScriptStateData::ValidateJSON(component); !valid) return valid;
-            if (!registry.all_of<ScriptDataList>(entity)) registry.emplace<ScriptDataList>(entity);
+            if (auto valid = vke_component::ScriptStateData::ValidateJSON(component); !valid)
+                return valid;
+            if (!registry.all_of<ScriptDataList>(entity))
+                registry.emplace<ScriptDataList>(entity);
             registry.get<ScriptDataList>(entity).emplace_back(component);
             return {};
         }
@@ -103,6 +120,225 @@ namespace vke_common
             for (const vke_component::ScriptStateData &script :
                  registry.get<ScriptDataList>(entity))
                 components.push_back(script.ToJSON());
+    }
+
+    SceneResult<void> SceneManager::validateComponentMutation(entt::entity entity) const
+    {
+        if (shuttingDown)
+            return std::unexpected("SceneManager is shutting down");
+        if (!registry.valid(entity))
+            return std::unexpected("invalid entity");
+        if (IsPendingDestroy(entity))
+            return std::unexpected("entity is pending destruction");
+        if (!registry.all_of<GameObject, Transform>(entity))
+            return std::unexpected("entity requires GameObject and Transform");
+        return {};
+    }
+
+    template <typename Component, typename Data>
+    SceneResult<void> SceneManager::addComponent(entt::entity entity, Data data)
+    {
+        if (auto valid = validateComponentMutation(entity); !valid)
+            return valid;
+        if (registry.all_of<Component>(entity))
+            return std::unexpected("component already exists");
+        if constexpr (requires { data.ValidateAssets(); })
+        {
+            if (auto valid = data.ValidateAssets(); !valid)
+                return valid;
+            if (auto loaded = data.LoadAssets(); !loaded)
+                return loaded;
+        }
+        addPreparedComponent<Component>(entity, data);
+        return {};
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::CameraData &data)
+    {
+        return addComponent<vke_component::Camera>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::RenderableObjectData &data)
+    {
+        return addComponent<vke_component::RenderableObject>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::SkeletonAnimatorData &data)
+    {
+        return addComponent<vke_component::SkeletonAnimator>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::RigidBodyData &data)
+    {
+        return addComponent<vke_component::RigidBody>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::SensorData &data)
+    {
+        return addComponent<vke_component::Sensor>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::CharacterControllerData &data)
+    {
+        return addComponent<vke_component::CharacterController>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::DirectionalLightData &data)
+    {
+        return addComponent<vke_component::DirectionalLight>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::PointLightData &data)
+    {
+        return addComponent<vke_component::PointLight>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::SpotLightData &data)
+    {
+        return addComponent<vke_component::SpotLight>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::UITextData &data)
+    {
+        return addComponent<vke_component::UIText>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::AudioSourceData &data)
+    {
+        return addComponent<vke_component::AudioSource>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::AudioListenerData &data)
+    {
+        return addComponent<vke_component::AudioListener>(entity, data);
+    }
+
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, ComponentType componentType)
+    {
+        if (auto valid = validateComponentMutation(entity); !valid)
+            return valid;
+        if (HasComponent(entity, componentType))
+            return std::unexpected("component already exists");
+        using namespace vke_component;
+        switch (componentType)
+        {
+        case ComponentType::Camera:
+            return AddComponent(entity, CameraData{});
+        case ComponentType::RenderableObject:
+            return AddComponent(entity, RenderableObjectData::Default());
+        case ComponentType::RigidBody:
+            return AddComponent(entity, RigidBodyData{});
+        case ComponentType::Sensor:
+            return AddComponent(entity, SensorData{});
+        case ComponentType::CharacterController:
+            return AddComponent(entity, CharacterControllerData{});
+        case ComponentType::DirectionalLight:
+            return AddComponent(entity, DirectionalLightData{});
+        case ComponentType::PointLight:
+            return AddComponent(entity, PointLightData{});
+        case ComponentType::SpotLight:
+            return AddComponent(entity, SpotLightData{});
+        case ComponentType::UIText:
+            return AddComponent(entity, UITextData{});
+        case ComponentType::AudioSource:
+            return AddComponent(entity, AudioSourceData{});
+        case ComponentType::AudioListener:
+            return AddComponent(entity, AudioListenerData{});
+        case ComponentType::SkeletonAnimator:
+            return std::unexpected("SkeletonAnimator requires explicit material, mesh and skeleton data");
+        case ComponentType::Transform:
+            return std::unexpected("Transform is created with the entity");
+        case ComponentType::Script:
+            return std::unexpected("dynamic script addition is not supported");
+        default:
+            return std::unexpected("unknown component type");
+        }
+    }
+
+    SceneResult<void> SceneManager::RemoveComponent(entt::entity entity, ComponentType componentType)
+    {
+        if (auto valid = validateComponentMutation(entity); !valid)
+            return valid;
+        if (componentType == ComponentType::Transform)
+            return std::unexpected("Transform cannot be removed");
+        if (componentType == ComponentType::Script)
+            return std::unexpected("dynamic script removal is not supported");
+        if (!HasComponent(entity, componentType))
+            return std::unexpected("component does not exist");
+        // Unlike registration, removal can release buffers still referenced by submitted work:
+        // animators own skinning buffers, and a renderable may own the last reference to its mesh.
+        // Camera/light/text removal only changes CPU state or returns slots to per-frame pools.
+        if (componentType == ComponentType::RenderableObject || componentType == ComponentType::SkeletonAnimator)
+            vke_render::Renderer::WaitIdle();
+        removeNativeComponent(entity, componentType);
+        return {};
+    }
+
+    void SceneManager::removeNativeComponent(entt::entity entity, ComponentType componentType)
+    {
+        // Callback cleanup must run while the native body is still available for its ID lookup.
+        if ((componentType == ComponentType::RigidBody || componentType == ComponentType::Sensor) &&
+            ScriptManager::GetInstance())
+            ScriptManager::UnregisterComponentCallbacks(entity, componentType);
+
+        auto remove = [&]<typename Component>()
+        {
+            if (auto *component = registry.try_get<Component>(entity))
+            {
+                component->UnloadFromEngine();
+                registry.remove<Component>(entity);
+            }
+        };
+        auto removeLight = [&]<typename Component, typename Light>()
+        {
+            if (!registry.all_of<Component>(entity))
+                return;
+            auto *lights = vke_render::Renderer::GetInstance()->lightManager.get();
+            if (lights->HasLight<Light>(entity))
+                lights->RemoveLight<Light>(entity);
+            registry.remove<Component>(entity);
+        };
+        switch (componentType)
+        {
+        case ComponentType::Camera:
+            remove.operator()<vke_component::Camera>();
+            break;
+        case ComponentType::RenderableObject:
+            remove.operator()<vke_component::RenderableObject>();
+            break;
+        case ComponentType::SkeletonAnimator:
+            remove.operator()<vke_component::SkeletonAnimator>();
+            break;
+        case ComponentType::RigidBody:
+            remove.operator()<vke_component::RigidBody>();
+            break;
+        case ComponentType::Sensor:
+            remove.operator()<vke_component::Sensor>();
+            break;
+        case ComponentType::CharacterController:
+            remove.operator()<vke_component::CharacterController>();
+            break;
+        case ComponentType::DirectionalLight:
+            removeLight.operator()<vke_component::DirectionalLight, vke_render::DirectionalLight>();
+            break;
+        case ComponentType::PointLight:
+            removeLight.operator()<vke_component::PointLight, vke_render::PointLight>();
+            break;
+        case ComponentType::SpotLight:
+            removeLight.operator()<vke_component::SpotLight, vke_render::SpotLight>();
+            break;
+        case ComponentType::UIText:
+            remove.operator()<vke_component::UIText>();
+            break;
+        case ComponentType::AudioSource:
+            remove.operator()<vke_component::AudioSource>();
+            break;
+        case ComponentType::AudioListener:
+            remove.operator()<vke_component::AudioListener>();
+            break;
+        default:
+            break;
+        }
     }
 
     bool SceneManager::HasComponent(entt::entity entity, ComponentType componentType) const

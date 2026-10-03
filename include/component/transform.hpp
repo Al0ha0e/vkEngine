@@ -51,6 +51,8 @@ namespace vke_common
 
     struct Transform
     {
+        static constexpr bool in_place_delete = true;
+
         glm::mat4 model;
         glm::quat localRotation;
         glm::vec3 localPosition;

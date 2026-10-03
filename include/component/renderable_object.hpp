@@ -39,6 +39,16 @@ namespace vke_component
         }
 
         RenderableObjectData() = default;
+
+        // Built-in resources for default creation; ordinary construction keeps asset references empty.
+        static RenderableObjectData Default()
+        {
+            RenderableObjectData data;
+            data.material.SetHandle(vke_common::BUILTIN_MATERIAL_DEFAULT_ID);
+            data.mesh.SetHandle(vke_common::BUILTIN_MESH_SPHERE_ID);
+            return data;
+        }
+
         RenderableObjectData(const nlohmann::json &json)
             : material(json["material"].get<vke_common::AssetHandle>()),
               mesh(json["mesh"].get<vke_common::AssetHandle>()),

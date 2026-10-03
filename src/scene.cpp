@@ -87,7 +87,7 @@ namespace vke_common
             }
         }
         const auto dataToRuntime = instance->instantiateSceneData(data, options);
-        instance->loadEntitiesToEngine(dataToRuntime, scripts);
+        instance->loadScripts(dataToRuntime, scripts);
         return {};
     }
 
@@ -241,39 +241,21 @@ namespace vke_common
 
         auto construct = [&]<typename Data, typename Component>()
         {
-            auto view = data.registry.view<const Data>();
-            for (entt::entity dataEntity : view)
-            {
-                entt::entity runtimeEntity = dataToRuntime.at(dataEntity);
-                registry.emplace<Component>(
-                    runtimeEntity,
-                    registry.get<Transform>(runtimeEntity),
-                    data.registry.get<Data>(dataEntity));
-            }
+            for (const auto dataEntity : data.registry.view<const Data>())
+                addPreparedComponent<Component>(dataToRuntime.at(dataEntity), data.registry.get<Data>(dataEntity));
         };
-        auto constructWithoutTransform = [&]<typename Data, typename Component>()
-        {
-            auto view = data.registry.view<const Data>();
-            for (entt::entity dataEntity : view)
-            {
-                registry.emplace<Component>(
-                    dataToRuntime.at(dataEntity),
-                    data.registry.get<Data>(dataEntity));
-            }
-        };
-
         construct.operator()<vke_component::CameraData, vke_component::Camera>();
         construct.operator()<vke_component::RenderableObjectData, vke_component::RenderableObject>();
-        construct.operator()<vke_component::UITextData, vke_component::UIText>();
         construct.operator()<vke_component::SkeletonAnimatorData, vke_component::SkeletonAnimator>();
         construct.operator()<vke_component::RigidBodyData, vke_component::RigidBody>();
         construct.operator()<vke_component::SensorData, vke_component::Sensor>();
         construct.operator()<vke_component::CharacterControllerData, vke_component::CharacterController>();
-        constructWithoutTransform.operator()<vke_component::AudioSourceData, vke_component::AudioSource>();
-        constructWithoutTransform.operator()<vke_component::AudioListenerData, vke_component::AudioListener>();
         construct.operator()<vke_component::DirectionalLightData, vke_component::DirectionalLight>();
         construct.operator()<vke_component::PointLightData, vke_component::PointLight>();
         construct.operator()<vke_component::SpotLightData, vke_component::SpotLight>();
+        construct.operator()<vke_component::UITextData, vke_component::UIText>();
+        construct.operator()<vke_component::AudioSourceData, vke_component::AudioSource>();
+        construct.operator()<vke_component::AudioListenerData, vke_component::AudioListener>();
 
         auto scriptView = data.registry.view<const SceneData::ScriptDataList>();
         for (entt::entity dataEntity : scriptView)
@@ -334,48 +316,12 @@ namespace vke_common
         processingDestroy = false;
     }
 
-    void SceneManager::loadEntitiesToEngine(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts)
+    void SceneManager::loadScripts(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts)
     {
         std::vector<entt::entity> runtimeEntities;
         runtimeEntities.reserve(dataToRuntime.size());
         for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
             runtimeEntities.push_back(runtimeEntity);
-
-        auto loadView = [this, &runtimeEntities]<typename T>()
-        {
-            for (const entt::entity runtimeEntity : runtimeEntities)
-                if (registry.all_of<T>(runtimeEntity))
-                    registry.get<T>(runtimeEntity).LoadToEngine();
-        };
-
-        loadView.operator()<vke_component::Camera>();
-        loadView.operator()<vke_component::RenderableObject>();
-        loadView.operator()<vke_component::SkeletonAnimator>();
-        loadView.operator()<vke_component::UIText>();
-
-        for (const entt::entity runtimeEntity : runtimeEntities)
-            if (registry.all_of<vke_component::RigidBody>(runtimeEntity))
-                registry.get<vke_component::RigidBody>(runtimeEntity).LoadToEngine(runtimeEntity);
-
-        for (const entt::entity runtimeEntity : runtimeEntities)
-            if (registry.all_of<vke_component::Sensor>(runtimeEntity))
-                registry.get<vke_component::Sensor>(runtimeEntity).LoadToEngine(runtimeEntity);
-
-        loadView.operator()<vke_component::CharacterController>();
-        loadView.operator()<vke_component::AudioSource>();
-        loadView.operator()<vke_component::AudioListener>();
-
-        for (const entt::entity runtimeEntity : runtimeEntities)
-            if (registry.all_of<vke_component::DirectionalLight>(runtimeEntity))
-                registry.get<vke_component::DirectionalLight>(runtimeEntity).LoadToEngine(runtimeEntity);
-
-        for (const entt::entity runtimeEntity : runtimeEntities)
-            if (registry.all_of<vke_component::PointLight>(runtimeEntity))
-                registry.get<vke_component::PointLight>(runtimeEntity).LoadToEngine(runtimeEntity);
-
-        for (const entt::entity runtimeEntity : runtimeEntities)
-            if (registry.all_of<vke_component::SpotLight>(runtimeEntity))
-                registry.get<vke_component::SpotLight>(runtimeEntity).LoadToEngine(runtimeEntity);
 
         std::vector<CSharpScriptLoadData> loadData;
         loadData.reserve(scripts.size());
@@ -398,46 +344,30 @@ namespace vke_common
 
     void SceneManager::unloadEntityFromEngine(entt::entity entity)
     {
-        if (registry.all_of<vke_component::Camera>(entity))
-            registry.get<vke_component::Camera>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::RenderableObject>(entity))
-            registry.get<vke_component::RenderableObject>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::UIText>(entity))
-            registry.get<vke_component::UIText>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::SkeletonAnimator>(entity))
-            registry.get<vke_component::SkeletonAnimator>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::CharacterController>(entity))
-            registry.get<vke_component::CharacterController>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::Sensor>(entity))
-            registry.get<vke_component::Sensor>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::RigidBody>(entity))
-            registry.get<vke_component::RigidBody>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::AudioSource>(entity))
-            registry.get<vke_component::AudioSource>(entity).UnloadFromEngine();
-
-        if (registry.all_of<vke_component::AudioListener>(entity))
-            registry.get<vke_component::AudioListener>(entity).UnloadFromEngine();
-
-        if (!registry.any_of<vke_component::DirectionalLight, vke_component::PointLight,
-                             vke_component::SpotLight>(entity))
-            return;
-        auto *lightManager = vke_render::Renderer::GetInstance()->lightManager.get();
-
-        if (lightManager->HasLight<vke_render::DirectionalLight>(entity))
-            lightManager->RemoveLight<vke_render::DirectionalLight>(entity);
-
-        if (lightManager->HasLight<vke_render::PointLight>(entity))
-            lightManager->RemoveLight<vke_render::PointLight>(entity);
-
-        if (lightManager->HasLight<vke_render::SpotLight>(entity))
-            lightManager->RemoveLight<vke_render::SpotLight>(entity);
+        if (HasComponent(entity, ComponentType::Camera))
+            removeNativeComponent(entity, ComponentType::Camera);
+        if (HasComponent(entity, ComponentType::RenderableObject))
+            removeNativeComponent(entity, ComponentType::RenderableObject);
+        if (HasComponent(entity, ComponentType::UIText))
+            removeNativeComponent(entity, ComponentType::UIText);
+        if (HasComponent(entity, ComponentType::SkeletonAnimator))
+            removeNativeComponent(entity, ComponentType::SkeletonAnimator);
+        if (HasComponent(entity, ComponentType::CharacterController))
+            removeNativeComponent(entity, ComponentType::CharacterController);
+        if (HasComponent(entity, ComponentType::Sensor))
+            removeNativeComponent(entity, ComponentType::Sensor);
+        if (HasComponent(entity, ComponentType::RigidBody))
+            removeNativeComponent(entity, ComponentType::RigidBody);
+        if (HasComponent(entity, ComponentType::AudioSource))
+            removeNativeComponent(entity, ComponentType::AudioSource);
+        if (HasComponent(entity, ComponentType::AudioListener))
+            removeNativeComponent(entity, ComponentType::AudioListener);
+        if (HasComponent(entity, ComponentType::DirectionalLight))
+            removeNativeComponent(entity, ComponentType::DirectionalLight);
+        if (HasComponent(entity, ComponentType::PointLight))
+            removeNativeComponent(entity, ComponentType::PointLight);
+        if (HasComponent(entity, ComponentType::SpotLight))
+            removeNativeComponent(entity, ComponentType::SpotLight);
     }
 
     void SceneManager::dispose()

@@ -237,16 +237,24 @@ namespace vke_render
         {
             vke_ds::id32_t ret = instance->cameraIDAllocator.Alloc();
             instance->cameras[ret] = callback;
-            if (ret == instance->currentCamera)
+            if (instance->cameras.size() == 1 || ret == instance->currentCamera)
+            {
+                instance->currentCamera = ret;
                 callback();
+            }
             return ret;
         }
 
         static void RemoveCamera(vke_ds::id32_t id)
         {
             instance->cameras.erase(id);
-            if (instance->cameras.size() > 0)
-                SetCurrentCamera(0);
+            if (instance->currentCamera == id)
+            {
+                if (!instance->cameras.empty())
+                    SetCurrentCamera(instance->cameras.begin()->first);
+                else
+                    instance->currentCamera = std::numeric_limits<vke_ds::id32_t>::max();
+            }
         }
 
         static void SetCurrentCamera(vke_ds::id32_t id)

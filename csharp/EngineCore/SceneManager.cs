@@ -15,6 +15,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged<void> LateUpdate;
         public delegate* unmanaged<void> Unload;
         public delegate* unmanaged<UInt32*, UInt32, void> UnloadEntities;
+        public delegate* unmanaged<UInt32, Int32, void> UnregisterComponentCallbacks;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -136,6 +137,15 @@ namespace vkEngine.EngineCore
                 UnloadEntityCore(entities[i]);
         }
 
+        [UnmanagedCallersOnly]
+        public static void UnregisterComponentCallbacks(UInt32 entity, Int32 componentType)
+        {
+            if ((ComponentType)componentType == ComponentType.RigidBody)
+                RigidBody.UnregisterEntity(entity);
+            else if ((ComponentType)componentType == ComponentType.Sensor)
+                Sensor.UnregisterEntity(entity);
+        }
+
         private static void UnloadEntityCore(UInt32 entity)
         {
             if (scriptsByEntity.TryGetValue(entity, out var registered))
@@ -176,7 +186,8 @@ namespace vkEngine.EngineCore
                 FixedUpdate = &FixedUpdate,
                 LateUpdate = &LateUpdate,
                 Unload = &Unload,
-                UnloadEntities = &UnloadEntities
+                UnloadEntities = &UnloadEntities,
+                UnregisterComponentCallbacks = &UnregisterComponentCallbacks
             };
         }
 

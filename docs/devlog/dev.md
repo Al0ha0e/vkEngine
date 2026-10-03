@@ -82,3 +82,10 @@ glyph修好了，现在只有loadtoengine的时候才会实际计算glyph数据�
 ## e6ceb1cda0733b8a418a7b481a9ef8eccd895a4e assetref
 
 实现了scenedata的资源化以及实例化接口，相关设计细节比较多，在 `docs\script\lifecycle.md` 和 `docs\scene_data.md` 里
+
+## 20dc77a0ad7b227ed8dd8aecb5aaa800f304821b scenedata resource & prefab instantiate
+
+这一轮把增删组件的功能收回了 scenemanager 进行统一管理。但是还遗留了一些问题：
+- 删除 RenderableObject 和 SkeletonAnimator 还需要 vke_render::Renderer::WaitIdle() 这个很有可能会导致卡死
+- Camera和Transform组件用 static constexpr bool in_place_delete = true 因为有些其他部分依赖了这两个组件的真实地址，但是entt可能在删除某些组件的时候挪动其他组件的位置
+- C# 部分还没有接通创建空实体以及增删组件的接口

@@ -17,12 +17,12 @@ namespace vke_component
 {
     struct CameraData
     {
-        float fovRadians;
-        float width;
-        float height;
-        float aspect;
-        float nearPlane;
-        float farPlane;
+        float fovRadians = glm::radians(60.0f);
+        float width = 1280.0f;
+        float height = 720.0f;
+        float aspect = width / height;
+        float nearPlane = 0.1f;
+        float farPlane = 1000.0f;
 
         // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
@@ -56,6 +56,8 @@ namespace vke_component
     class Camera // TODO only CameraInfo in renderer
     {
     public:
+        static constexpr bool in_place_delete = true;
+
         vke_ds::id32_t id;
         float width;
         float height;

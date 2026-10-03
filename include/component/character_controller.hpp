@@ -13,7 +13,7 @@ namespace vke_component
     struct CharacterControllerData
     {
         vke_physics::PhyscisShapeData shape;
-        JPH::ObjectLayer layer;
+        JPH::ObjectLayer layer = vke_physics::DefaultObjectLayers::MOVING;
         float mass = 70.0f;
         float maxStrength = 100.0f;
         float maxSlopeAngleRadians = glm::radians(50.0f);
@@ -32,7 +32,10 @@ namespace vke_component
             return vke_physics::PhyscisShapeData::ValidateJSON(json["shape"]);
         }
 
-        CharacterControllerData() = default;
+        CharacterControllerData()
+        {
+            shape.type = vke_physics::PHYSICS_SHAPE_CAPSULE;
+        }
         CharacterControllerData(const nlohmann::json &json)
             : shape(json["shape"]),
               layer(json.value("layer", (int)vke_physics::DefaultObjectLayers::MOVING))

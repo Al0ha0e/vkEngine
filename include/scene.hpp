@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <optional>
+#include <type_traits>
 #include <asset/asset_ref.hpp>
 
 namespace vke_common
@@ -134,6 +135,23 @@ namespace vke_common
 
         bool HasComponent(entt::entity entity, ComponentType componentType) const; // component.cpp
 
+        // Synchronous, main-thread structural changes; do not call while iterating affected pools.
+        // Transform is mandatory. Scripts use a separate managed lifecycle and are not supported here.
+        SceneResult<void> AddComponent(entt::entity entity, ComponentType componentType);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::CameraData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::RenderableObjectData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::SkeletonAnimatorData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::RigidBodyData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::SensorData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::CharacterControllerData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::DirectionalLightData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::PointLightData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::SpotLightData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::UITextData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::AudioSourceData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::AudioListenerData &data);
+        SceneResult<void> RemoveComponent(entt::entity entity, ComponentType componentType);
+
         entt::entity CreateEntity(std::string &name, glm::vec3 pos, glm::vec3 scl, glm::quat rot, bool isStatic)
         {
             if (shuttingDown)
@@ -154,6 +172,28 @@ namespace vke_common
         SceneData ExportEntitySubtree(entt::entity root) const; // scene.cpp
 
     private:
+        SceneResult<void> validateComponentMutation(entt::entity entity) const;
+        template <typename Component, typename Data>
+        SceneResult<void> addComponent(entt::entity entity, Data data);
+        void removeNativeComponent(entt::entity entity, ComponentType componentType);
+
+        // Data resources are already resolved. Shared by scene instantiation and individual additions.
+        template <typename Component, typename Data>
+        void addPreparedComponent(entt::entity entity, const Data &data)
+        {
+            auto &component = [&]() -> Component &
+            {
+                if constexpr (std::is_constructible_v<Component, Transform &, const Data &>)
+                    return registry.emplace<Component>(entity, registry.get<Transform>(entity), data);
+                else
+                    return registry.emplace<Component>(entity, data);
+            }();
+            if constexpr (requires { component.LoadToEngine(entity); })
+                component.LoadToEngine(entity);
+            else
+                component.LoadToEngine();
+        }
+
         struct PreparedScript
         {
             entt::entity entity;
@@ -161,7 +201,7 @@ namespace vke_common
             TypeInfoDataPtr data;
         };
         EntityMap instantiateSceneData(const SceneData &data, const InstantiateOptions &options);
-        void loadEntitiesToEngine(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts);
+        void loadScripts(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts);
         void unloadEntityFromEngine(entt::entity entity);
         SceneData exportEntities(const std::vector<entt::entity> &entities) const; // scene.cpp
         void dispose();

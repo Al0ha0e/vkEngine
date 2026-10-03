@@ -74,8 +74,7 @@ namespace vke_editor
         void drawUITextComponent();
         void drawAudioSourceComponent();
         void drawAudioListenerComponent();
-        void showAddComponentMenu();
-        void addComponent(vke_common::ComponentType componentType);
+        void showComponentMenu();
         void showAssets();
         void showLog();
         void showAssetsByType(vke_common::AssetManager *assetManager);

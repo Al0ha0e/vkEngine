@@ -10,11 +10,11 @@ namespace vke_component
     struct RigidBodyData
     {
         vke_physics::PhyscisShapeData shape;
-        JPH::EMotionType motionType;
+        JPH::EMotionType motionType = JPH::EMotionType::Dynamic;
         JPH::EMotionQuality motionQuality = JPH::EMotionQuality::Discrete;
-        JPH::ObjectLayer layer;
-        float friction;
-        float restitution;
+        JPH::ObjectLayer layer = vke_physics::DefaultObjectLayers::MOVING;
+        float friction = 0.2f;
+        float restitution = 0.0f;
         float gravityFactor = 1.0f;
         bool hasMassOverride = false;
         float mass = 0.0f;

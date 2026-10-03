@@ -4,7 +4,6 @@
 #include <glm/common.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/trigonometric.hpp>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <cstring>
 #include <fstream>
 
@@ -13,13 +12,6 @@ namespace vke_editor
     EditorConfig *EditorConfig::instance = nullptr;
     EditorStateManager *EditorStateManager::instance;
     Editor *Editor::instance = nullptr;
-
-    static std::shared_ptr<vke_physics::PhyscisShape> CreateDefaultPhysicsBoxShape()
-    {
-        auto shape = std::make_shared<vke_physics::PhyscisShape>(vke_physics::PHYSICS_SHAPE_BOX);
-        shape->shapeRef = new JPH::BoxShape(JPH::Vec3(0.5f, 0.5f, 0.5f));
-        return shape;
-    }
 
     Editor *Editor::GetInstance()
     {
@@ -373,23 +365,20 @@ namespace vke_editor
         drawUITextComponent();
         drawAudioSourceComponent();
         drawAudioListenerComponent();
-        showAddComponentMenu();
+        showComponentMenu();
 
         ImGui::End();
     }
 
-    void Editor::showAddComponentMenu()
+    void Editor::showComponentMenu()
     {
         ImGui::Separator();
-
         struct ComponentMenuItem
         {
             const char *name;
             vke_common::ComponentType type;
         };
-
-        static const ComponentMenuItem componentMenuItems[] = {
-            {"Transform", vke_common::ComponentType::Transform},
+        static const ComponentMenuItem items[] = {
             {"Camera", vke_common::ComponentType::Camera},
             {"RenderableObject", vke_common::ComponentType::RenderableObject},
             {"SkeletonAnimator", vke_common::ComponentType::SkeletonAnimator},
@@ -399,126 +388,49 @@ namespace vke_editor
             {"DirectionalLight", vke_common::ComponentType::DirectionalLight},
             {"PointLight", vke_common::ComponentType::PointLight},
             {"SpotLight", vke_common::ComponentType::SpotLight},
-            {"Script", vke_common::ComponentType::Script},
             {"UIText", vke_common::ComponentType::UIText},
             {"AudioSource", vke_common::ComponentType::AudioSource},
             {"AudioListener", vke_common::ComponentType::AudioListener}};
 
-        if (!ImGui::BeginCombo("Add Component", "Select component"))
-            return;
-
-        bool hasAvailableComponent = false;
-        for (const ComponentMenuItem &item : componentMenuItems)
+        ImGui::BeginDisabled(sceneManager->IsPendingDestroy(selectedEntity));
+        if (ImGui::BeginCombo("Add Component", "Select component"))
         {
-            if (sceneManager->HasComponent(selectedEntity, item.type))
-                continue;
-
-            hasAvailableComponent = true;
-            if (ImGui::Selectable(item.name, false))
-                addComponent(item.type);
+            bool available = false;
+            for (const auto &item : items)
+            {
+                if (sceneManager->HasComponent(selectedEntity, item.type)) continue;
+                available = true;
+                const bool needsAssets = item.type == vke_common::ComponentType::SkeletonAnimator;
+                ImGui::BeginDisabled(needsAssets);
+                if (ImGui::Selectable(item.name))
+                {
+                    if (auto result = sceneManager->AddComponent(selectedEntity, item.type); !result)
+                        VKE_LOG_ERROR("Failed to add {}: {}", item.name, result.error());
+                }
+                ImGui::EndDisabled();
+                if (needsAssets && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Requires material, mesh and skeleton; use the SceneManager data overload.");
+            }
+            if (!available) ImGui::TextDisabled("No components available");
+            ImGui::EndCombo();
         }
-
-        if (!hasAvailableComponent)
-            ImGui::TextDisabled("No components available");
-
-        ImGui::EndCombo();
-    }
-
-    void Editor::addComponent(vke_common::ComponentType componentType)
-    {
-        if (selectedEntity == entt::null || !sceneManager->registry.valid(selectedEntity) ||
-            sceneManager->HasComponent(selectedEntity, componentType) ||
-            !sceneManager->registry.all_of<vke_common::Transform>(selectedEntity))
-            return;
-
-        const vke_common::Transform &transform = sceneManager->registry.get<vke_common::Transform>(selectedEntity);
-
-        switch (componentType)
+        if (ImGui::BeginCombo("Remove Component", "Select component"))
         {
-        case vke_common::ComponentType::RenderableObject:
-        {
-            std::shared_ptr<vke_render::Material> material =
-                vke_common::AssetManager::LoadMaterial(vke_common::BUILTIN_MATERIAL_DEFAULT_ID);
-            std::shared_ptr<const vke_render::Mesh> mesh =
-                vke_common::AssetManager::LoadMesh(vke_common::BUILTIN_MESH_SPHERE_ID);
-            auto &renderable = sceneManager->registry.emplace<vke_component::RenderableObject>(
-                selectedEntity, transform, material, mesh);
-            renderable.LoadToEngine();
-            break;
+            bool available = false;
+            for (const auto &item : items)
+            {
+                if (!sceneManager->HasComponent(selectedEntity, item.type)) continue;
+                available = true;
+                if (ImGui::Selectable(item.name))
+                {
+                    if (auto result = sceneManager->RemoveComponent(selectedEntity, item.type); !result)
+                        VKE_LOG_ERROR("Failed to remove {}: {}", item.name, result.error());
+                }
+            }
+            if (!available) ImGui::TextDisabled("No removable components");
+            ImGui::EndCombo();
         }
-        case vke_common::ComponentType::RigidBody:
-        {
-            auto shape = CreateDefaultPhysicsBoxShape();
-            auto &body = sceneManager->registry.emplace<vke_component::RigidBody>(
-                selectedEntity,
-                transform,
-                JPH::EMotionType::Dynamic,
-                vke_physics::DefaultObjectLayers::MOVING,
-                0.2f,
-                0.0f,
-                shape);
-            body.LoadToEngine(selectedEntity);
-            break;
-        }
-        case vke_common::ComponentType::Sensor:
-        {
-            auto shape = CreateDefaultPhysicsBoxShape();
-            auto &sensor = sceneManager->registry.emplace<vke_component::Sensor>(
-                selectedEntity,
-                transform,
-                true,
-                vke_physics::DefaultObjectLayers::NON_MOVING,
-                shape);
-            sensor.LoadToEngine(selectedEntity);
-            break;
-        }
-        case vke_common::ComponentType::AudioSource:
-            sceneManager->registry.emplace<vke_component::AudioSource>(selectedEntity);
-            break;
-        case vke_common::ComponentType::AudioListener:
-        {
-            auto &listener = sceneManager->registry.emplace<vke_component::AudioListener>(selectedEntity);
-            listener.LoadToEngine();
-            break;
-        }
-        case vke_common::ComponentType::DirectionalLight:
-        {
-            vke_component::DirectionalLightData data;
-            data.color = glm::vec3(1.0f);
-            data.intensity = 1.0f;
-            auto &light = sceneManager->registry.emplace<vke_component::DirectionalLight>(
-                selectedEntity, transform, data);
-            light.LoadToEngine(selectedEntity);
-            break;
-        }
-        case vke_common::ComponentType::PointLight:
-        {
-            vke_component::PointLightData data;
-            data.color = glm::vec3(1.0f);
-            data.radius = 5.0f;
-            data.intensity = 1.0f;
-            auto &light = sceneManager->registry.emplace<vke_component::PointLight>(
-                selectedEntity, transform, data);
-            light.LoadToEngine(selectedEntity);
-            break;
-        }
-        case vke_common::ComponentType::SpotLight:
-        {
-            vke_component::SpotLightData data;
-            data.color = glm::vec3(1.0f);
-            data.radius = 5.0f;
-            data.intensity = 1.0f;
-            data.innerConeCos = glm::cos(glm::radians(15.0f));
-            data.outerConeCos = glm::cos(glm::radians(30.0f));
-            data.castShadow = false;
-            auto &light = sceneManager->registry.emplace<vke_component::SpotLight>(
-                selectedEntity, transform, data);
-            light.LoadToEngine(selectedEntity);
-            break;
-        }
-        default:
-            break;
-        }
+        ImGui::EndDisabled();
     }
 
     void Editor::createEmptyObject()

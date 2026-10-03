@@ -9,8 +9,8 @@ namespace vke_component
 {
     struct DirectionalLightData
     {
-        glm::vec3 color;
-        float intensity;
+        glm::vec3 color{1.0f};
+        float intensity = 1.0f;
         // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
@@ -30,9 +30,9 @@ namespace vke_component
 
     struct PointLightData
     {
-        glm::vec3 color;
-        float radius;
-        float intensity;
+        glm::vec3 color{1.0f};
+        float radius = 5.0f;
+        float intensity = 1.0f;
         // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
@@ -53,12 +53,12 @@ namespace vke_component
 
     struct SpotLightData
     {
-        glm::vec3 color;
-        float radius;
-        float intensity;
-        float innerConeCos;
-        float outerConeCos;
-        bool castShadow;
+        glm::vec3 color{1.0f};
+        float radius = 5.0f;
+        float intensity = 1.0f;
+        float innerConeCos = glm::cos(glm::radians(15.0f));
+        float outerConeCos = glm::cos(glm::radians(30.0f));
+        bool castShadow = false;
         // Call before constructing from JSON; asset checks happen in LoadAssets where applicable.
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
