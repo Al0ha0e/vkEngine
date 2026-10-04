@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <time.hpp>
 #include <component/transform.hpp>
+#include <scene_transform_system.hpp>
 #include <animation.hpp>
 #include <asset/asset_manager.hpp>
 #include <asset/asset_ref.hpp>
@@ -37,8 +38,7 @@ namespace vke_component
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            return Object(json).Require({"animation"}).Unsigneds({"animation"})
-                .Numbers({"weight", "speed", "timeRatio"}).Booleans({"playing", "loop"}).Result();
+            return Object(json).Require({"animation"}).Unsigneds({"animation"}).Numbers({"weight", "speed", "timeRatio"}).Booleans({"playing", "loop"}).Result();
         }
 
         SkeletonAnimationData() = default;
@@ -87,12 +87,13 @@ namespace vke_component
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            auto result = Object(json).Require({"material", "mesh", "skeleton"})
-                .Unsigneds({"material", "mesh", "skeleton", "animation"}).Booleans({"castsShadow"}).Result();
-            if (!result) return result;
+            auto result = Object(json).Require({"material", "mesh", "skeleton"}).Unsigneds({"material", "mesh", "skeleton", "animation"}).Booleans({"castsShadow"}).Result();
+            if (!result)
+                return result;
             if (json.contains("animations"))
             {
-                if (!json["animations"].is_array()) return std::unexpected("invalid animations");
+                if (!json["animations"].is_array())
+                    return std::unexpected("invalid animations");
                 size_t index = 0;
                 for (const auto &state : json["animations"])
                 {
@@ -140,7 +141,8 @@ namespace vke_component
                 if (auto result = AssetManager::ValidateSkeleton(skeleton.Handle()); !result)
                     return std::unexpected("skeleton: " + result.error());
             for (const auto &state : animations)
-                if (auto result = state.ValidateAssets(); !result) return result;
+                if (auto result = state.ValidateAssets(); !result)
+                    return result;
             return {};
         }
 
@@ -167,7 +169,8 @@ namespace vke_component
                     return std::unexpected("skeleton asset " + std::to_string(skeleton.Handle()) + ": loading failed");
             }
             for (auto &state : animations)
-                if (auto result = state.LoadAssets(); !result) return result;
+                if (auto result = state.LoadAssets(); !result)
+                    return result;
             return {};
         }
 
@@ -208,7 +211,6 @@ namespace vke_component
         std::shared_ptr<vke_render::Material> material;
         std::shared_ptr<vke_common::Skeleton> skeleton;
         std::vector<AnimationState> animations;
-        vke_common::Transform *transform;
         std::unique_ptr<vke_render::RenderUnit> renderUnit;
         std::unique_ptr<vke_render::RenderUnit> shadowRenderUnit;
         bool castsShadow;
@@ -218,7 +220,7 @@ namespace vke_component
             std::shared_ptr<const vke_render::Mesh> &mesh,
             std::shared_ptr<vke_common::Skeleton> &skeleton,
             std::shared_ptr<vke_common::Animation> &animation)
-            : material(mat), skeleton(skeleton), transform(&transform),
+            : material(mat), skeleton(skeleton),
               castsShadow(true), shadowRenderID(0)
         {
             AddAnimation(animation, 1.0f, 1.0f, 0.0f, true);
@@ -227,7 +229,7 @@ namespace vke_component
 
         SkeletonAnimator(vke_common::Transform &transform, const SkeletonAnimatorData &componentData)
             : material(componentData.material.Get()), skeleton(componentData.skeleton.Get()),
-              transform(&transform), castsShadow(componentData.castsShadow),
+              castsShadow(componentData.castsShadow),
               shadowRenderID(0)
         {
             for (const SkeletonAnimationData &animation : componentData.animations)
@@ -238,6 +240,12 @@ namespace vke_component
         }
 
         ~SkeletonAnimator() {}
+
+        void OnTransformed(const vke_common::Transform &transform)
+        {
+            renderUnit->modelMatrix = transform.model;
+            shadowRenderUnit->modelMatrix = transform.model;
+        }
 
         void FillData(SkeletonAnimatorData &data) const
         {
@@ -260,8 +268,10 @@ namespace vke_component
             }
         }
 
-        void LoadToEngine()
+        void LoadToEngine(entt::registry &registry, entt::entity entity)
         {
+            ownerRegistry = &registry;
+            ownerEntity = entity;
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
             if (castsShadow)
@@ -450,17 +460,21 @@ namespace vke_component
 
         void applyRootMotion(const glm::vec3 &localDeltaPosition, const glm::quat &localDeltaRotation)
         {
-            if (transform == nullptr)
+            if (ownerRegistry == nullptr || !ownerRegistry->valid(ownerEntity) ||
+                !ownerRegistry->all_of<vke_common::Transform>(ownerEntity))
                 return;
 
+            // Use the scene path so children and render snapshots follow root motion too.
+            vke_common::SceneTransformSystem transforms(*ownerRegistry);
             if (glm::dot(localDeltaPosition, localDeltaPosition) > 0.0f)
-                transform->TranslateLocal(localDeltaPosition);
+                transforms.TranslateLocal(ownerEntity, localDeltaPosition);
 
             if (glm::abs(localDeltaRotation.w) < 0.999999f ||
                 glm::dot(glm::vec3(localDeltaRotation.x, localDeltaRotation.y, localDeltaRotation.z),
                          glm::vec3(localDeltaRotation.x, localDeltaRotation.y, localDeltaRotation.z)) > 0.000001f)
             {
-                transform->SetLocalRotation(glm::normalize(transform->localRotation * localDeltaRotation));
+                const auto rotation = ownerRegistry->get<vke_common::Transform>(ownerEntity).localRotation;
+                transforms.SetLocalRotation(ownerEntity, glm::normalize(rotation * localDeltaRotation));
             }
         }
 
@@ -507,8 +521,8 @@ namespace vke_component
                 vkUpdateDescriptorSets(vke_render::globalLogicalDevice, 1, &descriptorSetWrite, 0, nullptr);
             }
 
-            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)), descriptorSets[0]);
-            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)), descriptorSets[0]);
+            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0]);
+            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0]);
 
             const auto &names = skeleton->skeleton.joint_names();
             for (auto &n : names)
@@ -625,6 +639,8 @@ namespace vke_component
             shadowRenderUnit->perUnitDescriptorSet = descriptorSets[currentFrame];
         }
 
+        entt::registry *ownerRegistry = nullptr;
+        entt::entity ownerEntity = entt::null;
         ozz::vector<ozz::math::SoaTransform> blendedLocals;
         ozz::vector<ozz::math::Float4x4> models;
         ozz::vector<ozz::math::Float4x4> skinningMatrices;

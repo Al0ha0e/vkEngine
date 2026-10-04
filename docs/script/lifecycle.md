@@ -207,6 +207,8 @@ SkeletonAnimator 必须通过数据重载提供材质、网格和骨骼；按枚
 
 场景实例化与单组件添加共用原生组件构造、注册逻辑；整实体销毁与单组件移除共用原生卸载、删除逻辑。本批原生组件全部注册完成后再加载和启动脚本。
 
+Camera 和 Transform 使用 EnTT 默认紧凑存储，删除其他组件可能搬移它们。Camera 的 resize 和选中回调保存 registry 与 entity，调用时重新查询组件；卸载时仍须注销回调，registry 的生命周期覆盖整个注册期间。渲染单元持有模型矩阵副本，不能缓存 Transform 或其 model 的地址。运行时变换应通过 `SceneTransformSystem` 修改，以同步渲染、阴影、UI 和子节点；直接调用 Transform 的局部方法只修改组件本身。SkeletonAnimator 的根运动也通过该系统更新，在帧 fence 完成后、相机和灯光等数据上传前执行。
+
 移除 RigidBody 或 Sensor 时，通过新增的 `UnregisterComponentCallbacks(entity, componentType)` 托管导出，在原生 BodyID 仍可查询时清理对应类型的回调，不卸载实体脚本或另一种物理组件的回调。旧的 C# 物理包装对象仍持有旧 BodyID，组件重加后需要重新获取包装对象并订阅回调。原生与托管函数表必须一同重新编译、部署。
 
 组件添加不执行全局 WaitIdle：注册修改 CPU 状态或创建新资源，相机、灯光、文字和动画的帧缓冲更新沿用 FrameGraph::Sync 后的同步路径。相机、灯光、文字移除同样不执行全局等待。单独移除 RenderableObject 或 SkeletonAnimator 暂时保留 WaitIdle，因为它们可能分别释放最后一个网格引用或组件自有的骨骼 GPU 缓冲；后续应由资源延迟回收机制替代这类销毁等待。资源首次加载中的上传 fence 等待仍由原有资源加载器负责。这些接口只允许主线程同步调用，不能在遍历受影响的组件池或渲染回调中修改结构；当前尚未向 C# 游戏脚本开放组件增删函数。

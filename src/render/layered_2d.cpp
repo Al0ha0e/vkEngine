@@ -121,7 +121,7 @@ namespace vke_render
     void Layered2DRenderUnit::Render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
                                      const glm::vec2 &viewportSize, const glm::vec2 &atlasSize, uint32_t currentFrame)
     {
-        if (glyphIDs.empty() || !glyphIDAllocation.Valid() || glyphIDPool == nullptr || modelMatrix == nullptr)
+        if (glyphIDs.empty() || !glyphIDAllocation.Valid() || glyphIDPool == nullptr)
             return;
 
         if (glyphIDUpdateCnt > 0)
@@ -132,7 +132,7 @@ namespace vke_render
         VkBuffer glyphIDBuffer = glyphIDPool->GetBuffer(glyphIDAllocation, currentFrame);
         VkDeviceSize offset = glyphIDPool->GetOffset(glyphIDAllocation);
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &glyphIDBuffer, &offset);
-        Layered2DRenderPushConstants constants{*modelMatrix, viewportSize, atlasSize};
+        Layered2DRenderPushConstants constants{modelMatrix, viewportSize, atlasSize};
         vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(constants), &constants);
         vkCmdDraw(commandBuffer, 6, glyphIDAllocation.count, 0, 0);
     }
@@ -275,9 +275,9 @@ namespace vke_render
     }
 
     bool Layered2DRenderer::AllocateUnit(vke_ds::id32_t unitID, const std::shared_ptr<Material> &material,
-                                         const glm::mat4 *modelMatrix, const std::vector<GlyphID> &glyphIDs)
+                                         const glm::mat4 &modelMatrix, const std::vector<GlyphID> &glyphIDs)
     {
-        if (units.find(unitID) != units.end() || modelMatrix == nullptr)
+        if (units.find(unitID) != units.end())
             return false;
 
         UnitState state;

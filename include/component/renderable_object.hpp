@@ -21,15 +21,17 @@ namespace vke_component
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            auto result = Object(json).Require({"material", "mesh"})
-                .Unsigneds({"material", "mesh"}).Booleans({"castsShadow"}).Result();
-            if (!result) return result;
+            auto result = Object(json).Require({"material", "mesh"}).Unsigneds({"material", "mesh"}).Booleans({"castsShadow"}).Result();
+            if (!result)
+                return result;
             if (json.contains("textureIndices"))
             {
-                if (!json["textureIndices"].is_array()) return std::unexpected("invalid textureIndices");
+                if (!json["textureIndices"].is_array())
+                    return std::unexpected("invalid textureIndices");
                 for (const auto &row : json["textureIndices"])
                 {
-                    if (!row.is_array() || row.size() != 3) return std::unexpected("invalid textureIndices row");
+                    if (!row.is_array() || row.size() != 3)
+                        return std::unexpected("invalid textureIndices row");
                     for (const auto &index : row)
                         if (!index.is_number_integer() || index.get<double>() < INT32_MIN || index.get<double>() > INT32_MAX)
                             return std::unexpected("invalid texture index");
@@ -126,6 +128,12 @@ namespace vke_component
         }
 
         ~RenderableObject() {}
+
+        void OnTransformed(const vke_common::Transform &transform)
+        {
+            renderUnit->modelMatrix = transform.model;
+            shadowRenderUnit->modelMatrix = transform.model;
+        }
 
         void FillData(RenderableObjectData &data) const
         {
@@ -226,12 +234,13 @@ namespace vke_component
 
         void init(const vke_common::Transform &transform, std::shared_ptr<const vke_render::Mesh> &mesh)
         {
-            renderUnit = textureIndices.size() == 0 ? std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)))
+            renderUnit = textureIndices.size() == 0 ? std::make_unique<vke_render::RenderUnit>(mesh, transform.model)
                                                     : std::make_unique<vke_render::RenderUnit>(mesh,
-                                                                                               std::vector<vke_render::PushConstantInfo>{vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::mat4)), &transform.model, true, 0),
-                                                                                                                                         vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::ivec4)), textureIndices.data(), false, static_cast<uint32_t>(sizeof(glm::mat4)))},
-                                                                                               1);
-            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, &transform.model, static_cast<uint32_t>(sizeof(glm::mat4)));
+                                                                                               transform.model,
+                                                                                               std::vector<vke_render::PushConstantInfo>{vke_render::PushConstantInfo(static_cast<uint32_t>(sizeof(glm::ivec4)),
+                                                                                                                                                                      textureIndices.data(), false, static_cast<uint32_t>(sizeof(glm::mat4)))},
+                                                                                               0);
+            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model);
         }
     };
 }

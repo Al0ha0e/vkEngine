@@ -109,6 +109,11 @@ namespace vke_render
         frameGraph->LogProfile(currentFrame);
 #endif
 
+        // Animation/root motion can update camera, light and UI state as well as models.
+        // Run after the frame fence, before uploading those snapshots for this frame.
+        for (auto &kv : renderUpdateCallbacks)
+            kv.second(currentFrame);
+
         bool cameraUpdated = cameraInfoUpdateCnt > 0;
         if (cameraUpdated)
         {
@@ -121,9 +126,6 @@ namespace vke_render
         glyphManager.Sync(currentFrame);
 
         frameGraph->PrepareForExecute(currentFrame);
-
-        for (auto &kv : renderUpdateCallbacks)
-            kv.second(currentFrame);
 
         frameGraph->Execute(currentFrame, imageIndex);
         context->Present(currentFrame, imageIndex);

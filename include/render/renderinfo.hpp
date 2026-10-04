@@ -14,27 +14,24 @@ namespace vke_render
         std::vector<PushConstantInfo> pushConstantInfos;
         uint32_t perPrimitiveStart;
         VkDescriptorSet perUnitDescriptorSet;
-        const glm::mat4 *modelMatrix;
+        glm::mat4 modelMatrix{1.0f};
 
-        RenderUnit() : perPrimitiveStart(0), perUnitDescriptorSet(nullptr), modelMatrix(nullptr) {}
+        RenderUnit() : perPrimitiveStart(0), perUnitDescriptorSet(nullptr) {}
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, const void *pValues, uint32_t constantSize, VkDescriptorSet descriptorSet = nullptr, bool constantIsFloat = true)
-            : mesh(msh), pushConstantInfos(1, PushConstantInfo(constantSize, pValues, constantIsFloat)),
-              perPrimitiveStart(1), perUnitDescriptorSet(descriptorSet),
-              modelMatrix(constantSize == sizeof(glm::mat4) ? static_cast<const glm::mat4 *>(pValues) : nullptr) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const glm::mat4 &model, VkDescriptorSet descriptorSet = nullptr)
+            : mesh(msh), perPrimitiveStart(0), perUnitDescriptorSet(descriptorSet), modelMatrix(model) {}
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)
+        // Additional constants follow the model matrix at offset zero.
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const glm::mat4 &model, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)
             : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())),
-              perUnitDescriptorSet(descriptorSet), modelMatrix(nullptr)
-        {
-            if (!pushConstantInfos.empty() && pushConstantInfos[0].offset == 0 && pushConstantInfos[0].size == sizeof(glm::mat4))
-                modelMatrix = static_cast<const glm::mat4 *>(pushConstantInfos[0].pValues);
-        }
+              perUnitDescriptorSet(descriptorSet), modelMatrix(model) {}
 
         void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout, int descriptorSetOffset)
         {
             if (mesh->infos.size() == 0)
                 return;
+
+            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(modelMatrix), &modelMatrix);
 
             if (perUnitDescriptorSet != nullptr)
                 vkCmdBindDescriptorSets(

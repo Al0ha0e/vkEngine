@@ -188,7 +188,9 @@ namespace vke_common
                 else
                     return registry.emplace<Component>(entity, data);
             }();
-            if constexpr (requires { component.LoadToEngine(entity); })
+            if constexpr (requires { component.LoadToEngine(registry, entity); })
+                component.LoadToEngine(registry, entity);
+            else if constexpr (requires { component.LoadToEngine(entity); })
                 component.LoadToEngine(entity);
             else
                 component.LoadToEngine();

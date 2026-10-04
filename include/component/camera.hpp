@@ -6,6 +6,7 @@
 #include <render/buffer.hpp>
 #include <event.hpp>
 #include <component/transform.hpp>
+#include <entt/entity/registry.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 
 #ifdef _MINWINDEF_
@@ -28,9 +29,9 @@ namespace vke_component
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            auto result = Object(json).Require({"fov", "width", "height", "near", "far"})
-                .Numbers({"fov", "width", "height", "near", "far"}).Result();
-            if (!result) return result;
+            auto result = Object(json).Require({"fov", "width", "height", "near", "far"}).Numbers({"fov", "width", "height", "near", "far"}).Result();
+            if (!result)
+                return result;
             if (json["height"].get<float>() <= 0 || json["width"].get<float>() <= 0 ||
                 json["near"].get<float>() <= 0 || json["far"].get<float>() <= json["near"].get<float>())
                 return std::unexpected("invalid camera dimensions or clipping planes");
@@ -56,8 +57,6 @@ namespace vke_component
     class Camera // TODO only CameraInfo in renderer
     {
     public:
-        static constexpr bool in_place_delete = true;
-
         vke_ds::id32_t id;
         float width;
         float height;
@@ -93,14 +92,19 @@ namespace vke_component
             data.farPlane = cameraInfo.far;
         }
 
-        void LoadToEngine()
+        void LoadToEngine(entt::registry &registry, entt::entity entity)
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            // Resolve the component at dispatch time: packed storage can relocate it.
             resizeListenerID = renderer->resizeEventHub.AddEventListener(
-                this,
-                vke_common::EventHub<glm::vec2>::callback_t(OnWindowResize));
-            std::function<void()> callback = std::bind(&Camera::onCameraSelected, this);
-            id = vke_render::Renderer::RegisterCamera(callback);
+                nullptr, [&registry, entity](void *, glm::vec2 *size)
+                {
+                    if (auto *camera = registry.try_get<Camera>(entity))
+                        camera->UpdateProjection(size->x, size->y); });
+            id = vke_render::Renderer::RegisterCamera([&registry, entity]()
+                                                      {
+                    if (auto *camera = registry.try_get<Camera>(entity))
+                        camera->updateCameraInfo(); });
         }
 
         void UnloadFromEngine()
@@ -135,12 +139,6 @@ namespace vke_component
                 updateCameraInfo();
         }
 
-        static void OnWindowResize(void *listener, glm::vec2 *info)
-        {
-            Camera *cam = (Camera *)listener;
-            cam->UpdateProjection(info->x, info->y);
-        }
-
     private:
         vke_ds::id32_t resizeListenerID;
 
@@ -157,11 +155,6 @@ namespace vke_component
             cameraInfo.projection[1][1] *= -1;
             cameraInfo.invView = glm::inverse(cameraInfo.view);
             cameraInfo.invProjection = glm::inverse(cameraInfo.projection);
-        }
-
-        void onCameraSelected()
-        {
-            updateCameraInfo();
         }
 
         void updateCameraInfo()

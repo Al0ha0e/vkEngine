@@ -204,8 +204,7 @@ namespace vke_render
         sorted.reserve(units.size());
         for (auto &entry : units)
         {
-            const glm::mat4 *model = entry.second.unit->modelMatrix;
-            const glm::vec4 worldOrigin = model != nullptr ? (*model)[3] : glm::vec4(0, 0, 0, 1);
+            const glm::vec4 worldOrigin = entry.second.unit->modelMatrix[3];
             sorted.push_back({&entry.second, (cameraInfo->view * worldOrigin).z});
         }
         std::stable_sort(sorted.begin(), sorted.end(),

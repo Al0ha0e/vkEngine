@@ -62,12 +62,12 @@ namespace vke_render
     class Layered2DRenderUnit
     {
     public:
-        Layered2DRenderUnit(vke_ds::id32_t id, const glm::mat4 *modelMatrix, GlyphIDVertexBufferPool *glyphIDPool)
+        Layered2DRenderUnit(vke_ds::id32_t id, const glm::mat4 &modelMatrix, GlyphIDVertexBufferPool *glyphIDPool)
             : id(id), modelMatrix(modelMatrix), glyphIDPool(glyphIDPool) {}
         ~Layered2DRenderUnit();
 
         const vke_ds::id32_t id;
-        const glm::mat4 *modelMatrix;
+        glm::mat4 modelMatrix;
         std::vector<GlyphID> glyphIDs;
 
         void SetGlyphIDs(std::vector<GlyphID> ids);
@@ -133,7 +133,7 @@ namespace vke_render
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
 
         bool AllocateUnit(vke_ds::id32_t unitID, const std::shared_ptr<Material> &material,
-                          const glm::mat4 *modelMatrix, const std::vector<GlyphID> &glyphIDs);
+                          const glm::mat4 &modelMatrix, const std::vector<GlyphID> &glyphIDs);
         void DestroyUnit(vke_ds::id32_t unitID);
         bool UpdateUnitGlyphIDs(vke_ds::id32_t unitID, const std::vector<GlyphID> &glyphIDs);
         bool AddUnitToLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID);

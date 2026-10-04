@@ -1,5 +1,7 @@
 #include <scene_transform_system.hpp>
 #include <component/camera.hpp>
+#include <component/renderable_object.hpp>
+#include <component/skeleton_animator.hpp>
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
@@ -152,6 +154,12 @@ namespace vke_common
 
         if (registry.all_of<vke_component::Camera>(entity))
             registry.get<vke_component::Camera>(entity).OnTransformed(transform);
+
+        if (auto *renderable = registry.try_get<vke_component::RenderableObject>(entity))
+            renderable->OnTransformed(transform);
+
+        if (auto *animator = registry.try_get<vke_component::SkeletonAnimator>(entity))
+            animator->OnTransformed(transform);
 
         if (updatePhysicsComponents && registry.all_of<vke_component::RigidBody>(entity))
             registry.get<vke_component::RigidBody>(entity).OnTransformed(transform);

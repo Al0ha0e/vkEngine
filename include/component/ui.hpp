@@ -22,7 +22,7 @@ namespace vke_component
 
         explicit UIComponent(const vke_common::Transform &transform,
                              std::shared_ptr<vke_render::Material> material)
-            : transform(&transform), material(std::move(material)) {}
+            : modelMatrix(transform.model), material(std::move(material)) {}
 
         virtual ~UIComponent() {}
 
@@ -42,7 +42,7 @@ namespace vke_component
 
             id = spatialManager->CreateUnit(getWorldBounds(), getZIndex());
             const vke_common::Spatial2DUnit *spatialUnit = spatialManager->GetUnit(id);
-            renderer->AllocateUnit(id, material, &transform->model, glyphIDs);
+            renderer->AllocateUnit(id, material, modelMatrix, glyphIDs);
             renderer->AddUnitToLayer(id, spatialUnit->layer);
 
             renderUnit = renderer->GetUnit(id);
@@ -51,7 +51,8 @@ namespace vke_component
 
         void UnloadFromEngine()
         {
-            if (!IsLoaded()) return;
+            if (!IsLoaded())
+                return;
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             renderer->DestroyUnit(id);
             vke_render::Renderer::GetGlyphManager()->Release(glyphIDs);
@@ -64,10 +65,14 @@ namespace vke_component
             renderUnit = nullptr;
         }
 
-        void OnTransformed(vke_common::Transform &newTransform)
+        void OnTransformed(const vke_common::Transform &newTransform)
         {
-            transform = &newTransform;
-            syncSpatialLayer();
+            modelMatrix = newTransform.model;
+            if (IsLoaded())
+            {
+                renderUnit->modelMatrix = modelMatrix;
+                syncSpatialLayer();
+            }
         }
 
         vke_ds::id32_t GetID() const { return id; }
@@ -99,7 +104,7 @@ namespace vke_component
 
         bool IsLoaded() const { return id != INVALID_ID; }
 
-        const vke_common::Transform *transform;
+        glm::mat4 modelMatrix;
         std::shared_ptr<vke_render::Material> material;
         std::vector<vke_render::GlyphID> glyphIDs;
 
@@ -108,7 +113,7 @@ namespace vke_component
         vke_common::AABB2D localBounds;
         vke_render::Layered2DRenderUnit *renderUnit = nullptr;
 
-        float getZIndex() const { return transform->model[3].z; }
+        float getZIndex() const { return modelMatrix[3].z; }
 
         vke_common::AABB2D getWorldBounds() const
         {
@@ -122,7 +127,7 @@ namespace vke_component
             glm::vec2 maximum(std::numeric_limits<float>::lowest());
             for (const glm::vec2 &corner : corners)
             {
-                const glm::vec2 point = glm::vec2(transform->model * glm::vec4(corner, 0.0f, 1.0f));
+                const glm::vec2 point = glm::vec2(modelMatrix * glm::vec4(corner, 0.0f, 1.0f));
                 minimum = glm::min(minimum, point);
                 maximum = glm::max(maximum, point);
             }
