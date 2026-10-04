@@ -146,6 +146,22 @@ namespace vke_physics
         PhyscisShape() : shapeRef(nullptr) {}
         PhyscisShape(PhyscisShapeType type) : type(type), shapeRef(nullptr) {}
 
+        explicit PhyscisShape(const JPH::Shape *shape) : shapeRef(shape)
+        {
+            VKE_FATAL_IF(shape == nullptr, "Physics shape is null")
+            switch (shape->GetSubType())
+            {
+            case JPH::EShapeSubType::Sphere: type = PHYSICS_SHAPE_SPHERE; break;
+            case JPH::EShapeSubType::Box: type = PHYSICS_SHAPE_BOX; break;
+            case JPH::EShapeSubType::Capsule: type = PHYSICS_SHAPE_CAPSULE; break;
+            case JPH::EShapeSubType::Cylinder: type = PHYSICS_SHAPE_CYLINDER; break;
+            case JPH::EShapeSubType::Triangle: type = PHYSICS_SHAPE_TRIANGLE; break;
+            case JPH::EShapeSubType::Plane: type = PHYSICS_SHAPE_PLANE; break;
+            default:
+                VKE_FATAL("Unsupported physics shape subtype {}", static_cast<int>(shape->GetSubType()))
+            }
+        }
+
         PhyscisShape(const PhyscisShapeData &data) : type(data.type)
         {
             switch (type)

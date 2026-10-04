@@ -4,6 +4,7 @@
 #include <json_validation.hpp>
 #include <physics/shape.hpp>
 #include <component/transform.hpp>
+#include <Jolt/Physics/Body/BodyLock.h>
 
 namespace vke_component
 {
@@ -53,101 +54,108 @@ namespace vke_component
     {
     public:
         JPH::BodyID bodyID;
-        std::shared_ptr<vke_physics::PhyscisShape> shape;
-        JPH::BodyCreationSettings settings;
-        float friction;
-        float restitution;
-        bool hasMassOverride;
-        float mass;
+        // Jolt stores the resulting mass, not whether it was explicitly overridden.
+        bool hasMassOverride = false;
+        float mass = 0.0f;
 
-        RigidBody(const vke_common::Transform &transform,
-                  JPH::EMotionType motionType,
-                  JPH::ObjectLayer layer,
-                  float friction, float restitution,
-                  std::shared_ptr<vke_physics::PhyscisShape> &shape)
-            : shape(shape), friction(friction), restitution(restitution),
-              hasMassOverride(false), mass(0.0f)
+        void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
+                          const RigidBodyData &data)
         {
-            init(transform, motionType, layer);
+            const vke_physics::PhyscisShape shape(data.shape);
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            JPH::BodyCreationSettings settings(shape.shapeRef,
+                JPH::RVec3(position.x, position.y, position.z),
+                JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w), data.motionType, data.layer);
+            settings.mUserData = static_cast<uint64_t>(entity);
+            settings.mFriction = data.friction;
+            settings.mRestitution = data.restitution;
+            settings.mMotionQuality = data.motionQuality;
+            settings.mGravityFactor = data.gravityFactor;
+            hasMassOverride = data.hasMassOverride;
+            mass = data.mass;
+            staticMotionQuality = data.motionQuality;
+            staticGravityFactor = data.gravityFactor;
+            applyMassOverride(settings);
+            bodyID = vke_physics::PhysicsManager::GetBodyInterface().CreateAndAddBody(settings, JPH::EActivation::Activate);
         }
 
-        RigidBody(const vke_common::Transform &transform,
-                  const RigidBodyData &componentData)
-            : shape(std::make_shared<vke_physics::PhyscisShape>(componentData.shape)),
-              friction(componentData.friction), restitution(componentData.restitution),
-              hasMassOverride(componentData.hasMassOverride), mass(componentData.mass)
+        // A transient snapshot for export/editor use, with authoring intent restored.
+        JPH::BodyCreationSettings GetSettings() const
         {
-            init(transform, componentData.motionType, componentData.layer);
-            settings.mMotionQuality = componentData.motionQuality;
-            settings.mGravityFactor = componentData.gravityFactor;
+            JPH::BodyLockRead lock(vke_physics::PhysicsManager::GetPhysicsSystem().GetBodyLockInterface(), bodyID);
+            VKE_FATAL_IF(!lock.Succeeded(), "RigidBody is not loaded")
+            auto settings = lock.GetBody().GetBodyCreationSettings();
+            if (!settings.mAllowDynamicOrKinematic)
+            {
+                settings.mMotionQuality = staticMotionQuality;
+                settings.mGravityFactor = staticGravityFactor;
+            }
+            applyMassOverride(settings);
+            return settings;
         }
-
-        ~RigidBody() {}
 
         void FillData(RigidBodyData &data) const
         {
+            const auto settings = GetSettings();
             data.motionType = settings.mMotionType;
             data.motionQuality = settings.mMotionQuality;
             data.layer = settings.mObjectLayer;
-            data.friction = friction;
-            data.restitution = restitution;
+            data.friction = settings.mFriction;
+            data.restitution = settings.mRestitution;
             data.gravityFactor = settings.mGravityFactor;
             data.hasMassOverride = hasMassOverride;
             data.mass = mass;
-            shape->FillData(data.shape);
+            vke_physics::PhyscisShape(settings.GetShape()).FillData(data.shape);
         }
 
-        void LoadToEngine(entt::entity entity)
+        void SetGravityFactor(float factor)
         {
-            settings.mUserData = static_cast<uint64_t>(entity);
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
-            bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
-            interface.SetFriction(bodyID, friction);
-            interface.SetRestitution(bodyID, restitution);
+            staticGravityFactor = factor;
+            vke_physics::PhysicsManager::GetBodyInterface().SetGravityFactor(bodyID, factor);
+        }
+
+        void SetMotionQuality(JPH::EMotionQuality quality)
+        {
+            staticMotionQuality = quality;
+            vke_physics::PhysicsManager::GetBodyInterface().SetMotionQuality(bodyID, quality);
         }
 
         void UnloadFromEngine()
         {
             if (bodyID.IsInvalid()) return;
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            auto &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
             bodyID = JPH::BodyID();
         }
 
-        void OnTransformed(vke_common::Transform &transform)
+        void OnTransformed(const vke_common::Transform &transform)
         {
-            const glm::vec3 position = transform.GetGlobalPosition();
-            const glm::quat rotation = transform.GetGlobalRotation();
-            settings.mPosition = JPH::RVec3(position.x, position.y, position.z);
-            settings.mRotation = JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w);
-
             if (bodyID.IsInvalid() || vke_physics::PhysicsManager::GetInstance() == nullptr)
                 return;
-
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            auto &interface = vke_physics::PhysicsManager::GetBodyInterface();
             if (interface.IsAdded(bodyID))
-                interface.SetPositionAndRotationWhenChanged(bodyID, settings.mPosition, settings.mRotation, JPH::EActivation::Activate);
+                interface.SetPositionAndRotationWhenChanged(bodyID,
+                    JPH::RVec3(position.x, position.y, position.z),
+                    JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w), JPH::EActivation::Activate);
         }
 
     private:
-        void init(const vke_common::Transform &transform,
-                  JPH::EMotionType motionType, JPH::ObjectLayer layer)
-        {
-            const glm::vec3 position = transform.GetGlobalPosition();
-            const glm::quat rotation = transform.GetGlobalRotation();
+        // Initially static bodies have no MotionProperties in Jolt. Preserve these
+        // settings for serialization even though they do not affect a static body.
+        JPH::EMotionQuality staticMotionQuality = JPH::EMotionQuality::Discrete;
+        float staticGravityFactor = 1.0f;
 
-            settings = JPH::BodyCreationSettings(shape->shapeRef,
-                                                 JPH::RVec3(position.x, position.y, position.z),
-                                                 JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
-                                                 motionType, layer);
-            settings.mMotionQuality = JPH::EMotionQuality::Discrete;
-            settings.mGravityFactor = 1.0f;
+        void applyMassOverride(JPH::BodyCreationSettings &settings) const
+        {
+            settings.mOverrideMassProperties = hasMassOverride
+                ? JPH::EOverrideMassProperties::CalculateInertia
+                : JPH::EOverrideMassProperties::CalculateMassAndInertia;
             if (hasMassOverride)
-            {
-                settings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
                 settings.mMassPropertiesOverride.mMass = mass;
-            }
         }
     };
 }

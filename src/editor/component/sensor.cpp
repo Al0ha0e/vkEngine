@@ -26,28 +26,29 @@ namespace vke_editor
         vke_component::Sensor &sensor = sceneManager->registry.get<vke_component::Sensor>(selectedEntity);
         JPH::BodyInterface &bodyInterface = vke_physics::PhysicsManager::GetBodyInterface();
 
-        const uint32_t objectLayer = bodyInterface.GetObjectLayer(sensor.bodyID);
+        auto settings = sensor.GetSettings();
+        vke_physics::PhyscisShape shape(settings.GetShape());
+        const uint32_t objectLayer = settings.mObjectLayer;
         DrawReadOnlyUInt("Object Layer", objectLayer);
 
-        DrawPhysicsShapeEditor("SensorShape", sensor.shape, sensor.settings, bodyInterface, sensor.bodyID, false);
+        DrawPhysicsShapeEditor("SensorShape", shape, settings, bodyInterface, sensor.bodyID, false);
 
-        const JPH::EMotionType currentMotionType = bodyInterface.GetMotionType(sensor.bodyID);
+        const JPH::EMotionType currentMotionType = settings.mMotionType;
         int motionType = currentMotionType == JPH::EMotionType::Kinematic ? 1 : 0;
         const char *motionTypeItems[] = {"Static", "Kinematic"};
         if (ImGui::Combo("Motion Type", &motionType, motionTypeItems, IM_ARRAYSIZE(motionTypeItems)))
         {
             motionType = std::clamp(motionType, 0, 1);
-            sensor.settings.mMotionType = motionType == 0 ? JPH::EMotionType::Static : JPH::EMotionType::Kinematic;
-            bodyInterface.SetMotionType(sensor.bodyID, sensor.settings.mMotionType, JPH::EActivation::Activate);
+            const auto newMotionType = motionType == 0 ? JPH::EMotionType::Static : JPH::EMotionType::Kinematic;
+            bodyInterface.SetMotionType(sensor.bodyID, newMotionType, JPH::EActivation::Activate);
         }
 
-        int motionQuality = static_cast<int>(bodyInterface.GetMotionQuality(sensor.bodyID));
+        int motionQuality = static_cast<int>(settings.mMotionQuality);
         const char *motionQualityItems[] = {"Discrete", "LinearCast"};
         if (ImGui::Combo("Motion Quality", &motionQuality, motionQualityItems, IM_ARRAYSIZE(motionQualityItems)))
         {
             motionQuality = std::clamp(motionQuality, 0, 1);
-            sensor.settings.mMotionQuality = static_cast<JPH::EMotionQuality>(motionQuality);
-            bodyInterface.SetMotionQuality(sensor.bodyID, sensor.settings.mMotionQuality);
+            bodyInterface.SetMotionQuality(sensor.bodyID, static_cast<JPH::EMotionQuality>(motionQuality));
         }
 
         ImGui::TreePop();

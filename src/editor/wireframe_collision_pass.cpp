@@ -126,11 +126,11 @@ namespace vke_editor
         auto *rigidBody = scene->registry.try_get<vke_component::RigidBody>(entity);
         auto *sensor = scene->registry.try_get<vke_component::Sensor>(entity);
 
-        if (rigidBody && rigidBody->shape && rigidBody->shape->shapeRef)
+        if (rigidBody && !rigidBody->bodyID.IsInvalid())
         {
             bodyID = rigidBody->bodyID;
         }
-        else if (sensor && sensor->shape && sensor->shape->shapeRef)
+        else if (sensor && !sensor->bodyID.IsInvalid())
         {
             bodyID = sensor->bodyID;
         }

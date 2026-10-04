@@ -143,7 +143,10 @@ namespace vke_common
                 if (!registry.all_of<Component>(runtimeEntity))
                     return;
                 auto &componentData = data.registry.emplace<Data>(dataEntity);
-                registry.get<Component>(runtimeEntity).FillData(componentData);
+                if constexpr (std::is_empty_v<Component>)
+                    Component::FillData(runtimeEntity, componentData);
+                else
+                    registry.get<Component>(runtimeEntity).FillData(componentData);
             };
 
             fillComponentData.operator()<vke_component::Camera, vke_component::CameraData>();

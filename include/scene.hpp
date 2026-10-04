@@ -181,19 +181,32 @@ namespace vke_common
         template <typename Component, typename Data>
         void addPreparedComponent(entt::entity entity, const Data &data)
         {
-            auto &component = [&]() -> Component &
+            if constexpr (std::is_empty_v<Component>)
             {
-                if constexpr (std::is_constructible_v<Component, Transform &, const Data &>)
-                    return registry.emplace<Component>(entity, registry.get<Transform>(entity), data);
-                else
-                    return registry.emplace<Component>(entity, data);
-            }();
-            if constexpr (requires { component.LoadToEngine(registry, entity); })
-                component.LoadToEngine(registry, entity);
-            else if constexpr (requires { component.LoadToEngine(entity); })
-                component.LoadToEngine(entity);
+                Component::LoadToEngine(entity, registry.get<Transform>(entity), data);
+                registry.emplace<Component>(entity);
+            }
+            else if constexpr (requires(Component &component) { component.LoadToEngine(entity, registry.get<Transform>(entity), data); })
+            {
+                auto &component = registry.emplace<Component>(entity);
+                component.LoadToEngine(entity, registry.get<Transform>(entity), data);
+            }
             else
-                component.LoadToEngine();
+            {
+                auto &component = [&]() -> Component &
+                {
+                    if constexpr (std::is_constructible_v<Component, Transform &, const Data &>)
+                        return registry.emplace<Component>(entity, registry.get<Transform>(entity), data);
+                    else
+                        return registry.emplace<Component>(entity, data);
+                }();
+                if constexpr (requires { component.LoadToEngine(registry, entity); })
+                    component.LoadToEngine(registry, entity);
+                else if constexpr (requires { component.LoadToEngine(entity); })
+                    component.LoadToEngine(entity);
+                else
+                    component.LoadToEngine();
+            }
         }
 
         struct PreparedScript

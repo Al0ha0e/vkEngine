@@ -4,6 +4,7 @@
 #include <json_validation.hpp>
 #include <physics/shape.hpp>
 #include <component/transform.hpp>
+#include <Jolt/Physics/Body/BodyLock.h>
 
 namespace vke_component
 {
@@ -44,82 +45,60 @@ namespace vke_component
     {
     public:
         JPH::BodyID bodyID;
-        std::shared_ptr<vke_physics::PhyscisShape> shape;
-        JPH::BodyCreationSettings settings;
 
-        Sensor(const vke_common::Transform &transform,
-               bool isStatic,
-               JPH::ObjectLayer layer,
-               std::shared_ptr<vke_physics::PhyscisShape> &shape)
-            : shape(shape)
+        void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
+                          const SensorData &data)
         {
-            init(transform, isStatic, layer);
+            const vke_physics::PhyscisShape shape(data.shape);
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            JPH::BodyCreationSettings settings(shape.shapeRef,
+                JPH::RVec3(position.x, position.y, position.z),
+                JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
+                data.isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Kinematic, data.layer);
+            settings.mUserData = static_cast<uint64_t>(entity);
+            settings.mIsSensor = true;
+            settings.mAllowDynamicOrKinematic = true;
+            settings.mMotionQuality = data.motionQuality;
+            bodyID = vke_physics::PhysicsManager::GetBodyInterface().CreateAndAddBody(settings, JPH::EActivation::Activate);
         }
 
-        Sensor(const vke_common::Transform &transform,
-               const SensorData &componentData)
-            : shape(std::make_shared<vke_physics::PhyscisShape>(componentData.shape))
+        JPH::BodyCreationSettings GetSettings() const
         {
-            init(transform, componentData.isStatic, componentData.layer);
-            settings.mMotionQuality = componentData.motionQuality;
+            JPH::BodyLockRead lock(vke_physics::PhysicsManager::GetPhysicsSystem().GetBodyLockInterface(), bodyID);
+            VKE_FATAL_IF(!lock.Succeeded(), "Sensor is not loaded")
+            return lock.GetBody().GetBodyCreationSettings();
         }
-
-        ~Sensor() {}
 
         void FillData(SensorData &data) const
         {
+            const auto settings = GetSettings();
             data.isStatic = settings.mMotionType == JPH::EMotionType::Static;
             data.motionQuality = settings.mMotionQuality;
             data.layer = settings.mObjectLayer;
-            shape->FillData(data.shape);
-        }
-
-        void LoadToEngine(entt::entity entity)
-        {
-            settings.mUserData = static_cast<uint64_t>(entity);
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
-            bodyID = interface.CreateAndAddBody(settings, JPH::EActivation::Activate);
+            vke_physics::PhyscisShape(settings.GetShape()).FillData(data.shape);
         }
 
         void UnloadFromEngine()
         {
             if (bodyID.IsInvalid()) return;
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            auto &interface = vke_physics::PhysicsManager::GetBodyInterface();
             interface.RemoveBody(bodyID);
             interface.DestroyBody(bodyID);
             bodyID = JPH::BodyID();
         }
 
-        void OnTransformed(vke_common::Transform &param)
+        void OnTransformed(const vke_common::Transform &transform)
         {
-            const glm::vec3 position = param.GetGlobalPosition();
-            const glm::quat rotation = param.GetGlobalRotation();
-            settings.mPosition = JPH::RVec3(position.x, position.y, position.z);
-            settings.mRotation = JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w);
-
             if (bodyID.IsInvalid() || vke_physics::PhysicsManager::GetInstance() == nullptr)
                 return;
-
-            JPH::BodyInterface &interface = vke_physics::PhysicsManager::GetBodyInterface();
-            if (interface.IsAdded(bodyID))
-                interface.SetPositionAndRotationWhenChanged(bodyID, settings.mPosition, settings.mRotation, JPH::EActivation::Activate);
-        }
-
-    private:
-        void init(const vke_common::Transform &transform,
-                  bool isStatic, JPH::ObjectLayer layer)
-        {
             const glm::vec3 position = transform.GetGlobalPosition();
             const glm::quat rotation = transform.GetGlobalRotation();
-            const JPH::EMotionType motionType = isStatic ? JPH::EMotionType::Static : JPH::EMotionType::Kinematic;
-
-            settings = JPH::BodyCreationSettings(shape->shapeRef,
-                                                 JPH::RVec3(position.x, position.y, position.z),
-                                                 JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
-                                                 motionType, layer);
-            settings.mIsSensor = true;
-            settings.mAllowDynamicOrKinematic = true;
-            settings.mMotionQuality = JPH::EMotionQuality::Discrete;
+            auto &interface = vke_physics::PhysicsManager::GetBodyInterface();
+            if (interface.IsAdded(bodyID))
+                interface.SetPositionAndRotationWhenChanged(bodyID,
+                    JPH::RVec3(position.x, position.y, position.z),
+                    JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w), JPH::EActivation::Activate);
         }
     };
 }

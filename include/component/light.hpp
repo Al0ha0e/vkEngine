@@ -80,76 +80,59 @@ namespace vke_component
         }
     };
 
-    class DirectionalLight
+    // Runtime tags only. LightManager owns all mutable light parameters, keyed by entity.
+    struct DirectionalLight
     {
-    public:
-        vke_render::DirectionalLight light;
-
-        DirectionalLight() {}
-
-        DirectionalLight(const vke_common::Transform &transform,
-                         const DirectionalLightData &componentData)
+        static void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
+                                 const DirectionalLightData &componentData)
         {
             glm::vec3 forward =
                 transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
-            light = vke_render::DirectionalLight(
+            vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::DirectionalLight>(
+                entity,
                 glm::vec4(glm::normalize(forward), 0.0f),
                 glm::vec4(componentData.color, componentData.intensity));
         }
 
-        void FillData(DirectionalLightData &data) const
+        static void FillData(entt::entity entity, DirectionalLightData &data)
         {
+            const auto &light = vke_render::Renderer::GetInstance()->lightManager
+                                    ->GetLightWithoutCheckByEntity<vke_render::DirectionalLight>(entity);
             data.color = glm::vec3(light.colorWithIntensity);
             data.intensity = light.colorWithIntensity.w;
         }
-
-        void LoadToEngine(entt::entity entity)
-        {
-            vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::DirectionalLight>(entity, light);
-        }
     };
 
-    class PointLight
+    struct PointLight
     {
-    public:
-        vke_render::PointLight light;
-
-        PointLight() {}
-
-        PointLight(const vke_common::Transform &transform,
-                   const PointLightData &componentData)
+        static void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
+                                 const PointLightData &componentData)
         {
-            light = vke_render::PointLight(
+            vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::PointLight>(
+                entity,
                 glm::vec4(transform.GetGlobalPosition(), componentData.radius),
                 glm::vec4(componentData.color, componentData.intensity));
         }
 
-        void FillData(PointLightData &data) const
+        static void FillData(entt::entity entity, PointLightData &data)
         {
+            const auto &light = vke_render::Renderer::GetInstance()->lightManager
+                                    ->GetLightWithoutCheckByEntity<vke_render::PointLight>(entity);
             data.color = glm::vec3(light.colorWithIntensity);
             data.radius = light.positionWithRadius.w;
             data.intensity = light.colorWithIntensity.w;
         }
-
-        void LoadToEngine(entt::entity entity)
-        {
-            vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::PointLight>(entity, light);
-        }
     };
 
-    class SpotLight
+    struct SpotLight
     {
-    public:
-        vke_render::SpotLight light;
-
-        SpotLight() {}
-
-        SpotLight(const vke_common::Transform &transform,
-                  const SpotLightData &componentData)
+        static void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
+                                 const SpotLightData &componentData)
         {
             glm::vec3 forward =
                 transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
-            light = vke_render::SpotLight(
+            vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::SpotLight>(
+                entity,
                 glm::vec4(transform.GetGlobalPosition(), componentData.radius),
                 glm::vec4(glm::normalize(forward), 0.0f),
                 glm::vec4(componentData.color, componentData.intensity),
@@ -157,19 +140,16 @@ namespace vke_component
                           componentData.castShadow ? 1.0f : 0.0f, 0.0f));
         }
 
-        void FillData(SpotLightData &data) const
+        static void FillData(entt::entity entity, SpotLightData &data)
         {
+            const auto &light = vke_render::Renderer::GetInstance()->lightManager
+                                    ->GetLightWithoutCheckByEntity<vke_render::SpotLight>(entity);
             data.color = glm::vec3(light.colorWithIntensity);
             data.radius = light.positionWithRadius.w;
             data.intensity = light.colorWithIntensity.w;
             data.innerConeCos = light.cone.x;
             data.outerConeCos = light.cone.y;
             data.castShadow = light.CastShadow();
-        }
-
-        void LoadToEngine(entt::entity entity)
-        {
-            vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::SpotLight>(entity, light);
         }
     };
 }
