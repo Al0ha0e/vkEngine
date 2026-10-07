@@ -161,17 +161,13 @@ namespace vke_component
                 return;
             }
 
-            sound = new ma_sound;
             ma_uint32 flags = MA_SOUND_FLAG_DECODE;
             if (!spatializationEnabled)
                 flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;
 
-            ma_result result = ma_sound_init_from_file(engine, clip->path.c_str(), flags, nullptr, nullptr, sound);
-            if (result != MA_SUCCESS)
+            sound = vke_audio::AudioManager::LoadSound(clip->path.c_str(), flags);
+            if (sound == nullptr)
             {
-                VKE_LOG_ERROR("AudioSource::LoadToEngine: failed to load sound from '{}' (error {})", clip->path, (int)result);
-                delete sound;
-                sound = nullptr;
                 soundInitialized = false;
                 return;
             }
@@ -199,8 +195,7 @@ namespace vke_component
         {
             if (soundInitialized && sound != nullptr)
             {
-                ma_sound_uninit(sound);
-                delete sound;
+                vke_audio::AudioManager::ReleaseSound(sound);
                 sound = nullptr;
                 soundInitialized = false;
             }

@@ -2,6 +2,18 @@
 
 namespace vke_common
 {
+    void InputManager::Reset()
+    {
+        auto &input = RequireInstance();
+        input.keyDown.fill(0);
+        input.mouseButtonDown.fill(0);
+        input.ClearTransientState();
+        double x, y;
+        glfwGetCursorPos(input.window, &x, &y);
+        input.mousePosition = glm::vec2(x, y);
+        input.hasMousePosition = true;
+    }
+
     InputManager *InputManager::instance = nullptr;
 
     InputManager::InputManager()

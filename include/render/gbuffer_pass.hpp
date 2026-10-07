@@ -29,6 +29,11 @@ namespace vke_render
             GBuffer::Dispose();
         }
 
+        void Reset() override
+        {
+            renderInfoMap.clear();
+        }
+
         void RegisterMaterial(std::shared_ptr<Material> &material, bool isSkin = false)
         {
             auto &rMap = renderInfoMap;

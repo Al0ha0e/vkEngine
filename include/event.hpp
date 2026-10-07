@@ -61,6 +61,13 @@ namespace vke_common
             callbackTable.erase(id);
         }
 
+        // Call only outside dispatch. Old subscription IDs become invalid.
+        void Reset()
+        {
+            callbackTable.clear();
+            idAllocator = vke_ds::NaiveIDAllocator<vke_ds::id32_t>(0);
+        }
+
         void DispatchEvent(MT *info)
         {
             for (auto &kv : callbackTable)

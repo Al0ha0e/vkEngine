@@ -32,6 +32,7 @@ namespace vke_common
         static void Dispose();
 
         static void EndFrame();
+        static void Reset();
 
         static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
 

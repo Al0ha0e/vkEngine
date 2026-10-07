@@ -131,6 +131,8 @@ C# 按实体逐个清理，每个实体的顺序为：
 
 ## 4. C# 侧开放接口
 
+整场景批量重置另有 `SceneManager::Reset()` / `Engine::Reset()`，直接清空各系统注册，不执行本节前述的逐实体卸载流程，也不调用脚本 `Unload` / `Dispose`。调用约束、资源边界和清理顺序见 [系统 Reset](../reset.md)。
+
 ### 4.1 游戏脚本可调用的接口
 
 以下接口位于 `vkEngine.EngineCore`。
@@ -160,6 +162,7 @@ C# 按实体逐个清理，每个实体的顺序为：
 | `SceneManager.Update()`、`FixedUpdate()`、`LateUpdate()` | 分发对应运行钩子；`LateUpdate` 尚未接入主循环。 |
 | `SceneManager.UnloadEntities(UInt32* entities, UInt32 cnt)` | 清理指定实体批次的脚本和物理回调。 |
 | `SceneManager.Unload()` | 清理剩余全部脚本、物理回调和分发集合。 |
+| `SceneManager.Reset()` | 直接清空脚本、物理回调和分发集合，不执行用户卸载或释放钩子。 |
 
 ## 5. C++ 侧开放接口
 

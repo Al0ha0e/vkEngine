@@ -16,6 +16,13 @@ namespace vke_render
 
         ~ShadowPass() {}
 
+        void Reset() override
+        {
+            unitMaterialMap.clear();
+            renderInfoMap.clear();
+            unitAllocator = vke_ds::NaiveIDAllocator<vke_ds::id64_t>(1);
+        }
+
         void Init(int subpassID,
                   FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,

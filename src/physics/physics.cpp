@@ -14,6 +14,42 @@ namespace vke_physics
 {
     PhysicsManager *PhysicsManager::instance;
 
+    void PhysicsManager::Reset()
+    {
+        auto &system = instance->physicsSystem;
+        instance->updates.Reset();
+        // Remove constraints before their bodies, including externally registered ones.
+        auto constraints = system.GetConstraints();
+        std::vector<JPH::Constraint *> constraintPointers;
+        for (auto &constraint : constraints)
+            constraintPointers.push_back(constraint.GetPtr());
+        if (!constraintPointers.empty())
+            system.RemoveConstraints(constraintPointers.data(), static_cast<int>(constraintPointers.size()));
+        constraints.clear();
+
+        JPH::BodyIDVector bodies;
+        system.GetBodies(bodies);
+        auto &bodyInterface = system.GetBodyInterface();
+        JPH::BodyIDVector addedBodies;
+        for (const auto body : bodies)
+            if (bodyInterface.IsAdded(body))
+                addedBodies.push_back(body);
+        if (!addedBodies.empty())
+            bodyInterface.RemoveBodies(addedBodies.data(), static_cast<int>(addedBodies.size()));
+        if (!bodies.empty())
+            bodyInterface.DestroyBodies(bodies.data(), static_cast<int>(bodies.size()));
+
+        instance->config = instance->initialConfig;
+        system.SetGravity(instance->config.gravity);
+        system.SetPhysicsSettings(JPH::PhysicsSettings());
+        system.OptimizeBroadPhase();
+        std::lock_guard<std::mutex> lock(instance->contactEventsTailMutex);
+        instance->activeContacts.clear();
+        std::fill(instance->contactEvents.begin(), instance->contactEvents.end(), ContactEvent{});
+        instance->contactEventsReadIndex = 0;
+        instance->contactEventsTailIndex = 0;
+    }
+
     static constexpr uint32_t InvalidEntityID = UINT32_MAX;
 
     void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings)

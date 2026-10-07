@@ -61,6 +61,15 @@ namespace vke_common
         static Spatial2DLayerManager *Init();
         static void Dispose();
 
+        static void Reset()
+        {
+            instance->layers.clear();
+            instance->units.clear();
+            instance->layerOrder.clear();
+            instance->unitAllocator = vke_ds::NaiveIDAllocator<vke_ds::id32_t>();
+            instance->layerAllocator = vke_ds::NaiveIDAllocator<vke_ds::id32_t>();
+        }
+
         vke_ds::id32_t CreateUnit(const AABB2D &bounds, float zIndex);
         bool ReinsertUnit(vke_ds::id32_t unitID, const AABB2D &bounds, float zIndex);
         void RemoveUnit(vke_ds::id32_t unitID);

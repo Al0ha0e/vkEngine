@@ -34,6 +34,8 @@ namespace vke_render
 
         virtual ~RenderPassBase() {}
 
+        virtual void Reset() {}
+
         // virtual void RegisterCamera(VkBuffer buffer) = 0;
         virtual void Render(TaskNode &node, FrameGraph &frameGraph, VkCommandBuffer commandBuffer, uint32_t currentFrame, uint32_t imageIndex) = 0;
 

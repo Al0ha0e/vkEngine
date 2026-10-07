@@ -202,6 +202,7 @@ namespace vke_render
 
     void ShadowManager::clearLights()
     {
+        directionalShadowInfo = DirectionalShadowInfoCPU();
         for (uint32_t slot = 0; slot < MAX_SPOT_LIGHT_SHADOW_CNT; ++slot)
         {
             spotShadowLightEntities[slot] = entt::null;

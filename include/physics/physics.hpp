@@ -234,7 +234,7 @@ namespace vke_physics
     {
     private:
         static PhysicsManager *instance;
-        explicit PhysicsManager(const PhysicsConfig &physicsConfig) : config(physicsConfig) {}
+        explicit PhysicsManager(const PhysicsConfig &physicsConfig) : config(physicsConfig), initialConfig(physicsConfig) {}
         ~PhysicsManager() {}
 
     public:
@@ -260,6 +260,9 @@ namespace vke_physics
         {
             instance->fixedUpdate();
         }
+
+        // No update may be in progress. Release CharacterVirtual owners first.
+        static void Reset();
 
         static vke_ds::id32_t RegisterUpdateListener(void *rigidbody, vke_common::EventHub<void>::callback_t &callback)
         {
@@ -381,6 +384,7 @@ namespace vke_physics
         uint32_t getContactEvents(ContactEvent *outEvents, uint32_t maxEvents);
 
         PhysicsConfig config;
+        const PhysicsConfig initialConfig;
         std::unique_ptr<JPH::TempAllocatorImpl> tempAllocator;
         std::unique_ptr<JPH::JobSystemThreadPool> jobSystem;
         BPLayerInterfaceImpl broadPhaseLayerInterface;

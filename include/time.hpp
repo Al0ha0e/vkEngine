@@ -51,6 +51,13 @@ namespace vke_common
             instance->deltaTime = instance->frameStartTime - instance->prevFrameStartTime;
         }
 
+        static void Reset()
+        {
+            instance->frameStartTime = static_cast<float>(glfwGetTime());
+            instance->prevFrameStartTime = instance->frameStartTime;
+            instance->deltaTime = 0.0f;
+        }
+
         static float GetTime()
         {
             return instance->frameStartTime;

@@ -3,6 +3,7 @@
 
 #include <render/buffer.hpp>
 #include <array>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -104,6 +105,12 @@ namespace vke_render
             for (uint32_t bufferIndex = MAX_GLYPH_BUFFER_CNT; bufferIndex-- > 0;)
                 for (uint32_t slot = GLYPHS_PER_BUFFER; slot-- > 0;)
                     freeGlyphs.push_back((bufferIndex << 9) | slot);
+        }
+
+        void Reset()
+        {
+            std::memset(cpuGlyphs.data, 0, GLYPH_DATA_SIZE);
+            ClearGlyphs();
         }
 
         VkDescriptorBufferInfo GetDescriptorBufferInfo(uint32_t currentFrame) const

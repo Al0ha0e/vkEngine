@@ -16,6 +16,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged<void> Unload;
         public delegate* unmanaged<UInt32*, UInt32, void> UnloadEntities;
         public delegate* unmanaged<UInt32, Int32, void> UnregisterComponentCallbacks;
+        public delegate* unmanaged<void> Reset;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -127,6 +128,15 @@ namespace vkEngine.EngineCore
             Console.WriteLine("SceneManager.Unload");
         }
 
+        // Bulk reset at a frame boundary: do not execute user Unload/Dispose hooks.
+        [UnmanagedCallersOnly]
+        public static void Reset()
+        {
+            ClearScriptCollections();
+            RigidBody.ClearRegistered();
+            Sensor.ClearRegistered();
+        }
+
         [UnmanagedCallersOnly]
         public unsafe static void UnloadEntities(UInt32* entities, UInt32 cnt)
         {
@@ -187,7 +197,8 @@ namespace vkEngine.EngineCore
                 LateUpdate = &LateUpdate,
                 Unload = &Unload,
                 UnloadEntities = &UnloadEntities,
-                UnregisterComponentCallbacks = &UnregisterComponentCallbacks
+                UnregisterComponentCallbacks = &UnregisterComponentCallbacks,
+                Reset = &Reset
             };
         }
 

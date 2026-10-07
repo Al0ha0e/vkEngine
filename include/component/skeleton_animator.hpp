@@ -239,7 +239,11 @@ namespace vke_component
             init(transform, mesh);
         }
 
-        ~SkeletonAnimator() {}
+        ~SkeletonAnimator()
+        {
+            for (auto set : descriptorSets)
+                vke_render::DescriptorSetAllocator::FreeDescriptorSet(set);
+        }
 
         void OnTransformed(const vke_common::Transform &transform)
         {
@@ -521,8 +525,8 @@ namespace vke_component
                 vkUpdateDescriptorSets(vke_render::globalLogicalDevice, 1, &descriptorSetWrite, 0, nullptr);
             }
 
-            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0]);
-            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0]);
+            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0], false);
+            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0], false);
 
             const auto &names = skeleton->skeleton.joint_names();
             for (auto &n : names)
@@ -644,6 +648,7 @@ namespace vke_component
         ozz::vector<ozz::math::SoaTransform> blendedLocals;
         ozz::vector<ozz::math::Float4x4> models;
         ozz::vector<ozz::math::Float4x4> skinningMatrices;
+        // Owns all frame sets; both render units borrow the current frame's handle.
         std::vector<VkDescriptorSet> descriptorSets;
         std::vector<vke_render::HostCoherentBuffer> skeletonBuffers;
     };

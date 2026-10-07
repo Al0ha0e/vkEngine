@@ -217,6 +217,8 @@ namespace vke_render
         {
         }
 
+        static void Reset();
+
         static void WaitIdle()
         {
             VKE_LOG_INFO("WAIT_IDLE0")

@@ -1,4 +1,5 @@
 #include <scene.hpp>
+#include <engine_state.hpp>
 #include <unordered_set>
 
 #ifdef near
@@ -371,6 +372,31 @@ namespace vke_common
             removeNativeComponent(entity, ComponentType::PointLight);
         if (HasComponent(entity, ComponentType::SpotLight))
             removeNativeComponent(entity, ComponentType::SpotLight);
+    }
+
+    void SceneManager::Reset()
+    {
+        auto &scene = *instance;
+        VKE_FATAL_IF(scene.processingDestroy || scene.processingInstantiations || scene.shuttingDown,
+                     "Scene reset requires an idle scene manager")
+        EngineStateManager::SetState(EngineState::Paused);
+        scene.shuttingDown = true;
+        scene.pendingInstantiations.clear();
+        scene.pendingDestroy.clear();
+
+        // Drain rendering before dropping registrations or component-owned GPU buffers.
+        vke_render::Renderer::Reset();
+        ScriptManager::Reset();
+        vke_audio::AudioManager::Reset();
+        Spatial2DLayerManager::Reset();
+        // Plain C++ destruction releases owned resources, without lifecycle dispatch.
+        // CharacterVirtual must die while its inner body and PhysicsSystem still exist.
+        scene.registry.clear();
+        scene.csharpScriptStates.clear();
+        vke_physics::PhysicsManager::Reset();
+        scene.physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(
+            &scene, std::function<void(void *, void *)>(physicsUpdateCallback));
+        scene.shuttingDown = false;
     }
 
     void SceneManager::dispose()

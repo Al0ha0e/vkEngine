@@ -41,6 +41,12 @@ namespace vke_render
         VkBuffer GetBuffer(const Allocation &allocation, uint32_t currentFrame) const;
         VkDeviceSize GetOffset(const Allocation &allocation) const;
 
+        void Reset()
+        {
+            freeLists.clear();
+            chunks.clear();
+        }
+
     private:
         static constexpr uint32_t INVALID_CHUNK_INDEX = std::numeric_limits<uint32_t>::max();
         static constexpr uint32_t DEFAULT_CHUNK_CAPACITY = 4096;
@@ -85,6 +91,11 @@ namespace vke_render
     public:
         Layered2DRenderInfo(std::shared_ptr<Material> material, RenderContext *context);
 
+        ~Layered2DRenderInfo()
+        {
+            DescriptorSetAllocator::FreeDescriptorSet(commonDescriptorSet);
+        }
+
         std::shared_ptr<Material> material;
         std::unique_ptr<GraphicsPipeline> renderPipeline;
         VkDescriptorSet commonDescriptorSet = VK_NULL_HANDLE;
@@ -105,6 +116,11 @@ namespace vke_render
     public:
         explicit Layered2DRenderLayer(vke_ds::id32_t id) : id(id) {}
 
+        void Reset()
+        {
+            renderInfos.clear();
+        }
+
         const vke_ds::id32_t id;
 
         void AddUnit(const std::shared_ptr<Material> &material, Layered2DRenderUnit *unit, RenderContext *context);
@@ -124,6 +140,14 @@ namespace vke_render
                           GlyphManager *glyphManager)
             : RenderPassBase(LAYERED_2D_RENDERER, ctx, globalDescriptorSets),
               glyphManager(glyphManager) {}
+
+        void Reset() override
+        {
+            layers.clear();
+            layerOrder.clear();
+            units.clear();
+            glyphIDPool.Reset();
+        }
 
         void Init(int subpassID, FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,

@@ -181,7 +181,7 @@ namespace vke_render
                 if (poolInfo.SuitableToAllocate(info))
                 {
                     poolInfo.UpdateForAllocate(info);
-                    return instance->allocateDescriptorSet(pool.first, &(info.layout), info.variableDescriptorCnt);
+                    return instance->allocateDescriptorSet(pool.first, info);
                 }
             }
 
@@ -193,13 +193,35 @@ namespace vke_render
             VkDescriptorPool pool = instance->createDescriptorPool(poolInfo);
             instance->descriptorSetPools[pool] = std::move(poolInfo);
             instance->descriptorSetPools[pool].UpdateForAllocate(info);
-            return instance->allocateDescriptorSet(pool, &(info.layout), info.variableDescriptorCnt);
+            return instance->allocateDescriptorSet(pool, info);
         }
 
-        // TODO Free Descriptor Set
+        // The caller must ensure no submitted work still uses this set.
+        static void FreeDescriptorSet(VkDescriptorSet set)
+        {
+            if (set == VK_NULL_HANDLE)
+                return;
+            auto it = instance->allocations.find(set);
+            if (it == instance->allocations.end())
+                return;
+            auto &allocation = it->second;
+            VKE_VK_CHECK(vkFreeDescriptorSets(globalLogicalDevice, allocation.pool, 1, &set),
+                         "failed to free descriptor set!")
+            auto &pool = instance->descriptorSetPools.at(allocation.pool);
+            ++pool.setCnt;
+            for (const auto &[type, count] : allocation.counts)
+                pool.descriptorCntMap[type] += count;
+            instance->allocations.erase(it);
+        }
 
     private:
         std::map<VkDescriptorPool, DescriptorSetPoolInfo> descriptorSetPools;
+        struct Allocation
+        {
+            VkDescriptorPool pool;
+            std::map<VkDescriptorType, uint32_t> counts;
+        };
+        std::map<VkDescriptorSet, Allocation> allocations;
 
         VkDescriptorPool createDescriptorPool(DescriptorSetPoolInfo &info)
         {
@@ -210,7 +232,7 @@ namespace vke_render
             poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
             poolInfo.poolSizeCount = poolSizes.size();
             poolInfo.pPoolSizes = poolSizes.data();
-            poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+            poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
             poolInfo.maxSets = info.setCnt;
 
             VkDescriptorPool ret;
@@ -219,27 +241,27 @@ namespace vke_render
         }
 
         VkDescriptorSet allocateDescriptorSet(const VkDescriptorPool &pool,
-                                              const VkDescriptorSetLayout *layout,
-                                              const uint32_t variableDescriptorCnt)
+                                              const DescriptorSetInfo &info)
         {
             VkDescriptorSetAllocateInfo allocInfo{};
             allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             allocInfo.pNext = nullptr;
             allocInfo.descriptorPool = pool;
             allocInfo.descriptorSetCount = 1;
-            allocInfo.pSetLayouts = layout;
+            allocInfo.pSetLayouts = &info.layout;
             VkDescriptorSetVariableDescriptorCountAllocateInfo countAllocateInfo{};
-            if (variableDescriptorCnt > 0) // bindless
+            if (info.variableDescriptorCnt > 0) // bindless
             {
                 countAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
                 countAllocateInfo.descriptorSetCount = 1;
-                countAllocateInfo.pDescriptorCounts = &variableDescriptorCnt;
+                countAllocateInfo.pDescriptorCounts = &info.variableDescriptorCnt;
                 allocInfo.pNext = &countAllocateInfo;
             }
 
             VkDescriptorSet ret;
             VKE_VK_CHECK(vkAllocateDescriptorSets(globalLogicalDevice, &allocInfo, &ret),
                          "failed to allocate descriptor sets!")
+            allocations.emplace(ret, Allocation{pool, info.descriptorCntMap});
             return ret;
         }
     };

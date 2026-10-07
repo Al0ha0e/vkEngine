@@ -6,6 +6,24 @@ namespace vke_render
 {
     Renderer *Renderer::instance;
 
+    void Renderer::Reset()
+    {
+        WaitIdle();
+        instance->renderUpdateCallbacks.clear();
+        instance->cameras.clear();
+        instance->resizeEventHub.Reset();
+        instance->cameraIDAllocator = vke_ds::NaiveIDAllocator<vke_ds::id32_t>(1);
+        instance->currentCamera = std::numeric_limits<vke_ds::id32_t>::max();
+        for (auto &pass : instance->subPasses)
+            pass->Reset();
+        instance->lightManager->Reset();
+        instance->glyphManager.Reset();
+        // Keep frame-graph synchronization counters and the swapchain intact.
+        instance->hostCameraInfo = CameraInfo(0.1f, 1000.0f, glm::radians(60.0f), 1.0f,
+                                             glm::mat4(1.0f), glm::mat4(1.0f), glm::vec3(0.0f));
+        instance->cameraInfoUpdateCnt = MAX_FRAMES_IN_FLIGHT;
+    }
+
     void Renderer::initDescriptorSet()
     {
         std::vector<VkDescriptorSetLayoutBinding> bindingInfos;

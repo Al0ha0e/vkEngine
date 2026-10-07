@@ -33,6 +33,11 @@ namespace vke_audio
 
     AudioManager::~AudioManager()
     {
+        for (auto *sound : sounds)
+        {
+            ma_sound_uninit(sound);
+            delete sound;
+        }
         if (engine)
         {
             ma_engine_uninit(engine);
@@ -52,6 +57,55 @@ namespace vke_audio
     {
         delete instance;
         instance = nullptr;
+    }
+
+    ma_sound *AudioManager::LoadSound(const char *path, uint32_t flags)
+    {
+        if (GetEngine() == nullptr)
+            return nullptr;
+        auto *sound = new ma_sound;
+        const ma_result result = ma_sound_init_from_file(instance->engine, path, flags, nullptr, nullptr, sound);
+        if (result != MA_SUCCESS)
+        {
+            VKE_LOG_ERROR("AudioManager: failed to load '{}' (error {})", path, (int)result);
+            delete sound;
+            return nullptr;
+        }
+        instance->sounds.insert(sound);
+        return sound;
+    }
+
+    void AudioManager::ReleaseSound(ma_sound *sound)
+    {
+        if (instance == nullptr || instance->sounds.erase(sound) == 0)
+            return;
+        ma_sound_uninit(sound);
+        delete sound;
+    }
+
+    void AudioManager::Reset()
+    {
+        if (instance == nullptr || instance->engine == nullptr)
+            return;
+        auto *engine = instance->engine;
+        ma_engine_stop(engine);
+        for (auto *sound : instance->sounds)
+        {
+            ma_sound_uninit(sound);
+            delete sound;
+        }
+        instance->sounds.clear();
+        ma_engine_set_time_in_pcm_frames(engine, 0);
+        ma_engine_set_volume(engine, 1.0f);
+        for (ma_uint32 index = 0; index < ma_engine_get_listener_count(engine); ++index)
+        {
+            ma_engine_listener_set_position(engine, index, 0, 0, 0);
+            ma_engine_listener_set_direction(engine, index, 0, 0, -1);
+            ma_engine_listener_set_velocity(engine, index, 0, 0, 0);
+            ma_engine_listener_set_world_up(engine, index, 0, 1, 0);
+            ma_engine_listener_set_enabled(engine, index, MA_TRUE);
+        }
+        ma_engine_start(engine);
     }
 
     void AudioManager::Update(float deltaTime)

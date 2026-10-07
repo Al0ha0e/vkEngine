@@ -20,6 +20,13 @@ namespace vke_editor
 
         void SetSelectedEntity(entt::entity entity) { selectedEntity = entity; }
 
+        void Reset() override
+        {
+            selectedEntity = entt::null;
+            for (auto &buffer : vertexBuffers)
+                buffer.reset();
+        }
+
         void Init(int subpassID,
                   vke_render::FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,

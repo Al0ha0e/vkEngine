@@ -52,6 +52,7 @@ namespace vke_common
         void (*unloadEntities)(const entt::entity *, uint32_t);
 
         void (*unregisterComponentCallbacks)(entt::entity, int32_t);
+        void (*reset)();
 
         CSharpSceneManagerFunctions()
             : load(nullptr),
@@ -61,7 +62,8 @@ namespace vke_common
               lateUpdate(nullptr),
               unload(nullptr),
               unloadEntities(nullptr),
-              unregisterComponentCallbacks(nullptr) {}
+              unregisterComponentCallbacks(nullptr),
+              reset(nullptr) {}
     };
 
     struct CSharpExports
@@ -128,6 +130,11 @@ namespace vke_common
         static void Unload()
         {
             instance->csharpExports.sceneManagerFunctions.unload();
+        }
+
+        static void Reset()
+        {
+            instance->csharpExports.sceneManagerFunctions.reset();
         }
 
         static void UnloadEntities(const std::vector<entt::entity> &entities)

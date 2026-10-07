@@ -63,6 +63,15 @@ namespace vke_common
             vke_render::Renderer::Shutdown();
         }
 
+        // Call between frames. Resume explicitly after loading the next scene.
+        static void Reset()
+        {
+            SceneManager::Reset();
+            instance->fixedUpdateAccumulator = 0.0f;
+            InputManager::Reset();
+            TimeManager::Reset();
+        }
+
         static void WaitIdle()
         {
             vke_render::Renderer::WaitIdle();

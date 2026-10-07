@@ -128,6 +128,10 @@ namespace vke_common
             instance = nullptr;
         }
 
+        // Reset all scene systems at a main-thread frame boundary. Leaves simulation paused.
+        // No component UnloadFromEngine or script Unload/Dispose hooks are dispatched.
+        static void Reset();
+
         static SceneResult<void> Instantiate(
             const SceneData &data, const InstantiateOptions &options = {});
         static SceneResult<void> RequestInstantiate(AssetHandle prefab, const InstantiateOptions &options = {});

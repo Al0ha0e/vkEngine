@@ -21,6 +21,13 @@ namespace vke_render
                         const CameraInfo *cameraInfo);
         ~TransparentPass() override = default;
 
+        void Reset() override
+        {
+            units.clear();
+            materialStates.clear();
+            unitAllocator = vke_ds::NaiveIDAllocator<vke_ds::id64_t>(1);
+        }
+
         void Init(int subpassID, FrameGraph &frameGraph,
                   std::map<std::string, vke_ds::id32_t> &blackboard,
                   ResourceNodeIDMap &currentResourceNodeID) override;
@@ -32,6 +39,13 @@ namespace vke_render
     private:
         struct MaterialState
         {
+            ~MaterialState()
+            {
+                DescriptorSetAllocator::FreeDescriptorSet(commonDescriptorSet);
+                for (auto set : environmentDescriptorSets)
+                    DescriptorSetAllocator::FreeDescriptorSet(set);
+            }
+
             std::shared_ptr<Material> material;
             std::unique_ptr<GraphicsPipeline> pipeline;
             VkDescriptorSet commonDescriptorSet = VK_NULL_HANDLE;

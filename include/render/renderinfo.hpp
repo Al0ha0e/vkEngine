@@ -14,17 +14,27 @@ namespace vke_render
         std::vector<PushConstantInfo> pushConstantInfos;
         uint32_t perPrimitiveStart;
         VkDescriptorSet perUnitDescriptorSet;
+        bool ownsDescriptorSet = true;
         glm::mat4 modelMatrix{1.0f};
 
         RenderUnit() : perPrimitiveStart(0), perUnitDescriptorSet(nullptr) {}
 
-        RenderUnit(std::shared_ptr<const Mesh> &msh, const glm::mat4 &model, VkDescriptorSet descriptorSet = nullptr)
-            : mesh(msh), perPrimitiveStart(0), perUnitDescriptorSet(descriptorSet), modelMatrix(model) {}
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const glm::mat4 &model, VkDescriptorSet descriptorSet = nullptr, bool ownsDescriptorSet = true)
+            : mesh(msh), perPrimitiveStart(0), perUnitDescriptorSet(descriptorSet), ownsDescriptorSet(ownsDescriptorSet), modelMatrix(model) {}
 
         // Additional constants follow the model matrix at offset zero.
-        RenderUnit(std::shared_ptr<const Mesh> &msh, const glm::mat4 &model, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr)
+        RenderUnit(std::shared_ptr<const Mesh> &msh, const glm::mat4 &model, std::vector<PushConstantInfo> &&cInfos, uint32_t perPrimitiveStart, VkDescriptorSet descriptorSet = nullptr, bool ownsDescriptorSet = true)
             : mesh(msh), pushConstantInfos(std::move(cInfos)), perPrimitiveStart(std::min(perPrimitiveStart, (uint32_t)pushConstantInfos.size())),
-              perUnitDescriptorSet(descriptorSet), modelMatrix(model) {}
+              perUnitDescriptorSet(descriptorSet), ownsDescriptorSet(ownsDescriptorSet), modelMatrix(model) {}
+
+        RenderUnit(const RenderUnit &) = delete;
+        RenderUnit &operator=(const RenderUnit &) = delete;
+
+        ~RenderUnit()
+        {
+            if (ownsDescriptorSet)
+                DescriptorSetAllocator::FreeDescriptorSet(perUnitDescriptorSet);
+        }
 
         void Render(VkCommandBuffer &commandBuffer, VkPipelineLayout &pipelineLayout, int descriptorSetOffset)
         {
@@ -94,7 +104,10 @@ namespace vke_render
             }
         }
 
-        ~RenderInfo() {}
+        ~RenderInfo()
+        {
+            DescriptorSetAllocator::FreeDescriptorSet(commonDescriptorSet);
+        }
 
         void CreatePipeline(const std::vector<uint32_t> &vertexAttributeSizes,
                             VkVertexInputRate vertexInputRate,

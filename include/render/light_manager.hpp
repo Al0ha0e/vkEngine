@@ -45,6 +45,7 @@ namespace vke_render
         DirectionalLight *GetSun();
         uint32_t GetLightCnt(LightType type) const { return lightCnts[(int)type]; }
         void ClearLights();
+        void Reset() { ClearLights(); }
 
         template <AllowedLightType T, typename... Args>
         void AddLight(entt::entity entity, Args &&...args)

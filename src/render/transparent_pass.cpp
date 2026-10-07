@@ -105,7 +105,12 @@ namespace vke_render
             material->UpdateDescriptorSet(state->commonDescriptorSet);
         }
         for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+        {
             state->environmentDescriptorSets[frame] = material->shader->CreateDescriptorSet(3);
+            // Registration can happen after the frame graph's initial ready callbacks,
+            // including when rebuilding a scene after Reset. These LUTs already exist.
+            updateEnvironmentDescriptorSet(*state, frame);
+        }
         createGraphicsPipeline(*state);
         materialStates[key] = std::move(state);
     }
