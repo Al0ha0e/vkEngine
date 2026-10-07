@@ -2,6 +2,7 @@
 #define AUDIO_SOURCE_H
 
 #include <json_validation.hpp>
+#include <utility>
 #include <memory>
 #include <cstdint>
 #include <common.hpp>
@@ -113,7 +114,45 @@ namespace vke_component
         ma_sound *sound = nullptr;
         bool soundInitialized = false;
 
-        AudioSource() = default;
+        AudioSource(const AudioSource &) = delete;
+        AudioSource &operator=(const AudioSource &) = delete;
+
+        AudioSource(AudioSource &&other) noexcept
+            : clip(std::move(other.clip)),
+              playOnStart(other.playOnStart),
+              looping(other.looping),
+              volume(other.volume),
+              pitch(other.pitch),
+              spatializationEnabled(other.spatializationEnabled),
+              attenuationModel(other.attenuationModel),
+              rolloff(other.rolloff),
+              minDistance(other.minDistance),
+              maxDistance(other.maxDistance),
+              dopplerFactor(other.dopplerFactor),
+              sound(std::exchange(other.sound, nullptr)),
+              soundInitialized(std::exchange(other.soundInitialized, false)) {}
+
+        AudioSource &operator=(AudioSource &&other) noexcept
+        {
+            if (this != &other)
+            {
+                UnloadFromEngine();
+                clip = std::move(other.clip);
+                playOnStart = other.playOnStart;
+                looping = other.looping;
+                volume = other.volume;
+                pitch = other.pitch;
+                spatializationEnabled = other.spatializationEnabled;
+                attenuationModel = other.attenuationModel;
+                rolloff = other.rolloff;
+                minDistance = other.minDistance;
+                maxDistance = other.maxDistance;
+                dopplerFactor = other.dopplerFactor;
+                sound = std::exchange(other.sound, nullptr);
+                soundInitialized = std::exchange(other.soundInitialized, false);
+            }
+            return *this;
+        }
 
         AudioSource(const AudioSourceData &componentData)
             : clip(componentData.clip.Get()),
@@ -126,7 +165,10 @@ namespace vke_component
               rolloff(componentData.rolloff),
               minDistance(componentData.minDistance),
               maxDistance(componentData.maxDistance),
-              dopplerFactor(componentData.dopplerFactor) {}
+              dopplerFactor(componentData.dopplerFactor)
+        {
+            initializeSound();
+        }
 
         void FillData(AudioSourceData &data) const
         {
@@ -143,54 +185,6 @@ namespace vke_component
             data.dopplerFactor = dopplerFactor;
         }
 
-        void LoadToEngine()
-        {
-            if (soundInitialized)
-                return;
-
-            if (!clip || !clip->IsValid())
-            {
-                VKE_LOG_WARN("AudioSource::LoadToEngine: invalid clip (asset {})", clip ? clip->handle : 0);
-                return;
-            }
-
-            ma_engine *engine = vke_audio::AudioManager::GetEngine();
-            if (engine == nullptr)
-            {
-                VKE_LOG_ERROR("AudioSource::LoadToEngine: AudioManager not initialized");
-                return;
-            }
-
-            ma_uint32 flags = MA_SOUND_FLAG_DECODE;
-            if (!spatializationEnabled)
-                flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;
-
-            sound = vke_audio::AudioManager::LoadSound(clip->path.c_str(), flags);
-            if (sound == nullptr)
-            {
-                soundInitialized = false;
-                return;
-            }
-
-            ma_sound_set_looping(sound, looping);
-            ma_sound_set_volume(sound, volume);
-            ma_sound_set_pitch(sound, pitch);
-
-            if (spatializationEnabled)
-            {
-                ma_sound_set_attenuation_model(sound, (ma_attenuation_model)attenuationModel);
-                ma_sound_set_rolloff(sound, rolloff);
-                ma_sound_set_min_distance(sound, minDistance);
-                ma_sound_set_max_distance(sound, maxDistance);
-                ma_sound_set_doppler_factor(sound, dopplerFactor);
-            }
-
-            if (playOnStart)
-                ma_sound_start(sound);
-
-            soundInitialized = true;
-        }
-
         void UnloadFromEngine()
         {
             if (soundInitialized && sound != nullptr)
@@ -199,6 +193,14 @@ namespace vke_component
                 sound = nullptr;
                 soundInitialized = false;
             }
+        }
+
+        void SetClip(std::shared_ptr<vke_audio::AudioClip> newClip)
+        {
+            UnloadFromEngine();
+            clip = std::move(newClip);
+            if (clip && clip->IsValid())
+                initializeSound();
         }
 
         void Play()
@@ -331,6 +333,52 @@ namespace vke_component
                 ma_uint64 frame = (ma_uint64)(seconds * sampleRate);
                 ma_sound_seek_to_pcm_frame(sound, frame);
             }
+        }
+
+    private:
+        void initializeSound()
+        {
+            if (!clip || !clip->IsValid())
+            {
+                VKE_LOG_WARN("AudioSource::initializeSound: invalid clip (asset {})", clip ? clip->handle : 0);
+                return;
+            }
+
+            ma_engine *engine = vke_audio::AudioManager::GetEngine();
+            if (engine == nullptr)
+            {
+                VKE_LOG_ERROR("AudioSource::initializeSound: AudioManager not initialized");
+                return;
+            }
+
+            ma_uint32 flags = MA_SOUND_FLAG_DECODE;
+            if (!spatializationEnabled)
+                flags |= MA_SOUND_FLAG_NO_SPATIALIZATION;
+
+            sound = vke_audio::AudioManager::LoadSound(clip->path.c_str(), flags);
+            if (sound == nullptr)
+            {
+                soundInitialized = false;
+                return;
+            }
+
+            ma_sound_set_looping(sound, looping);
+            ma_sound_set_volume(sound, volume);
+            ma_sound_set_pitch(sound, pitch);
+
+            if (spatializationEnabled)
+            {
+                ma_sound_set_attenuation_model(sound, (ma_attenuation_model)attenuationModel);
+                ma_sound_set_rolloff(sound, rolloff);
+                ma_sound_set_min_distance(sound, minDistance);
+                ma_sound_set_max_distance(sound, maxDistance);
+                ma_sound_set_doppler_factor(sound, dopplerFactor);
+            }
+
+            if (playOnStart)
+                ma_sound_start(sound);
+
+            soundInitialized = true;
         }
     };
 }

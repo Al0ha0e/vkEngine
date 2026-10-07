@@ -15,10 +15,7 @@ namespace vke_editor
 
     static void SetAudioClip(vke_component::AudioSource &source, vke_common::AssetHandle handle)
     {
-        source.UnloadFromEngine();
-        source.clip = handle == 0 ? nullptr : vke_common::AssetManager::LoadAudioClip(handle);
-        if (source.clip && source.clip->IsValid())
-            source.LoadToEngine();
+        source.SetClip(handle == 0 ? nullptr : vke_common::AssetManager::LoadAudioClip(handle));
     }
 
     void Editor::drawAudioSourceComponent()

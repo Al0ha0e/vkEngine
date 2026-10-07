@@ -96,7 +96,7 @@ namespace vke_common
     {
         auto view = registry.view<const GameObject>();
         std::vector<entt::entity> entities;
-        entities.reserve(view.size_hint());
+        entities.reserve(view.size());
         for (const entt::entity entity : view)
             entities.push_back(entity);
         return exportEntities(entities);

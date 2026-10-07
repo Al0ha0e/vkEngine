@@ -2,6 +2,7 @@
 #define SENSOR_H
 
 #include <json_validation.hpp>
+#include <utility>
 #include <physics/shape.hpp>
 #include <component/transform.hpp>
 #include <Jolt/Physics/Body/BodyLock.h>
@@ -46,8 +47,24 @@ namespace vke_component
     public:
         JPH::BodyID bodyID;
 
-        void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
-                          const SensorData &data)
+        Sensor(const Sensor &) = delete;
+        Sensor &operator=(const Sensor &) = delete;
+
+        Sensor(Sensor &&other) noexcept
+            : bodyID(std::exchange(other.bodyID, JPH::BodyID{})) {}
+
+        Sensor &operator=(Sensor &&other) noexcept
+        {
+            if (this != &other)
+            {
+                UnloadFromEngine();
+                bodyID = std::exchange(other.bodyID, JPH::BodyID{});
+            }
+            return *this;
+        }
+
+        Sensor(entt::entity entity, const vke_common::Transform &transform,
+               const SensorData &data)
         {
             const vke_physics::PhyscisShape shape(data.shape);
             const glm::vec3 position = transform.GetGlobalPosition();

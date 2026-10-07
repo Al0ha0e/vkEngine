@@ -14,6 +14,9 @@ namespace vke_common
         GameObject(const GameObject &) = delete;
         GameObject &operator=(const GameObject &) = delete;
 
+        GameObject(GameObject &&) noexcept = default;
+        GameObject &operator=(GameObject &&) noexcept = default;
+
         GameObject(std::string &name, bool isStatic)
             : isStatic(isStatic), name(name) {}
 

@@ -185,32 +185,21 @@ namespace vke_common
         template <typename Component, typename Data>
         void addPreparedComponent(entt::entity entity, const Data &data)
         {
+            auto &transform = registry.get<Transform>(entity);
             if constexpr (std::is_empty_v<Component>)
             {
-                Component::LoadToEngine(entity, registry.get<Transform>(entity), data);
+                // EnTT does not construct empty tags. Register through a temporary first.
+                Component{entity, transform, data};
                 registry.emplace<Component>(entity);
             }
-            else if constexpr (requires(Component &component) { component.LoadToEngine(entity, registry.get<Transform>(entity), data); })
-            {
-                auto &component = registry.emplace<Component>(entity);
-                component.LoadToEngine(entity, registry.get<Transform>(entity), data);
-            }
+            else if constexpr (std::is_constructible_v<Component, entt::registry &, entt::entity, Transform &, const Data &>)
+                registry.emplace<Component>(entity, registry, entity, transform, data);
+            else if constexpr (std::is_constructible_v<Component, entt::entity, Transform &, const Data &>)
+                registry.emplace<Component>(entity, entity, transform, data);
+            else if constexpr (std::is_constructible_v<Component, Transform &, const Data &>)
+                registry.emplace<Component>(entity, transform, data);
             else
-            {
-                auto &component = [&]() -> Component &
-                {
-                    if constexpr (std::is_constructible_v<Component, Transform &, const Data &>)
-                        return registry.emplace<Component>(entity, registry.get<Transform>(entity), data);
-                    else
-                        return registry.emplace<Component>(entity, data);
-                }();
-                if constexpr (requires { component.LoadToEngine(registry, entity); })
-                    component.LoadToEngine(registry, entity);
-                else if constexpr (requires { component.LoadToEngine(entity); })
-                    component.LoadToEngine(entity);
-                else
-                    component.LoadToEngine();
-            }
+                registry.emplace<Component>(entity, data);
         }
 
         struct PreparedScript

@@ -73,14 +73,10 @@ namespace vke_component
         JPH::Vec3 desiredVelocity;
         float verticalVelocity;
 
-        CharacterController(const vke_common::Transform &transform,
-                            JPH::ObjectLayer layer,
-                            std::shared_ptr<vke_physics::PhyscisShape> &shape)
-            : shape(shape), settings(new JPH::CharacterVirtualSettings()), layer(layer),
-              desiredVelocity(JPH::Vec3::sZero()), verticalVelocity(0.0f)
-        {
-            init(transform);
-        }
+        CharacterController(const CharacterController &) = delete;
+        CharacterController &operator=(const CharacterController &) = delete;
+        CharacterController(CharacterController &&) noexcept = default;
+        CharacterController &operator=(CharacterController &&) noexcept = default;
 
         CharacterController(const vke_common::Transform &transform,
                             const CharacterControllerData &componentData)
@@ -96,7 +92,15 @@ namespace vke_component
             settings->mCharacterPadding = componentData.characterPadding;
             if (componentData.createInnerBody)
                 settings->mInnerBodyShape = shape->shapeRef;
-            init(transform);
+            settings->mShape = shape->shapeRef;
+            settings->mInnerBodyLayer = layer;
+
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            character = new JPH::CharacterVirtual(settings,
+                                                  JPH::RVec3(position.x, position.y, position.z),
+                                                  JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
+                                                  &vke_physics::PhysicsManager::GetPhysicsSystem());
         }
 
         ~CharacterController() {}
@@ -111,19 +115,6 @@ namespace vke_component
             data.characterPadding = settings->mCharacterPadding;
             data.createInnerBody = settings->mInnerBodyShape != nullptr;
             shape->FillData(data.shape);
-        }
-
-        void LoadToEngine()
-        {
-            if (character != nullptr)
-                return;
-
-            const glm::vec3 position = initialTransform.GetGlobalPosition();
-            const glm::quat rotation = initialTransform.GetGlobalRotation();
-            character = new JPH::CharacterVirtual(settings,
-                                                  JPH::RVec3(position.x, position.y, position.z),
-                                                  JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
-                                                  &vke_physics::PhysicsManager::GetPhysicsSystem());
         }
 
         void UnloadFromEngine()
@@ -185,16 +176,6 @@ namespace vke_component
             const glm::quat rotation = transform.GetGlobalRotation();
             character->SetPosition(JPH::RVec3(position.x, position.y, position.z));
             character->SetRotation(JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w));
-        }
-
-    private:
-        vke_common::Transform initialTransform;
-
-        void init(const vke_common::Transform &transform)
-        {
-            initialTransform = transform;
-            settings->mShape = shape->shapeRef;
-            settings->mInnerBodyLayer = layer;
         }
     };
 }

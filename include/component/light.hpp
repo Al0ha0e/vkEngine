@@ -83,8 +83,13 @@ namespace vke_component
     // Runtime tags only. LightManager owns all mutable light parameters, keyed by entity.
     struct DirectionalLight
     {
-        static void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
-                                 const DirectionalLightData &componentData)
+        DirectionalLight(const DirectionalLight &) = delete;
+        DirectionalLight &operator=(const DirectionalLight &) = delete;
+        DirectionalLight(DirectionalLight &&) noexcept = default;
+        DirectionalLight &operator=(DirectionalLight &&) noexcept = default;
+
+        DirectionalLight(entt::entity entity, const vke_common::Transform &transform,
+                         const DirectionalLightData &componentData)
         {
             glm::vec3 forward =
                 transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);
@@ -105,8 +110,13 @@ namespace vke_component
 
     struct PointLight
     {
-        static void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
-                                 const PointLightData &componentData)
+        PointLight(const PointLight &) = delete;
+        PointLight &operator=(const PointLight &) = delete;
+        PointLight(PointLight &&) noexcept = default;
+        PointLight &operator=(PointLight &&) noexcept = default;
+
+        PointLight(entt::entity entity, const vke_common::Transform &transform,
+                   const PointLightData &componentData)
         {
             vke_render::Renderer::GetInstance()->lightManager->AddLight<vke_render::PointLight>(
                 entity,
@@ -126,8 +136,13 @@ namespace vke_component
 
     struct SpotLight
     {
-        static void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
-                                 const SpotLightData &componentData)
+        SpotLight(const SpotLight &) = delete;
+        SpotLight &operator=(const SpotLight &) = delete;
+        SpotLight(SpotLight &&) noexcept = default;
+        SpotLight &operator=(SpotLight &&) noexcept = default;
+
+        SpotLight(entt::entity entity, const vke_common::Transform &transform,
+                  const SpotLightData &componentData)
         {
             glm::vec3 forward =
                 transform.GetGlobalRotation() * glm::vec3(0.0f, 0.0f, -1.0f);

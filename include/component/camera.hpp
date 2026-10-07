@@ -2,6 +2,7 @@
 #define CAMERA_COMPONENT_H
 
 #include <json_validation.hpp>
+#include <utility>
 #include <render/render.hpp>
 #include <render/buffer.hpp>
 #include <event.hpp>
@@ -62,22 +63,60 @@ namespace vke_component
         float height;
         vke_render::CameraInfo cameraInfo;
 
-        Camera(const vke_common::Transform &transform,
-               float fov, float width, float height,
-               float near, float far)
-            : id(0), cameraInfo(near, far, glm::radians(fov), width / height),
-              width(width), height(height), resizeListenerID(0)
+        Camera(const Camera &) = delete;
+        Camera &operator=(const Camera &) = delete;
+
+        Camera(Camera &&other) noexcept
+            : id(std::exchange(other.id, 0)),
+              width(other.width),
+              height(other.height),
+              cameraInfo(other.cameraInfo),
+              resizeListenerID(std::exchange(other.resizeListenerID, 0)) {}
+
+        Camera &operator=(Camera &&other) noexcept
         {
-            init(transform);
+            if (this != &other)
+            {
+                UnloadFromEngine();
+                id = std::exchange(other.id, 0);
+                width = other.width;
+                height = other.height;
+                cameraInfo = other.cameraInfo;
+                resizeListenerID = std::exchange(other.resizeListenerID, 0);
+            }
+            return *this;
         }
 
-        Camera(const vke_common::Transform &transform, const CameraData &componentData)
+        Camera(entt::registry &registry, entt::entity entity,
+               const vke_common::Transform &transform, const CameraData &componentData)
             : id(0),
               cameraInfo(componentData.nearPlane, componentData.farPlane,
                          componentData.fovRadians, componentData.aspect),
               width(componentData.width), height(componentData.height), resizeListenerID(0)
         {
-            init(transform);
+            const glm::vec3 position = transform.GetGlobalPosition();
+            const glm::quat rotation = transform.GetGlobalRotation();
+            const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+            cameraInfo.viewPos = glm::vec4(position, 0.0f);
+            cameraInfo.view = glm::lookAt(position, position + gfront, gup);
+            cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
+            cameraInfo.projection[1][1] *= -1;
+            cameraInfo.invView = glm::inverse(cameraInfo.view);
+            cameraInfo.invProjection = glm::inverse(cameraInfo.projection);
+
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            // Resolve the component at dispatch time: packed storage can relocate it.
+            resizeListenerID = renderer->resizeEventHub.AddEventListener(
+                nullptr, [&registry, entity](void *, glm::vec2 *size)
+                {
+                    if (auto *camera = registry.try_get<Camera>(entity))
+                        camera->UpdateProjection(size->x, size->y); });
+            id = vke_render::Renderer::RegisterCamera([&registry, entity]()
+                                                      {
+                    if (auto *camera = registry.try_get<Camera>(entity))
+                        camera->updateCameraInfo(); });
         }
 
         ~Camera() {}
@@ -92,26 +131,15 @@ namespace vke_component
             data.farPlane = cameraInfo.far;
         }
 
-        void LoadToEngine(entt::registry &registry, entt::entity entity)
-        {
-            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            // Resolve the component at dispatch time: packed storage can relocate it.
-            resizeListenerID = renderer->resizeEventHub.AddEventListener(
-                nullptr, [&registry, entity](void *, glm::vec2 *size)
-                {
-                    if (auto *camera = registry.try_get<Camera>(entity))
-                        camera->UpdateProjection(size->x, size->y); });
-            id = vke_render::Renderer::RegisterCamera([&registry, entity]()
-                                                      {
-                    if (auto *camera = registry.try_get<Camera>(entity))
-                        camera->updateCameraInfo(); });
-        }
-
         void UnloadFromEngine()
         {
+            if (id == 0)
+                return;
             vke_render::Renderer::RemoveCamera(id);
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderer->resizeEventHub.RemoveEventListener(resizeListenerID);
+            id = 0;
+            resizeListenerID = 0;
         }
 
         void OnTransformed(vke_common::Transform &transform)
@@ -141,21 +169,6 @@ namespace vke_component
 
     private:
         vke_ds::id32_t resizeListenerID;
-
-        void init(const vke_common::Transform &transform)
-        {
-            const glm::vec3 position = transform.GetGlobalPosition();
-            const glm::quat rotation = transform.GetGlobalRotation();
-            const glm::vec3 gfront = rotation * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            const glm::vec3 gup = rotation * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-
-            cameraInfo.viewPos = glm::vec4(position, 0.0f);
-            cameraInfo.view = glm::lookAt(position, position + gfront, gup);
-            cameraInfo.projection = glm::perspective(cameraInfo.fov, cameraInfo.aspect, cameraInfo.near, cameraInfo.far);
-            cameraInfo.projection[1][1] *= -1;
-            cameraInfo.invView = glm::inverse(cameraInfo.view);
-            cameraInfo.invProjection = glm::inverse(cameraInfo.projection);
-        }
 
         void updateCameraInfo()
         {

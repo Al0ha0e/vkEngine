@@ -35,18 +35,16 @@ namespace vke_component
 
         bool listenerLoaded = false;
 
-        AudioListener() = default;
+        AudioListener(const AudioListener &) = delete;
+        AudioListener &operator=(const AudioListener &) = delete;
+        AudioListener(AudioListener &&) noexcept = default;
+        AudioListener &operator=(AudioListener &&) noexcept = default;
 
-        AudioListener(const AudioListenerData &componentData) : enabled(componentData.enabled) {}
+        AudioListener(const AudioListenerData &componentData) : enabled(componentData.enabled), listenerLoaded(true) {}
 
         void FillData(AudioListenerData &data) const
         {
             data.enabled = enabled;
-        }
-
-        void LoadToEngine()
-        {
-            listenerLoaded = true;
         }
 
         void UnloadFromEngine()

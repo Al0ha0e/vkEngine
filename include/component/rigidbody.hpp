@@ -2,6 +2,7 @@
 #define RIGIDBODY_H
 
 #include <json_validation.hpp>
+#include <utility>
 #include <physics/shape.hpp>
 #include <component/transform.hpp>
 #include <Jolt/Physics/Body/BodyLock.h>
@@ -58,8 +59,32 @@ namespace vke_component
         bool hasMassOverride = false;
         float mass = 0.0f;
 
-        void LoadToEngine(entt::entity entity, const vke_common::Transform &transform,
-                          const RigidBodyData &data)
+        RigidBody(const RigidBody &) = delete;
+        RigidBody &operator=(const RigidBody &) = delete;
+
+        RigidBody(RigidBody &&other) noexcept
+            : bodyID(std::exchange(other.bodyID, JPH::BodyID{})),
+              hasMassOverride(other.hasMassOverride),
+              mass(other.mass),
+              staticMotionQuality(other.staticMotionQuality),
+              staticGravityFactor(other.staticGravityFactor) {}
+
+        RigidBody &operator=(RigidBody &&other) noexcept
+        {
+            if (this != &other)
+            {
+                UnloadFromEngine();
+                bodyID = std::exchange(other.bodyID, JPH::BodyID{});
+                hasMassOverride = other.hasMassOverride;
+                mass = other.mass;
+                staticMotionQuality = other.staticMotionQuality;
+                staticGravityFactor = other.staticGravityFactor;
+            }
+            return *this;
+        }
+
+        RigidBody(entt::entity entity, const vke_common::Transform &transform,
+                  const RigidBodyData &data)
         {
             const vke_physics::PhyscisShape shape(data.shape);
             const glm::vec3 position = transform.GetGlobalPosition();

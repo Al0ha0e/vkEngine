@@ -58,22 +58,15 @@ namespace vke_common
         entt::entity parent = entt::null;
         std::set<entt::entity> children;
 
-        Transform()
-            : model(1), localRotation(glm::vec3(0)), localPosition(0), localScale(1)
-        {
-            init();
-        }
+        Transform(const Transform &) = delete;
+        Transform &operator=(const Transform &) = delete;
+        Transform(Transform &&) noexcept = default;
+        Transform &operator=(Transform &&) noexcept = default;
 
         Transform(glm::vec3 pos, glm::vec3 scl, glm::quat rot)
             : localRotation(rot), localPosition(pos), localScale(scl)
         {
-            init();
-        }
-
-        Transform(const Transform &fa, glm::vec3 pos, glm::vec3 scl, glm::quat rot)
-            : localRotation(rot), localPosition(pos), localScale(scl)
-        {
-            initWithParent(fa);
+            calcModelMatrix();
         }
 
         Transform(const TransformData &componentData)
@@ -81,15 +74,7 @@ namespace vke_common
               localPosition(componentData.localPosition),
               localScale(componentData.localScale)
         {
-            init();
-        }
-
-        Transform(const Transform &fa, const TransformData &componentData)
-            : localRotation(componentData.localRotation),
-              localPosition(componentData.localPosition),
-              localScale(componentData.localScale)
-        {
-            initWithParent(fa);
+            calcModelMatrix();
         }
 
         void FillData(TransformData &data) const
@@ -286,11 +271,6 @@ namespace vke_common
             model = fa * glm::translate(glm::mat4(1.0f), localPosition) *
                     glm::mat4_cast(localRotation) *
                     glm::scale(glm::mat4(1.0f), localScale);
-        }
-
-        void init()
-        {
-            calcModelMatrix();
         }
 
         void initWithParent(const Transform &fa)

@@ -7,6 +7,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <utility>
 
 namespace vke_render
 {
@@ -21,17 +22,8 @@ namespace vke_component
         static constexpr vke_ds::id32_t INVALID_ID = std::numeric_limits<vke_ds::id32_t>::max();
 
         explicit UIComponent(const vke_common::Transform &transform,
-                             std::shared_ptr<vke_render::Material> material)
-            : modelMatrix(transform.model), material(std::move(material)) {}
-
-        virtual ~UIComponent() {}
-
-        UIComponent(const UIComponent &) = delete;
-        UIComponent &operator=(const UIComponent &) = delete;
-        UIComponent(UIComponent &&) = delete;
-        UIComponent &operator=(UIComponent &&) = delete;
-
-        void LoadToEngine()
+                             std::shared_ptr<vke_render::Material> componentMaterial)
+            : modelMatrix(transform.model), material(std::move(componentMaterial))
         {
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
 
@@ -47,6 +39,33 @@ namespace vke_component
 
             renderUnit = renderer->GetUnit(id);
             renderer->SetLayerOrder(spatialManager->GetLayerOrder());
+        }
+
+        virtual ~UIComponent() {}
+
+        UIComponent(const UIComponent &) = delete;
+        UIComponent &operator=(const UIComponent &) = delete;
+        UIComponent(UIComponent &&other) noexcept
+            : modelMatrix(other.modelMatrix),
+              material(std::move(other.material)),
+              glyphIDs(std::exchange(other.glyphIDs, {})),
+              id(std::exchange(other.id, INVALID_ID)),
+              localBounds(other.localBounds),
+              renderUnit(std::exchange(other.renderUnit, nullptr)) {}
+
+        UIComponent &operator=(UIComponent &&other) noexcept
+        {
+            if (this != &other)
+            {
+                UnloadFromEngine();
+                modelMatrix = other.modelMatrix;
+                material = std::move(other.material);
+                glyphIDs = std::exchange(other.glyphIDs, {});
+                id = std::exchange(other.id, INVALID_ID);
+                localBounds = other.localBounds;
+                renderUnit = std::exchange(other.renderUnit, nullptr);
+            }
+            return *this;
         }
 
         void UnloadFromEngine()

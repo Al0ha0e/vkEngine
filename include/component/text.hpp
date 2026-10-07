@@ -73,24 +73,16 @@ namespace vke_component
     class UIText : public UIComponent
     {
     public:
-        UIText(const vke_common::Transform &transform, std::string text,
-               const glm::vec4 &color = glm::vec4(1.0f),
-               std::shared_ptr<vke_render::Material> material = nullptr)
-            : UIComponent(transform, std::move(material)), text(std::move(text)), color(color),
-              font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
-        {
-        }
+        UIText(const UIText &) = delete;
+        UIText &operator=(const UIText &) = delete;
+        UIText(UIText &&) noexcept = default;
+        UIText &operator=(UIText &&) noexcept = default;
 
         UIText(const vke_common::Transform &transform, const UITextData &componentData)
             : UIComponent(transform, componentData.material.Get()),
               text(componentData.text), color(componentData.color),
               font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
         {
-        }
-
-        void LoadToEngine()
-        {
-            UIComponent::LoadToEngine();
             rebuild();
         }
 

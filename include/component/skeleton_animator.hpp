@@ -3,6 +3,7 @@
 
 #include <json_validation.hpp>
 #include <algorithm>
+#include <utility>
 #include <time.hpp>
 #include <component/transform.hpp>
 #include <scene_transform_system.hpp>
@@ -214,20 +215,64 @@ namespace vke_component
         std::unique_ptr<vke_render::RenderUnit> renderUnit;
         std::unique_ptr<vke_render::RenderUnit> shadowRenderUnit;
         bool castsShadow;
-        SkeletonAnimator(
-            vke_common::Transform &transform,
-            std::shared_ptr<vke_render::Material> &mat,
-            std::shared_ptr<const vke_render::Mesh> &mesh,
-            std::shared_ptr<vke_common::Skeleton> &skeleton,
-            std::shared_ptr<vke_common::Animation> &animation)
-            : material(mat), skeleton(skeleton),
-              castsShadow(true), shadowRenderID(0)
+        // The render update callback captures this. Keep EnTT storage addresses stable.
+        static constexpr bool in_place_delete = true;
+
+        SkeletonAnimator(const SkeletonAnimator &) = delete;
+        SkeletonAnimator &operator=(const SkeletonAnimator &) = delete;
+
+        SkeletonAnimator(SkeletonAnimator &&other) noexcept
+            : material(std::move(other.material)),
+              skeleton(std::move(other.skeleton)),
+              animations(std::move(other.animations)),
+              renderUnit(std::move(other.renderUnit)),
+              shadowRenderUnit(std::move(other.shadowRenderUnit)),
+              castsShadow(other.castsShadow),
+              renderID(other.renderID),
+              shadowRenderID(std::exchange(other.shadowRenderID, 0)),
+              ownerRegistry(std::exchange(other.ownerRegistry, nullptr)),
+              ownerEntity(std::exchange(other.ownerEntity, entt::null)),
+              blendedLocals(std::move(other.blendedLocals)),
+              models(std::move(other.models)),
+              skinningMatrices(std::move(other.skinningMatrices)),
+              descriptorSets(std::exchange(other.descriptorSets, {})),
+              skeletonBuffers(std::move(other.skeletonBuffers))
         {
-            AddAnimation(animation, 1.0f, 1.0f, 0.0f, true);
-            init(transform, mesh);
+            bindRenderUpdateCallback();
         }
 
-        SkeletonAnimator(vke_common::Transform &transform, const SkeletonAnimatorData &componentData)
+        SkeletonAnimator &operator=(SkeletonAnimator &&other) noexcept
+        {
+            if (this != &other)
+            {
+                if (renderUnit)
+                {
+                    vke_render::Renderer::WaitIdle();
+                    UnloadFromEngine();
+                }
+                releaseDescriptorSets();
+                material = std::move(other.material);
+                skeleton = std::move(other.skeleton);
+                animations = std::move(other.animations);
+                renderUnit = std::move(other.renderUnit);
+                shadowRenderUnit = std::move(other.shadowRenderUnit);
+                castsShadow = other.castsShadow;
+                renderID = other.renderID;
+                shadowRenderID = std::exchange(other.shadowRenderID, 0);
+                ownerRegistry = std::exchange(other.ownerRegistry, nullptr);
+                ownerEntity = std::exchange(other.ownerEntity, entt::null);
+                blendedLocals = std::move(other.blendedLocals);
+                models = std::move(other.models);
+                skinningMatrices = std::move(other.skinningMatrices);
+                descriptorSets = std::exchange(other.descriptorSets, {});
+                skeletonBuffers = std::move(other.skeletonBuffers);
+                bindRenderUpdateCallback();
+            }
+            return *this;
+        }
+
+        SkeletonAnimator(entt::registry &registry, entt::entity entity,
+                         vke_common::Transform &transform, const SkeletonAnimatorData &componentData)
             : material(componentData.material.Get()), skeleton(componentData.skeleton.Get()),
               castsShadow(componentData.castsShadow),
               shadowRenderID(0)
@@ -236,13 +281,72 @@ namespace vke_component
                 AddAnimation(animation.animation.Get(), animation.weight, animation.playbackSpeed,
                              animation.timeRatio, animation.loop, animation.playing);
             std::shared_ptr<const vke_render::Mesh> mesh = componentData.mesh.Get();
-            init(transform, mesh);
+            int numSOAJoints = skeleton->skeleton.num_soa_joints();
+            int numJoints = skeleton->skeleton.num_joints();
+            blendedLocals.resize(numSOAJoints);
+            models.resize(numJoints);
+            for (AnimationState &state : animations)
+            {
+                state.locals.resize(numSOAJoints);
+                state.context->Resize(numJoints);
+            }
+            skinningMatrices.resize(mesh->joints.size());
+
+            for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
+                skeletonBuffers.emplace_back(sizeof(float) * 16 * MAX_BONE_PER_SKELETON, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+
+            VkDescriptorSetLayoutBinding layoutBinding{};
+            layoutBinding.binding = 0;
+            layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            layoutBinding.descriptorCount = 1;
+            layoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+            vke_render::DescriptorSetInfo descriptorSetInfo;
+            descriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
+
+            VkDescriptorSetLayoutCreateInfo layoutInfo{};
+            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layoutInfo.bindingCount = 1;
+            layoutInfo.pBindings = &layoutBinding;
+            vkCreateDescriptorSetLayout(vke_render::globalLogicalDevice, &layoutInfo, nullptr, &(descriptorSetInfo.layout));
+
+            descriptorSets.resize(vke_render::MAX_FRAMES_IN_FLIGHT);
+            for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
+                descriptorSets[i] = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
+
+            VkWriteDescriptorSet descriptorSetWrite{};
+            for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
+            {
+                VkDescriptorBufferInfo bufferInfo = skeletonBuffers[i].GetDescriptorBufferInfo();
+                vke_render::ConstructDescriptorSetWrite(descriptorSetWrite, descriptorSets[i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
+                vkUpdateDescriptorSets(vke_render::globalLogicalDevice, 1, &descriptorSetWrite, 0, nullptr);
+            }
+
+            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0], false);
+            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0], false);
+
+            const auto &names = skeleton->skeleton.joint_names();
+            for (auto &n : names)
+            {
+                std::cout << std::string(n) << "\n";
+            }
+
+            ownerRegistry = &registry;
+            ownerEntity = entity;
+            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
+            renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
+            if (castsShadow)
+            {
+                vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
+                if (shadowPass != nullptr)
+                    shadowRenderID = shadowPass->AddUnit(shadowRenderUnit.get(), true);
+            }
+            bindRenderUpdateCallback();
         }
 
         ~SkeletonAnimator()
         {
-            for (auto set : descriptorSets)
-                vke_render::DescriptorSetAllocator::FreeDescriptorSet(set);
+            releaseDescriptorSets();
         }
 
         void OnTransformed(const vke_common::Transform &transform)
@@ -270,21 +374,6 @@ namespace vke_component
                 animationData.loop = state.loop;
                 data.animations.push_back(std::move(animationData));
             }
-        }
-
-        void LoadToEngine(entt::registry &registry, entt::entity entity)
-        {
-            ownerRegistry = &registry;
-            ownerEntity = entity;
-            vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
-            renderID = renderer->GetGBufferPass()->AddUnit(material, renderUnit.get(), true);
-            if (castsShadow)
-            {
-                vke_render::ShadowPass *shadowPass = renderer->GetShadowPass();
-                if (shadowPass != nullptr)
-                    shadowRenderID = shadowPass->AddUnit(shadowRenderUnit.get(), true);
-            }
-            renderer->AddRenderUpdateCallback(renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
         }
 
         void UnloadFromEngine()
@@ -399,6 +488,19 @@ namespace vke_component
         }
 
     private:
+        void bindRenderUpdateCallback()
+        {
+            vke_render::Renderer::AddRenderUpdateCallback(
+                renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
+        }
+
+        void releaseDescriptorSets()
+        {
+            for (auto set : descriptorSets)
+                vke_render::DescriptorSetAllocator::FreeDescriptorSet(set);
+            descriptorSets.clear();
+        }
+
         vke_ds::id64_t renderID;
         vke_ds::id64_t shadowRenderID;
 
@@ -479,59 +581,6 @@ namespace vke_component
             {
                 const auto rotation = ownerRegistry->get<vke_common::Transform>(ownerEntity).localRotation;
                 transforms.SetLocalRotation(ownerEntity, glm::normalize(rotation * localDeltaRotation));
-            }
-        }
-
-        void init(vke_common::Transform &transform, std::shared_ptr<const vke_render::Mesh> &mesh)
-        {
-            int numSOAJoints = skeleton->skeleton.num_soa_joints();
-            int numJoints = skeleton->skeleton.num_joints();
-            blendedLocals.resize(numSOAJoints);
-            models.resize(numJoints);
-            for (AnimationState &state : animations)
-            {
-                state.locals.resize(numSOAJoints);
-                state.context->Resize(numJoints);
-            }
-            skinningMatrices.resize(mesh->joints.size());
-
-            for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
-                skeletonBuffers.emplace_back(sizeof(float) * 16 * MAX_BONE_PER_SKELETON, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-
-            VkDescriptorSetLayoutBinding layoutBinding{};
-            layoutBinding.binding = 0;
-            layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            layoutBinding.descriptorCount = 1;
-            layoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
-
-            vke_render::DescriptorSetInfo descriptorSetInfo;
-            descriptorSetInfo.AddCnt(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1);
-
-            VkDescriptorSetLayoutCreateInfo layoutInfo{};
-            layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            layoutInfo.bindingCount = 1;
-            layoutInfo.pBindings = &layoutBinding;
-            vkCreateDescriptorSetLayout(vke_render::globalLogicalDevice, &layoutInfo, nullptr, &(descriptorSetInfo.layout));
-
-            descriptorSets.resize(vke_render::MAX_FRAMES_IN_FLIGHT);
-            for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
-                descriptorSets[i] = vke_render::DescriptorSetAllocator::AllocateDescriptorSet(descriptorSetInfo);
-
-            VkWriteDescriptorSet descriptorSetWrite{};
-            for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
-            {
-                VkDescriptorBufferInfo bufferInfo = skeletonBuffers[i].GetDescriptorBufferInfo();
-                vke_render::ConstructDescriptorSetWrite(descriptorSetWrite, descriptorSets[i], 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, &bufferInfo);
-                vkUpdateDescriptorSets(vke_render::globalLogicalDevice, 1, &descriptorSetWrite, 0, nullptr);
-            }
-
-            renderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0], false);
-            shadowRenderUnit = std::make_unique<vke_render::RenderUnit>(mesh, transform.model, descriptorSets[0], false);
-
-            const auto &names = skeleton->skeleton.joint_names();
-            for (auto &n : names)
-            {
-                std::cout << std::string(n) << "\n";
             }
         }
 
