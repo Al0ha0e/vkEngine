@@ -150,6 +150,9 @@ namespace vke_common
                 return loaded;
         }
         addPreparedComponent<Component>(entity, data);
+        if constexpr (requires(Component &c) { c.Start(); })
+            if (IsRunning())
+                registry.get<Component>(entity).Start();
         return {};
     }
 
@@ -285,17 +288,15 @@ namespace vke_common
         {
             if (auto *component = registry.try_get<Component>(entity))
             {
-                component->UnloadFromEngine();
+                component->Unload();
                 registry.remove<Component>(entity);
             }
         };
-        auto removeLight = [&]<typename Component, typename Light>()
+        auto removeLight = [&]<typename Component>()
         {
             if (!registry.all_of<Component>(entity))
                 return;
-            auto *lights = vke_render::Renderer::GetInstance()->lightManager.get();
-            if (lights->HasLight<Light>(entity))
-                lights->RemoveLight<Light>(entity);
+            Component::Unload(entity);
             registry.remove<Component>(entity);
         };
         switch (componentType)
@@ -319,13 +320,13 @@ namespace vke_common
             remove.operator()<vke_component::CharacterController>();
             break;
         case ComponentType::DirectionalLight:
-            removeLight.operator()<vke_component::DirectionalLight, vke_render::DirectionalLight>();
+            removeLight.operator()<vke_component::DirectionalLight>();
             break;
         case ComponentType::PointLight:
-            removeLight.operator()<vke_component::PointLight, vke_render::PointLight>();
+            removeLight.operator()<vke_component::PointLight>();
             break;
         case ComponentType::SpotLight:
-            removeLight.operator()<vke_component::SpotLight, vke_render::SpotLight>();
+            removeLight.operator()<vke_component::SpotLight>();
             break;
         case ComponentType::UIText:
             remove.operator()<vke_component::UIText>();

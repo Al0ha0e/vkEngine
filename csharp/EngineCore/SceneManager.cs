@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace vkEngine.EngineCore
 {
@@ -17,6 +18,8 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged<UInt32*, UInt32, void> UnloadEntities;
         public delegate* unmanaged<UInt32, Int32, void> UnregisterComponentCallbacks;
         public delegate* unmanaged<void> Reset;
+        public delegate* unmanaged<UInt32, void*, delegate* unmanaged<void*, byte*, byte*, Int32, void>, Int32> FillData;
+        public delegate* unmanaged<void> StartAll;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -43,7 +46,6 @@ namespace vkEngine.EngineCore
     {
         private const string GameAssemblyName = "Game";
         private static readonly Dictionary<UInt32, HashSet<EntityScript>> scriptsByEntity = new();
-        private static readonly Dictionary<UInt32, List<EntityScript>> startScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> updateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> fixedUpdateScripts = new();
         private static readonly Dictionary<UInt32, List<EntityScript>> lateUpdateScripts = new();
@@ -51,6 +53,44 @@ namespace vkEngine.EngineCore
         private unsafe delegate EntityScript BinaryParser(
             string className, UInt32 entity, byte* data, Int32 dataSize);
         private static BinaryParser? binaryParser;
+        private static Func<EntityScript, byte[]>? binaryWriter;
+
+        internal static EntityScriptData FillData(EntityScript script)
+        {
+            binaryWriter ??= GetGameAssembly().GetType("vkEngine.Generated.EntityScriptBinaryReaders", true)!
+                .GetMethod("FillData", BindingFlags.Public | BindingFlags.Static)!
+                .CreateDelegate<Func<EntityScript, byte[]>>();
+            return new EntityScriptData(script.GetType().FullName!, binaryWriter(script));
+        }
+
+        // Buffers are borrowed only for the synchronous callback. No pinned memory escapes.
+        [UnmanagedCallersOnly]
+        public static unsafe Int32 ExportEntity(UInt32 entity, void* context,
+            delegate* unmanaged<void*, byte*, byte*, Int32, void> receive)
+        {
+            if (receive == null) return 0;
+            try
+            {
+                if (!scriptsByEntity.TryGetValue(entity, out var scripts)) return 1;
+                var snapshots = new List<EntityScriptData>();
+                foreach (var script in new List<EntityScript>(scripts))
+                    if (script.State is not (ScriptState.Unloading or ScriptState.Unloaded) && IsRegistered(script))
+                        snapshots.Add(script.FillData());
+                foreach (var snapshot in snapshots)
+                {
+                    byte[] name = Encoding.UTF8.GetBytes(snapshot.ClassName + "\0");
+                    fixed (byte* className = name)
+                    fixed (byte* data = snapshot.Data)
+                        receive(context, className, data, snapshot.Data.Length);
+                }
+                return 1;
+            }
+            catch (Exception error)
+            {
+                Console.Error.WriteLine($"Entity {entity} export failed: {error}");
+                return 0;
+            }
+        }
 
         public static unsafe void DestroyEntity(UInt32 entity)
         {
@@ -75,18 +115,28 @@ namespace vkEngine.EngineCore
             if (data == null || cnt == 0)
                 return;
 
-            BinaryParser parser = GetBinaryParser();
-
             for (UInt32 i = 0; i < cnt; i++)
             {
                 ref ScriptLoadData state = ref data[i];
                 string? className = Marshal.PtrToStringUTF8((nint)state.ClassName);
                 if (string.IsNullOrWhiteSpace(className))
                     throw new InvalidOperationException("Script className is missing.");
-                EntityScript script = parser(
+                if (state.DataSize < 0 || (state.Data == null && state.DataSize != 0))
+                    throw new InvalidOperationException("Invalid script data buffer.");
+                // Parse synchronously while the native buffer is valid; no pointer is retained.
+                EntityScript script = GetBinaryParser()(
                     className, state.Entity, state.Data, state.DataSize);
                 Register(script);
             }
+        }
+
+        [UnmanagedCallersOnly]
+        public static void StartAll()
+        {
+            var pending = new List<EntityScript>();
+            foreach (var scripts in scriptsByEntity.Values)
+                pending.AddRange(scripts);
+            StartScripts(pending);
         }
 
         [UnmanagedCallersOnly]
@@ -95,7 +145,24 @@ namespace vkEngine.EngineCore
             if (entities == null || cnt == 0)
                 return;
 
-            Dispatch(startScripts, entities, cnt, script => script.Start());
+            var pending = new List<EntityScript>();
+            for (UInt32 i = 0; i < cnt; ++i)
+                if (scriptsByEntity.TryGetValue(entities[i], out var scripts))
+                    pending.AddRange(scripts);
+            StartScripts(pending);
+        }
+
+        // Snapshot before callbacks so lifecycle dispatch does not enumerate live collections.
+        private static void StartScripts(List<EntityScript> pending)
+        {
+            foreach (var script in pending)
+                if (IsRegistered(script) && script.TryBeginStart())
+                {
+                    if (script.LifecycleMask.HasFlag(ScriptLifecycleMask.Start))
+                        Invoke(script, s => s.Start());
+                    // Preserve the existing policy: a failed Start still permits updates.
+                    script.MarkStarted();
+                }
         }
 
         [UnmanagedCallersOnly]
@@ -128,7 +195,7 @@ namespace vkEngine.EngineCore
             Console.WriteLine("SceneManager.Unload");
         }
 
-        // Bulk reset at a frame boundary: do not execute user Unload/Dispose hooks.
+        // Bulk reset at a frame boundary: do not execute user Unload hooks.
         [UnmanagedCallersOnly]
         public static void Reset()
         {
@@ -163,24 +230,13 @@ namespace vkEngine.EngineCore
                 var scripts = new List<EntityScript>(registered);
                 foreach (var script in scripts)
                 {
-                    if (!script.TryBeginUnload())
-                        continue;
-                    try { script.Unload(); }
-                    catch (Exception error) { Console.Error.WriteLine($"Entity {entity} Unload failed: {error}"); }
+                    UnloadScript(script);
                 }
 
-                // Remove whole entries before Dispose, which otherwise removes each script from each list.
                 scriptsByEntity.Remove(entity);
-                startScripts.Remove(entity);
                 updateScripts.Remove(entity);
                 fixedUpdateScripts.Remove(entity);
                 lateUpdateScripts.Remove(entity);
-
-                foreach (var script in scripts)
-                {
-                    try { script.Dispose(); }
-                    catch (Exception error) { Console.Error.WriteLine($"Entity {entity} Dispose failed: {error}"); }
-                }
             }
             RigidBody.UnregisterEntity(entity);
             Sensor.UnregisterEntity(entity);
@@ -198,13 +254,15 @@ namespace vkEngine.EngineCore
                 Unload = &Unload,
                 UnloadEntities = &UnloadEntities,
                 UnregisterComponentCallbacks = &UnregisterComponentCallbacks,
-                Reset = &Reset
+                Reset = &Reset,
+                FillData = &ExportEntity,
+                StartAll = &StartAll
             };
         }
 
         internal static void Register(EntityScript script)
         {
-            if (script == null || script.IsDisposed || script.IsUnloading)
+            if (script == null || script.State is ScriptState.Unloading or ScriptState.Unloaded)
                 return;
 
             if (!scriptsByEntity.TryGetValue(script.Entity, out var scripts))
@@ -220,30 +278,12 @@ namespace vkEngine.EngineCore
             if (mask == ScriptLifecycleMask.None)
                 return;
 
-            if (mask.HasFlag(ScriptLifecycleMask.Start))
-                Add(script, startScripts);
             if (mask.HasFlag(ScriptLifecycleMask.Update))
                 Add(script, updateScripts);
             if (mask.HasFlag(ScriptLifecycleMask.FixedUpdate))
                 Add(script, fixedUpdateScripts);
             if (mask.HasFlag(ScriptLifecycleMask.LateUpdate))
                 Add(script, lateUpdateScripts);
-        }
-
-        internal static void Unregister(EntityScript script)
-        {
-            if (script == null ||
-                !scriptsByEntity.TryGetValue(script.Entity, out var scripts) ||
-                !scripts.Remove(script))
-                return;
-
-            if (scripts.Count == 0)
-                scriptsByEntity.Remove(script.Entity);
-
-            Remove(script, startScripts);
-            Remove(script, updateScripts);
-            Remove(script, fixedUpdateScripts);
-            Remove(script, lateUpdateScripts);
         }
 
         private static void Add(EntityScript script, Dictionary<UInt32, List<EntityScript>> map)
@@ -257,52 +297,34 @@ namespace vkEngine.EngineCore
             scripts.Add(script);
         }
 
-        private static void Remove(EntityScript script, Dictionary<UInt32, List<EntityScript>> map)
-        {
-            if (!map.TryGetValue(script.Entity, out var scripts))
-                return;
-
-            for (int i = 0; i < scripts.Count; i++)
-            {
-                if (!ReferenceEquals(scripts[i], script))
-                    continue;
-
-                scripts.RemoveAt(i);
-                if (scripts.Count == 0)
-                    map.Remove(script.Entity);
-                return;
-            }
-        }
-
         private static void Dispatch(Dictionary<UInt32, List<EntityScript>> map, Action<EntityScript> callback)
         {
             foreach (var script in CollectScripts(map))
             {
                 if (CanDispatch(script))
-                    callback(script);
+                    Invoke(script, callback);
             }
         }
 
-        private unsafe static void Dispatch(
-            Dictionary<UInt32, List<EntityScript>> map,
-            UInt32* entities,
-            UInt32 cnt,
-            Action<EntityScript> callback)
+        private static void UnloadScript(EntityScript script)
         {
-            var scripts = new List<EntityScript>();
-            for (UInt32 i = 0; i < cnt; i++)
+            if (IsRegistered(script) && script.TryBeginUnload())
             {
-                if (map.TryGetValue(entities[i], out var entityScripts))
-                    scripts.AddRange(entityScripts);
+                if (script.LifecycleMask.HasFlag(ScriptLifecycleMask.Unload))
+                    Invoke(script, s => s.Unload());
+                script.MarkUnloaded();
             }
-
-            foreach (var script in scripts)
-                if (CanDispatch(script))
-                    callback(script);
         }
 
-        private static bool CanDispatch(EntityScript script) =>
-            !script.IsDisposed && !script.IsUnloading &&
+        private static void Invoke(EntityScript script, Action<EntityScript> callback)
+        {
+            try { callback(script); }
+            catch (Exception error) { Console.Error.WriteLine($"Entity {script.Entity} lifecycle callback failed: {error}"); }
+        }
+
+        private static bool CanDispatch(EntityScript script) => script.State == ScriptState.Started && IsRegistered(script);
+
+        private static bool IsRegistered(EntityScript script) =>
             scriptsByEntity.TryGetValue(script.Entity, out var scripts) && scripts.Contains(script);
 
         private static List<EntityScript> CollectScripts(Dictionary<UInt32, List<EntityScript>> map)
@@ -319,8 +341,10 @@ namespace vkEngine.EngineCore
 
         private static void ClearScriptCollections()
         {
+            foreach (var scripts in scriptsByEntity.Values)
+                foreach (var script in scripts)
+                    script.MarkUnloaded();
             scriptsByEntity.Clear();
-            startScripts.Clear();
             updateScripts.Clear();
             fixedUpdateScripts.Clear();
             lateUpdateScripts.Clear();

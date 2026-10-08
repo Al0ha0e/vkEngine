@@ -129,7 +129,7 @@ namespace vke_component
                 if (renderUnit)
                 {
                     vke_render::Renderer::WaitIdle();
-                    UnloadFromEngine();
+                    Unload();
                 }
                 material = std::move(other.material);
                 textureIndices = std::move(other.textureIndices);
@@ -174,7 +174,7 @@ namespace vke_component
             data.castsShadow = castsShadow;
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             unloadFromEngine(material, castsShadow);
         }

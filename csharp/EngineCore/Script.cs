@@ -35,19 +35,46 @@ namespace vkEngine.EngineCore
         void Unload();
     }
 
-    public abstract unsafe class EntityScript : IDisposable, IScriptLifecycle
+    // Owned snapshot of exported fields, using the generated binary schema.
+    public sealed record EntityScriptData(string ClassName, byte[] Data);
+
+    internal enum ScriptState
+    {
+        NotStarted,
+        Starting,
+        Started,
+        Unloading,
+        Unloaded
+    }
+
+    public abstract unsafe class EntityScript : IScriptLifecycle
     {
         private readonly ScriptLifecycleMask lifecycleMask;
         public ScriptLifecycleMask LifecycleMask { get { return lifecycleMask; } }
-        private bool disposed;
-        internal bool IsDisposed => disposed;
-        internal bool IsUnloading { get; private set; }
+        internal ScriptState State { get; private set; } = ScriptState.NotStarted;
+
+        internal bool TryBeginStart()
+        {
+            if (State != ScriptState.NotStarted)
+                return false;
+            State = ScriptState.Starting;
+            return true;
+        }
+
+        internal void MarkStarted()
+        {
+            // Start may unload or reset the script through a reentrant callback.
+            if (State == ScriptState.Starting)
+                State = ScriptState.Started;
+        }
+
+        internal void MarkUnloaded() { State = ScriptState.Unloaded; }
 
         internal bool TryBeginUnload()
         {
-            if (IsUnloading)
+            if (State is ScriptState.Unloading or ScriptState.Unloaded)
                 return false;
-            IsUnloading = true;
+            State = ScriptState.Unloading;
             return true;
         }
         private static unsafe delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> hasComponent;
@@ -152,19 +179,11 @@ namespace vkEngine.EngineCore
 
         public virtual void Unload() { }
 
-        public void Dispose()
+        public EntityScriptData FillData()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed)
-                return;
-
-            SceneManager.Unregister(this);
-            disposed = true;
+            if (State == ScriptState.Unloaded)
+                throw new InvalidOperationException("Cannot export an unloaded script.");
+            return SceneManager.FillData(this);
         }
 
         private static ScriptLifecycleMask GetOrAddLifecycleMask(Type type)

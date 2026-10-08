@@ -117,7 +117,7 @@ namespace vke_component
             shape->FillData(data.shape);
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             character = nullptr;
         }
@@ -143,7 +143,7 @@ namespace vke_component
             return character != nullptr && character->IsSupported();
         }
 
-        void Update(float deltaTime)
+        void FixedUpdate(float deltaTime)
         {
             if (character == nullptr)
                 return;

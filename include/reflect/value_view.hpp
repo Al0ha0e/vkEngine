@@ -115,6 +115,8 @@ namespace vke_common
         std::expected<double, ValueViewError> AsFloat64() const;
         std::expected<std::string_view, ValueViewError> AsString() const;
 
+        nlohmann::json ToJSON() const;
+
     private:
         struct State
         {

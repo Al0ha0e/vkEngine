@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <game_config.hpp>
+#include <reflect/value_view.hpp>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -19,6 +20,40 @@
 
 namespace vke_common
 {
+    SceneResult<std::vector<vke_component::ScriptStateData>> ScriptManager::FillData(entt::entity entity)
+    {
+        struct ExportContext
+        {
+            std::vector<vke_component::ScriptStateData> scripts;
+            std::string error;
+        } context;
+        const auto receive = +[](void *opaque, const char *className, const std::byte *bytes, int32_t size)
+        {
+            auto &result = *static_cast<ExportContext *>(opaque);
+            if (!result.error.empty()) return;
+            auto type = instance->FindTypeInfo(className);
+            if (!type || size < 0)
+            {
+                result.error = "invalid script export schema or size";
+                return;
+            }
+            auto value = ValueView::Parse(type, std::span<const std::byte>(bytes, static_cast<size_t>(size)));
+            if (!value)
+            {
+                result.error = std::string("invalid script export: ") + std::string(ToString(value.error().code));
+                return;
+            }
+            vke_component::ScriptStateData state;
+            state.className = className;
+            state.serializedData = value->ToJSON();
+            result.scripts.push_back(std::move(state));
+        };
+        if (!instance->csharpExports.sceneManagerFunctions.fillData(entity, &context, receive))
+            return std::unexpected("managed script export failed");
+        if (!context.error.empty()) return std::unexpected(context.error);
+        return std::move(context.scripts);
+    }
+
     const std::string EngineCSharpPath = std::string(REL_DIR) + "/csharp";
     static const char_t *ENGINE_CORE_CSHARP_CONFIG_PATH = REL_DIR_W L"/csharp/EngineCore.runtimeconfig.json";
     static const char_t *ENGINE_CORE_CSHARP_ASSEMBLY_PATH = REL_DIR_W L"/csharp/EngineCore.dll";

@@ -4,7 +4,6 @@
 #include <json_validation.hpp>
 #include <algorithm>
 #include <utility>
-#include <time.hpp>
 #include <component/transform.hpp>
 #include <scene_transform_system.hpp>
 #include <animation.hpp>
@@ -248,7 +247,7 @@ namespace vke_component
                 if (renderUnit)
                 {
                     vke_render::Renderer::WaitIdle();
-                    UnloadFromEngine();
+                    Unload();
                 }
                 releaseDescriptorSets();
                 material = std::move(other.material);
@@ -341,6 +340,7 @@ namespace vke_component
                 if (shadowPass != nullptr)
                     shadowRenderID = shadowPass->AddUnit(shadowRenderUnit.get(), true);
             }
+            updatePose(0.0f);
             bindRenderUpdateCallback();
         }
 
@@ -376,7 +376,7 @@ namespace vke_component
             }
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             vke_render::Renderer *renderer = vke_render::Renderer::GetInstance();
             renderer->GetGBufferPass()->RemoveUnit(material.get(), renderID);
@@ -389,6 +389,10 @@ namespace vke_component
             }
             renderer->RemoveRenderUpdateCallback(renderID);
         }
+
+        void Start() { updatePose(0.0f); }
+
+        void Update(float deltaTime) { updatePose(deltaTime); }
 
         void AddAnimation(
             std::shared_ptr<vke_common::Animation> anim,
@@ -491,7 +495,7 @@ namespace vke_component
         void bindRenderUpdateCallback()
         {
             vke_render::Renderer::AddRenderUpdateCallback(
-                renderID, std::bind(&SkeletonAnimator::update, this, std::placeholders::_1));
+                renderID, std::bind(&SkeletonAnimator::upload, this, std::placeholders::_1));
         }
 
         void releaseDescriptorSets()
@@ -566,10 +570,6 @@ namespace vke_component
 
         void applyRootMotion(const glm::vec3 &localDeltaPosition, const glm::quat &localDeltaRotation)
         {
-            if (ownerRegistry == nullptr || !ownerRegistry->valid(ownerEntity) ||
-                !ownerRegistry->all_of<vke_common::Transform>(ownerEntity))
-                return;
-
             // Use the scene path so children and render snapshots follow root motion too.
             vke_common::SceneTransformSystem transforms(*ownerRegistry);
             if (glm::dot(localDeltaPosition, localDeltaPosition) > 0.0f)
@@ -584,7 +584,7 @@ namespace vke_component
             }
         }
 
-        void update(uint32_t currentFrame)
+        void updatePose(float deltaTime)
         {
             ozz::vector<ozz::animation::BlendingJob::Layer> layers;
             layers.reserve(animations.size());
@@ -602,8 +602,7 @@ namespace vke_component
                 const float previousRatio = state.timeRatio;
                 if (state.playing)
                 {
-                    float dt = vke_common::TimeManager::GetInstance()->deltaTime;
-                    float newRatio = state.timeRatio + dt * state.playbackSpeed / state.animation->Duration();
+                    float newRatio = state.timeRatio + deltaTime * state.playbackSpeed / state.animation->Duration();
                     SetAnimationTimeRatio(animationIndex, newRatio);
                 }
                 const float currentRatio = state.timeRatio;
@@ -658,9 +657,6 @@ namespace vke_component
                 applyRootMotion(blendedRootMotionPosition, glm::normalize(deltaRotation));
             }
 
-            if (layers.empty())
-                return;
-
             ozz::animation::BlendingJob blending_job;
             blending_job.layers = make_span(layers);
             blending_job.rest_pose = skeleton->skeleton.joint_rest_poses();
@@ -683,7 +679,10 @@ namespace vke_component
                                           ? models[idx] * mesh.invBindMatrices[i]
                                           : models[idx];
             }
+        }
 
+        void upload(uint32_t currentFrame)
+        {
             float *bufferp = (float *)(skeletonBuffers[currentFrame].data);
             for (int i = 0; i < skinningMatrices.size(); ++i)
                 for (int j = 0; j < 4; ++j)

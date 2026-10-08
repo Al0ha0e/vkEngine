@@ -144,9 +144,9 @@ namespace vke_physics
         JPH::Factory::sInstance = nullptr;
     }
 
-    void PhysicsManager::fixedUpdate()
+    void PhysicsManager::fixedUpdate(float deltaTime)
     {
-        physicsSystem.Update(config.stepTime, config.collisionSteps, tempAllocator.get(), jobSystem.get());
+        physicsSystem.Update(deltaTime, config.collisionSteps, tempAllocator.get(), jobSystem.get());
         updates.DispatchEvent(nullptr);
     }
 

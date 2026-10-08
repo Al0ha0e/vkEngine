@@ -102,7 +102,8 @@ namespace vke_common
 
         bool Update();
 
-        void FixedUpdate();
+        static void UpdateSimulation(float deltaTime, float &fixedUpdateAccumulator);
+        static void FixedUpdate(float deltaTime);
 
         void MainLoop();
     };

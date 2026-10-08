@@ -13,6 +13,68 @@ namespace vke_common
 {
     SceneManager *SceneManager::instance = nullptr;
 
+    bool SceneManager::IsRunning()
+    {
+        return instance && !instance->shuttingDown &&
+               EngineStateManager::GetState() == EngineState::Running;
+    }
+
+    void SceneManager::Start()
+    {
+        if (!IsRunning())
+            return;
+        forEachNativeType([&]<typename Component>()
+        {
+            if constexpr (requires(Component &c) { c.Start(); })
+                for (auto entity : registry.view<Component>())
+                    registry.get<Component>(entity).Start();
+        });
+        ScriptManager::StartAll();
+    }
+
+    void SceneManager::Update(float deltaTime)
+    {
+        if (!IsRunning())
+            return;
+        ProcessInstantiationRequests();
+        if (!IsRunning()) return;
+        ScriptManager::Update();
+        if (!IsRunning()) return;
+        forEachNativeType([&]<typename Component>()
+        {
+            if constexpr (requires(Component &c) { c.Update(deltaTime); })
+                for (auto entity : registry.view<Component>())
+                    registry.get<Component>(entity).Update(deltaTime);
+        });
+    }
+
+    void SceneManager::FixedUpdate(float deltaTime)
+    {
+        if (!IsRunning())
+            return;
+        ScriptManager::FixedUpdate();
+        if (!IsRunning()) return;
+        forEachNativeType([&]<typename Component>()
+        {
+            if constexpr (requires(Component &c) { c.FixedUpdate(deltaTime); })
+                for (auto entity : registry.view<Component>())
+                    registry.get<Component>(entity).FixedUpdate(deltaTime);
+        });
+    }
+
+    void SceneManager::LateUpdate(float deltaTime)
+    {
+        if (!IsRunning())
+            return;
+        forEachNativeType([&]<typename Component>()
+        {
+            if constexpr (requires(Component &c) { c.LateUpdate(deltaTime); })
+                for (auto entity : registry.view<Component>())
+                    registry.get<Component>(entity).LateUpdate(deltaTime);
+        });
+        ScriptManager::LateUpdate();
+    }
+
     SceneResult<void> SceneManager::RequestInstantiate(AssetHandle prefab, const InstantiateOptions &options)
     {
         if (!instance || instance->shuttingDown)
@@ -40,7 +102,7 @@ namespace vke_common
 
     void SceneManager::ProcessInstantiationRequests()
     {
-        if (shuttingDown || processingInstantiations)
+        if (!IsRunning() || processingInstantiations)
             return;
         processingInstantiations = true;
         auto requests = std::move(pendingInstantiations);
@@ -89,10 +151,29 @@ namespace vke_common
         }
         const auto dataToRuntime = instance->instantiateSceneData(data, options);
         instance->loadScripts(dataToRuntime, scripts);
+        if (IsRunning())
+        {
+            // All components are available before this batch starts; native components go first.
+            forEachNativeType([&]<typename Component>()
+            {
+                if constexpr (requires(Component &c) { c.Start(); })
+                    for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
+                        if (instance->registry.all_of<Component>(runtimeEntity))
+                            instance->registry.get<Component>(runtimeEntity).Start();
+            });
+
+            // Each entity appears once, regardless of how many scripts it owns.
+            std::vector<entt::entity> scriptEntities;
+            for (const auto entity : data.registry.view<const SceneData::ScriptDataList>())
+                if (!data.registry.get<SceneData::ScriptDataList>(entity).empty())
+                    scriptEntities.push_back(dataToRuntime.at(entity));
+            if (!scriptEntities.empty())
+                ScriptManager::Start(scriptEntities);
+        }
         return {};
     }
 
-    SceneData SceneManager::ExportAllEntities() const
+    SceneResult<SceneData> SceneManager::ExportAllEntities() const
     {
         auto view = registry.view<const GameObject>();
         std::vector<entt::entity> entities;
@@ -102,18 +183,19 @@ namespace vke_common
         return exportEntities(entities);
     }
 
-    SceneData SceneManager::ExportEntitySubtree(entt::entity root) const
+    SceneResult<SceneData> SceneManager::ExportEntitySubtree(entt::entity root) const
     {
         std::vector<entt::entity> entities{root};
         transformSystem.CollectEntitySubtree(entities);
         auto data = exportEntities(entities);
-        for (const auto &[entity, parent] : data.parents)
+        if (!data) return data;
+        for (const auto &[entity, parent] : data->parents)
             if (parent == entt::null)
-                data.prefabRoot = entity;
+                data->prefabRoot = entity;
         return data;
     }
 
-    SceneData SceneManager::exportEntities(const std::vector<entt::entity> &entities) const
+    SceneResult<SceneData> SceneManager::exportEntities(const std::vector<entt::entity> &entities) const
     {
         SceneData data;
 
@@ -163,15 +245,12 @@ namespace vke_common
             fillComponentData.operator()<vke_component::PointLight, vke_component::PointLightData>();
             fillComponentData.operator()<vke_component::SpotLight, vke_component::SpotLightData>();
 
-            auto scriptIt = csharpScriptStates.find(runtimeEntity);
-            if (scriptIt != csharpScriptStates.end())
+            auto scripts = ScriptManager::FillData(runtimeEntity);
+            if (!scripts) return std::unexpected(scripts.error());
+            if (!scripts->empty())
             {
-                SceneData::ScriptDataList scripts;
-                scripts.reserve(scriptIt->second.size());
-                for (const auto &[className, state] : scriptIt->second)
-                    scripts.push_back(state);
                 data.registry.emplace<SceneData::ScriptDataList>(
-                    dataEntity, std::move(scripts));
+                    dataEntity, std::move(*scripts));
             }
         }
 
@@ -322,11 +401,6 @@ namespace vke_common
 
     void SceneManager::loadScripts(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts)
     {
-        std::vector<entt::entity> runtimeEntities;
-        runtimeEntities.reserve(dataToRuntime.size());
-        for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
-            runtimeEntities.push_back(runtimeEntity);
-
         std::vector<CSharpScriptLoadData> loadData;
         loadData.reserve(scripts.size());
         for (const PreparedScript &encoded : scripts)
@@ -342,7 +416,6 @@ namespace vke_common
         if (!loadData.empty())
         {
             ScriptManager::Load(loadData.data(), static_cast<uint32_t>(loadData.size()));
-            ScriptManager::Start(runtimeEntities);
         }
     }
 
@@ -442,11 +515,9 @@ namespace vke_common
             scene.transformSystem.SetGlobalRotation(entity, glm::quat(rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()));
         }
 
-        const float deltaTime = vke_physics::PhysicsManager::GetConfig().stepTime;
         auto characterView = scene.registry.view<Transform, vke_component::CharacterController>();
         for (auto &&[entity, transform, controller] : characterView.each())
         {
-            controller.Update(deltaTime);
             if (controller.character == nullptr)
                 continue;
 

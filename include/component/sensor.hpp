@@ -57,7 +57,7 @@ namespace vke_component
         {
             if (this != &other)
             {
-                UnloadFromEngine();
+                Unload();
                 bodyID = std::exchange(other.bodyID, JPH::BodyID{});
             }
             return *this;
@@ -96,7 +96,7 @@ namespace vke_component
             vke_physics::PhyscisShape(settings.GetShape()).FillData(data.shape);
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             if (bodyID.IsInvalid()) return;
             auto &interface = vke_physics::PhysicsManager::GetBodyInterface();

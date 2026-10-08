@@ -28,7 +28,12 @@
 
 namespace vke_common
 {
-    enum class SceneDataStage { Parsed, Expanded, Ready };
+    enum class SceneDataStage
+    {
+        Parsed,
+        Expanded,
+        Ready
+    };
 
     struct PrefabReference
     {
@@ -67,8 +72,8 @@ namespace vke_common
     private:
         // Full structural check at ingestion; later stages preserve these invariants.
         SceneResult<void> validateParsed() const;
-        SceneResult<void> loadComponent(entt::entity entity, const nlohmann::json &component);    // component.cpp
-        void componentToJSON(entt::entity entity, nlohmann::json &components) const; // component.cpp
+        SceneResult<void> loadComponent(entt::entity entity, const nlohmann::json &component); // component.cpp
+        void componentToJSON(entt::entity entity, nlohmann::json &components) const;           // component.cpp
     };
 
     struct InstantiateOptions
@@ -129,13 +134,19 @@ namespace vke_common
         }
 
         // Reset all scene systems at a main-thread frame boundary. Leaves simulation paused.
-        // No component UnloadFromEngine or script Unload/Dispose hooks are dispatched.
+        // No component Unload or script Unload/Dispose hooks are dispatched.
         static void Reset();
 
         static SceneResult<void> Instantiate(
             const SceneData &data, const InstantiateOptions &options = {});
         static SceneResult<void> RequestInstantiate(AssetHandle prefab, const InstantiateOptions &options = {});
         void ProcessInstantiationRequests();
+
+        static bool IsRunning();
+        void Start();
+        void Update(float deltaTime);
+        void FixedUpdate(float deltaTime);
+        void LateUpdate(float deltaTime);
 
         bool HasComponent(entt::entity entity, ComponentType componentType) const; // component.cpp
 
@@ -172,10 +183,28 @@ namespace vke_common
 
         bool IsPendingDestroy(entt::entity entity) const { return pendingDestroy.contains(entity); }
 
-        SceneData ExportAllEntities() const;                    // scene.cpp
-        SceneData ExportEntitySubtree(entt::entity root) const; // scene.cpp
+        SceneResult<SceneData> ExportAllEntities() const;                    // scene.cpp
+        SceneResult<SceneData> ExportEntitySubtree(entt::entity root) const; // scene.cpp
 
     private:
+        template <typename Visitor>
+        static void forEachNativeType(Visitor &&visit)
+        {
+            visit.template operator()<Transform>();
+            visit.template operator()<vke_component::Camera>();
+            visit.template operator()<vke_component::RenderableObject>();
+            visit.template operator()<vke_component::SkeletonAnimator>();
+            visit.template operator()<vke_component::RigidBody>();
+            visit.template operator()<vke_component::Sensor>();
+            visit.template operator()<vke_component::CharacterController>();
+            visit.template operator()<vke_component::DirectionalLight>();
+            visit.template operator()<vke_component::PointLight>();
+            visit.template operator()<vke_component::SpotLight>();
+            visit.template operator()<vke_component::UIText>();
+            visit.template operator()<vke_component::AudioSource>();
+            visit.template operator()<vke_component::AudioListener>();
+        }
+
         SceneResult<void> validateComponentMutation(entt::entity entity) const;
         template <typename Component, typename Data>
         SceneResult<void> addComponent(entt::entity entity, Data data);
@@ -211,7 +240,7 @@ namespace vke_common
         EntityMap instantiateSceneData(const SceneData &data, const InstantiateOptions &options);
         void loadScripts(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts);
         void unloadEntityFromEngine(entt::entity entity);
-        SceneData exportEntities(const std::vector<entt::entity> &entities) const; // scene.cpp
+        SceneResult<SceneData> exportEntities(const std::vector<entt::entity> &entities) const; // scene.cpp
         void dispose();
 
         static void physicsUpdateCallback(void *self, void *info);

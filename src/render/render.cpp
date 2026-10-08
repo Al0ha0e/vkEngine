@@ -20,7 +20,7 @@ namespace vke_render
         instance->glyphManager.Reset();
         // Keep frame-graph synchronization counters and the swapchain intact.
         instance->hostCameraInfo = CameraInfo(0.1f, 1000.0f, glm::radians(60.0f), 1.0f,
-                                             glm::mat4(1.0f), glm::mat4(1.0f), glm::vec3(0.0f));
+                                              glm::mat4(1.0f), glm::mat4(1.0f), glm::vec3(0.0f));
         instance->cameraInfoUpdateCnt = MAX_FRAMES_IN_FLIGHT;
     }
 
@@ -127,8 +127,6 @@ namespace vke_render
         frameGraph->LogProfile(currentFrame);
 #endif
 
-        // Animation/root motion can update camera, light and UI state as well as models.
-        // Run after the frame fence, before uploading those snapshots for this frame.
         for (auto &kv : renderUpdateCallbacks)
             kv.second(currentFrame);
 

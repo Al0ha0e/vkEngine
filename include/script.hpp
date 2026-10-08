@@ -8,6 +8,7 @@
 #include <interop/native.hpp>
 #include <component.hpp>
 #include <reflect/type_info.hpp>
+#include <component/script.hpp>
 
 #include <entt/entity/entity.hpp>
 
@@ -53,6 +54,8 @@ namespace vke_common
 
         void (*unregisterComponentCallbacks)(entt::entity, int32_t);
         void (*reset)();
+        int32_t (*fillData)(entt::entity, void *, void (*)(void *, const char *, const std::byte *, int32_t));
+        void (*startAll)();
 
         CSharpSceneManagerFunctions()
             : load(nullptr),
@@ -63,7 +66,7 @@ namespace vke_common
               unload(nullptr),
               unloadEntities(nullptr),
               unregisterComponentCallbacks(nullptr),
-              reset(nullptr) {}
+              reset(nullptr), fillData(nullptr), startAll(nullptr) {}
     };
 
     struct CSharpExports
@@ -111,6 +114,11 @@ namespace vke_common
             instance->csharpExports.sceneManagerFunctions.load(data, cnt);
         }
 
+        static void StartAll()
+        {
+            instance->csharpExports.sceneManagerFunctions.startAll();
+        }
+
         static void Start(const std::vector<entt::entity> &entities)
         {
             instance->csharpExports.sceneManagerFunctions.start(
@@ -126,6 +134,13 @@ namespace vke_common
         {
             instance->csharpExports.sceneManagerFunctions.fixedUpdate();
         }
+
+        static void LateUpdate()
+        {
+            instance->csharpExports.sceneManagerFunctions.lateUpdate();
+        }
+
+        static SceneResult<std::vector<vke_component::ScriptStateData>> FillData(entt::entity entity);
 
         static void Unload()
         {

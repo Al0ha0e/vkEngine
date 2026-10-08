@@ -99,6 +99,11 @@ namespace vke_component
                 glm::vec4(componentData.color, componentData.intensity));
         }
 
+        static void Unload(entt::entity entity)
+        {
+            vke_render::Renderer::GetInstance()->lightManager->RemoveLight<vke_render::DirectionalLight>(entity);
+        }
+
         static void FillData(entt::entity entity, DirectionalLightData &data)
         {
             const auto &light = vke_render::Renderer::GetInstance()->lightManager
@@ -122,6 +127,11 @@ namespace vke_component
                 entity,
                 glm::vec4(transform.GetGlobalPosition(), componentData.radius),
                 glm::vec4(componentData.color, componentData.intensity));
+        }
+
+        static void Unload(entt::entity entity)
+        {
+            vke_render::Renderer::GetInstance()->lightManager->RemoveLight<vke_render::PointLight>(entity);
         }
 
         static void FillData(entt::entity entity, PointLightData &data)
@@ -153,6 +163,11 @@ namespace vke_component
                 glm::vec4(componentData.color, componentData.intensity),
                 glm::vec4(componentData.innerConeCos, componentData.outerConeCos,
                           componentData.castShadow ? 1.0f : 0.0f, 0.0f));
+        }
+
+        static void Unload(entt::entity entity)
+        {
+            vke_render::Renderer::GetInstance()->lightManager->RemoveLight<vke_render::SpotLight>(entity);
         }
 
         static void FillData(entt::entity entity, SpotLightData &data)

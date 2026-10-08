@@ -7,6 +7,37 @@
 
 namespace vke_common
 {
+    nlohmann::json ValueView::ToJSON() const
+    {
+        switch (Type()->Kind())
+        {
+        case TypeKind::Byte: return *AsByte();
+        case TypeKind::Int32: return *AsInt32();
+        case TypeKind::Int64: return *AsInt64();
+        case TypeKind::Float32: return *AsFloat32();
+        case TypeKind::Float64: return *AsFloat64();
+        case TypeKind::String: return std::string(*AsString());
+        case TypeKind::Struct:
+        {
+            auto result = nlohmann::json::object();
+            for (const auto &field : Type()->GetIf<StructTypeInfo>()->fields)
+                result[field.name] = Field(field.name)->ToJSON();
+            return result;
+        }
+        case TypeKind::Array:
+        case TypeKind::Vector:
+        {
+            auto result = nlohmann::json::array();
+            const uint32_t count = Type()->Kind() == TypeKind::Array
+                ? *Count() : Type()->GetIf<VectorTypeInfo>()->componentCount;
+            for (uint32_t i = 0; i < count; ++i)
+                result.push_back((Type()->Kind() == TypeKind::Array ? Element(i) : Component(i))->ToJSON());
+            return result;
+        }
+        }
+        return nullptr;
+    }
+
     ValueView::Result ValueView::Parse(TypeInfoPtr rootType, std::span<const std::byte> data)
     {
         return parseImpl(std::move(rootType), data, {});

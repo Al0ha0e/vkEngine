@@ -256,9 +256,9 @@ namespace vke_physics
             delete instance;
         }
 
-        static void FixedUpdate()
+        static void FixedUpdate(float deltaTime)
         {
-            instance->fixedUpdate();
+            instance->fixedUpdate(deltaTime);
         }
 
         // No update may be in progress. Release CharacterVirtual owners first.
@@ -372,7 +372,7 @@ namespace vke_physics
     private:
         void init();
         void dispose();
-        void fixedUpdate();
+        void fixedUpdate(float deltaTime);
         bool raycast(JPH::RVec3Arg origin, JPH::Vec3Arg direction, float maxDistance, RaycastHit &outHit, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
         uint32_t raycastAll(JPH::RVec3Arg origin, JPH::Vec3Arg direction, float maxDistance, RaycastHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
         uint32_t collidePoint(JPH::RVec3Arg point, CollidePointHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);

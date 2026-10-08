@@ -73,7 +73,7 @@ namespace vke_component
         {
             if (this != &other)
             {
-                UnloadFromEngine();
+                Unload();
                 bodyID = std::exchange(other.bodyID, JPH::BodyID{});
                 hasMassOverride = other.hasMassOverride;
                 mass = other.mass;
@@ -146,7 +146,7 @@ namespace vke_component
             vke_physics::PhysicsManager::GetBodyInterface().SetMotionQuality(bodyID, quality);
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             if (bodyID.IsInvalid()) return;
             auto &interface = vke_physics::PhysicsManager::GetBodyInterface();

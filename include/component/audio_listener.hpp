@@ -47,7 +47,7 @@ namespace vke_component
             data.enabled = enabled;
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             listenerLoaded = false;
         }

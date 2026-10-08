@@ -136,7 +136,7 @@ namespace vke_component
         {
             if (this != &other)
             {
-                UnloadFromEngine();
+                Unload();
                 clip = std::move(other.clip);
                 playOnStart = other.playOnStart;
                 looping = other.looping;
@@ -185,7 +185,13 @@ namespace vke_component
             data.dopplerFactor = dopplerFactor;
         }
 
-        void UnloadFromEngine()
+        void Start()
+        {
+            if (playOnStart)
+                Play();
+        }
+
+        void Unload()
         {
             if (soundInitialized && sound != nullptr)
             {
@@ -197,7 +203,7 @@ namespace vke_component
 
         void SetClip(std::shared_ptr<vke_audio::AudioClip> newClip)
         {
-            UnloadFromEngine();
+            Unload();
             clip = std::move(newClip);
             if (clip && clip->IsValid())
                 initializeSound();
@@ -374,9 +380,6 @@ namespace vke_component
                 ma_sound_set_max_distance(sound, maxDistance);
                 ma_sound_set_doppler_factor(sound, dopplerFactor);
             }
-
-            if (playOnStart)
-                ma_sound_start(sound);
 
             soundInitialized = true;
         }

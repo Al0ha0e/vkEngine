@@ -77,7 +77,7 @@ namespace vke_component
         {
             if (this != &other)
             {
-                UnloadFromEngine();
+                Unload();
                 id = std::exchange(other.id, 0);
                 width = other.width;
                 height = other.height;
@@ -131,7 +131,7 @@ namespace vke_component
             data.farPlane = cameraInfo.far;
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             if (id == 0)
                 return;

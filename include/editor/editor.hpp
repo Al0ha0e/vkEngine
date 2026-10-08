@@ -57,7 +57,6 @@ namespace vke_editor
         static void OnWindowResize(GLFWwindow *window, int width, int height);
 
         bool Update();
-        void FixedUpdate();
         void DrawGUI();
 
     private:

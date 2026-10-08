@@ -1,4 +1,5 @@
 #include <editor/editor.hpp>
+#include <engine.hpp>
 #include <asset/asset_db_sqlite.hpp>
 #include <audio/audio_manager.hpp>
 #include <glm/common.hpp>
@@ -111,18 +112,11 @@ namespace vke_editor
         vke_common::TimeManager::Update();
         sceneManager->ProcessDestroyRequests();
 
-        if (vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Run)
+        if (vke_editor::EditorStateManager::GetState() == vke_editor::EditorState::Run &&
+            engineState == vke_common::EngineState::Running)
         {
-            sceneManager->ProcessInstantiationRequests();
-            vke_common::ScriptManager::GetInstance()->Update();
-            fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
-            const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
-            while (fixedUpdateAccumulator >= fixedStepTime)
-            {
-                FixedUpdate();
-                fixedUpdateAccumulator -= fixedStepTime;
-            }
-            vke_audio::AudioManager::Update(vke_common::TimeManager::GetDeltaTime());
+            vke_common::Engine::UpdateSimulation(
+                vke_common::TimeManager::GetDeltaTime(), fixedUpdateAccumulator);
         }
 
         WireframeCollisionPass *wireframePass = vke_render::Renderer::GetWireframeCollisionPass();
@@ -133,12 +127,6 @@ namespace vke_editor
         EditorRenderer::GetInstance()->Update();
         vke_common::InputManager::EndFrame();
         return true;
-    }
-
-    void Editor::FixedUpdate()
-    {
-        vke_common::ScriptManager::FixedUpdate();
-        vke_physics::PhysicsManager::FixedUpdate();
     }
 
     void Editor::DrawGUI()
@@ -165,9 +153,14 @@ namespace vke_editor
                     EditorConfig::GetInstance()->gameConfig->defaultScenePath;
                 if (!scenePath.empty())
                 {
-                    vke_common::SceneData data = sceneManager->ExportAllEntities();
-                    std::ofstream ofs(scenePath);
-                    ofs << data.ToJSON().dump(4);
+                    auto data = sceneManager->ExportAllEntities();
+                    if (data)
+                    {
+                        std::ofstream ofs(scenePath);
+                        ofs << data->ToJSON().dump(4);
+                    }
+                    else
+                        VKE_LOG_ERROR("Cannot save scene: {}", data.error());
                 }
             }
 
@@ -219,6 +212,7 @@ namespace vke_editor
                 {
                     vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Run);
                     vke_common::EngineStateManager::SetState(vke_common::EngineState::Running);
+                    sceneManager->Start();
                 }
                 else
                 {

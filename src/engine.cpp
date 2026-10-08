@@ -25,25 +25,32 @@ namespace vke_common
             return true;
         }
 
-        vke_common::SceneManager::GetInstance()->ProcessInstantiationRequests();
-        vke_common::ScriptManager::GetInstance()->Update();
-        fixedUpdateAccumulator += vke_common::TimeManager::GetDeltaTime();
-        const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
-        while (fixedUpdateAccumulator >= fixedStepTime)
-        {
-            FixedUpdate();
-            fixedUpdateAccumulator -= fixedStepTime;
-        }
-        vke_audio::AudioManager::Update(vke_common::TimeManager::GetDeltaTime());
+        UpdateSimulation(vke_common::TimeManager::GetDeltaTime(), fixedUpdateAccumulator);
         vke_render::Renderer::GetInstance()->Update();
         vke_common::InputManager::EndFrame();
         return true;
     }
 
-    void Engine::FixedUpdate()
+    void Engine::UpdateSimulation(float deltaTime, float &fixedUpdateAccumulator)
     {
-        vke_common::ScriptManager::FixedUpdate();
-        vke_physics::PhysicsManager::FixedUpdate();
+        vke_common::SceneManager::GetInstance()->Update(deltaTime);
+        fixedUpdateAccumulator += deltaTime;
+        const float fixedStepTime = vke_physics::PhysicsManager::GetConfig().stepTime;
+        while (fixedUpdateAccumulator >= fixedStepTime)
+        {
+            FixedUpdate(fixedStepTime);
+            fixedUpdateAccumulator -= fixedStepTime;
+        }
+        vke_common::SceneManager::GetInstance()->LateUpdate(deltaTime);
+        if (vke_common::SceneManager::IsRunning())
+            vke_audio::AudioManager::Update(deltaTime);
+    }
+
+    void Engine::FixedUpdate(float deltaTime)
+    {
+        vke_common::SceneManager::GetInstance()->FixedUpdate(deltaTime);
+        if (vke_common::SceneManager::IsRunning())
+            vke_physics::PhysicsManager::FixedUpdate(deltaTime);
     }
 
     void Engine::MainLoop()

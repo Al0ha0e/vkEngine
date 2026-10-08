@@ -57,7 +57,7 @@ namespace vke_component
         {
             if (this != &other)
             {
-                UnloadFromEngine();
+                Unload();
                 modelMatrix = other.modelMatrix;
                 material = std::move(other.material);
                 glyphIDs = std::exchange(other.glyphIDs, {});
@@ -68,7 +68,7 @@ namespace vke_component
             return *this;
         }
 
-        void UnloadFromEngine()
+        void Unload()
         {
             if (!IsLoaded())
                 return;
