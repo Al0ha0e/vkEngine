@@ -31,6 +31,7 @@ namespace vke_common
         WrongType,
         FieldNotFound,
         IndexOutOfRange,
+        InvalidNumber,
     };
 
     struct ValueViewError
@@ -73,6 +74,8 @@ namespace vke_common
             return "struct field was not found";
         case ValueViewErrorCode::IndexOutOfRange:
             return "value index is out of range";
+        case ValueViewErrorCode::InvalidNumber:
+            return "number is not finite";
         }
 
         return "unknown ValueView error";
@@ -104,6 +107,7 @@ namespace vke_common
         std::span<const std::byte> Bytes() const noexcept;
 
         std::expected<ValueView, ValueViewError> Field(std::string_view name) const;
+        std::expected<ValueView, ValueViewError> Field(std::size_t index) const;
         std::expected<uint32_t, ValueViewError> Count() const noexcept;
         std::expected<ValueView, ValueViewError> Element(uint32_t index) const;
         std::expected<ValueView, ValueViewError> Component(uint32_t index) const;
@@ -118,6 +122,7 @@ namespace vke_common
         nlohmann::json ToJSON() const;
 
     private:
+        friend class ValueEditor;
         struct State
         {
             TypeInfoPtr type;

@@ -31,6 +31,8 @@ namespace vke_editor
         Editor &operator=(const Editor &);
 
         float fixedUpdateAccumulator;
+        std::optional<vke_common::SceneData> editSnapshot;
+        bool toggleRunRequested = false;
         vke_common::SceneManager *sceneManager;
         entt::entity selectedEntity;
         vke_common::AssetType selectedAssetType;
@@ -60,6 +62,9 @@ namespace vke_editor
         void DrawGUI();
 
     private:
+        vke_common::SceneResult<void> startRun();
+        vke_common::SceneResult<void> stopRun();
+
         void showMainMenuBar();
         void showHierarchy();
         void drawHierarchyEntity(entt::entity entity, ImGuiTreeNodeFlags commonFlags);
@@ -73,6 +78,7 @@ namespace vke_editor
         void drawUITextComponent();
         void drawAudioSourceComponent();
         void drawAudioListenerComponent();
+        void drawScriptComponents();
         void showComponentMenu();
         void showAssets();
         void showLog();

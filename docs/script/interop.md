@@ -80,7 +80,7 @@ metadata JSON。导出器仅在内容变化时写入文件。`generated/` 属于
 
 生成器同时生成 `EntityScriptBinaryReaders.FillData(EntityScript) -> byte[]`。它与 reader 共用字段排序、类型布局及对齐规则，导出成员名别名由 TypeInfo 映射到 JSON。脚本调用 `FillData()` 得到 `EntityScriptData`。
 
-`SceneManagerFunctions.GetEntityScriptsData` 获取一个实体上全部脚本的类名与二进制数据，与 `GetScriptData` 一起位于数据读取分组：
+`SceneManagerFunctions.GetEntityScriptsData` 获取一个实体上全部脚本的类名与二进制数据，与 `GetScriptData` / `SetScriptData` 一起位于数据读写分组：
 
 ```cpp
 int32_t (*getEntityScriptsData)(entt::entity entity, void *context,
@@ -92,3 +92,11 @@ int32_t (*getEntityScriptsData)(entt::entity entity, void *context,
 SceneData 快照持有二进制脚本状态。`ScriptStateData::ToJSON` 在 `SceneData::ToJSON` 文件输出边界将二进制转换回 JSON；类型缺失或二进制无效会返回错误，编辑器完成转换后才打开保存文件。
 
 导出仅采集字段数据，保持脚本生命周期状态不变。
+
+## 当前状态写回
+
+`ScriptManager::SetScriptData(entity, className, data)` 接受由 `ValueEditor` 或场景数据读取、导出入口校验过的二进制，调用方须保持数据格式和互操作长度约束。C++ 将缓冲区同步借给 C#；托管端按实体和完整类名查找现有实例，再调用生成的 `EntityScriptBinaryReaders.SetScriptData`。
+
+生成的 applier 先解码全部字段并确认缓冲区完整消费，再向现有实例赋值。`SceneManager.SetScriptData` 捕获解析错误并返回 0，实例字段保持不变；成功返回 1。写回仅涉及导出成员，保持实例身份、未导出成员及生命周期状态。导出属性的 setter 会执行；setter 抛异常时写回返回失败，已经完成的赋值和外部副作用不会回滚。
+
+Inspector 在完成本帧字段绘制后提交二进制修改，仅在修改成功时写回实例。原生程序、EngineCore 和游戏程序集须一起构建，以保持函数表和生成代码一致。

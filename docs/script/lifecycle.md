@@ -32,7 +32,7 @@ C++ 通过 `ScriptManager::GetEntityScriptsData(entity)` 同步获取该实体�
 
 `ExportAllEntities()` 和 `ExportEntitySubtree(root)` 返回 `SceneResult<SceneData>`。原生组件和脚本均导出实时状态；脚本导出失败时整个操作返回错误，编辑器保留原场景文件。脚本导出仅采集标记 Export 的字段和属性，保持生命周期状态不变。
 
-脚本实时状态由 C# 实例持有。编辑器通过托管注册表查询脚本名称，场景保存从实例导出当前状态。
+脚本实时状态由 C# 实例持有。编辑器通过托管注册表查询脚本名称并读取展开脚本的字段，场景保存从实例导出当前状态。
 
 ## 3. 创建与 Start
 
@@ -102,23 +102,35 @@ DestroyEntity 立即收集并标记当前子树，层级和资源保留至帧边
 
 Dispose 场景时停止接受创建、清空实例化队列、循环处理所有剩余销毁请求，再清理残留托管脚本与物理监听。
 
-Reset 是批量系统复位，不逐个执行 Unload。系统直接清空注册及资源；托管脚本旧引用的状态设为 `Unloaded`，不能再次注册或导出字段。脚本放在 Unload 中的资源清理不会在 Reset 时执行。引擎停止运行更新，加载后显式进入运行。编辑器运行前快照与返回编辑时的还原尚未实现。
+Reset 是批量系统复位，不逐个执行 Unload。系统直接清空注册及资源；托管脚本旧引用的状态设为 `Unloaded`，不能再次注册或导出字段。脚本放在 Unload 中的资源清理不会在 Reset 时执行。引擎停止运行更新，加载后显式进入运行。编辑器停止运行时调用 Reset，并在暂停状态下恢复运行前快照。
 
 ## 6. 接口与资源约束
 
 - C++ SceneManager：Start / Update / FixedUpdate / LateUpdate 统一驱动场景系统；ScriptManager 提供同名托管桥接。调用方不能绕过场景系统直接推进某个运行组件。
-- C# 导出函数表：生命周期：Load、Start、StartAll、Update、FixedUpdate、LateUpdate、Unload、UnloadEntities、Reset；组件回调：UnregisterComponentCallbacks；脚本查询：HasScripts、GetScriptList；数据读取：GetScriptData、GetEntityScriptsData。原生与托管程序集必须一起构建部署。
+- C# 导出函数表：生命周期：Load、Start、StartAll、Update、FixedUpdate、LateUpdate、Unload、UnloadEntities、Reset；组件回调：UnregisterComponentCallbacks；脚本查询：HasScripts、GetScriptList；数据读写：GetScriptData、SetScriptData、GetEntityScriptsData。原生与托管程序集必须一起构建部署。
 - Camera / Transform 使用紧凑存储，不允许长期保存组件地址。相机回调通过 registry / entity 查询，卸载时注销；渲染单元持有模型矩阵副本。
 - 变换应通过 SceneTransformSystem 修改，使子节点、渲染、阴影和 UI 同步。直接修改 Transform 只影响组件本身。
 - 单独移除 RenderableObject / SkeletonAnimator 时调用 WaitIdle，等待 GPU 完成资源使用后再释放。其余注册和移除通过帧同步路径执行。
-- C# 创建空实体、动态增删组件、异步实例化结果，以及脚本字段编辑、编辑器运行快照/还原尚未实现。
+- 尚未实现：C# 创建空实体、动态增删组件和异步实例化结果。
 
-## 7. 脚本状态查询
+## 7. 脚本状态查询与字段编辑
 
-`HasScripts(entity)` 查询托管注册表，判断实体是否挂有脚本；`GetScriptList(entity)` 返回脚本完整类名列表，供编辑器显示脚本组件。
+`HasScripts(entity)` 查询托管注册表，判断实体是否挂有脚本；`GetScriptList(entity)` 返回脚本完整类名列表，供编辑器显示脚本节点。Inspector 展开节点时调用 `GetScriptData(entity, className)`，每帧显示当前导出字段；折叠节点只查询名称，隐藏的 Inspector 不查询脚本。
 
 同一实体上同类脚本最多一个。托管注册表按实体和脚本完整类名两级索引，`GetScriptData(entity, className)` 直接定位实例并读取当前二进制字段；`GetEntityScriptsData(entity)` 获取实体全部脚本的二进制数据，供场景导出使用。数据仅在同步回调内有效，C++ 通过复制取得独立所有权。
 
-脚本字段写回与 Inspector 字段编辑尚未实现。
+Inspector 通过 `TypeInfo` / `ValueView` 读取二进制字段，支持数值、向量、字符串、结构体及数组。数组支持增删和分页，每页最多绘制 64 个元素；分页限制控件数量，展开脚本仍完整传输字段数据。含 NUL 字节的字符串显示为只读，因为文本控件不能完整表示它们。
+
+`ValueEditor` 在本帧缓冲区中修改字段：定长数值及等长字符串原地写入，字符串长度变化或数组增删时重排二进制并验证布局。修改在绘制结束后执行，调用方在缓冲区重排后须从 `Root()` 重新获取视图。修改成功后，`SetScriptData` 将已校验的字节写回现有实例；具体写回和 setter 失败语义见 [interop.md](interop.md)。
+
+## 8. 编辑器运行与还原
+
+Start/Stop 按钮和 F6 提交切换请求，由主线程在帧边界处理。Start 先处理待销毁实体并导出 `SceneData` 快照，再清空输入、时间及固定更新余量，进入 Run 并启动组件。导出失败时保持 Edit。
+
+Stop 调用 `SceneManager::Reset`，清空旧实体选择和输入状态并恢复鼠标，再以暂停状态实例化快照。还原成功后释放快照并进入 Edit；还原过程不触发 Start。可返回的还原错误会保留快照，使运行更新暂停、界面保持只读，允许再次 Stop 重试。组件构造和 C# 加载异常遵循加载接口既有的失败行为。
+
+运行期间可以浏览实体和脚本实时字段；Inspector 修改、组件增删、场景保存与创建、资源导入与修改入口禁用。编辑期间保持渲染，运行更新由编辑器和引擎状态共同控制。
+
+快照覆盖实体层级、原生组件数据和脚本导出字段，持有组件资源引用。停止还原时丢弃运行期间创建的实体并恢复被删除的实体。资源文件、资源数据库、脚本静态字段及外部副作用不在快照范围内。
 
 实现入口：[scene.hpp](../../include/scene.hpp)、[scene.cpp](../../src/scene.cpp)、[SceneManager.cs](../../csharp/EngineCore/SceneManager.cs)、[Script.cs](../../csharp/EngineCore/Script.cs)。二进制协议见 [interop.md](interop.md)。

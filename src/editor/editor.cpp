@@ -77,6 +77,7 @@ namespace vke_editor
     void Editor::Dispose()
     {
         instance->disposeTexturePreviewDescriptorSets();
+        instance->editSnapshot.reset();
         vke_common::SceneManager::Dispose();
         vke_common::ScriptManager::Dispose();
         vke_render::Renderer::Dispose();
@@ -100,8 +101,54 @@ namespace vke_editor
         vke_common::EventSystem::DispatchEvent(vke_common::EVENT_WINDOW_RESIZE, nullptr);
     }
 
+    vke_common::SceneResult<void> Editor::startRun()
+    {
+        if (EditorStateManager::GetState() != EditorState::Edit || editSnapshot)
+            return std::unexpected("editor is not ready to start");
+        sceneManager->ProcessDestroyRequests();
+        auto snapshot = sceneManager->ExportAllEntities();
+        if (!snapshot)
+            return std::unexpected(snapshot.error());
+        editSnapshot.emplace(std::move(*snapshot));
+        fixedUpdateAccumulator = 0.0f;
+        vke_common::InputManager::Reset();
+        vke_common::TimeManager::Reset();
+        EditorStateManager::SetState(EditorState::Run);
+        vke_common::EngineStateManager::SetState(vke_common::EngineState::Running);
+        sceneManager->Start();
+        return {};
+    }
+
+    vke_common::SceneResult<void> Editor::stopRun()
+    {
+        if (EditorStateManager::GetState() != EditorState::Run || !editSnapshot)
+            return std::unexpected("no edit snapshot to restore");
+        vke_common::SceneManager::Reset();
+        selectedEntity = entt::null; // Runtime handles may now refer to different entities.
+        fixedUpdateAccumulator = 0.0f;
+        vke_common::InputManager::Reset();
+        vke_common::InputManager::SetCursorMode(GLFW_CURSOR_NORMAL);
+        auto restored = vke_common::SceneManager::Instantiate(*editSnapshot);
+        vke_common::TimeManager::Reset();
+        // Keep the snapshot and remain read-only on failure; Stop can retry restoration.
+        if (!restored)
+            return std::unexpected(restored.error());
+        editSnapshot.reset();
+        EditorStateManager::SetState(EditorState::Edit);
+        return {};
+    }
+
     bool Editor::Update()
     {
+        if (vke_common::InputManager::IsKeyPressed(GLFW_KEY_F6))
+            toggleRunRequested = true;
+        if (toggleRunRequested)
+        {
+            toggleRunRequested = false;
+            auto result = EditorStateManager::GetState() == EditorState::Edit ? startRun() : stopRun();
+            if (!result)
+                VKE_LOG_ERROR("Cannot switch editor state: {}", result.error());
+        }
         const vke_common::EngineState engineState = vke_common::EngineStateManager::GetState();
         if (engineState == vke_common::EngineState::Terminated)
         {
@@ -133,7 +180,8 @@ namespace vke_editor
     {
         ensureSelectedEntityValid();
         showMainMenuBar();
-        showAssetImportDialog();
+        if (EditorStateManager::GetState() == EditorState::Edit)
+            showAssetImportDialog();
         showHierarchy();
         showInspector();
         showAssets();
@@ -145,7 +193,8 @@ namespace vke_editor
         if (!ImGui::BeginMainMenuBar())
             return;
 
-        if (ImGui::BeginMenu("Scene"))
+        const bool canEdit = EditorStateManager::GetState() == EditorState::Edit;
+        if (ImGui::BeginMenu("Scene", canEdit))
         {
             if (ImGui::MenuItem("Save Scene"))
             {
@@ -180,7 +229,7 @@ namespace vke_editor
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Asset"))
+        if (ImGui::BeginMenu("Asset", canEdit))
         {
             if (ImGui::MenuItem("Import Mesh"))
                 openAssetImport(vke_common::ASSET_MESH);
@@ -205,7 +254,7 @@ namespace vke_editor
         if (editorState == vke_editor::EditorState::Edit || editorState == vke_editor::EditorState::Run)
         {
             const bool currentIsEdit = editorState == vke_editor::EditorState::Edit;
-            const char *buttonLabel = currentIsEdit ? "Start" : "Pause";
+            const char *buttonLabel = currentIsEdit ? "Start (F6)" : "Stop (F6)";
             const ImGuiStyle &style = ImGui::GetStyle();
             const float buttonWidth = ImGui::CalcTextSize(buttonLabel).x + style.FramePadding.x * 2.0f;
             const float centeredX = (ImGui::GetWindowWidth() - buttonWidth) * 0.5f;
@@ -213,25 +262,7 @@ namespace vke_editor
 
             ImGui::SameLine(nextX);
             if (ImGui::Button(buttonLabel, ImVec2(buttonWidth, 0.0f)))
-            {
-                if (currentIsEdit)
-                {
-                    vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Run);
-                    vke_common::EngineStateManager::SetState(vke_common::EngineState::Running);
-                    sceneManager->Start();
-                }
-                else
-                {
-                    vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Edit);
-                    vke_common::EngineStateManager::SetState(vke_common::EngineState::Paused);
-                }
-                vke_common::InputManager::SetCursorMode(currentIsEdit ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-                ImGuiIO &io = ImGui::GetIO();
-                if (currentIsEdit)
-                    io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
-                else
-                    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
-            }
+                toggleRunRequested = true;
         }
 
         ImGui::EndMainMenuBar();
@@ -293,7 +324,15 @@ namespace vke_editor
 
     void Editor::showInspector()
     {
-        ImGui::Begin("Inspector");
+        if (!ImGui::Begin("Inspector"))
+        {
+            ImGui::End();
+            return;
+        }
+        const bool canEdit = EditorStateManager::GetState() == EditorState::Edit;
+        if (!canEdit)
+            ImGui::TextDisabled("Running - read only");
+        ImGui::BeginDisabled(!canEdit);
 
         if (selectedAsset != 0)
         {
@@ -303,6 +342,7 @@ namespace vke_editor
                 showSelectedMaterialInspector();
             else
                 showSelectedAssetInspector();
+            ImGui::EndDisabled();
             ImGui::End();
             return;
         }
@@ -311,6 +351,7 @@ namespace vke_editor
             !sceneManager->registry.all_of<vke_common::GameObject, vke_common::Transform>(selectedEntity))
         {
             ImGui::TextUnformatted("No object selected");
+            ImGui::EndDisabled();
             ImGui::End();
             return;
         }
@@ -347,14 +388,6 @@ namespace vke_editor
         {
             if (sceneManager->registry.all_of<vke_component::CharacterController>(selectedEntity))
                 ImGui::BulletText("CharacterController");
-            auto scripts = vke_common::ScriptManager::GetScriptList(selectedEntity);
-            if (scripts)
-            {
-                for (const auto &className : *scripts)
-                    ImGui::BulletText("Script: %s", className.c_str());
-            }
-            else
-                ImGui::TextWrapped("Cannot list scripts: %s", scripts.error().c_str());
             ImGui::TreePop();
         }
 
@@ -368,7 +401,9 @@ namespace vke_editor
         drawAudioSourceComponent();
         drawAudioListenerComponent();
         showComponentMenu();
-
+        ImGui::EndDisabled();
+        // Script trees remain navigable while their values are read-only.
+        drawScriptComponents();
         ImGui::End();
     }
 
@@ -400,7 +435,8 @@ namespace vke_editor
             bool available = false;
             for (const auto &item : items)
             {
-                if (sceneManager->HasComponent(selectedEntity, item.type)) continue;
+                if (sceneManager->HasComponent(selectedEntity, item.type))
+                    continue;
                 available = true;
                 const bool needsAssets = item.type == vke_common::ComponentType::SkeletonAnimator;
                 ImGui::BeginDisabled(needsAssets);
@@ -413,7 +449,8 @@ namespace vke_editor
                 if (needsAssets && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                     ImGui::SetTooltip("Requires material, mesh and skeleton; use the SceneManager data overload.");
             }
-            if (!available) ImGui::TextDisabled("No components available");
+            if (!available)
+                ImGui::TextDisabled("No components available");
             ImGui::EndCombo();
         }
         if (ImGui::BeginCombo("Remove Component", "Select component"))
@@ -421,7 +458,8 @@ namespace vke_editor
             bool available = false;
             for (const auto &item : items)
             {
-                if (!sceneManager->HasComponent(selectedEntity, item.type)) continue;
+                if (!sceneManager->HasComponent(selectedEntity, item.type))
+                    continue;
                 available = true;
                 if (ImGui::Selectable(item.name))
                 {
@@ -429,7 +467,8 @@ namespace vke_editor
                         VKE_LOG_ERROR("Failed to remove {}: {}", item.name, result.error());
                 }
             }
-            if (!available) ImGui::TextDisabled("No removable components");
+            if (!available)
+                ImGui::TextDisabled("No removable components");
             ImGui::EndCombo();
         }
         ImGui::EndDisabled();

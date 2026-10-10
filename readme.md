@@ -2,6 +2,8 @@
 
 ![](./docs/imgs/sponza.jpg)
 
+![vkEngine editor showcase](./docs/imgs/editor.jpg)
+
 vkEngine is a toy game engine currently in development. 
 It uses [Vulkan](https://www.lunarg.com/vulkan-sdk/) as the rendering backend, integrates [JoltPhysics](https://github.com/jrouwe/JoltPhysics) for real-time physics simulation, and embeds [CoreCLR](https://github.com/dotnet/runtime) as the scripting runtime for C#. 
 
@@ -38,7 +40,7 @@ scons
 
 ## Run
 
-The build will produce `out/engine.exe`. The executable expects a single game config json:
+Run from the repository root. The engine expects a single game config json:
 
 ```
 ./out/engine.exe ./tests/cfg/test_sponza.json
@@ -47,18 +49,21 @@ The build will produce `out/engine.exe`. The executable expects a single game co
 ./out/engine.exe ./tests/cfg/test_env.json
 ./out/engine.exe ./tests/cfg/test_render.json
 ./out/engine.exe ./tests/cfg/test_audio.json
+./out/engine.exe ./tests/cfg/test_prefab.json
 ```
 
-The editor can be launched directly with an editor config json:
+Some examples, including Sponza, require external assets not included in the repository.
 
-```
-./out/editor.exe ./tests/editor_projects/proj1/editorconfig.json
-```
-
-Alternatively, use the editor launcher to create or open a project:
+Use the editor launcher to create or open a project:
 
 ```
 python ./tools/editor_launcher.py
+```
+
+Or launch the editor with your project's config:
+
+```
+./out/editor.exe "path/to/project/editorconfig.json"
 ```
 
 ## Third Party Libraries 
@@ -87,6 +92,7 @@ python ./tools/editor_launcher.py
 - **Frame Graph**:
   - [x] support for multiple queue families 
   - [x] transient resource allocation 
+  - [x] CPU/GPU profiling
   - [ ] transient resource schedule optimize
 - **Rendering**:
   - [x] cluster-based deferred rendering & PBR 
@@ -103,6 +109,11 @@ python ./tools/editor_launcher.py
   - [ ] UI transform: anchor, pivot, size, scale
   - [ ] basic widgets: text, image, panel, button
   - [ ] input/event handling: hover, click, focus
+- **Scene / ECS**:
+  - [x] scene loading and saving
+  - [x] prefab instantiation
+  - [x] native component add/remove
+  - [x] unified component lifecycle and system reset
 - **Physics**:
   - [x] rigidbody
   - [x] collision detection
@@ -118,7 +129,8 @@ python ./tools/editor_launcher.py
 - **Scripting**:
   - [x] CoreCLR integration
   - [x] script lifecycle
-  - [ ] python-based preprocessing tool to generate metadata 
+  - [x] C# metadata export and binary reader/writer generation
+  - [x] exported field serialization
 - **Audio**:
   - [x] audio source/listener
   - [x] 3D spatial audio: attenuation, rolloff, doppler
@@ -127,6 +139,7 @@ python ./tools/editor_launcher.py
 - **Editor**:
   - [x] editor layout
   - [x] asset database
+  - [x] script field editing
+  - [x] game state snapshot
   - [ ] gizmo
   - [ ] assets preivew
-  - [ ] game state snapshot

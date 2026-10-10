@@ -52,6 +52,14 @@ namespace vke_common
         return result;
     }
 
+    SceneResult<void> ScriptManager::SetScriptData(entt::entity entity, const std::string &className, const TypeInfoData &data)
+    {
+        if (!instance->csharpExports.sceneManagerFunctions.setScriptData(
+                entity, className.c_str(), data.data(), static_cast<int32_t>(data.size())))
+            return std::unexpected("managed script edit failed");
+        return {};
+    }
+
     SceneResult<std::vector<vke_component::ScriptStateData>> ScriptManager::GetEntityScriptsData(entt::entity entity)
     {
         struct ExportContext

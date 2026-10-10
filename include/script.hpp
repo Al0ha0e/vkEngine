@@ -57,6 +57,7 @@ namespace vke_common
         int32_t (*hasScripts)(entt::entity);
         int32_t (*getScriptList)(entt::entity, void *, void (*)(void *, const char *));
         int32_t (*getScriptData)(entt::entity, const char *, void *, void (*)(void *, const std::byte *, int32_t));
+        int32_t (*setScriptData)(entt::entity, const char *, const std::byte *, int32_t);
         int32_t (*getEntityScriptsData)(entt::entity, void *, void (*)(void *, const char *, const std::byte *, int32_t));
 
         CSharpSceneManagerFunctions()
@@ -73,6 +74,7 @@ namespace vke_common
               hasScripts(nullptr),
               getScriptList(nullptr),
               getScriptData(nullptr),
+              setScriptData(nullptr),
               getEntityScriptsData(nullptr) {}
     };
 
@@ -176,6 +178,7 @@ namespace vke_common
 
         static SceneResult<std::vector<std::string>> GetScriptList(entt::entity entity);
         static SceneResult<TypeInfoData> GetScriptData(entt::entity entity, const std::string &className);
+        static SceneResult<void> SetScriptData(entt::entity entity, const std::string &className, const TypeInfoData &data);
         static SceneResult<std::vector<vke_component::ScriptStateData>> GetEntityScriptsData(entt::entity entity);
 
         TypeInfoPtr FindTypeInfo(std::string_view name) const

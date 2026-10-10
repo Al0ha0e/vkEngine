@@ -20,8 +20,9 @@ namespace vke_common
         case TypeKind::Struct:
         {
             auto result = nlohmann::json::object();
-            for (const auto &field : Type()->GetIf<StructTypeInfo>()->fields)
-                result[field.name] = Field(field.name)->ToJSON();
+            const auto &fields = Type()->GetIf<StructTypeInfo>()->fields;
+            for (std::size_t i = 0; i < fields.size(); ++i)
+                result[fields[i].name] = Field(i)->ToJSON();
             return result;
         }
         case TypeKind::Array:
@@ -84,7 +85,7 @@ namespace vke_common
         return state->data.subspan(state->offset, state->size);
     }
 
-    std::expected<ValueView, ValueViewError> ValueView::Field(std::string_view name) const // TODO optimize
+    std::expected<ValueView, ValueViewError> ValueView::Field(std::string_view name) const
     {
         const auto *structInfo = state->type->GetIf<StructTypeInfo>();
         if (!structInfo)
@@ -97,6 +98,15 @@ namespace vke_common
         }
 
         return error(ValueViewErrorCode::FieldNotFound);
+    }
+
+    std::expected<ValueView, ValueViewError> ValueView::Field(std::size_t index) const
+    {
+        if (state->type->Kind() != TypeKind::Struct)
+            return error(ValueViewErrorCode::WrongType);
+        if (index >= state->children.size())
+            return error(ValueViewErrorCode::IndexOutOfRange);
+        return state->children[index];
     }
 
     std::expected<uint32_t, ValueViewError> ValueView::Count() const noexcept

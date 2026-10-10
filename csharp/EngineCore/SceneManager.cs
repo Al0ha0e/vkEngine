@@ -22,6 +22,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged<UInt32, Int32> HasScripts;
         public delegate* unmanaged<UInt32, void*, delegate* unmanaged<void*, byte*, void>, Int32> GetScriptList;
         public delegate* unmanaged<UInt32, byte*, void*, delegate* unmanaged<void*, byte*, Int32, void>, Int32> GetScriptData;
+        public delegate* unmanaged<UInt32, byte*, byte*, Int32, Int32> SetScriptData;
         public delegate* unmanaged<UInt32, void*, delegate* unmanaged<void*, byte*, byte*, Int32, void>, Int32> GetEntityScriptsData;
     }
 
@@ -57,6 +58,8 @@ namespace vkEngine.EngineCore
             string className, UInt32 entity, byte* data, Int32 dataSize);
         private static BinaryParser? binaryParser;
         private static Func<EntityScript, byte[]>? binaryWriter;
+        private unsafe delegate void BinaryApplier(EntityScript script, byte* data, Int32 dataSize);
+        private static BinaryApplier? binaryApplier;
 
         public static unsafe void DestroyEntity(UInt32 entity)
         {
@@ -246,6 +249,29 @@ namespace vkEngine.EngineCore
             }
         }
 
+        [UnmanagedCallersOnly]
+        public static unsafe Int32 SetScriptData(UInt32 entity, byte* className, byte* data, Int32 dataSize)
+        {
+            try
+            {
+                string? name = Marshal.PtrToStringUTF8((nint)className);
+                if (string.IsNullOrEmpty(name) ||
+                    !scriptsByEntity.TryGetValue(entity, out var scripts) ||
+                    !scripts.TryGetValue(name, out var target) ||
+                    target.State is ScriptState.Unloading or ScriptState.Unloaded) return 0;
+                binaryApplier ??= GetGameAssembly().GetType("vkEngine.Generated.EntityScriptBinaryReaders", true)!
+                    .GetMethod("SetScriptData", BindingFlags.Public | BindingFlags.Static)!
+                    .CreateDelegate<BinaryApplier>();
+                binaryApplier(target, data, dataSize);
+                return 1;
+            }
+            catch (Exception error)
+            {
+                Console.Error.WriteLine($"Script edit failed: {error}");
+                return 0;
+            }
+        }
+
         // Buffers are borrowed only for the synchronous callback. No pinned memory escapes.
         [UnmanagedCallersOnly]
         public static unsafe Int32 GetEntityScriptsData(UInt32 entity, void* context,
@@ -319,6 +345,7 @@ namespace vkEngine.EngineCore
                 HasScripts = &HasScripts,
                 GetScriptList = &GetScriptList,
                 GetScriptData = &GetScriptData,
+                SetScriptData = &SetScriptData,
                 GetEntityScriptsData = &GetEntityScriptsData
             };
         }
