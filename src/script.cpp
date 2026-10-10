@@ -20,7 +20,39 @@
 
 namespace vke_common
 {
-    SceneResult<std::vector<vke_component::ScriptStateData>> ScriptManager::FillData(entt::entity entity)
+    SceneResult<std::vector<std::string>> ScriptManager::GetScriptList(entt::entity entity)
+    {
+        std::vector<std::string> scripts;
+        const auto receive = +[](void *opaque, const char *className)
+        {
+            static_cast<std::vector<std::string> *>(opaque)->emplace_back(className);
+        };
+        if (!instance->csharpExports.sceneManagerFunctions.getScriptList(entity, &scripts, receive))
+            return std::unexpected("managed script listing failed");
+        return scripts;
+    }
+
+    SceneResult<TypeInfoData> ScriptManager::GetScriptData(entt::entity entity, const std::string &className)
+    {
+        SceneResult<TypeInfoData> result = std::unexpected("managed script export returned no data");
+        const auto receive = +[](void *opaque, const std::byte *bytes, int32_t size)
+        {
+            auto &result = *static_cast<SceneResult<TypeInfoData> *>(opaque);
+            if (size < 0 || (size != 0 && !bytes))
+            {
+                result = std::unexpected("invalid script export buffer");
+                return;
+            }
+            TypeInfoData data;
+            if (size != 0) data.assign(bytes, bytes + size);
+            result = std::move(data);
+        };
+        if (!instance->csharpExports.sceneManagerFunctions.getScriptData(entity, className.c_str(), &result, receive))
+            return std::unexpected("managed script export failed");
+        return result;
+    }
+
+    SceneResult<std::vector<vke_component::ScriptStateData>> ScriptManager::GetEntityScriptsData(entt::entity entity)
     {
         struct ExportContext
         {
@@ -31,8 +63,8 @@ namespace vke_common
         {
             auto &result = *static_cast<ExportContext *>(opaque);
             if (!result.error.empty()) return;
-            auto type = instance->FindTypeInfo(className);
-            if (!type || size < 0)
+            auto type = className ? instance->FindTypeInfo(className) : nullptr;
+            if (!type || size < 0 || (size != 0 && !bytes))
             {
                 result.error = "invalid script export schema or size";
                 return;
@@ -45,10 +77,10 @@ namespace vke_common
             }
             vke_component::ScriptStateData state;
             state.className = className;
-            state.serializedData = value->ToJSON();
+            if (size != 0) state.data.assign(bytes, bytes + size);
             result.scripts.push_back(std::move(state));
         };
-        if (!instance->csharpExports.sceneManagerFunctions.fillData(entity, &context, receive))
+        if (!instance->csharpExports.sceneManagerFunctions.getEntityScriptsData(entity, &context, receive))
             return std::unexpected("managed script export failed");
         if (!context.error.empty()) return std::unexpected(context.error);
         return std::move(context.scripts);

@@ -8,10 +8,31 @@
 #include <component/text.hpp>
 #include <component/script.hpp>
 #include <scene.hpp>
+#include <reflect/value_view.hpp>
 
 namespace vke_component
 {
-    vke_common::SceneResult<vke_common::TypeInfoDataPtr> ScriptStateData::PrepareForInstantiation() const
+    vke_common::SceneResult<ScriptStateData> ScriptStateData::FromJSON(const nlohmann::json &json)
+    {
+        using namespace vke_common;
+        if (auto valid = ValidateJSON(json); !valid)
+            return std::unexpected(valid.error());
+        const auto className = json["className"].get<std::string>();
+        auto *manager = ScriptManager::GetInstance();
+        if (!manager)
+            return std::unexpected("ScriptManager is not initialized");
+        auto type = manager->FindTypeInfo(className);
+        if (!type)
+            return std::unexpected("missing script TypeInfo: " + className);
+        auto encoded = type->EncodeBinaryFromJson(json["data"]);
+        if (!encoded)
+            return std::unexpected(className + " at " + encoded.error().path + ": " + std::string(ToString(encoded.error().code)));
+        if ((*encoded)->size() > INT32_MAX)
+            return std::unexpected("script data exceeds interop size limit");
+        return ScriptStateData{className, std::move(**encoded)};
+    }
+
+    vke_common::SceneResult<nlohmann::json> ScriptStateData::ToJSON() const
     {
         using namespace vke_common;
         auto *manager = ScriptManager::GetInstance();
@@ -20,12 +41,10 @@ namespace vke_component
         auto type = manager->FindTypeInfo(className);
         if (!type)
             return std::unexpected("missing script TypeInfo: " + className);
-        auto encoded = type->EncodeBinaryFromJson(serializedData);
-        if (!encoded)
-            return std::unexpected(className + " at " + encoded.error().path + ": " + std::string(ToString(encoded.error().code)));
-        if ((*encoded)->size() > INT32_MAX)
-            return std::unexpected("script data exceeds interop size limit");
-        return std::move(*encoded);
+        auto value = ValueView::Parse(type, data);
+        if (!value)
+            return std::unexpected(className + ": " + std::string(ToString(value.error().code)));
+        return nlohmann::json{{"type", "script"}, {"className", className}, {"data", value->ToJSON()}};
     }
 }
 
@@ -68,17 +87,17 @@ namespace vke_common
             return load.operator()<vke_component::SpotLightData>();
         if (type == "script")
         {
-            if (auto valid = vke_component::ScriptStateData::ValidateJSON(component); !valid)
-                return valid;
+            auto script = vke_component::ScriptStateData::FromJSON(component);
+            if (!script) return std::unexpected(script.error());
             if (!registry.all_of<ScriptDataList>(entity))
                 registry.emplace<ScriptDataList>(entity);
-            registry.get<ScriptDataList>(entity).emplace_back(component);
+            registry.get<ScriptDataList>(entity).push_back(std::move(*script));
             return {};
         }
         return std::unexpected("unknown component type: " + type);
     }
 
-    void SceneData::componentToJSON(entt::entity entity, nlohmann::json &components) const
+    SceneResult<void> SceneData::componentToJSON(entt::entity entity, nlohmann::json &components) const
     {
         if (registry.all_of<vke_component::CameraData>(entity))
             components.push_back(registry.get<vke_component::CameraData>(entity).ToJSON());
@@ -119,7 +138,12 @@ namespace vke_common
         if (registry.all_of<ScriptDataList>(entity))
             for (const vke_component::ScriptStateData &script :
                  registry.get<ScriptDataList>(entity))
-                components.push_back(script.ToJSON());
+            {
+                auto json = script.ToJSON();
+                if (!json) return std::unexpected(json.error());
+                components.push_back(std::move(*json));
+            }
+        return {};
     }
 
     SceneResult<void> SceneManager::validateComponentMutation(entt::entity entity) const
@@ -370,7 +394,7 @@ namespace vke_common
         case ComponentType::SpotLight:
             return registry.all_of<vke_component::SpotLight>(entity);
         case ComponentType::Script:
-            return csharpScriptStates.find(entity) != csharpScriptStates.end();
+            return ScriptManager::HasScripts(entity);
         case ComponentType::UIText:
             return registry.all_of<vke_component::UIText>(entity);
         case ComponentType::AudioSource:

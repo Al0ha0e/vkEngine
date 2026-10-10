@@ -1,12 +1,13 @@
 # EntityScript 场景加载互操作
 
-## loadScene 流程
+## 场景加载流程
 
 1. `ScriptManager::init` 在加载 `gameAssemblyPath` 后，读取
    `gameScriptTypeInfoPath`，将导出的脚本 `TypeInfo` 按完整类名加载到 map。
-2. `SceneManager::Instantiate` 接受 Ready 状态的 SceneData，根据 `className` 查找
-   `TypeInfo`，再调用 `TypeInfo::EncodeBinaryFromJson` 把场景 JSON 中的
-   `data` 编码为二进制。编码失败直接返回错误。
+2. 场景文件读取时，`ScriptStateData::FromJSON` 根据 `className` 查找
+   `TypeInfo`，调用 `TypeInfo::EncodeBinaryFromJson` 把 `data` 编码为二进制；
+   编码失败直接返回错误。`SceneData`、预制体和 SceneData 快照均持有这些字节。
+   `SceneManager::Instantiate` 使用已校验的脚本数据，在创建实体前检查所需的脚本管理器是否可用，加载时直接借用其缓冲区。
 3. C++ 创建本批实体、建立层级，并初始化和注册原生组件。
 4. C++ 将 `CSharpScriptLoadData[]` 一次性传给 `SceneManager.Load`：
 
@@ -22,15 +23,15 @@
 
    数组、类名和二进制缓冲区只保证在同步 `Load` 调用期间有效，C# 不得保存指针。
 5. C# 解码类名并校验缓冲区后，将原生字段缓冲区直接交给游戏程序集内生成的
-   `vkEngine.Generated.EntityScriptBinaryReaders.Parse` 同步解析，不复制整个缓冲区，也不保留原生指针。生成的 reader 直接构造
-   脚本并按确定的布局解析字段；加载热路径不再解析 JSON，也不再逐字段使用反射。
+   `vkEngine.Generated.EntityScriptBinaryReaders.Parse` 同步解析。生成的 reader 构造
+   脚本并按确定的二进制布局读取字段。
 6. `SceneManager.Load` 返回 void，不捕获加载异常。加载完成后，运行模式仅启动本批实体；编辑模式由切换到运行的入口显式调用全场景 Start。生命周期钩子异常记录后继续分派。
 
-启动由 C++ `SceneManager::Instantiate` 显式调度，`loadScripts` 只负责加载。批次 `Start(entities, count)` 只传带脚本的实体 ID，每个实体一次；全场景启动使用无参数 `StartAll()`，直接从托管端已注册脚本生成快照。`SceneManagerFunctions` 在 `FillData` 后追加 `StartAll` 函数指针，原生与 EngineCore 需要一起重新编译、部署。
+启动由 C++ `SceneManager::Instantiate` 显式调度，`loadScripts` 负责加载。批次 `Start(entities, count)` 传入带脚本的实体 ID，每个实体一次；全场景启动使用无参数 `StartAll()`，从托管端已注册脚本生成快照。`SceneManagerFunctions` 将 `Start` 与 `StartAll` 相邻排列在生命周期分组中；原生与托管端的函数表布局须保持一致，修改布局时必须一起构建、部署。
 
 ## Script 组件的场景格式
 
-脚本仍然以 JSON 保存在场景文件中，`data` 是与导出的脚本 TypeInfo 对应的
+脚本以 JSON 保存在场景文件中，`data` 是与导出的脚本 TypeInfo 对应的
 JSON 值。Struct 使用对象，字段必须完整且不能包含未知字段；数组使用 JSON
 数组。详细映射和校验规则见 [type_info.md](type_info.md)。
 
@@ -50,12 +51,10 @@ JSON 值。Struct 使用对象，字段必须完整且不能包含未知字段�
 
 游戏项目在编译期间运行 Roslyn `EntityScriptSourceGenerator`，分析所有继承
 `EntityScript` 的非抽象类，并把二进制 reader 直接加入当前 `Game.dll`。编译完成后，
-`EntityScriptMetadataExporter` 扫描生成的 `Game.dll`；导出器不会实例化脚本，只生成：
+`EntityScriptMetadataExporter` 扫描生成的 `Game.dll`，输出递归 TypeInfo 文件
+`generated/Game.entityscripts.json`，供 C++ 编码场景数据。
 
-- 递归 TypeInfo 文件 `generated/Game.entityscripts.json`，供 C++ 编码场景数据。
-
-Roslyn source generator 生成的 reader 只作为 compiler-generated source 参与编译，
-不写入项目的 `generated/` 目录。
+Roslyn source generator 生成的 reader 作为 compiler-generated source 参与编译。
 
 TypeInfo JSON 的完整格式见 [type_info.md](type_info.md)。生成的 reader 遵守
 [binary.md](binary.md) 的 Data 布局，包括小端编码、类型对齐、零 padding、长度
@@ -74,21 +73,22 @@ public float MoveSpeed = 2.5f;
 public float Speed { get; set; }
 ```
 
-示例项目只需执行一次构建：source generator 在本次编译中生成并编译 reader，
-随后 exporter 输出 metadata JSON。导出器在内容未变化时不会改写文件，因此后续
-构建不会形成时间戳循环。`generated/` 属于构建产物，不提交版本库。
+示例项目的构建先由 source generator 生成并编译 reader，随后由 exporter 输出
+metadata JSON。导出器仅在内容变化时写入文件。`generated/` 属于构建产物，不提交版本库。
 
 ## 当前状态导出
 
 生成器同时生成 `EntityScriptBinaryReaders.FillData(EntityScript) -> byte[]`。它与 reader 共用字段排序、类型布局及对齐规则，导出成员名别名由 TypeInfo 映射到 JSON。脚本调用 `FillData()` 得到 `EntityScriptData`。
 
-`SceneManagerFunctions` 在 Reset 之后增加 FillData 函数指针：
+`SceneManagerFunctions.GetEntityScriptsData` 获取一个实体上全部脚本的类名与二进制数据，与 `GetScriptData` 一起位于数据读取分组：
 
 ```cpp
-int32_t (*fillData)(entt::entity entity, void *context,
+int32_t (*getEntityScriptsData)(entt::entity entity, void *context,
     void (*receive)(void *context, const char *className, const std::byte *data, int32_t dataSize));
 ```
 
-返回 1 表示成功（无脚本也成功），0 表示托管导出失败。每个脚本调用一次 receive；className 是零结尾 UTF-8，缓冲区只在同步回调内有效。托管端先生成该实体全部快照，再执行回调。原生端通过 `ValueView::Parse` 验证，再调用 `ToJSON()` 形成 ScriptStateData。任一错误使 `ScriptManager::FillData` 及整场景导出返回错误，不回退到加载时的旧状态。
+返回 1 表示成功（无脚本也成功），0 表示托管导出失败。每个脚本调用一次 receive；className 是零结尾 UTF-8，缓冲区只在同步回调内有效。托管端先生成该实体全部快照，再执行回调。原生端通过 `ValueView::Parse` 验证并复制为二进制 `ScriptStateData`。任一错误使 `ScriptManager::GetEntityScriptsData` 及整场景导出返回错误。
 
-导出不调用任何生命周期钩子。该函数表变更需要原生与 EngineCore 一起重新编译、部署。
+SceneData 快照持有二进制脚本状态。`ScriptStateData::ToJSON` 在 `SceneData::ToJSON` 文件输出边界将二进制转换回 JSON；类型缺失或二进制无效会返回错误，编辑器完成转换后才打开保存文件。
+
+导出仅采集字段数据，保持脚本生命周期状态不变。

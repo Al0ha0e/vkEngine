@@ -156,8 +156,14 @@ namespace vke_editor
                     auto data = sceneManager->ExportAllEntities();
                     if (data)
                     {
-                        std::ofstream ofs(scenePath);
-                        ofs << data->ToJSON().dump(4);
+                        auto json = data->ToJSON();
+                        if (json)
+                        {
+                            std::ofstream ofs(scenePath);
+                            ofs << json->dump(4);
+                        }
+                        else
+                            VKE_LOG_ERROR("Cannot save scene: {}", json.error());
                     }
                     else
                         VKE_LOG_ERROR("Cannot save scene: {}", data.error());
@@ -341,12 +347,14 @@ namespace vke_editor
         {
             if (sceneManager->registry.all_of<vke_component::CharacterController>(selectedEntity))
                 ImGui::BulletText("CharacterController");
-            auto scriptIt = sceneManager->csharpScriptStates.find(selectedEntity);
-            if (scriptIt != sceneManager->csharpScriptStates.end())
+            auto scripts = vke_common::ScriptManager::GetScriptList(selectedEntity);
+            if (scripts)
             {
-                for (const auto &[className, state] : scriptIt->second)
+                for (const auto &className : *scripts)
                     ImGui::BulletText("Script: %s", className.c_str());
             }
+            else
+                ImGui::TextWrapped("Cannot list scripts: %s", scripts.error().c_str());
             ImGui::TreePop();
         }
 

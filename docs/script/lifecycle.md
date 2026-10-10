@@ -4,12 +4,12 @@ C++ 原生组件和 C# EntityScript 共用同一生命周期：从 Data 构造�
 
 ## 1. 系统和组件的关系
 
-- `SceneManager` 持有运行时 registry，统一创建、增删组件、分派生命周期和延迟回收实体。引擎与编辑器共用其 Start / Update / FixedUpdate / LateUpdate 入口；这些入口只分派场景组件（含脚本），不推进物理或音频系统。仅系统读取 EngineState。
-- C# `SceneManager` 持有脚本对象和分发列表，脚本用单一 `ScriptState` 枚举记录生命周期，C++ `ScriptManager` 只负责互操作桥接。脚本构造函数不自行注册，组件不判断编辑器或引擎运行状态。
-- `Engine::UpdateSimulation(deltaTime, accumulator)` 统一调度场景更新、固定步长物理模拟和音频更新；引擎与编辑器共用该入口，各自持有累积时间。渲染仍由各自的帧循环调用。
-- Render、Physics、Audio 等子系统持有注册的渲染单元、物理体、声音等资源。组件构造时完成注册，Unload 撤销注册；Start 表示开始运行，不负责加载资源。
-- 系统遍历 registry 或仍已注册的脚本来保证所属实体、组件有效。外部调用（编辑器、C# 原生接口、异步请求）仍在入口验证实体与组件，不能把任意外部句柄视为有效。
-- 原生组件按需实现 `Start()`、`Update(float deltaTime)`、`FixedUpdate(float deltaTime)`、`LateUpdate(float deltaTime)`；没有相应行为的组件不需要空函数或虚基类。场景系统在编译期筛选钩子。C# 对应钩子仍为无参、默认空实现，按覆盖掩码注册更新。
+- `SceneManager` 持有运行时 registry，统一创建、增删组件、分派生命周期和延迟回收实体。引擎与编辑器共用其 Start / Update / FixedUpdate / LateUpdate 入口，由这些入口分派场景组件（含脚本）。场景系统读取 EngineState，决定组件生命周期的调用时机。
+- C# `SceneManager` 持有脚本对象和分发列表，在脚本构造并加载字段后完成注册。脚本用 `ScriptState` 枚举记录生命周期，C++ `ScriptManager` 负责互操作桥接。
+- `Engine::UpdateSimulation(deltaTime, accumulator)` 统一调度场景更新、固定步长物理模拟和音频更新；引擎与编辑器共用该入口，各自持有累积时间。渲染由各自的帧循环调用。
+- Render、Physics、Audio 等子系统持有注册的渲染单元、物理体、声音等资源。组件构造时完成注册，Unload 撤销注册；Start 表示开始运行。
+- 系统遍历 registry 或已注册脚本，保证所属实体、组件有效。外部调用（编辑器、C# 原生接口、异步请求）在入口验证实体与组件。
+- 原生组件按需实现 `Start()`、`Update(float deltaTime)`、`FixedUpdate(float deltaTime)`、`LateUpdate(float deltaTime)`，场景系统在编译期筛选钩子。C# 对应钩子为无参、默认空实现，按覆盖掩码注册更新。
 - 结构修改只允许在主线程安全阶段进行，不能在遍历受影响组件池或渲染上传回调时修改结构。实体销毁和脚本提交的预制体实例化使用队列。
 
 ## 2. Data、构造与导出
@@ -20,19 +20,19 @@ C++ 原生组件和 C# EntityScript 共用同一生命周期：从 Data 构造�
 
 灯光是空标签，实际可变状态由 LightManager 持有，因此使用静态 `FillData(entity, data)` 和 `Unload(entity)`。Transform 是必需组件，由实体及变换系统管理，不允许单独删除。
 
-原生运行时组件禁止复制；移动转移注册句柄，不重新注册或更换所属实体。EnTT 搬移不触发 Start。SkeletonAnimator 的上传回调捕获组件地址，仍使用 in_place_delete，手动移动时重绑回调。移动赋值释放目标原有资源，只能在安全结构修改阶段使用。析构不代替系统的 Unload；Reset 有独立清理路径。
+原生运行时组件禁止复制；移动转移注册句柄，保持所属实体和生命周期状态。SkeletonAnimator 的上传回调捕获组件地址，使用 in_place_delete，手动移动时重绑回调。移动赋值释放目标原有资源，只能在安全结构修改阶段使用。组件删除前由系统调用 Unload；Reset 使用独立清理路径。
 
 ### C# 脚本
 
-`EntityScriptData` 是导出时使用的快照，由完整类名和自有二进制字段缓冲区组成。加载时，托管管理器直接将原生缓冲区交给生成的 reader 同步解析，不复制整个缓冲区，也不保留原生指针：先调用脚本已有的 UInt32 构造函数，再解析所有导出字段，最后由系统注册。构造期间不能依赖其他脚本已加载；此类逻辑应放在 Start。
+`EntityScriptData` 是导出时使用的快照，由完整类名和自有二进制字段缓冲区组成。加载时，托管管理器借用原生缓冲区，交给生成的 reader 同步解析：先调用脚本的 UInt32 构造函数，再解析所有导出字段，最后由系统注册。原生指针仅在同步加载调用期间有效。依赖其他脚本的初始化逻辑应放在 Start，此时本批脚本均已加载。
 
 `EntityScript.FillData()` 调用生成的 writer，将当前 `[Export]` 字段和属性写入与 reader 相同的二进制格式。支持继承字段、Export 别名、标量、UTF-8 字符串、向量、结构体和一维数组（包括嵌套的一维数组）。导出成员须公开可读写；格式不支持 null，null 字符串或数组、非有限浮点数、超限长度会使导出失败。
 
-C++ 通过 `ScriptManager::FillData(entity)` 同步获取该实体全部仍已注册脚本的当前状态。托管端先生成快照，再通过回调借出类名与字节；原生端用 TypeInfo / ValueView 校验并转换为 ScriptStateData。指针只在回调内有效，不跨语言保留。
+C++ 通过 `ScriptManager::GetEntityScriptsData(entity)` 同步获取该实体全部已注册脚本的当前状态。托管端先生成快照，再通过回调借出类名与字节；原生端用 TypeInfo / ValueView 校验并复制为持有二进制的 ScriptStateData。指针仅在回调内有效。
 
-`ExportAllEntities()` 和 `ExportEntitySubtree(root)` 返回 `SceneResult<SceneData>`。原生组件和脚本均导出实时状态；脚本导出失败时整个操作返回错误，编辑器不覆盖场景文件。导出不改变生命周期、不调用 Start，也不包含未标记 Export 的运行时字段。
+`ExportAllEntities()` 和 `ExportEntitySubtree(root)` 返回 `SceneResult<SceneData>`。原生组件和脚本均导出实时状态；脚本导出失败时整个操作返回错误，编辑器保留原场景文件。脚本导出仅采集标记 Export 的字段和属性，保持生命周期状态不变。
 
-当前 csharpScriptStates 仍保留加载时的记录供编辑器显示脚本名称；它不再是场景保存的数据来源。移除该缓存及实现脚本字段编辑面板属于后续工作。
+脚本实时状态由 C# 实例持有。编辑器通过托管注册表查询脚本名称，场景保存从实例导出当前状态。
 
 ## 3. 创建与 Start
 
@@ -42,7 +42,7 @@ C++ 通过 `ScriptManager::FillData(entity)` 同步获取该实体全部仍已�
 
 Instantiate 的顺序：
 
-1. 验证 Ready 数据、父实体和变换参数，编码本批脚本数据。
+1. 验证 Ready 阶段、父实体和根变换的单根条件；本批包含脚本时检查 ScriptManager 已初始化。脚本二进制须在读取或导出入口通过校验。
 2. 分配本批全部实体和 GameObject / Transform，建立层级并计算世界变换。
 3. 从 Data 构造全部原生组件，完成子系统注册。
 4. 批量构造、解析并注册本批脚本。
@@ -50,21 +50,21 @@ Instantiate 的顺序：
 
 Start 执行时本批全部组件已可用。原生组件先启动，再调用本批脚本 Start；实体之间和脚本之间的顺序没有约定。没有脚本的实体同样启动原生组件。
 
-Instantiate 显式调度加载与启动，loadScripts 只构造并注册脚本。批次原生启动直接遍历本批实体映射，托管 Start 只接收本批带脚本的实体 ID，每个实体一次。全场景 Start 直接遍历有 Start 钩子的原生组件池，再通过托管 StartAll 启动已注册脚本，不构造全场景实体 ID 列表。托管端在调用脚本前生成脚本对象快照，避免直接遍历可变的管理器集合。
+Instantiate 显式调度加载与启动，loadScripts 构造并注册脚本。批次原生启动遍历本批实体映射，托管 Start 接收本批带脚本的实体 ID，每个实体一次。全场景 Start 遍历有 Start 钩子的原生组件池，再通过托管 StartAll 启动已注册脚本。托管端在调用脚本前生成脚本对象快照，随后遍历快照分派回调。
 
-编辑器从编辑切换到运行时，显式调用 SceneManager::Start，启动当前场景全部实体的组件。独立运行入口已处于运行模式，初始场景在 Instantiate 时启动。运行中新加载的批次只启动本批组件。原生场景系统不维护待启动集合或已启动记录，调用方负责保证每轮运行只调用一次全场景 Start；三个更新阶段均不调用 Start。
+编辑器从编辑切换到运行时，显式调用 SceneManager::Start，启动当前场景全部实体的组件。调用方负责保证每轮运行只调用一次全场景 Start。独立运行入口已处于运行模式，初始场景在 Instantiate 时启动。运行中新加载的批次只启动本批组件。
 
-Start 内发出的实例化请求若发生在正在处理的实例化批次内，留到下一批；进入运行时发出的请求在随后的运行帧处理。编辑期间不处理请求，Reset 或退出时清空。Load 尚无异常回滚事务；生命周期钩子异常会记录并继续分派，不穿过原生调用边界。
+Start 内发出的实例化请求若发生在正在处理的实例化批次内，留到下一批；进入运行时发出的请求在随后的运行帧处理。编辑期间不处理请求，Reset 或退出时清空。Load 发生异常时不提供回滚保证；生命周期钩子异常由托管端捕获、记录，并继续分派后续回调。
 
 ### 空实体和组件增删
 
 `CreateEntity(name, pos, scl, rot, isStatic)` 创建带 GameObject / Transform 的实体。`AddComponent(entity, ComponentType)` 或相应 Data 重载构造并注册组件，运行时立即调用该新组件的 Start，编辑时由进入运行的全场景 Start 统一启动。`RemoveComponent` 先 Unload，再删除组件。
 
-接口拒绝无效、待销毁实体和管理器退出期间的修改，也拒绝重复添加、删除不存在的组件。SkeletonAnimator 要求使用提供网格、材质和骨骼的数据重载。Script 的动态增删尚未接入这些接口；C# 仍只开放异步 InstantiatePrefab、DestroyEntity、IsPendingDestroy。
+接口拒绝无效、待销毁实体和管理器退出期间的修改，也拒绝重复添加、删除不存在的组件。SkeletonAnimator 要求使用提供网格、材质和骨骼的数据重载。Script 的动态增删尚未接入这些接口；C# 的实体操作接口为异步 InstantiatePrefab、DestroyEntity、IsPendingDestroy。
 
 ## 4. 每帧调度
 
-引擎与编辑器在调用场景 Update 前读取一次帧 deltaTime（秒），同一帧的原生 Update、LateUpdate 和音频更新共用该值。Engine 的固定循环将调度所用的 stepTime 显式传给 SceneManager::FixedUpdate 和 PhysicsManager::FixedUpdate，原生组件与 Jolt 模拟使用同一个时间步长；组件不自行读取全局时间或物理配置来获取步长。
+引擎与编辑器在调用场景 Update 前读取一次帧 deltaTime（秒），同一帧的原生 Update、LateUpdate 和音频更新共用该值。Engine 的固定循环将调度所用的 stepTime 显式传给 SceneManager::FixedUpdate 和 PhysicsManager::FixedUpdate，原生组件通过参数接收步长，与 Jolt 模拟使用相同的值。
 
 ```text
 帧边界处理销毁请求（编辑时也执行）
@@ -78,39 +78,47 @@ Start 内发出的实例化请求若发生在正在处理的实例化批次内�
 渲染：帧 fence 完成 → 上传动画姿态及相机、灯光等快照 → 提交渲染
 ```
 
-物理模拟在场景 FixedUpdate 返回后推进，场景继续通过物理更新监听器同步 Transform。音频在场景 LateUpdate 返回后更新。调度层在推进物理和音频前重新检查运行状态，脚本回调中暂停或终止运行会阻止后续系统更新。
+物理模拟在场景 FixedUpdate 返回后推进，场景通过物理更新监听器同步 Transform。音频在场景 LateUpdate 返回后更新。调度层在推进物理和音频前重新检查运行状态，脚本回调中暂停或终止运行会阻止后续系统更新。
 
-编辑时不启动组件、不处理实例化队列、不执行三个运行更新阶段；渲染可以继续。全场景 Start 仅在进入运行时调用，系统不在每帧扫描或维护待启动集合。
+编辑模式下，组件保持加载状态，实例化队列和三个运行更新阶段暂停处理，渲染可以继续。
 
-SkeletonAnimator 构造时以零时间计算初始姿态，运行时 Update 推进动画、采样混合并应用根运动。渲染回调只上传已算出的姿态，不推进动画或修改 Transform，因此暂停渲染不再推进动画。GPU 上传仍在帧 fence 后进行。
+SkeletonAnimator 构造时以零时间计算初始姿态，运行时 Update 推进动画、采样混合并应用根运动。渲染回调在帧 fence 完成后，将已算出的姿态上传至 GPU。
 
-AudioSource 构造时初始化声音但不自动播放。`playOnStart` 只在 Start 中生效；SetClip 只重新加载声音，主动播放由调用方调用 Play / Replay。CharacterController 在 FixedUpdate 推进，物理模拟后的场景监听器只同步结果。
+AudioSource 构造时初始化声音，Start 根据 `playOnStart` 决定是否播放。SetClip 负责重新加载声音，主动播放由调用方调用 Play / Replay。CharacterController 在 FixedUpdate 推进，物理模拟后的场景监听器负责同步结果。
 
 托管脚本状态为 `NotStarted → Starting → Started`，卸载时进入 `Unloading → Unloaded`；尚未启动或正在启动的脚本也可以卸载，Reset 直接进入 `Unloaded`。仅 `NotStarted` 可以开始启动；Start 回调返回后，仅仍为 `Starting` 的脚本转为 `Started`，避免覆盖回调期间发生的卸载或 Reset。Start 异常记录后仍按同样规则转为 `Started`，不重试启动。
 
-托管分派仍复制回调列表，并在调用前确认脚本已注册且状态为 `Started`。`Starting` 期间的重入更新不会执行该脚本。没有覆盖 Start 的脚本同样须经过系统启动才能 Update。仅标记实体待销毁不会立即停止本帧回调，实际卸载发生在下一清理边界。
+托管分派复制回调列表，并在调用前确认脚本已注册且状态为 `Started`。`Starting` 期间的重入更新不会执行该脚本。没有覆盖 Start 的脚本同样须经过系统启动才能 Update。仅标记实体待销毁不会立即停止本帧回调，实际卸载发生在下一清理边界。
 
 ## 5. 卸载、销毁和 Reset
 
-DestroyEntity 立即收集并标记当前子树，不断开层级、不释放资源。ProcessDestroyRequests 在帧边界取待销毁快照，先卸载整批 C# 脚本，再回收整批原生组件和实体。所有脚本 Unload 执行时，本批原生组件及父子关系仍可用。
+DestroyEntity 立即收集并标记当前子树，层级和资源保留至帧边界清理。ProcessDestroyRequests 在帧边界取待销毁快照，先卸载整批 C# 脚本，再回收整批原生组件和实体。所有脚本 Unload 执行时，本批原生组件及父子关系仍可用。
 
 托管清理按实体进行：系统将仍已注册的脚本标记为正在卸载，调用 Unload，标记已卸载，移除注册和分发记录，最后清理 RigidBody / Sensor 回调。系统对每个脚本最多分派一次 Unload；回调异常记录后继续标记失效和清理。
 
-EntityScript 不实现 IDisposable，也不提供 Dispose。脚本通过 DestroyEntity 请求系统销毁所属实体；脚本自身资源统一在 Unload 中释放。Unload 是用户可重写的生命周期回调，直接调用它不会注销脚本或销毁实体。独立移除脚本须由系统提供接口，目前尚未接入。
+脚本通过 DestroyEntity 请求系统销毁所属实体；脚本自身资源统一在 Unload 中释放。Unload 是用户可重写的生命周期回调，直接调用它不会注销脚本或销毁实体。独立移除脚本须由系统提供接口，目前尚未接入。
 
 原生清理统一调用组件 Unload，再删除 registry 中的组件，清理父实体引用，最后销毁实体。移除刚体/传感器时在 BodyID 仍可查询时清理对应托管物理回调。重新添加物理组件后须重新获取 C# 包装对象和订阅回调。
 
 Dispose 场景时停止接受创建、清空实例化队列、循环处理所有剩余销毁请求，再清理残留托管脚本与物理监听。
 
-Reset 是批量系统复位，不逐个执行 Unload。系统直接清空注册及资源；托管脚本旧引用的状态设为 `Unloaded`，不能再次注册或导出字段。脚本放在 Unload 中的资源清理不会在 Reset 时执行。引擎停止运行更新，加载后显式进入运行。设计上返回编辑时应 Reset 并恢复运行前快照；编辑器这部分快照与还原仍属后续工作。
+Reset 是批量系统复位，不逐个执行 Unload。系统直接清空注册及资源；托管脚本旧引用的状态设为 `Unloaded`，不能再次注册或导出字段。脚本放在 Unload 中的资源清理不会在 Reset 时执行。引擎停止运行更新，加载后显式进入运行。编辑器运行前快照与返回编辑时的还原尚未实现。
 
 ## 6. 接口与资源约束
 
 - C++ SceneManager：Start / Update / FixedUpdate / LateUpdate 统一驱动场景系统；ScriptManager 提供同名托管桥接。调用方不能绕过场景系统直接推进某个运行组件。
-- C# 导出函数表：Load、Start、Update、FixedUpdate、LateUpdate、Unload、UnloadEntities、UnregisterComponentCallbacks、Reset、FillData。新增 FillData 后原生与托管程序集必须一起构建部署。
+- C# 导出函数表：生命周期：Load、Start、StartAll、Update、FixedUpdate、LateUpdate、Unload、UnloadEntities、Reset；组件回调：UnregisterComponentCallbacks；脚本查询：HasScripts、GetScriptList；数据读取：GetScriptData、GetEntityScriptsData。原生与托管程序集必须一起构建部署。
 - Camera / Transform 使用紧凑存储，不允许长期保存组件地址。相机回调通过 registry / entity 查询，卸载时注销；渲染单元持有模型矩阵副本。
 - 变换应通过 SceneTransformSystem 修改，使子节点、渲染、阴影和 UI 同步。直接修改 Transform 只影响组件本身。
-- 单独移除 RenderableObject / SkeletonAnimator 仍保留 WaitIdle，等待释放可能被 GPU 使用的资源。其余注册和移除沿用帧同步路径；资源延迟回收不在本轮范围内。
+- 单独移除 RenderableObject / SkeletonAnimator 时调用 WaitIdle，等待 GPU 完成资源使用后再释放。其余注册和移除通过帧同步路径执行。
 - C# 创建空实体、动态增删组件、异步实例化结果，以及脚本字段编辑、编辑器运行快照/还原尚未实现。
+
+## 7. 脚本状态查询
+
+`HasScripts(entity)` 查询托管注册表，判断实体是否挂有脚本；`GetScriptList(entity)` 返回脚本完整类名列表，供编辑器显示脚本组件。
+
+同一实体上同类脚本最多一个。托管注册表按实体和脚本完整类名两级索引，`GetScriptData(entity, className)` 直接定位实例并读取当前二进制字段；`GetEntityScriptsData(entity)` 获取实体全部脚本的二进制数据，供场景导出使用。数据仅在同步回调内有效，C++ 通过复制取得独立所有权。
+
+脚本字段写回与 Inspector 字段编辑尚未实现。
 
 实现入口：[scene.hpp](../../include/scene.hpp)、[scene.cpp](../../src/scene.cpp)、[SceneManager.cs](../../csharp/EngineCore/SceneManager.cs)、[Script.cs](../../csharp/EngineCore/Script.cs)。二进制协议见 [interop.md](interop.md)。

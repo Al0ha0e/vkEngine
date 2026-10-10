@@ -67,13 +67,13 @@ namespace vke_common
         SceneData Clone() const;
         void CopyComponents(entt::entity source, SceneData &target, entt::entity destination) const;
 
-        nlohmann::json ToJSON() const;
+        SceneResult<nlohmann::json> ToJSON() const;
 
     private:
         // Full structural check at ingestion; later stages preserve these invariants.
         SceneResult<void> validateParsed() const;
         SceneResult<void> loadComponent(entt::entity entity, const nlohmann::json &component); // component.cpp
-        void componentToJSON(entt::entity entity, nlohmann::json &components) const;           // component.cpp
+        SceneResult<void> componentToJSON(entt::entity entity, nlohmann::json &components) const; // component.cpp
     };
 
     struct InstantiateOptions
@@ -106,7 +106,6 @@ namespace vke_common
         using EntityMap = std::unordered_map<entt::entity, entt::entity>;
         entt::registry registry;
         SceneTransformSystem transformSystem;
-        std::unordered_map<entt::entity, std::unordered_map<std::string, vke_component::ScriptStateData>> csharpScriptStates;
 
         SceneManager(const SceneManager &) = delete;
         SceneManager &operator=(const SceneManager &) = delete;
@@ -231,14 +230,8 @@ namespace vke_common
                 registry.emplace<Component>(entity, data);
         }
 
-        struct PreparedScript
-        {
-            entt::entity entity;
-            std::string className;
-            TypeInfoDataPtr data;
-        };
         EntityMap instantiateSceneData(const SceneData &data, const InstantiateOptions &options);
-        void loadScripts(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts);
+        void loadScripts(const EntityMap &dataToRuntime, const SceneData &data);
         void unloadEntityFromEngine(entt::entity entity);
         SceneResult<SceneData> exportEntities(const std::vector<entt::entity> &entities) const; // scene.cpp
         void dispose();

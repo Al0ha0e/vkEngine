@@ -2,7 +2,7 @@
 
 SceneData 统一表示场景和预制体的数据，由加载、展开、资源解析三个阶段逐步准备。AssetManager 管理预制体及其依赖资源，SceneManager 根据准备好的数据创建运行时实体和组件。
 
-本文描述第一版实现。接口返回 `SceneResult<T>`，即 `std::expected<T, std::string>`。
+接口返回 `SceneResult<T>`，即 `std::expected<T, std::string>`。
 
 ## 加载入口与生命周期
 
@@ -15,7 +15,7 @@ SceneData 统一表示场景和预制体的数据，由加载、展开、资源�
 
 ## 数据结构与阶段
 
-SceneData 继续使用 EnTT registry 按类型存放组件数据，包含：
+SceneData 使用 EnTT registry 按类型存放组件数据，包含：
 
 - 实体局部 ID 与数据实体的映射。
 - 实体属性、组件数据和父子关系。
@@ -34,29 +34,29 @@ enum class SceneDataStage
 
 准备操作修改同一份 SceneData，并在每个阶段成功完成后推进状态。失败返回错误，调用方可以丢弃该份数据重新准备。Ready 数据可重复用于实例化。
 
-校验按阶段分工，后续阶段依赖前面已经建立的约束，不重复遍历整个父子关系：
+校验按阶段分工，后续阶段依赖前面已经建立的约束：
 
 - 私有 `validateParsed()`：检查实体映射、必要组件、父节点、父子环，以及已声明的 prefabRoot。`FromJSON` 在字段解析后执行一次，成功后标记 Parsed。
-- `ValidatePrefab()`：对已校验的数据补充检查必须声明 prefabRoot，不重复验证其子树。
+- `ValidatePrefab()`：对已校验的数据补充检查必须声明 prefabRoot。
 - `ValidateExpanded()`：展开完成后检查没有残留 PrefabReference；展开算法通过重映射已校验的子树保持层级合法性。
-- `ValidateReady(requireSingleRoot)`：实例化前检查 Ready 状态；指定 rootTransform 时确认单根，已声明 prefabRoot 的数据无需重新数根。SceneManager 另行检查运行时父实体，并调用脚本组件的数据准备接口。
+- `ValidateReady(requireSingleRoot)`：实例化前检查 Ready 状态；指定 rootTransform 时，以已声明的 prefabRoot 或根实体数量确认单根。SceneManager 检查运行时父实体；数据包含脚本时，还检查 ScriptManager 是否已初始化。
 
-SceneData 只保留 Parsed、Expanded、Ready 三个加载阶段。文件入口在解析时完成校验，后续阶段不重复检查组件字段或场景结构。JSON 数据统一通过 FromJSON 进入结构校验；手工构造或修改数据的调用方负责保持相同约束。组件 JSON 在构造前调用相应 Data::ValidateJSON，私有 validateParsed 不检查组件内部字段。修改后的数据从 Parsed 重新准备。校验函数只检查，不推进状态。Clone 保留源数据阶段，展开失败保留输入数据及其阶段。
+JSON 数据统一通过 FromJSON 解析并校验：组件字段在构造前由相应 Data::ValidateJSON 检查，场景结构由私有 validateParsed 检查。手工构造或修改数据的调用方负责保持相同约束，修改后的数据从 Parsed 重新准备。阶段由准备操作在成功后推进，校验函数保持阶段不变。Clone 保留源数据阶段，展开失败保留输入数据及其阶段。
 
 组件校验由各组件 Data 封装：
 
 - `ValidateJSON(json)` 检查自身必填字段、类型及参数约束；SceneData 仅检查分派用的 type、重复组件并添加实体和组件错误上下文，通过后才构造组件 Data。
 - `PhyscisShapeData::ValidateJSON` 由刚体、传感器和角色控制器复用；`SkeletonAnimationData::ValidateJSON` 由动画组件调用；TransformData 负责变换字段。
-- `ValidateAssets()` 通过 `AssetManager::ValidateXXX(handle)` 检查组件的资源依赖；`LoadAssets()` 使用原有的 `AssetManager::LoadXXX(handle)` 加载资源并填充引用。
-- `ScriptStateData::PrepareForInstantiation()` 负责查找脚本元数据、检查并编码状态，以及检查互操作数据长度。SceneManager 收集结果后再创建实体。
+- `ValidateAssets()` 通过 `AssetManager::ValidateXXX(handle)` 检查组件的资源依赖；`LoadAssets()` 使用 `AssetManager::LoadXXX(handle)` 加载资源并填充引用。
+- `ScriptStateData::FromJSON()` 在文件读取时查找脚本元数据、检查并编码状态和校验互操作数据长度；运行时导出入口校验返回的二进制。SceneManager 实例化时只检查所需的脚本管理器是否可用，加载时直接借用已有缓冲区。
 
-公共 json_validation 工具只提供数值、向量、字段类型和必填项检查，不包含组件字段清单。未知扩展字段继续忽略，组件只校验自身消费的字段。直接调用 JSON 构造函数的代码需要先调用 ValidateJSON，构造函数不会重复校验。
+公共 json_validation 工具提供数值、向量、字段类型和必填项检查。各组件定义并校验自身消费的字段，忽略未知扩展字段。直接调用 JSON 构造函数前，调用方须先调用 ValidateJSON。
 
 AssetManager 缓存只读的 Expanded 数据，其中已完成预制体内部的递归展开和覆盖。引用时将缓存内容复制到目标 SceneData，重映射实体并应用当前引用的覆盖，再解析最终资源依赖。调用方可复用准备好的结果。
 
 缓存记录展开时依赖的预制体句柄。资源重新加载时，使其自身及所有传递依赖它的展开缓存失效，后续加载重新构建；已创建的运行时实体保持当前状态。
 
-第一版的加载、准备和缓存失效在主线程同步执行。
+加载、准备和缓存失效在主线程同步执行。
 
 AssetHandle 标识资源，局部 ID 标识一份 SceneData 内的实体，运行时 entt::entity 标识 SceneManager 中的实体。展开和实例化分别建立各自的实体映射。
 
@@ -107,7 +107,7 @@ Transform 覆盖替换根的完整 local transform；内部子实体保留各自
 
 展开通过当前递归路径检测循环引用，同一预制体的多次引用分别建立映射。创建运行时实体前，校验重复 ID、父节点有效性、父子环和预制体根；错误包含资源、实体及引用路径。
 
-第一版支持根属性覆盖、整组件覆盖和附加子实体。内部子实体覆盖、继承内容删除和字段级覆盖作为后续扩展。
+支持根属性覆盖、整组件覆盖和附加子实体。内部子实体覆盖、继承内容删除和字段级覆盖尚未实现。
 
 ## 数据准备接口
 
@@ -127,15 +127,15 @@ void InvalidateSceneData(AssetHandle handle);
 SceneResult<std::shared_ptr<const SceneData>> ReloadSceneData(AssetHandle handle);
 ```
 
-PrepareSceneData 按当前阶段执行展开和资源解析，Ready 数据直接返回成功。展开和资源解析分别由私有 expandSceneData、resolveSceneAssets 实现，调用方无需调度中间步骤。依赖资源在覆盖完成后加载，仅解析最终组件数据中的引用。
+PrepareSceneData 按当前阶段执行展开和资源解析，Ready 数据直接返回成功。展开和资源解析分别由私有 expandSceneData、resolveSceneAssets 实现。依赖资源在覆盖完成后加载，仅解析最终组件数据中的引用。
 
 各组件 Data 分别提供只读的 `ValidateAssets()` 和负责加载的 `LoadAssets()`，由组件处理可选引用和已解析引用。私有 `resolveSceneAssets` 先对全部组件调用 `ValidateAssets()`，全部通过后再对全部组件调用 `LoadAssets()`，全部成功后标记 Ready；加载接口要求此前验证成功。
 
-`AssetManager::ValidateMesh(handle)`、`ValidateMaterial(handle)` 等接口检查资源记录和文件，不加载资源、不填充缓存。材质验证进一步检查 shader 和各纹理依赖，顶点/片元 shader 验证分别检查两个文件，错误包含相应的依赖上下文。文件存在检查不保证资源内容可被解码，实际加载仍可能失败。加载继续使用原有的 `AssetManager::LoadXXX(handle)`，组件将结果写回 `AssetRef`，无需阶段参数或查询/加载回调。
+`AssetManager::ValidateMesh(handle)`、`ValidateMaterial(handle)` 等接口只读检查资源记录和文件。材质验证进一步检查 shader 和各纹理依赖，顶点/片元 shader 验证分别检查两个文件，错误包含相应的依赖上下文。文件存在检查不保证资源内容可被解码，实际加载仍可能失败。资源由 `AssetManager::LoadXXX(handle)` 加载，组件将结果写回 `AssetRef`。
 
 缓存数据通过 `Clone()` 复制为可修改的 SceneData，再调用 PrepareSceneData。ReloadSceneData 清除自身及传递依赖缓存，并立即重建指定资源；其他受影响资源在下次请求时重建。缓存失效由调用方显式触发，旧 shared_ptr 持有的快照继续有效。
 
-ScriptStateData 保留 className 和 JSON 状态，在创建实体前按脚本元数据检查并编码为 C# 加载所需的二进制。
+ScriptStateData 持有 className 和二进制状态，预制体复制和 SceneData 快照使用这一数据表示。文件读取时由 FromJSON 按脚本元数据编码，文件输出时由 ToJSON 转回 JSON。SceneData::ToJSON 返回 SceneResult，以传播类型缺失或二进制无效等错误。脚本元数据必须在读取含脚本的场景文件前加载。
 
 ## 运行时实例化
 
@@ -152,32 +152,32 @@ SceneResult<void> Instantiate(
     const InstantiateOptions& options);
 ```
 
-Instantiate 接受 Ready 数据。parent 为空时挂到世界根，否则挂到指定的有效且未进入待销毁状态的实体。rootTransform 用于单根数据：提供时替换根的 local transform，省略时保留数据中的值。多根场景的各根使用各自的 local transform。
+Instantiate 接受 Ready 数据，要求脚本数据已经在读取或导出入口通过校验；后续复制或修改必须保持脚本类型与二进制数据有效。parent 为空时挂到世界根，否则挂到指定的有效且未进入待销毁状态的实体。rootTransform 用于单根数据：提供时替换根的 local transform，省略时保留数据中的值。多根场景的各根使用各自的 local transform。
 
 实例化顺序：
 
-1. 校验参数和脚本数据。
+1. 检查场景管理器可用、数据处于 Ready 阶段、父实体有效，以及 rootTransform 的单根条件；数据包含脚本时，检查 ScriptManager 已初始化。
 2. 分配本批全部实体，建立数据实体到运行时实体的映射。
 3. 建立父子关系和外部挂接，计算世界变换。
 4. 构造全部原生组件，注册到渲染、物理、音频等系统。
 5. 创建并注册本批全部 C# 脚本。
-6. 调用本批脚本的 Start，返回成功状态。
+6. 运行模式下先启动本批原生组件，再启动本批脚本；编辑模式下由进入运行的入口统一启动。实例化完成后返回成功状态。
 
-每次实例化创建独立的实体和组件状态。组件的构造函数接收对应的 Data 并完成系统注册，场景加载和动态添加组件共用此入口，不根据组件注册结果执行回滚。Start 使用当前脚本生命周期的分发策略，其外部副作用由脚本负责。
+每次实例化创建独立的实体和组件状态。组件的构造函数接收对应的 Data 并完成系统注册，场景加载和动态添加组件共用此入口。实例化在创建阶段发生异常时不提供回滚保证。Start 的调用规则见 [组件与系统的生命周期](script/lifecycle.md)，其外部副作用由脚本负责。
 
-场景格式、引用、脚本编码和缺失资源在创建实体前校验。组件注册和 C# 脚本创建不返回状态码，C# 异常遵循未处理异常行为。现有底层资源解码器和 GPU 分配中的致命错误仍沿用引擎退出策略。
+场景格式、引用、脚本编码和缺失资源在数据读取、展开及资源解析期间校验。C# 脚本创建异常遵循未处理异常行为。底层资源解码器和 GPU 分配中的致命错误会使引擎退出。
 
-Instantiate 只返回成功或错误信息，不构建或返回实体集合、根实体列表。数据实体到运行时实体的映射仅用于实例化内部，完成后释放。销毁通过 DestroyEntity 发起现有的延迟销毁请求，按当前子树规则回收，具体顺序见 [实体的生命周期](script/lifecycle.md)。
+Instantiate 返回成功或错误信息。数据实体到运行时实体的映射仅用于实例化内部，完成后释放。销毁通过 DestroyEntity 发起延迟销毁请求，按当前子树规则回收，具体顺序见 [组件与系统的生命周期](script/lifecycle.md)。
 
 ## 场景保存
 
 ExportAllEntities 导出运行时的扁平场景快照。保留预制体引用与覆盖结构的编辑保存，需要编辑器持有源场景文档或实例来源信息。
 
-保存 C# 当前导出字段需要先将脚本状态同步回 C++。编辑器脚本字段编辑与双向同步另行接入。
+导出时，C++ 通过 `ScriptManager::GetEntityScriptsData` 获取 C# 实例的当前导出字段，并保存为二进制 ScriptStateData。编辑器在导出和 `SceneData::ToJSON` 均成功后打开文件并写入 JSON；导出或转换失败时记录错误并保留原文件。编辑器脚本字段编辑与写回尚未实现。
 
 ## 文件格式与使用
 
-场景沿用 `objects` 数组。实体的 `prefab` 字段保存 SceneAsset 句柄，预制体文件的 `prefabRoot` 指定根实体局部 ID。Transform 沿用 `pos`、`scl`、`rot` 字段，四元数顺序为 x、y、z、w。
+场景使用 `objects` 数组。实体的 `prefab` 字段保存 SceneAsset 句柄，预制体文件的 `prefabRoot` 指定根实体局部 ID。Transform 使用 `pos`、`scl`、`rot` 字段，四元数顺序为 x、y、z、w。
 
 ```json
 {
@@ -191,7 +191,7 @@ ExportAllEntities 导出运行时的扁平场景快照。保留预制体引用�
 
 直接加载场景文件使用 `LoadSceneFile → PrepareSceneData → Instantiate`。按句柄生成预制体使用 `LoadSceneData → Clone → PrepareSceneData → Instantiate`，每一步检查返回的错误。
 
-## 后续工作与验证
+## 异步实例化与验证
 
 C# 通过 `SceneManager.InstantiatePrefab(handle, position, rotation, scale, parent)` 提交请求，返回值表示是否成功入队。运行帧在销毁处理之后、脚本 Update 之前处理当前请求快照，Start 中新增的请求留到下一运行帧。暂停期间保留请求，退出时清空。处理失败时记录日志，父节点在入队和执行时分别检查。编辑器保存预制体后可接入 ReloadSceneData。
 

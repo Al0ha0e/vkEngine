@@ -144,7 +144,7 @@ namespace vke_common
         return {};
     }
 
-    nlohmann::json SceneData::ToJSON() const
+    SceneResult<nlohmann::json> SceneData::ToJSON() const
     {
         nlohmann::json result = {{"maxid", maxID}, {"objects", nlohmann::json::array()}};
         std::unordered_map<entt::entity, vke_ds::id32_t> ids;
@@ -163,7 +163,8 @@ namespace vke_common
             if (!reference || reference->overrideTransform) value["transform"] = registry.get<TransformData>(entity).ToJSON();
             if (reference) value["prefab"] = reference->scene.Handle();
             if (auto p = parents.find(entity); p != parents.end() && p->second != entt::null) value["parent"] = ids.at(p->second);
-            componentToJSON(entity, value["components"]);
+            if (auto components = componentToJSON(entity, value["components"]); !components)
+                return std::unexpected("entity " + std::to_string(id) + ": " + components.error());
             result["objects"].push_back(std::move(value));
         }
         return result;

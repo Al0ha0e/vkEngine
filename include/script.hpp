@@ -46,27 +46,34 @@ namespace vke_common
     {
         void (*load)(const CSharpScriptLoadData *, uint32_t);
         void (*start)(const entt::entity *, uint32_t);
+        void (*startAll)();
         void (*update)();
         void (*fixedUpdate)();
         void (*lateUpdate)();
         void (*unload)();
         void (*unloadEntities)(const entt::entity *, uint32_t);
-
-        void (*unregisterComponentCallbacks)(entt::entity, int32_t);
         void (*reset)();
-        int32_t (*fillData)(entt::entity, void *, void (*)(void *, const char *, const std::byte *, int32_t));
-        void (*startAll)();
+        void (*unregisterComponentCallbacks)(entt::entity, int32_t);
+        int32_t (*hasScripts)(entt::entity);
+        int32_t (*getScriptList)(entt::entity, void *, void (*)(void *, const char *));
+        int32_t (*getScriptData)(entt::entity, const char *, void *, void (*)(void *, const std::byte *, int32_t));
+        int32_t (*getEntityScriptsData)(entt::entity, void *, void (*)(void *, const char *, const std::byte *, int32_t));
 
         CSharpSceneManagerFunctions()
             : load(nullptr),
               start(nullptr),
+              startAll(nullptr),
               update(nullptr),
               fixedUpdate(nullptr),
               lateUpdate(nullptr),
               unload(nullptr),
               unloadEntities(nullptr),
+              reset(nullptr),
               unregisterComponentCallbacks(nullptr),
-              reset(nullptr), fillData(nullptr), startAll(nullptr) {}
+              hasScripts(nullptr),
+              getScriptList(nullptr),
+              getScriptData(nullptr),
+              getEntityScriptsData(nullptr) {}
     };
 
     struct CSharpExports
@@ -114,15 +121,15 @@ namespace vke_common
             instance->csharpExports.sceneManagerFunctions.load(data, cnt);
         }
 
-        static void StartAll()
-        {
-            instance->csharpExports.sceneManagerFunctions.startAll();
-        }
-
         static void Start(const std::vector<entt::entity> &entities)
         {
             instance->csharpExports.sceneManagerFunctions.start(
                 entities.data(), static_cast<uint32_t>(entities.size()));
+        }
+
+        static void StartAll()
+        {
+            instance->csharpExports.sceneManagerFunctions.startAll();
         }
 
         static void Update()
@@ -140,16 +147,9 @@ namespace vke_common
             instance->csharpExports.sceneManagerFunctions.lateUpdate();
         }
 
-        static SceneResult<std::vector<vke_component::ScriptStateData>> FillData(entt::entity entity);
-
         static void Unload()
         {
             instance->csharpExports.sceneManagerFunctions.unload();
-        }
-
-        static void Reset()
-        {
-            instance->csharpExports.sceneManagerFunctions.reset();
         }
 
         static void UnloadEntities(const std::vector<entt::entity> &entities)
@@ -158,11 +158,25 @@ namespace vke_common
                 entities.data(), static_cast<uint32_t>(entities.size()));
         }
 
+        static void Reset()
+        {
+            instance->csharpExports.sceneManagerFunctions.reset();
+        }
+
         static void UnregisterComponentCallbacks(entt::entity entity, ComponentType componentType)
         {
             instance->csharpExports.sceneManagerFunctions.unregisterComponentCallbacks(
                 entity, static_cast<int32_t>(componentType));
         }
+
+        static bool HasScripts(entt::entity entity)
+        {
+            return instance->csharpExports.sceneManagerFunctions.hasScripts(entity) != 0;
+        }
+
+        static SceneResult<std::vector<std::string>> GetScriptList(entt::entity entity);
+        static SceneResult<TypeInfoData> GetScriptData(entt::entity entity, const std::string &className);
+        static SceneResult<std::vector<vke_component::ScriptStateData>> GetEntityScriptsData(entt::entity entity);
 
         TypeInfoPtr FindTypeInfo(std::string_view name) const
         {

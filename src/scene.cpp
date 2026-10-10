@@ -1,5 +1,6 @@
 #include <scene.hpp>
 #include <engine_state.hpp>
+#include <algorithm>
 #include <unordered_set>
 
 #ifdef near
@@ -24,11 +25,10 @@ namespace vke_common
         if (!IsRunning())
             return;
         forEachNativeType([&]<typename Component>()
-        {
+                          {
             if constexpr (requires(Component &c) { c.Start(); })
                 for (auto entity : registry.view<Component>())
-                    registry.get<Component>(entity).Start();
-        });
+                    registry.get<Component>(entity).Start(); });
         ScriptManager::StartAll();
     }
 
@@ -37,15 +37,16 @@ namespace vke_common
         if (!IsRunning())
             return;
         ProcessInstantiationRequests();
-        if (!IsRunning()) return;
+        if (!IsRunning())
+            return;
         ScriptManager::Update();
-        if (!IsRunning()) return;
+        if (!IsRunning())
+            return;
         forEachNativeType([&]<typename Component>()
-        {
+                          {
             if constexpr (requires(Component &c) { c.Update(deltaTime); })
                 for (auto entity : registry.view<Component>())
-                    registry.get<Component>(entity).Update(deltaTime);
-        });
+                    registry.get<Component>(entity).Update(deltaTime); });
     }
 
     void SceneManager::FixedUpdate(float deltaTime)
@@ -53,13 +54,13 @@ namespace vke_common
         if (!IsRunning())
             return;
         ScriptManager::FixedUpdate();
-        if (!IsRunning()) return;
+        if (!IsRunning())
+            return;
         forEachNativeType([&]<typename Component>()
-        {
+                          {
             if constexpr (requires(Component &c) { c.FixedUpdate(deltaTime); })
                 for (auto entity : registry.view<Component>())
-                    registry.get<Component>(entity).FixedUpdate(deltaTime);
-        });
+                    registry.get<Component>(entity).FixedUpdate(deltaTime); });
     }
 
     void SceneManager::LateUpdate(float deltaTime)
@@ -67,11 +68,10 @@ namespace vke_common
         if (!IsRunning())
             return;
         forEachNativeType([&]<typename Component>()
-        {
+                          {
             if constexpr (requires(Component &c) { c.LateUpdate(deltaTime); })
                 for (auto entity : registry.view<Component>())
-                    registry.get<Component>(entity).LateUpdate(deltaTime);
-        });
+                    registry.get<Component>(entity).LateUpdate(deltaTime); });
         ScriptManager::LateUpdate();
     }
 
@@ -138,29 +138,22 @@ namespace vke_common
         if (options.parent != entt::null && (!instance->registry.valid(options.parent) ||
                                              !instance->registry.all_of<Transform>(options.parent) || instance->IsPendingDestroy(options.parent)))
             return std::unexpected("invalid or pending-destroy parent");
-        std::vector<PreparedScript> scripts;
-        for (const auto entity : data.registry.view<const SceneData::ScriptDataList>())
-        {
-            for (const auto &script : data.registry.get<SceneData::ScriptDataList>(entity))
-            {
-                auto encoded = script.PrepareForInstantiation();
-                if (!encoded)
-                    return std::unexpected(encoded.error());
-                scripts.push_back({entity, script.className, std::move(*encoded)});
-            }
-        }
+
+        const auto scriptView = data.registry.view<const SceneData::ScriptDataList>();
+        if (!ScriptManager::GetInstance() && std::any_of(scriptView.begin(), scriptView.end(), [&](const auto entity)
+                                                         { return !data.registry.get<SceneData::ScriptDataList>(entity).empty(); }))
+            return std::unexpected("ScriptManager is not initialized");
         const auto dataToRuntime = instance->instantiateSceneData(data, options);
-        instance->loadScripts(dataToRuntime, scripts);
+        instance->loadScripts(dataToRuntime, data);
         if (IsRunning())
         {
             // All components are available before this batch starts; native components go first.
             forEachNativeType([&]<typename Component>()
-            {
+                              {
                 if constexpr (requires(Component &c) { c.Start(); })
                     for (const auto &[dataEntity, runtimeEntity] : dataToRuntime)
                         if (instance->registry.all_of<Component>(runtimeEntity))
-                            instance->registry.get<Component>(runtimeEntity).Start();
-            });
+                            instance->registry.get<Component>(runtimeEntity).Start(); });
 
             // Each entity appears once, regardless of how many scripts it owns.
             std::vector<entt::entity> scriptEntities;
@@ -188,7 +181,8 @@ namespace vke_common
         std::vector<entt::entity> entities{root};
         transformSystem.CollectEntitySubtree(entities);
         auto data = exportEntities(entities);
-        if (!data) return data;
+        if (!data)
+            return data;
         for (const auto &[entity, parent] : data->parents)
             if (parent == entt::null)
                 data->prefabRoot = entity;
@@ -245,8 +239,9 @@ namespace vke_common
             fillComponentData.operator()<vke_component::PointLight, vke_component::PointLightData>();
             fillComponentData.operator()<vke_component::SpotLight, vke_component::SpotLightData>();
 
-            auto scripts = ScriptManager::FillData(runtimeEntity);
-            if (!scripts) return std::unexpected(scripts.error());
+            auto scripts = ScriptManager::GetEntityScriptsData(runtimeEntity);
+            if (!scripts)
+                return std::unexpected(scripts.error());
             if (!scripts->empty())
             {
                 data.registry.emplace<SceneData::ScriptDataList>(
@@ -340,16 +335,6 @@ namespace vke_common
         construct.operator()<vke_component::AudioSourceData, vke_component::AudioSource>();
         construct.operator()<vke_component::AudioListenerData, vke_component::AudioListener>();
 
-        auto scriptView = data.registry.view<const SceneData::ScriptDataList>();
-        for (entt::entity dataEntity : scriptView)
-        {
-            const entt::entity runtimeEntity = dataToRuntime.at(dataEntity);
-            for (const vke_component::ScriptStateData &scriptData :
-                 data.registry.get<SceneData::ScriptDataList>(dataEntity))
-                csharpScriptStates[runtimeEntity].emplace(
-                    scriptData.className, scriptData);
-        }
-
         return dataToRuntime;
     }
 
@@ -384,7 +369,6 @@ namespace vke_common
             if (registry.valid(entity))
             {
                 unloadEntityFromEngine(entity);
-                csharpScriptStates.erase(entity);
                 // Remove the parent's reference only when reclaiming this entity.
                 if (const auto *transform = registry.try_get<Transform>(entity);
                     transform && registry.valid(transform->parent))
@@ -399,18 +383,18 @@ namespace vke_common
         processingDestroy = false;
     }
 
-    void SceneManager::loadScripts(const EntityMap &dataToRuntime, const std::vector<PreparedScript> &scripts)
+    void SceneManager::loadScripts(const EntityMap &dataToRuntime, const SceneData &data)
     {
         std::vector<CSharpScriptLoadData> loadData;
-        loadData.reserve(scripts.size());
-        for (const PreparedScript &encoded : scripts)
+        for (const auto entity : data.registry.view<const SceneData::ScriptDataList>())
         {
-            loadData.push_back(CSharpScriptLoadData{
-                .entity = static_cast<uint32_t>(dataToRuntime.at(encoded.entity)),
-                .className = encoded.className.c_str(),
-                .data = encoded.data->data(),
-                .dataSize = static_cast<int32_t>(encoded.data->size()),
-            });
+            for (const auto &script : data.registry.get<SceneData::ScriptDataList>(entity))
+                loadData.push_back(CSharpScriptLoadData{
+                    .entity = static_cast<uint32_t>(dataToRuntime.at(entity)),
+                    .className = script.className.c_str(),
+                    .data = script.data.data(),
+                    .dataSize = static_cast<int32_t>(script.data.size()),
+                });
         }
 
         if (!loadData.empty())
@@ -465,7 +449,6 @@ namespace vke_common
         // Plain C++ destruction releases owned resources, without lifecycle dispatch.
         // CharacterVirtual must die while its inner body and PhysicsSystem still exist.
         scene.registry.clear();
-        scene.csharpScriptStates.clear();
         vke_physics::PhysicsManager::Reset();
         scene.physicsUpdateListenerID = vke_physics::PhysicsManager::RegisterUpdateListener(
             &scene, std::function<void(void *, void *)>(physicsUpdateCallback));
@@ -485,7 +468,6 @@ namespace vke_common
         vke_physics::PhysicsManager::RemoveUpdateListener(physicsUpdateListenerID);
         physicsUpdateListenerID = 0;
         registry.clear();
-        csharpScriptStates.clear();
         pendingDestroy.clear();
     }
 
