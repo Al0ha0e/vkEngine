@@ -3,6 +3,7 @@
 
 #include <json_validation.hpp>
 #include <algorithm>
+#include <cmath>
 #include <utility>
 #include <component/transform.hpp>
 #include <scene_transform_system.hpp>
@@ -120,7 +121,7 @@ namespace vke_component
                         if (animations.size() == 1 && !state.contains("weight"))
                             animations.back().weight = 1.0f;
                     }
-            if (animations.empty() && json.contains("animation"))
+            if (!json.contains("animations") && json.value("animation", vke_common::AssetHandle{0}) != 0)
             {
                 SkeletonAnimationData state;
                 state.animation.SetHandle(json["animation"].get<vke_common::AssetHandle>());
@@ -168,9 +169,23 @@ namespace vke_component
                 if (!skeleton.Get())
                     return std::unexpected("skeleton asset " + std::to_string(skeleton.Handle()) + ": loading failed");
             }
+            const int jointCount = skeleton.Get()->skeleton.num_joints();
+            if (jointCount == 0)
+                return std::unexpected("skeleton: no joints");
+            if (mesh.Get()->joints.empty() || mesh.Get()->joints.size() > MAX_BONE_PER_SKELETON)
+                return std::unexpected("mesh: skin joint count must be between 1 and " + std::to_string(MAX_BONE_PER_SKELETON));
+            for (int joint : mesh.Get()->joints)
+                if (joint < 0 || joint >= jointCount)
+                    return std::unexpected("mesh: skin joint index is outside the skeleton");
+            if (!mesh.Get()->invBindMatrices.empty() && mesh.Get()->invBindMatrices.size() != mesh.Get()->joints.size())
+                return std::unexpected("mesh: inverse bind matrix count must match skin joint count");
             for (auto &state : animations)
+            {
                 if (auto result = state.LoadAssets(); !result)
                     return result;
+                if (auto result = state.animation.Get()->ValidateSkeleton(skeleton.Get()->skeleton); !result)
+                    return result;
+            }
             return {};
         }
 
@@ -184,7 +199,6 @@ namespace vke_component
                     {"material", material.Handle()},
                     {"mesh", mesh.Handle()},
                     {"skeleton", skeleton.Handle()},
-                    {"animation", animations.empty() ? 0 : animations[0].animation.Handle()},
                     {"animations", animationArray},
                     {"castsShadow", castsShadow}};
         }
@@ -277,18 +291,13 @@ namespace vke_component
               shadowRenderID(0)
         {
             for (const SkeletonAnimationData &animation : componentData.animations)
-                AddAnimation(animation.animation.Get(), animation.weight, animation.playbackSpeed,
+                addAnimation(animation.animation.Get(), animation.weight, animation.playbackSpeed,
                              animation.timeRatio, animation.loop, animation.playing);
             std::shared_ptr<const vke_render::Mesh> mesh = componentData.mesh.Get();
             int numSOAJoints = skeleton->skeleton.num_soa_joints();
             int numJoints = skeleton->skeleton.num_joints();
             blendedLocals.resize(numSOAJoints);
             models.resize(numJoints);
-            for (AnimationState &state : animations)
-            {
-                state.locals.resize(numSOAJoints);
-                state.context->Resize(numJoints);
-            }
             skinningMatrices.resize(mesh->joints.size());
 
             for (int i = 0; i < vke_render::MAX_FRAMES_IN_FLIGHT; ++i)
@@ -394,7 +403,7 @@ namespace vke_component
 
         void Update(float deltaTime) { updatePose(deltaTime); }
 
-        void AddAnimation(
+        vke_common::SceneResult<void> AddAnimation(
             std::shared_ptr<vke_common::Animation> anim,
             float weight = 0.0f,
             float speed = 1.0f,
@@ -403,16 +412,11 @@ namespace vke_component
             bool playing = true)
         {
             if (anim == nullptr)
-                return;
-
-            AnimationState state;
-            state.animation = anim;
-            state.weight = weight;
-            state.playbackSpeed = speed;
-            state.loop = loop;
-            state.playing = playing;
-            animations.push_back(std::move(state));
-            SetAnimationTimeRatio(animations.size() - 1, ratio);
+                return std::unexpected("animation: asset is empty");
+            if (auto result = anim->ValidateSkeleton(skeleton->skeleton); !result)
+                return result;
+            addAnimation(std::move(anim), weight, speed, ratio, loop, playing);
+            return {};
         }
 
         uint32_t GetAnimationCount() const
@@ -492,6 +496,22 @@ namespace vke_component
         }
 
     private:
+        // Both scene loading and AddAnimation validate compatibility before this point.
+        void addAnimation(std::shared_ptr<vke_common::Animation> anim, float weight, float speed,
+                          float ratio, bool loop, bool playing)
+        {
+            AnimationState state;
+            state.animation = std::move(anim);
+            state.weight = weight;
+            state.playbackSpeed = speed;
+            state.loop = loop;
+            state.playing = playing;
+            state.locals.resize(skeleton->skeleton.num_soa_joints());
+            state.context->Resize(skeleton->skeleton.num_joints());
+            animations.push_back(std::move(state));
+            SetAnimationTimeRatio(animations.size() - 1, ratio);
+        }
+
         void bindRenderUpdateCallback()
         {
             vke_render::Renderer::AddRenderUpdateCallback(
@@ -542,30 +562,47 @@ namespace vke_component
             return result;
         }
 
-        static glm::vec3 rootMotionPositionDelta(const vke_common::Animation &animation, float previousRatio, float currentRatio)
+        struct RootMotionDelta
         {
-            const glm::vec3 previous = toGlm(sampleRootMotionPosition(animation, previousRatio));
-            const glm::vec3 current = toGlm(sampleRootMotionPosition(animation, currentRatio));
-            if (currentRatio >= previousRatio)
-                return current - previous;
+            glm::vec3 position;
+            glm::quat rotation;
+        };
 
-            const glm::vec3 start = toGlm(sampleRootMotionPosition(animation, 0.0f));
-            const glm::vec3 end = toGlm(sampleRootMotionPosition(animation, 1.0f));
-            return (end - previous) + (current - start);
-        }
-
-        static glm::quat rootMotionRotationDelta(const vke_common::Animation &animation, float previousRatio, float currentRatio)
+        static RootMotionDelta calculateRootMotionDelta(const vke_common::Animation &animation, float previousRatio,
+                                                        float currentRatio, double loops)
         {
-            const glm::quat previous = toGlm(sampleRootMotionRotation(animation, previousRatio));
-            const glm::quat current = toGlm(sampleRootMotionRotation(animation, currentRatio));
-            if (currentRatio >= previousRatio)
-                return glm::normalize(current * glm::inverse(previous));
+            const glm::vec3 previousPosition = toGlm(sampleRootMotionPosition(animation, previousRatio));
+            const glm::vec3 currentPosition = toGlm(sampleRootMotionPosition(animation, currentRatio));
+            const glm::quat inversePreviousRotation = glm::inverse(toGlm(sampleRootMotionRotation(animation, previousRatio)));
+            const glm::quat currentRotation = toGlm(sampleRootMotionRotation(animation, currentRatio));
+            if (loops == 0.0)
+                return {inversePreviousRotation * (currentPosition - previousPosition),
+                        glm::normalize(inversePreviousRotation * currentRotation)};
 
-            const glm::quat start = toGlm(sampleRootMotionRotation(animation, 0.0f));
-            const glm::quat end = toGlm(sampleRootMotionRotation(animation, 1.0f));
-            const glm::quat first = glm::normalize(end * glm::inverse(previous));
-            const glm::quat second = glm::normalize(current * glm::inverse(start));
-            return glm::normalize(second * first);
+            glm::dvec3 cyclePosition(animation.rootMotionCyclePosition);
+            glm::dquat cycleRotation(animation.rootMotionCycleRotation);
+            if (loops < 0.0)
+            {
+                cycleRotation = glm::inverse(cycleRotation);
+                cyclePosition = -(cycleRotation * cyclePosition);
+            }
+            glm::dvec3 unwrappedPosition(currentPosition);
+            glm::dquat unwrappedRotation(currentRotation);
+            // Compose C^loops * M(current), rotating each cycle's translation too.
+            for (double remaining = std::abs(loops); remaining >= 1.0; remaining = std::floor(remaining * 0.5))
+            {
+                if (std::fmod(remaining, 2.0) != 0.0)
+                {
+                    unwrappedPosition = cyclePosition + cycleRotation * unwrappedPosition;
+                    unwrappedRotation = glm::normalize(cycleRotation * unwrappedRotation);
+                }
+                cyclePosition += cycleRotation * cyclePosition;
+                cycleRotation = glm::normalize(cycleRotation * cycleRotation);
+            }
+            // The entity consumes a local increment: inverse(M(previous)) * C^loops * M(current).
+            const glm::dquat inversePrevious(inversePreviousRotation);
+            return {glm::vec3(inversePrevious * (unwrappedPosition - glm::dvec3(previousPosition))),
+                    glm::normalize(glm::quat(inversePrevious * unwrappedRotation))};
         }
 
         void applyRootMotion(const glm::vec3 &localDeltaPosition, const glm::quat &localDeltaRotation)
@@ -575,9 +612,8 @@ namespace vke_component
             if (glm::dot(localDeltaPosition, localDeltaPosition) > 0.0f)
                 transforms.TranslateLocal(ownerEntity, localDeltaPosition);
 
-            if (glm::abs(localDeltaRotation.w) < 0.999999f ||
-                glm::dot(glm::vec3(localDeltaRotation.x, localDeltaRotation.y, localDeltaRotation.z),
-                         glm::vec3(localDeltaRotation.x, localDeltaRotation.y, localDeltaRotation.z)) > 0.000001f)
+            if (glm::dot(glm::vec3(localDeltaRotation.x, localDeltaRotation.y, localDeltaRotation.z),
+                         glm::vec3(localDeltaRotation.x, localDeltaRotation.y, localDeltaRotation.z)) > 0.0f)
             {
                 const auto rotation = ownerRegistry->get<vke_common::Transform>(ownerEntity).localRotation;
                 transforms.SetLocalRotation(ownerEntity, glm::normalize(rotation * localDeltaRotation));
@@ -588,26 +624,42 @@ namespace vke_component
         {
             ozz::vector<ozz::animation::BlendingJob::Layer> layers;
             layers.reserve(animations.size());
+            ozz::animation::BlendingJob blending_job;
             glm::vec3 blendedRootMotionPosition(0.0f);
             glm::vec4 blendedRootMotionRotation(0.0f);
-            float rootMotionWeightSum = 0.0f;
-            bool hasRootMotionRotation = false;
+            float blendWeightSum = 0.0f;
 
-            for (size_t animationIndex = 0; animationIndex < animations.size(); ++animationIndex)
+            for (AnimationState &state : animations)
             {
-                AnimationState &state = animations[animationIndex];
                 if (state.animation == nullptr)
                     continue;
 
                 const float previousRatio = state.timeRatio;
+                double loops = 0.0;
                 if (state.playing)
                 {
-                    float newRatio = state.timeRatio + deltaTime * state.playbackSpeed / state.animation->Duration();
-                    SetAnimationTimeRatio(animationIndex, newRatio);
+                    const double newRatio = previousRatio + static_cast<double>(deltaTime) * state.playbackSpeed / state.animation->Duration();
+                    if (!std::isfinite(newRatio))
+                    {
+                        VKE_LOG_ERROR("Animation time advance must be finite")
+                        continue;
+                    }
+                    if (state.loop)
+                    {
+                        loops = std::floor(newRatio);
+                        state.timeRatio = static_cast<float>(newRatio - loops);
+                        // Rounding to float can reach the next cycle's endpoint.
+                        if (state.timeRatio == 1.0f)
+                        {
+                            state.timeRatio = 0.0f;
+                            loops += 1.0;
+                        }
+                    }
+                    else
+                        state.timeRatio = static_cast<float>(std::clamp(newRatio, 0.0, 1.0));
                 }
                 const float currentRatio = state.timeRatio;
 
-                // 权重为零时跳过采样和混合，但时间照常走 —— 这样 crossfade 回来时动画位置是对的
                 if (state.weight <= 0.0f)
                     continue;
 
@@ -631,24 +683,27 @@ namespace vke_component
                     layers.push_back(layer);
                 }
 
+                glm::quat deltaRotation(1.0f, 0.0f, 0.0f, 0.0f);
                 if (state.animation->hasRootMotion && state.playing)
                 {
-                    const glm::vec3 deltaPosition = rootMotionPositionDelta(*state.animation, previousRatio, currentRatio);
-                    const glm::quat deltaRotation = rootMotionRotationDelta(*state.animation, previousRatio, currentRatio);
-                    glm::vec4 deltaRotationVector(deltaRotation.x, deltaRotation.y, deltaRotation.z, deltaRotation.w);
-                    if (hasRootMotionRotation && glm::dot(blendedRootMotionRotation, deltaRotationVector) < 0.0f)
-                        deltaRotationVector = -deltaRotationVector;
-                    blendedRootMotionPosition += deltaPosition * state.weight;
-                    blendedRootMotionRotation += deltaRotationVector * state.weight;
-                    rootMotionWeightSum += state.weight;
-                    hasRootMotionRotation = true;
+                    const RootMotionDelta delta = calculateRootMotionDelta(*state.animation, previousRatio, currentRatio, loops);
+                    deltaRotation = delta.rotation;
+                    blendedRootMotionPosition += delta.position * state.weight;
                 }
+                // All pose layers participate; paused and in-place clips contribute identity motion.
+                glm::vec4 deltaRotationVector(deltaRotation.x, deltaRotation.y, deltaRotation.z, deltaRotation.w);
+                if (glm::dot(blendedRootMotionRotation, deltaRotationVector) < 0.0f)
+                    deltaRotationVector = -deltaRotationVector;
+                blendedRootMotionRotation += deltaRotationVector * state.weight;
+                blendWeightSum += state.weight;
             }
 
-            if (rootMotionWeightSum > 0.0f)
+            if (blendWeightSum > 0.0f)
             {
-                blendedRootMotionPosition /= rootMotionWeightSum;
-                blendedRootMotionRotation /= rootMotionWeightSum;
+                // Match the pose blend's rest-pose contribution below its threshold.
+                blendedRootMotionPosition /= std::max(blendWeightSum, blending_job.threshold);
+                const float restWeight = std::max(0.0f, blending_job.threshold - blendWeightSum);
+                blendedRootMotionRotation.w += blendedRootMotionRotation.w < 0.0f ? -restWeight : restWeight;
                 glm::quat deltaRotation(
                     blendedRootMotionRotation.w,
                     blendedRootMotionRotation.x,
@@ -657,7 +712,6 @@ namespace vke_component
                 applyRootMotion(blendedRootMotionPosition, glm::normalize(deltaRotation));
             }
 
-            ozz::animation::BlendingJob blending_job;
             blending_job.layers = make_span(layers);
             blending_job.rest_pose = skeleton->skeleton.joint_rest_poses();
             blending_job.output = make_span(blendedLocals);
@@ -675,9 +729,9 @@ namespace vke_component
             for (int i = 0; i < skinningMatrices.size(); ++i)
             {
                 int idx = mesh.joints[i];
-                skinningMatrices[i] = i < mesh.invBindMatrices.size()
-                                          ? models[idx] * mesh.invBindMatrices[i]
-                                          : models[idx];
+                skinningMatrices[i] = mesh.invBindMatrices.empty()
+                                          ? models[idx]
+                                          : models[idx] * mesh.invBindMatrices[i];
             }
         }
 

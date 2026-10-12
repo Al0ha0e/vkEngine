@@ -6,6 +6,7 @@
 #include <string>
 #include <ozz/base/io/archive.h>
 #include <ozz/base/io/stream.h>
+#include <ozz/animation/runtime/track_sampling_job.h>
 
 namespace vke_common
 {
@@ -387,6 +388,31 @@ namespace vke_common
                 return nullptr;
             }
             archive >> ret->rootMotionRotation;
+
+            ozz::math::Float3 startPosition, endPosition;
+            ozz::animation::Float3TrackSamplingJob positionJob;
+            positionJob.track = &ret->rootMotionPosition;
+            positionJob.ratio = 0.0f;
+            positionJob.result = &startPosition;
+            positionJob.Run();
+            positionJob.ratio = 1.0f;
+            positionJob.result = &endPosition;
+            positionJob.Run();
+
+            ozz::math::Quaternion startRotation, endRotation;
+            ozz::animation::QuaternionTrackSamplingJob rotationJob;
+            rotationJob.track = &ret->rootMotionRotation;
+            rotationJob.ratio = 0.0f;
+            rotationJob.result = &startRotation;
+            rotationJob.Run();
+            rotationJob.ratio = 1.0f;
+            rotationJob.result = &endRotation;
+            rotationJob.Run();
+            const glm::quat start = glm::normalize(glm::quat(startRotation.w, startRotation.x, startRotation.y, startRotation.z));
+            const glm::quat end = glm::normalize(glm::quat(endRotation.w, endRotation.x, endRotation.y, endRotation.z));
+            ret->rootMotionCycleRotation = glm::normalize(end * glm::inverse(start));
+            ret->rootMotionCyclePosition = glm::vec3(endPosition.x, endPosition.y, endPosition.z) -
+                                           ret->rootMotionCycleRotation * glm::vec3(startPosition.x, startPosition.y, startPosition.z);
         }
         return ret;
     }
