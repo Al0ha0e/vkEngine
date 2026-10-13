@@ -137,16 +137,22 @@ namespace vke_render
         vkCmdDraw(commandBuffer, 6, quadIDAllocation.count, 0, 0);
     }
 
-    Layered2DRenderInfo::Layered2DRenderInfo(std::shared_ptr<Material> material, RenderContext *context)
-        : material(std::move(material))
+    const Layered2DMaterialState &Layered2DRenderer::getOrCreateMaterialState(const std::shared_ptr<Material> &material)
     {
-        if (!this->material->textures.empty())
+        auto it = materialStates.find(material.get());
+        if (it != materialStates.end())
+            return *it->second;
+
+        auto state = std::make_unique<Layered2DMaterialState>();
+        state->material = material;
+        if (!material->textures.empty())
         {
-            commonDescriptorSet = this->material->shader->CreateDescriptorSet(1);
-            if (commonDescriptorSet != VK_NULL_HANDLE)
-                this->material->UpdateDescriptorSet(commonDescriptorSet);
+            state->commonDescriptorSet = material->shader->CreateDescriptorSet(1);
+            if (state->commonDescriptorSet != VK_NULL_HANDLE)
+                material->UpdateDescriptorSet(state->commonDescriptorSet);
         }
-        createPipeline(context);
+        createGraphicsPipeline(*state);
+        return *materialStates.emplace(material.get(), std::move(state)).first->second;
     }
 
     void Layered2DRenderInfo::Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
@@ -155,18 +161,20 @@ namespace vke_render
     {
         if (units.empty())
             return;
+        const auto &renderPipeline = materialState.pipeline;
+        const VkDescriptorSet commonDescriptorSet = materialState.commonDescriptorSet;
         renderPipeline->Bind(commandBuffer);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 renderPipeline->pipelineLayout, 0, 1, &rendererDescriptorSet, 0, nullptr);
         if (commonDescriptorSet != VK_NULL_HANDLE)
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     renderPipeline->pipelineLayout, 1, 1, &commonDescriptorSet, 0, nullptr);
-        material->SetPushConstants(commandBuffer, renderPipeline->pipelineLayout);
+        materialState.material->SetPushConstants(commandBuffer, renderPipeline->pipelineLayout);
         for (const auto &entry : units)
             entry.second->Render(commandBuffer, renderPipeline->pipelineLayout, viewportSize, atlasSize, currentFrame);
     }
 
-    void Layered2DRenderInfo::createPipeline(RenderContext *context)
+    void Layered2DRenderer::createGraphicsPipeline(Layered2DMaterialState &state)
     {
         VkPipelineRenderingCreateInfo renderingInfo{};
         renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
@@ -185,14 +193,14 @@ namespace vke_render
         blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
         blendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                                          VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        if (material->blendMode == MaterialBlendMode::ADDITIVE)
+        if (state.material->blendMode == MaterialBlendMode::ADDITIVE)
         {
             blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
             blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
             blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
             blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         }
-        else if (material->blendMode == MaterialBlendMode::PREMULTIPLIED_ALPHA)
+        else if (state.material->blendMode == MaterialBlendMode::PREMULTIPLIED_ALPHA)
         {
             blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
             blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -216,16 +224,16 @@ namespace vke_render
         pipelineInfo.pNext = &renderingInfo;
         pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.pColorBlendState = &blendState;
-        renderPipeline = std::make_unique<GraphicsPipeline>(
-            material->shader, std::vector<uint32_t>{sizeof(QuadID)}, VK_VERTEX_INPUT_RATE_INSTANCE, pipelineInfo);
+        state.pipeline = std::make_unique<GraphicsPipeline>(
+            state.material->shader, std::vector<uint32_t>{sizeof(QuadID)}, VK_VERTEX_INPUT_RATE_INSTANCE, pipelineInfo);
     }
 
-    void Layered2DRenderLayer::AddUnit(const std::shared_ptr<Material> &material,
-                                       Layered2DRenderUnit *unit, RenderContext *context)
+    void Layered2DRenderLayer::AddUnit(const Layered2DMaterialState &materialState, Layered2DRenderUnit *unit)
     {
-        auto it = renderInfos.find(material.get());
+        Material *material = materialState.material.get();
+        auto it = renderInfos.find(material);
         if (it == renderInfos.end())
-            it = renderInfos.emplace(material.get(), std::make_unique<Layered2DRenderInfo>(material, context)).first;
+            it = renderInfos.emplace(material, std::make_unique<Layered2DRenderInfo>(materialState)).first;
         it->second->AddUnit(unit);
     }
 
@@ -235,6 +243,8 @@ namespace vke_render
         if (it == renderInfos.end())
             return;
         it->second->RemoveUnit(unitID);
+        if (it->second->Empty())
+            renderInfos.erase(it);
     }
 
     void Layered2DRenderLayer::Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
@@ -281,7 +291,7 @@ namespace vke_render
             return false;
 
         UnitState state;
-        state.material = material == nullptr ? defaultMaterial : material;
+        state.materialState = &getOrCreateMaterialState(material == nullptr ? defaultMaterial : material);
         state.unit = std::make_unique<Layered2DRenderUnit>(unitID, modelMatrix, &quadIDPool);
         state.unit->SetQuadIDs(quadIDs);
         units.emplace(unitID, std::move(state));
@@ -324,7 +334,7 @@ namespace vke_render
             layerIt = layers.emplace(layerID, std::make_unique<Layered2DRenderLayer>(layerID)).first;
             layerOrder.push_back(layerID);
         }
-        layerIt->second->AddUnit(unitIt->second.material, unitIt->second.unit.get(), context);
+        layerIt->second->AddUnit(*unitIt->second.materialState, unitIt->second.unit.get());
         unitIt->second.layerID = layerID;
         return true;
     }
@@ -335,8 +345,13 @@ namespace vke_render
         auto layerIt = layers.find(layerID);
         if (unitIt == units.end() || layerIt == layers.end())
             return;
-        layerIt->second->RemoveUnit(unitIt->second.material.get(), unitID);
+        layerIt->second->RemoveUnit(unitIt->second.materialState->material.get(), unitID);
         unitIt->second.layerID = std::numeric_limits<vke_ds::id32_t>::max();
+        if (layerIt->second->Empty())
+        {
+            layers.erase(layerIt);
+            std::erase(layerOrder, layerID);
+        }
     }
 
     void Layered2DRenderer::SetLayerOrder(const std::vector<vke_ds::id32_t> &backToFrontLayerIDs)

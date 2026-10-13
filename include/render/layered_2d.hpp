@@ -86,19 +86,24 @@ namespace vke_render
         uint32_t quadIDUpdateCnt = 0;
     };
 
-    class Layered2DRenderInfo
+    struct Layered2DMaterialState
     {
-    public:
-        Layered2DRenderInfo(std::shared_ptr<Material> material, RenderContext *context);
-
-        ~Layered2DRenderInfo()
+        ~Layered2DMaterialState()
         {
             DescriptorSetAllocator::FreeDescriptorSet(commonDescriptorSet);
         }
 
         std::shared_ptr<Material> material;
-        std::unique_ptr<GraphicsPipeline> renderPipeline;
+        std::unique_ptr<GraphicsPipeline> pipeline;
         VkDescriptorSet commonDescriptorSet = VK_NULL_HANDLE;
+    };
+
+    class Layered2DRenderInfo
+    {
+    public:
+        explicit Layered2DRenderInfo(const Layered2DMaterialState &materialState)
+            : materialState(materialState) {}
+
         std::map<vke_ds::id32_t, Layered2DRenderUnit *> units;
 
         void AddUnit(Layered2DRenderUnit *unit) { units[unit->id] = unit; }
@@ -108,7 +113,7 @@ namespace vke_render
                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize, uint32_t currentFrame) const;
 
     private:
-        void createPipeline(RenderContext *context);
+        const Layered2DMaterialState &materialState;
     };
 
     class Layered2DRenderLayer
@@ -123,7 +128,7 @@ namespace vke_render
 
         const vke_ds::id32_t id;
 
-        void AddUnit(const std::shared_ptr<Material> &material, Layered2DRenderUnit *unit, RenderContext *context);
+        void AddUnit(const Layered2DMaterialState &materialState, Layered2DRenderUnit *unit);
         void RemoveUnit(Material *material, vke_ds::id32_t unitID);
         bool Empty() const { return renderInfos.empty(); }
         void Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
@@ -146,6 +151,7 @@ namespace vke_render
             layers.clear();
             layerOrder.clear();
             units.clear();
+            materialStates.clear();
             quadIDPool.Reset();
         }
 
@@ -172,7 +178,7 @@ namespace vke_render
         struct UnitState
         {
             std::unique_ptr<Layered2DRenderUnit> unit;
-            std::shared_ptr<Material> material;
+            const Layered2DMaterialState *materialState;
             vke_ds::id32_t layerID = std::numeric_limits<vke_ds::id32_t>::max();
         };
 
@@ -184,6 +190,7 @@ namespace vke_render
         std::unique_ptr<HostCoherentBuffer> dynamicAtlasStagingBuffers[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<Texture2D> dynamicAtlasTextures[MAX_FRAMES_IN_FLIGHT];
         QuadIDVertexBufferPool quadIDPool;
+        std::map<Material *, std::unique_ptr<Layered2DMaterialState>> materialStates;
         std::map<vke_ds::id32_t, UnitState> units;
         std::map<vke_ds::id32_t, std::unique_ptr<Layered2DRenderLayer>> layers;
         std::vector<vke_ds::id32_t> layerOrder;
@@ -192,6 +199,8 @@ namespace vke_render
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  ResourceNodeIDMap &currentResourceNodeID);
         void createDescriptorSets();
+        const Layered2DMaterialState &getOrCreateMaterialState(const std::shared_ptr<Material> &material);
+        void createGraphicsPipeline(Layered2DMaterialState &state);
         void syncDynamicAtlas(VkCommandBuffer commandBuffer, uint32_t currentFrame);
     };
 }
