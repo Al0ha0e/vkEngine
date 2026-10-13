@@ -29,6 +29,8 @@ namespace vke_component
                 .Unsigneds({"motionType"}, 2).Unsigneds({"motionQuality"}, 1).Unsigneds({"layer"}, UINT32_MAX)
                 .Numbers({"friction", "restitution", "gravityFactor", "mass"}).Result();
             if (!result) return result;
+            if (json.contains("mass") && json["mass"].get<float>() <= 0.0f)
+                return std::unexpected("rigidbody requires positive mass override");
             return vke_physics::PhyscisShapeData::ValidateJSON(json["shape"]);
         }
 

@@ -1,5 +1,6 @@
 #include <editor/editor.hpp>
 #include <editor/physics_shape_editor.hpp>
+#include <editor/rigidbody_editor.hpp>
 #include <component/rigidbody.hpp>
 #include <physics/physics.hpp>
 #include <algorithm>
@@ -81,15 +82,24 @@ namespace vke_editor
 
         int motionType = static_cast<int>(currentMotionType);
         const char *motionTypeItems[] = {"Static", "Kinematic", "Dynamic"};
+        const bool editMode = EditorStateManager::GetState() == EditorState::Edit;
+        const bool staticLocked = !editMode && currentMotionType == JPH::EMotionType::Static;
+        ImGui::BeginDisabled(staticLocked);
         if (ImGui::Combo("Motion Type", &motionType, motionTypeItems, IM_ARRAYSIZE(motionTypeItems)))
         {
-            motionType = std::clamp(motionType, 0, 2);
             const auto newMotionType = static_cast<JPH::EMotionType>(motionType);
-            if (newMotionType != JPH::EMotionType::Static)
-                EnsureDynamicBodyShape(shape, settings, bodyInterface, body.bodyID);
-            bodyInterface.SetMotionType(body.bodyID, newMotionType, JPH::EActivation::Activate);
-            ApplyRigidBodyMassSettings(body);
+            if (editMode)
+            {
+                if (auto result = RebuildRigidBodyMotionType(body, newMotionType); !result)
+                    vke_common::Logger::Warn("Cannot change rigid body motion type: {}", result.error());
+            }
+            else
+                vke_physics::PhysicsManager::SetMotionType(body.bodyID, newMotionType, JPH::EActivation::Activate);
+            settings = body.GetSettings();
         }
+        ImGui::EndDisabled();
+        if (staticLocked && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("Static rigid bodies remain static during a run. Stop the run to edit the type.");
 
         int motionQuality = static_cast<int>(settings.mMotionQuality);
         const char *motionQualityItems[] = {"Discrete", "LinearCast"};

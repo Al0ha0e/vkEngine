@@ -161,9 +161,6 @@ namespace vke_interop
         GetBodyMotionQualityFn GetBodyMotionQuality;
         GetPhysicsObjectLayerCountFn GetPhysicsObjectLayerCount;
         GetPhysicsBroadPhaseLayerCountFn GetPhysicsBroadPhaseLayerCount;
-        AddPhysicsObjectLayerFn AddPhysicsObjectLayer;
-        AddPhysicsBroadPhaseLayerFn AddPhysicsBroadPhaseLayer;
-        SetPhysicsObjectLayerBroadPhaseLayerFn SetPhysicsObjectLayerBroadPhaseLayer;
         GetPhysicsObjectLayerBroadPhaseLayerFn GetPhysicsObjectLayerBroadPhaseLayer;
         SetPhysicsObjectLayerCollisionFn SetPhysicsObjectLayerCollision;
         GetPhysicsObjectLayerCollisionFn GetPhysicsObjectLayerCollision;

@@ -14,6 +14,84 @@ namespace vke_physics
 {
     PhysicsManager *PhysicsManager::instance;
 
+    void PhysicsManager::SetObjectLayerBroadPhaseLayer(JPH::ObjectLayer objectLayer, JPH::BroadPhaseLayer broadPhaseLayer)
+    {
+        if (objectLayer < instance->config.objectLayerCount && instance->config.objectToBroadPhase[objectLayer] == broadPhaseLayer)
+            return;
+        instance->config.SetObjectLayerBroadPhaseLayer(objectLayer, broadPhaseLayer);
+        instance->resetConfig.SetObjectLayerBroadPhaseLayer(objectLayer, broadPhaseLayer);
+
+        JPH::BodyIDVector bodies;
+        instance->physicsSystem.GetBodies(bodies);
+        auto &bodyInterface = GetBodyInterface();
+        for (const auto bodyID : bodies)
+        {
+            if (bodyInterface.GetObjectLayer(bodyID) != objectLayer)
+                continue;
+            bodyInterface.SetObjectLayer(bodyID, JPH::cObjectLayerInvalid);
+            bodyInterface.SetObjectLayer(bodyID, objectLayer);
+            bodyInterface.InvalidateContactCache(bodyID);
+        }
+    }
+
+    void PhysicsManager::SetObjectLayerCollision(JPH::ObjectLayer layer1, JPH::ObjectLayer layer2, bool shouldCollide)
+    {
+        auto &config = instance->config;
+        const auto previousPairs = config.objectLayerPairs;
+        const auto previousBroadPhasePairs = config.objectVsBroadPhaseLayerPairs;
+        config.SetObjectLayerCollision(layer1, layer2, shouldCollide);
+
+        uint32_t affectedLayers = 0;
+        for (uint32_t layer = 0; layer < config.objectLayerCount; ++layer)
+            if (previousPairs[layer] != config.objectLayerPairs[layer] ||
+                previousBroadPhasePairs[layer] != config.objectVsBroadPhaseLayerPairs[layer])
+                affectedLayers |= 1u << layer;
+        instance->activateBodiesInLayers(affectedLayers);
+    }
+
+    void PhysicsManager::SetObjectVsBroadPhaseLayerCollision(JPH::ObjectLayer objectLayer, JPH::BroadPhaseLayer broadPhaseLayer, bool shouldCollide)
+    {
+        auto &config = instance->config;
+        const auto previousPairs = config.objectVsBroadPhaseLayerPairs;
+        config.SetObjectVsBroadPhaseLayerCollision(objectLayer, broadPhaseLayer, shouldCollide);
+        if (previousPairs[objectLayer][broadPhaseLayer.GetValue()] != shouldCollide)
+            instance->activateBodiesInLayers(1u << objectLayer);
+    }
+
+    void PhysicsManager::activateBodiesInLayers(uint32_t objectLayerMask)
+    {
+        if (objectLayerMask == 0)
+            return;
+
+        const MaskObjectLayerFilter layerFilter(objectLayerMask);
+        JPH::BodyIDVector bodies;
+        physicsSystem.GetBodies(bodies);
+        const auto end = std::remove_if(bodies.begin(), bodies.end(), [&](JPH::BodyID bodyID)
+                                        {
+            JPH::BodyLockRead lock(physicsSystem.GetBodyLockInterface(), bodyID);
+            const auto &body = lock.GetBody();
+            return body.IsStatic() || !body.IsInBroadPhase() || body.IsActive() ||
+                   !layerFilter.ShouldCollide(body.GetObjectLayer()); });
+        physicsSystem.GetBodyInterface().ActivateBodies(bodies.data(), static_cast<int>(end - bodies.begin()));
+    }
+
+    bool PhysicsManager::SetMotionType(JPH::BodyID bodyID, JPH::EMotionType motionType, JPH::EActivation activation)
+    {
+        if (motionType > JPH::EMotionType::Dynamic)
+            return false;
+        {
+            JPH::BodyLockRead lock(instance->physicsSystem.GetBodyLockInterface(), bodyID);
+            if (!lock.Succeeded())
+                return false;
+            const auto &body = lock.GetBody();
+            if (motionType != JPH::EMotionType::Static &&
+                ((!body.IsSensor() && body.IsStatic()) || body.GetShape()->MustBeStatic()))
+                return false;
+        }
+        GetBodyInterface().SetMotionType(bodyID, motionType, activation);
+        return true;
+    }
+
     void PhysicsManager::Reset()
     {
         auto &system = instance->physicsSystem;
@@ -39,7 +117,7 @@ namespace vke_physics
         if (!bodies.empty())
             bodyInterface.DestroyBodies(bodies.data(), static_cast<int>(bodies.size()));
 
-        instance->config = instance->initialConfig;
+        instance->config = instance->resetConfig;
         system.SetGravity(instance->config.gravity);
         system.SetPhysicsSettings(JPH::PhysicsSettings());
         system.OptimizeBroadPhase();

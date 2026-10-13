@@ -234,7 +234,7 @@ namespace vke_physics
     {
     private:
         static PhysicsManager *instance;
-        explicit PhysicsManager(const PhysicsConfig &physicsConfig) : config(physicsConfig), initialConfig(physicsConfig) {}
+        explicit PhysicsManager(const PhysicsConfig &physicsConfig) : config(physicsConfig), resetConfig(physicsConfig) {}
         ~PhysicsManager() {}
 
     public:
@@ -289,6 +289,8 @@ namespace vke_physics
             return instance->physicsSystem;
         }
 
+        static bool SetMotionType(JPH::BodyID bodyID, JPH::EMotionType motionType, JPH::EActivation activation);
+
         static JPH::TempAllocator &GetTempAllocator()
         {
             return *instance->tempAllocator;
@@ -299,30 +301,11 @@ namespace vke_physics
             return instance->config;
         }
 
-        static JPH::ObjectLayer AddObjectLayer(const std::string &name, JPH::BroadPhaseLayer broadPhaseLayer = JPH::BroadPhaseLayer(0))
-        {
-            return instance->config.AddObjectLayer(name, broadPhaseLayer);
-        }
+        static void SetObjectLayerBroadPhaseLayer(JPH::ObjectLayer objectLayer, JPH::BroadPhaseLayer broadPhaseLayer);
 
-        static JPH::BroadPhaseLayer AddBroadPhaseLayer(const std::string &name)
-        {
-            return instance->config.AddBroadPhaseLayer(name);
-        }
+        static void SetObjectLayerCollision(JPH::ObjectLayer layer1, JPH::ObjectLayer layer2, bool shouldCollide);
 
-        static void SetObjectLayerBroadPhaseLayer(JPH::ObjectLayer objectLayer, JPH::BroadPhaseLayer broadPhaseLayer)
-        {
-            instance->config.SetObjectLayerBroadPhaseLayer(objectLayer, broadPhaseLayer);
-        }
-
-        static void SetObjectLayerCollision(JPH::ObjectLayer layer1, JPH::ObjectLayer layer2, bool shouldCollide)
-        {
-            instance->config.SetObjectLayerCollision(layer1, layer2, shouldCollide);
-        }
-
-        static void SetObjectVsBroadPhaseLayerCollision(JPH::ObjectLayer objectLayer, JPH::BroadPhaseLayer broadPhaseLayer, bool shouldCollide)
-        {
-            instance->config.SetObjectVsBroadPhaseLayerCollision(objectLayer, broadPhaseLayer, shouldCollide);
-        }
+        static void SetObjectVsBroadPhaseLayerCollision(JPH::ObjectLayer objectLayer, JPH::BroadPhaseLayer broadPhaseLayer, bool shouldCollide);
 
         static bool Raycast(JPH::RVec3Arg origin, JPH::Vec3Arg direction, float maxDistance, RaycastHit &outHit, uint32_t broadPhaseLayerMask = AllPhysicsLayersMask, uint32_t objectLayerMask = AllPhysicsLayersMask)
         {
@@ -373,6 +356,7 @@ namespace vke_physics
         void init();
         void dispose();
         void fixedUpdate(float deltaTime);
+        void activateBodiesInLayers(uint32_t objectLayerMask);
         bool raycast(JPH::RVec3Arg origin, JPH::Vec3Arg direction, float maxDistance, RaycastHit &outHit, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
         uint32_t raycastAll(JPH::RVec3Arg origin, JPH::Vec3Arg direction, float maxDistance, RaycastHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
         uint32_t collidePoint(JPH::RVec3Arg point, CollidePointHit *outHits, uint32_t maxHits, uint32_t broadPhaseLayerMask, uint32_t objectLayerMask);
@@ -384,7 +368,7 @@ namespace vke_physics
         uint32_t getContactEvents(ContactEvent *outEvents, uint32_t maxEvents);
 
         PhysicsConfig config;
-        const PhysicsConfig initialConfig;
+        PhysicsConfig resetConfig;
         std::unique_ptr<JPH::TempAllocatorImpl> tempAllocator;
         std::unique_ptr<JPH::JobSystemThreadPool> jobSystem;
         BPLayerInterfaceImpl broadPhaseLayerInterface;

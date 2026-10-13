@@ -180,6 +180,7 @@ namespace vke_editor
     {
         ensureSelectedEntityValid();
         showMainMenuBar();
+        showProjectSettings();
         if (EditorStateManager::GetState() == EditorState::Edit)
             showAssetImportDialog();
         showHierarchy();
@@ -194,6 +195,11 @@ namespace vke_editor
             return;
 
         const bool canEdit = EditorStateManager::GetState() == EditorState::Edit;
+        if (ImGui::MenuItem("Project Settings"))
+        {
+            projectSettingsOpen = true;
+            ImGui::SetWindowFocus("Project Settings");
+        }
         if (ImGui::BeginMenu("Scene", canEdit))
         {
             if (ImGui::MenuItem("Save Scene"))
@@ -266,6 +272,69 @@ namespace vke_editor
         }
 
         ImGui::EndMainMenuBar();
+    }
+
+    void Editor::showProjectSettings()
+    {
+        if (!projectSettingsOpen)
+            return;
+
+        ImGui::SetNextWindowSize(ImVec2(680.0f, 420.0f), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("Project Settings", &projectSettingsOpen))
+        {
+            if (ImGui::BeginTabBar("ProjectSettingsTabs"))
+            {
+                if (ImGui::BeginTabItem("Physics"))
+                {
+                    ImGui::SeparatorText("Physics Layers");
+                    const bool canEdit = EditorStateManager::GetState() == EditorState::Edit;
+                    if (!canEdit)
+                        ImGui::TextWrapped("Stop the run to edit physics layers.");
+
+                    const auto &config = vke_physics::PhysicsManager::GetConfig();
+                    ImGui::BeginDisabled(!canEdit);
+                    if (ImGui::BeginTable("PhysicsLayerMappings", 2,
+                                          ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingStretchSame))
+                    {
+                        ImGui::TableSetupColumn("Object Layer");
+                        ImGui::TableSetupColumn("Broad Phase Layer");
+                        ImGui::TableHeadersRow();
+                        for (uint32_t objectLayer = 0; objectLayer < config.objectLayerCount; ++objectLayer)
+                        {
+                            ImGui::PushID(static_cast<int>(objectLayer));
+                            ImGui::TableNextRow();
+                            ImGui::TableNextColumn();
+                            ImGui::AlignTextToFramePadding();
+                            ImGui::Text("%u: %s", objectLayer, config.objectLayerNames[objectLayer].c_str());
+                            ImGui::TableNextColumn();
+                            const auto currentLayer = config.objectToBroadPhase[objectLayer].GetValue();
+                            const auto preview = std::to_string(currentLayer) + ": " + config.broadPhaseLayerNames[currentLayer];
+                            ImGui::SetNextItemWidth(-FLT_MIN);
+                            if (ImGui::BeginCombo("##BroadPhaseLayer", preview.c_str()))
+                            {
+                                for (uint32_t broadPhaseLayer = 0; broadPhaseLayer < config.broadPhaseLayerCount; ++broadPhaseLayer)
+                                {
+                                    const auto target = JPH::BroadPhaseLayer(static_cast<JPH::BroadPhaseLayer::Type>(broadPhaseLayer));
+                                    const auto label = std::to_string(broadPhaseLayer) + ": " + config.broadPhaseLayerNames[broadPhaseLayer];
+                                    const bool selected = config.objectToBroadPhase[objectLayer] == target;
+                                    if (ImGui::Selectable(label.c_str(), selected))
+                                        vke_physics::PhysicsManager::SetObjectLayerBroadPhaseLayer(objectLayer, target);
+                                    if (selected)
+                                        ImGui::SetItemDefaultFocus();
+                                }
+                                ImGui::EndCombo();
+                            }
+                            ImGui::PopID();
+                        }
+                        ImGui::EndTable();
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
+            }
+        }
+        ImGui::End();
     }
 
     void Editor::showHierarchy()

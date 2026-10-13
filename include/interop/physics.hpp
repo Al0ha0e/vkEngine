@@ -7,6 +7,11 @@
 
 namespace vke_interop
 {
+    struct CSharpPhysicsFunctions
+    {
+        void (*rebindRigidBody)(uint32_t, uint32_t) = nullptr;
+    };
+
     struct RaycastHit
     {
         uint32_t Entity;
@@ -139,15 +144,12 @@ namespace vke_interop
     using AddBodyImpulseAtPointFn = void(VKE_INTEROP_CDECL *)(uint32_t, const Vector3<float> *, const Vector3<float> *);
     using AddBodyAngularImpulseFn = void(VKE_INTEROP_CDECL *)(uint32_t, const Vector3<float> *);
     using ApplyBodyBuoyancyImpulseFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, const Vector3<float> *, const Vector3<float> *, float, float, float, const Vector3<float> *, const Vector3<float> *, float);
-    using SetBodyMotionTypeFn = void(VKE_INTEROP_CDECL *)(uint32_t, int32_t, int32_t);
+    using SetBodyMotionTypeFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, int32_t, int32_t);
     using GetBodyMotionTypeFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t);
     using SetBodyMotionQualityFn = void(VKE_INTEROP_CDECL *)(uint32_t, int32_t);
     using GetBodyMotionQualityFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t);
     using GetPhysicsObjectLayerCountFn = uint32_t(VKE_INTEROP_CDECL *)();
     using GetPhysicsBroadPhaseLayerCountFn = uint32_t(VKE_INTEROP_CDECL *)();
-    using AddPhysicsObjectLayerFn = uint32_t(VKE_INTEROP_CDECL *)(const char *, uint32_t);
-    using AddPhysicsBroadPhaseLayerFn = uint32_t(VKE_INTEROP_CDECL *)(const char *);
-    using SetPhysicsObjectLayerBroadPhaseLayerFn = void(VKE_INTEROP_CDECL *)(uint32_t, uint32_t);
     using GetPhysicsObjectLayerBroadPhaseLayerFn = uint32_t(VKE_INTEROP_CDECL *)(uint32_t);
     using SetPhysicsObjectLayerCollisionFn = void(VKE_INTEROP_CDECL *)(uint32_t, uint32_t, int32_t);
     using GetPhysicsObjectLayerCollisionFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint32_t);
@@ -193,15 +195,12 @@ namespace vke_interop
     void VKE_INTEROP_CDECL AddBodyImpulseAtPoint(uint32_t bodyID, const Vector3<float> *impulse, const Vector3<float> *point);
     void VKE_INTEROP_CDECL AddBodyAngularImpulse(uint32_t bodyID, const Vector3<float> *angularImpulse);
     int32_t VKE_INTEROP_CDECL ApplyBodyBuoyancyImpulse(uint32_t bodyID, const Vector3<float> *surfacePosition, const Vector3<float> *surfaceNormal, float buoyancy, float linearDrag, float angularDrag, const Vector3<float> *fluidVelocity, const Vector3<float> *gravity, float deltaTime);
-    void VKE_INTEROP_CDECL SetBodyMotionType(uint32_t bodyID, int32_t motionType, int32_t activation);
+    int32_t VKE_INTEROP_CDECL SetBodyMotionType(uint32_t bodyID, int32_t motionType, int32_t activation);
     int32_t VKE_INTEROP_CDECL GetBodyMotionType(uint32_t bodyID);
     void VKE_INTEROP_CDECL SetBodyMotionQuality(uint32_t bodyID, int32_t motionQuality);
     int32_t VKE_INTEROP_CDECL GetBodyMotionQuality(uint32_t bodyID);
     uint32_t VKE_INTEROP_CDECL GetPhysicsObjectLayerCount();
     uint32_t VKE_INTEROP_CDECL GetPhysicsBroadPhaseLayerCount();
-    uint32_t VKE_INTEROP_CDECL AddPhysicsObjectLayer(const char *name, uint32_t broadPhaseLayer);
-    uint32_t VKE_INTEROP_CDECL AddPhysicsBroadPhaseLayer(const char *name);
-    void VKE_INTEROP_CDECL SetPhysicsObjectLayerBroadPhaseLayer(uint32_t objectLayer, uint32_t broadPhaseLayer);
     uint32_t VKE_INTEROP_CDECL GetPhysicsObjectLayerBroadPhaseLayer(uint32_t objectLayer);
     void VKE_INTEROP_CDECL SetPhysicsObjectLayerCollision(uint32_t layer1, uint32_t layer2, int32_t shouldCollide);
     int32_t VKE_INTEROP_CDECL GetPhysicsObjectLayerCollision(uint32_t layer1, uint32_t layer2);

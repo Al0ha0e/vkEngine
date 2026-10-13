@@ -25,10 +25,9 @@ namespace vke_component
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            auto result = Object(json).Require({"shape"}).Unsigneds({"layer"}, UINT32_MAX)
-                .Numbers({"mass", "maxStrength", "maxSlopeAngle", "predictiveContactDistance", "characterPadding"})
-                .Booleans({"createInnerBody"}).Result();
-            if (!result) return result;
+            auto result = Object(json).Require({"shape"}).Unsigneds({"layer"}, UINT32_MAX).Numbers({"mass", "maxStrength", "maxSlopeAngle", "predictiveContactDistance", "characterPadding"}).Booleans({"createInnerBody"}).Result();
+            if (!result)
+                return result;
             return vke_physics::PhyscisShapeData::ValidateJSON(json["shape"]);
         }
 
@@ -78,7 +77,7 @@ namespace vke_component
         CharacterController(CharacterController &&) noexcept = default;
         CharacterController &operator=(CharacterController &&) noexcept = default;
 
-        CharacterController(const vke_common::Transform &transform,
+        CharacterController(entt::entity entity, const vke_common::Transform &transform,
                             const CharacterControllerData &componentData)
             : shape(std::make_shared<vke_physics::PhyscisShape>(componentData.shape)),
               settings(new JPH::CharacterVirtualSettings()),
@@ -100,6 +99,7 @@ namespace vke_component
             character = new JPH::CharacterVirtual(settings,
                                                   JPH::RVec3(position.x, position.y, position.z),
                                                   JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w),
+                                                  static_cast<uint64_t>(entity),
                                                   &vke_physics::PhysicsManager::GetPhysicsSystem());
         }
 
@@ -124,9 +124,9 @@ namespace vke_component
 
         void SetDesiredVelocity(const glm::vec3 &velocity)
         {
-            desiredVelocity = JPH::Vec3(velocity.x, velocity.y, velocity.z);
-            if (velocity.y > 0.0f)
+            if (velocity.y > 0.0f && desiredVelocity.GetY() <= 0.0f)
                 verticalVelocity = velocity.y;
+            desiredVelocity = JPH::Vec3(velocity.x, velocity.y, velocity.z);
         }
 
         glm::vec3 GetLinearVelocity() const
@@ -140,7 +140,7 @@ namespace vke_component
 
         bool IsGrounded() const
         {
-            return character != nullptr && character->IsSupported();
+            return character != nullptr && character->GetGroundState() == JPH::CharacterBase::EGroundState::OnGround;
         }
 
         void FixedUpdate(float deltaTime)
@@ -150,11 +150,11 @@ namespace vke_component
 
             const JPH::Vec3 gravity = vke_physics::PhysicsManager::GetPhysicsSystem().GetGravity();
             verticalVelocity += gravity.GetY() * deltaTime;
-            if (character->IsSupported() && verticalVelocity < 0.0f)
+            if (IsGrounded() && verticalVelocity < 0.0f)
                 verticalVelocity = 0.0f;
 
             JPH::Vec3 velocity(desiredVelocity.GetX(),
-                               desiredVelocity.GetY() + verticalVelocity,
+                               verticalVelocity,
                                desiredVelocity.GetZ());
             character->SetLinearVelocity(velocity);
 
@@ -165,6 +165,17 @@ namespace vke_component
             JPH::ShapeFilter shapeFilter;
             character->Update(deltaTime, gravity, broadPhaseFilter, objectLayerFilter, bodyFilter, shapeFilter,
                               vke_physics::PhysicsManager::GetTempAllocator());
+
+            // A ceiling collision must also consume the jump velocity kept between steps.
+            if (verticalVelocity > 0.0f)
+                for (const auto &contact : character->GetActiveContacts())
+                    if (contact.mHadCollision && !contact.mWasDiscarded && contact.mContactNormal.GetY() < 0.0f)
+                    {
+                        verticalVelocity = 0.0f;
+                        velocity.SetY(0.0f);
+                        character->SetLinearVelocity(velocity);
+                        break;
+                    }
         }
 
         void OnTransformed(vke_common::Transform &transform)

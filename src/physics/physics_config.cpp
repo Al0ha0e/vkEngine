@@ -1,6 +1,7 @@
 #include <physics/physics_config.hpp>
 #include <common.hpp>
 #include <algorithm>
+#include <cmath>
 
 namespace vke_physics
 {
@@ -19,7 +20,6 @@ namespace vke_physics
 
     PhysicsConfig::PhysicsConfig(const nlohmann::json &json)
     {
-        resetDefault();
         LoadJSON(json);
     }
 
@@ -135,6 +135,7 @@ namespace vke_physics
         collisionSteps = json.value("collisionSteps", collisionSteps);
         tempAllocatorSize = json.value("tempAllocatorSize", tempAllocatorSize);
         stepTime = json.value("stepTime", stepTime);
+        VKE_FATAL_IF(!std::isfinite(stepTime) || stepTime <= 0.0f, "PhysicsConfig stepTime must be finite and greater than zero")
 
         if (json.contains("gravity"))
         {
@@ -178,11 +179,9 @@ namespace vke_physics
             }
         }
 
-        for (uint32_t i = 0; i < MaxObjectLayers; ++i)
-            objectToBroadPhase[i] = JPH::BroadPhaseLayer(0);
-
         if (json.contains("objectToBroadPhase"))
         {
+            objectToBroadPhase.fill(JPH::BroadPhaseLayer(0));
             for (const auto &mapping : json["objectToBroadPhase"])
             {
                 uint32_t objectLayer = 0;
@@ -201,13 +200,17 @@ namespace vke_physics
                 objectToBroadPhase[objectLayer] = JPH::BroadPhaseLayer(static_cast<JPH::BroadPhaseLayer::Type>(broadPhaseLayer));
             }
         }
-
-        for (uint32_t i = 0; i < MaxObjectLayers; ++i)
-            for (uint32_t j = 0; j < MaxObjectLayers; ++j)
-                objectLayerPairs[i][j] = false;
+        else if (json.contains("broadPhaseLayers"))
+        {
+            for (uint32_t objectLayer = 0; objectLayer < objectLayerCount; ++objectLayer)
+                VKE_FATAL_IF(objectToBroadPhase[objectLayer].GetValue() >= broadPhaseLayerCount,
+                             "Default mapping for object layer {} requires an explicit objectToBroadPhase mapping for the configured broad phase layers", objectLayer)
+        }
 
         if (json.contains("objectLayerPairs"))
         {
+            for (auto &pairs : objectLayerPairs)
+                pairs.fill(false);
             for (const auto &pairJson : json["objectLayerPairs"])
             {
                 uint32_t layer1 = 0;

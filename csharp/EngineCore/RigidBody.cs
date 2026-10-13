@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace vkEngine.EngineCore
 {
@@ -28,7 +29,7 @@ namespace vkEngine.EngineCore
         private static readonly Dictionary<UInt32, ContactCallbacks> registeredCallbacks = new();
 
         private readonly UInt32 entity;
-        private readonly UInt32 bodyID;
+        private UInt32 bodyID => contactCallbacks.BodyID;
         private readonly ContactCallbacks contactCallbacks;
 
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32> getBodyID;
@@ -62,7 +63,7 @@ namespace vkEngine.EngineCore
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> addImpulseAtPoint;
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> addAngularImpulse;
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, float, float, float, NVec3*, NVec3*, float, Int32> applyBuoyancyImpulse;
-        private static delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, void> setMotionType;
+        private static delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, Int32> setMotionType;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32> getMotionType;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32, void> setMotionQuality;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32> getMotionQuality;
@@ -70,7 +71,7 @@ namespace vkEngine.EngineCore
         public RigidBody(UInt32 entity)
         {
             this.entity = entity;
-            bodyID = getBodyID(entity);
+            UInt32 bodyID = getBodyID(entity);
             if (bodyID == InvalidBodyID)
                 throw new InvalidOperationException($"Entity {entity} does not have a loaded RigidBody component.");
 
@@ -83,7 +84,6 @@ namespace vkEngine.EngineCore
                 throw new ArgumentOutOfRangeException(nameof(bodyID), $"Entity {entity} does not have a valid RigidBody body ID.");
 
             this.entity = entity;
-            this.bodyID = bodyID;
             contactCallbacks = GetOrCreateCallbacks(bodyID);
         }
 
@@ -160,7 +160,7 @@ namespace vkEngine.EngineCore
         {
             if (!registeredCallbacks.TryGetValue(bodyID, out ContactCallbacks? callbacks))
             {
-                callbacks = new ContactCallbacks();
+                callbacks = new ContactCallbacks { BodyID = bodyID };
                 registeredCallbacks.Add(bodyID, callbacks);
             }
 
@@ -174,6 +174,16 @@ namespace vkEngine.EngineCore
                 callbacks.Clear();
         }
 
+        [UnmanagedCallersOnly]
+        internal static void RebindBody(UInt32 oldBodyID, UInt32 newBodyID)
+        {
+            if (registeredCallbacks.Remove(oldBodyID, out var callbacks))
+            {
+                callbacks.BodyID = newBodyID;
+                registeredCallbacks.Add(newBodyID, callbacks);
+            }
+        }
+
         internal static void ClearRegistered()
         {
             foreach (var callbacks in registeredCallbacks.Values)
@@ -183,6 +193,7 @@ namespace vkEngine.EngineCore
 
         private sealed class ContactCallbacks
         {
+            public UInt32 BodyID;
             public Action<ContactEvent>? ContactAdded;
             public Action<ContactEvent>? ContactPersisted;
             public Action<ContactEvent>? ContactRemoved;
@@ -199,13 +210,13 @@ namespace vkEngine.EngineCore
                 switch (contactEvent.Type)
                 {
                     case ContactEventType.Added:
-                        ContactAdded?.Invoke(contactEvent);
+                        Physics.InvokeContactCallbacks(ContactAdded, contactEvent);
                         break;
                     case ContactEventType.Persisted:
-                        ContactPersisted?.Invoke(contactEvent);
+                        Physics.InvokeContactCallbacks(ContactPersisted, contactEvent);
                         break;
                     case ContactEventType.Removed:
-                        ContactRemoved?.Invoke(contactEvent);
+                        Physics.InvokeContactCallbacks(ContactRemoved, contactEvent);
                         break;
                 }
             }
@@ -278,7 +289,11 @@ namespace vkEngine.EngineCore
         public MotionType MotionType
         {
             get => (MotionType)getMotionType(bodyID);
-            set => setMotionType(bodyID, (Int32)value, (Int32)BodyActivation.Activate);
+            set
+            {
+                if (!SetMotionType(value, BodyActivation.Activate))
+                    throw new InvalidOperationException("The body is unavailable or the motion type change is unsupported. Static rigid bodies cannot leave Static during a run.");
+            }
         }
 
         public MotionQuality MotionQuality
@@ -388,9 +403,9 @@ namespace vkEngine.EngineCore
             return applyBuoyancyImpulse(bodyID, &nativeSurfacePosition, &nativeSurfaceNormal, buoyancy, linearDrag, angularDrag, &nativeFluidVelocity, &nativeGravity, deltaTime) != 0;
         }
 
-        public void SetMotionType(MotionType motionType, BodyActivation activation)
+        public bool SetMotionType(MotionType motionType, BodyActivation activation)
         {
-            setMotionType(bodyID, (Int32)motionType, (Int32)activation);
+            return setMotionType(bodyID, (Int32)motionType, (Int32)activation) != 0;
         }
     }
 }

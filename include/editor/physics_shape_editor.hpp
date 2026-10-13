@@ -206,17 +206,6 @@ namespace vke_editor
         ImGui::PopID();
     }
 
-    static void EnsureDynamicBodyShape(vke_physics::PhyscisShape &shape,
-                                       JPH::BodyCreationSettings &settings,
-                                       JPH::BodyInterface &bodyInterface,
-                                       JPH::BodyID bodyID)
-    {
-        if (IsDynamicBodyShape(shape.type))
-            return;
-
-        // The caller applies mass properties after changing the motion type.
-        ApplyEditorShape(shape, settings, bodyInterface, bodyID, false, vke_physics::PHYSICS_SHAPE_BOX, CreateEditorShape(vke_physics::PHYSICS_SHAPE_BOX));
-    }
 }
 
 #endif

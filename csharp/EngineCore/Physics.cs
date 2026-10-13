@@ -1,8 +1,13 @@
-using System.Text;
 using System.Runtime.InteropServices;
 
 namespace vkEngine.EngineCore
 {
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct PhysicsFunctions
+    {
+        public delegate* unmanaged<UInt32, UInt32, void> RebindRigidBody;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     public struct RaycastHit
     {
@@ -98,6 +103,11 @@ namespace vkEngine.EngineCore
 
     public static unsafe class Physics
     {
+        internal static PhysicsFunctions GetFunctions() => new()
+        {
+            RebindRigidBody = &RigidBody.RebindBody
+        };
+
         public const UInt32 AllLayers = UInt32.MaxValue;
         public const UInt32 MaxObjectLayers = 32;
         public const UInt32 MaxBroadPhaseLayers = 32;
@@ -108,9 +118,6 @@ namespace vkEngine.EngineCore
 
         private static delegate* unmanaged[Cdecl]<UInt32> getObjectLayerCount;
         private static delegate* unmanaged[Cdecl]<UInt32> getBroadPhaseLayerCount;
-        private static delegate* unmanaged[Cdecl]<byte*, UInt32, UInt32> addObjectLayer;
-        private static delegate* unmanaged[Cdecl]<byte*, UInt32> addBroadPhaseLayer;
-        private static delegate* unmanaged[Cdecl]<UInt32, UInt32, void> setObjectLayerBroadPhaseLayer;
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32> getObjectLayerBroadPhaseLayer;
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> setObjectLayerCollision;
         private static delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> getObjectLayerCollision;
@@ -128,9 +135,6 @@ namespace vkEngine.EngineCore
         {
             getObjectLayerCount = functions->GetPhysicsObjectLayerCount;
             getBroadPhaseLayerCount = functions->GetPhysicsBroadPhaseLayerCount;
-            addObjectLayer = functions->AddPhysicsObjectLayer;
-            addBroadPhaseLayer = functions->AddPhysicsBroadPhaseLayer;
-            setObjectLayerBroadPhaseLayer = functions->SetPhysicsObjectLayerBroadPhaseLayer;
             getObjectLayerBroadPhaseLayer = functions->GetPhysicsObjectLayerBroadPhaseLayer;
             setObjectLayerCollision = functions->SetPhysicsObjectLayerCollision;
             getObjectLayerCollision = functions->GetPhysicsObjectLayerCollision;
@@ -151,14 +155,6 @@ namespace vkEngine.EngineCore
             return (void*)handle.AddrOfPinnedObject();
         }
 
-        private static byte[] EncodeNullTerminated(string value)
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            byte[] bytes = new byte[Encoding.UTF8.GetByteCount(value) + 1];
-            Encoding.UTF8.GetBytes(value, bytes);
-            return bytes;
-        }
-
         public static UInt32 ObjectLayerCount => getObjectLayerCount();
         public static UInt32 BroadPhaseLayerCount => getBroadPhaseLayerCount();
 
@@ -168,29 +164,6 @@ namespace vkEngine.EngineCore
                 throw new ArgumentOutOfRangeException(nameof(layer), "Layer masks support layer indices 0 through 31.");
 
             return 1u << (int)layer;
-        }
-
-        public static UInt32 AddObjectLayer(string name, UInt32 broadPhaseLayer = NonMovingBroadPhaseLayer)
-        {
-            byte[] bytes = EncodeNullTerminated(name);
-            fixed (byte* namePtr = bytes)
-            {
-                return addObjectLayer(namePtr, broadPhaseLayer);
-            }
-        }
-
-        public static UInt32 AddBroadPhaseLayer(string name)
-        {
-            byte[] bytes = EncodeNullTerminated(name);
-            fixed (byte* namePtr = bytes)
-            {
-                return addBroadPhaseLayer(namePtr);
-            }
-        }
-
-        public static void SetObjectLayerBroadPhaseLayer(UInt32 objectLayer, UInt32 broadPhaseLayer)
-        {
-            setObjectLayerBroadPhaseLayer(objectLayer, broadPhaseLayer);
         }
 
         public static UInt32 GetObjectLayerBroadPhaseLayer(UInt32 objectLayer)
@@ -253,6 +226,18 @@ namespace vkEngine.EngineCore
             ContactEvent contactEvent = ToContactEvent(nativeEvent, firstBody);
             RigidBody.TryDispatchContactEvent(bodyID, contactEvent);
             Sensor.TryDispatchContactEvent(bodyID, contactEvent);
+        }
+
+        internal static void InvokeContactCallbacks(Action<ContactEvent>? callbacks, ContactEvent contactEvent)
+        {
+            foreach (var callback in Delegate.EnumerateInvocationList(callbacks))
+            {
+                try { callback(contactEvent); }
+                catch (Exception error)
+                {
+                    Console.Error.WriteLine($"Entity {contactEvent.SelfEntity} body {contactEvent.SelfBodyID} {contactEvent.Type} callback failed: {error}");
+                }
+            }
         }
 
         private static ContactEvent ToContactEvent(NativeContactEvent nativeEvent, bool firstBody)

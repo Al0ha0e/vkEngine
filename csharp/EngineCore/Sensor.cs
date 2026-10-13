@@ -24,7 +24,7 @@ namespace vkEngine.EngineCore
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> setAngularVelocity;
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> getAngularVelocity;
         private static delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> getPointVelocity;
-        private static delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, void> setMotionType;
+        private static delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, Int32> setMotionType;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32> getMotionType;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32, void> setMotionQuality;
         private static delegate* unmanaged[Cdecl]<UInt32, Int32> getMotionQuality;
@@ -142,13 +142,13 @@ namespace vkEngine.EngineCore
                 switch (contactEvent.Type)
                 {
                     case ContactEventType.Added:
-                        ContactAdded?.Invoke(contactEvent);
+                        Physics.InvokeContactCallbacks(ContactAdded, contactEvent);
                         break;
                     case ContactEventType.Persisted:
-                        ContactPersisted?.Invoke(contactEvent);
+                        Physics.InvokeContactCallbacks(ContactPersisted, contactEvent);
                         break;
                     case ContactEventType.Removed:
-                        ContactRemoved?.Invoke(contactEvent);
+                        Physics.InvokeContactCallbacks(ContactRemoved, contactEvent);
                         break;
                 }
             }
@@ -244,7 +244,8 @@ namespace vkEngine.EngineCore
             if (motionType == MotionType.Dynamic)
                 throw new ArgumentOutOfRangeException(nameof(motionType), "Sensor only supports Static or Kinematic motion type.");
 
-            setMotionType(bodyID, (Int32)motionType, (Int32)activation);
+            if (setMotionType(bodyID, (Int32)motionType, (Int32)activation) == 0)
+                throw new InvalidOperationException("The sensor motion type change was rejected.");
         }
     }
 }

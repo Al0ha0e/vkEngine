@@ -104,15 +104,12 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, void> AddBodyImpulseAtPoint;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> AddBodyAngularImpulse;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, NVec3*, float, float, float, NVec3*, NVec3*, float, Int32> ApplyBodyBuoyancyImpulse;
-        public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, void> SetBodyMotionType;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32, Int32> SetBodyMotionType;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> GetBodyMotionType;
         public delegate* unmanaged[Cdecl]<UInt32, Int32, void> SetBodyMotionQuality;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> GetBodyMotionQuality;
         public delegate* unmanaged[Cdecl]<UInt32> GetPhysicsObjectLayerCount;
         public delegate* unmanaged[Cdecl]<UInt32> GetPhysicsBroadPhaseLayerCount;
-        public delegate* unmanaged[Cdecl]<byte*, UInt32, UInt32> AddPhysicsObjectLayer;
-        public delegate* unmanaged[Cdecl]<byte*, UInt32> AddPhysicsBroadPhaseLayer;
-        public delegate* unmanaged[Cdecl]<UInt32, UInt32, void> SetPhysicsObjectLayerBroadPhaseLayer;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetPhysicsObjectLayerBroadPhaseLayer;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32, void> SetPhysicsObjectLayerCollision;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, Int32> GetPhysicsObjectLayerCollision;

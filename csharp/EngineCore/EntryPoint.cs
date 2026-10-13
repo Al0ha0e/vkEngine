@@ -8,6 +8,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged<int> Init;
         public delegate* unmanaged<NativeFunctions*, void> RegisterNativeFunctions;
         public SceneManagerFunctions SceneManagerFuncs;
+        public PhysicsFunctions PhysicsFuncs;
     }
 
     public static class EntryPoint
@@ -32,7 +33,8 @@ namespace vkEngine.EngineCore
             {
                 Init = &Init,
                 RegisterNativeFunctions = &RegisterNativeFunctions,
-                SceneManagerFuncs = SceneManager.GetFunctions()
+                SceneManagerFuncs = SceneManager.GetFunctions(),
+                PhysicsFuncs = Physics.GetFunctions()
             };
         }
     }

@@ -33,6 +33,7 @@ namespace vke_editor
         float fixedUpdateAccumulator;
         std::optional<vke_common::SceneData> editSnapshot;
         bool toggleRunRequested = false;
+        bool projectSettingsOpen = false;
         vke_common::SceneManager *sceneManager;
         entt::entity selectedEntity;
         vke_common::AssetType selectedAssetType;
@@ -66,6 +67,7 @@ namespace vke_editor
         vke_common::SceneResult<void> stopRun();
 
         void showMainMenuBar();
+        void showProjectSettings();
         void showHierarchy();
         void drawHierarchyEntity(entt::entity entity, ImGuiTreeNodeFlags commonFlags);
         void showInspector();

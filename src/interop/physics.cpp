@@ -255,9 +255,9 @@ namespace vke_interop
         return vke_physics::PhysicsManager::GetBodyInterface().ApplyBuoyancyImpulse(ToBodyID(bodyID), ToJoltRVec3(*surfacePosition), ToJoltVec3(*surfaceNormal), buoyancy, linearDrag, angularDrag, ToJoltVec3(*fluidVelocity), ToJoltVec3(*gravity), deltaTime) ? 1 : 0;
     }
 
-    void VKE_INTEROP_CDECL SetBodyMotionType(uint32_t bodyID, int32_t motionType, int32_t activation)
+    int32_t VKE_INTEROP_CDECL SetBodyMotionType(uint32_t bodyID, int32_t motionType, int32_t activation)
     {
-        vke_physics::PhysicsManager::GetBodyInterface().SetMotionType(ToBodyID(bodyID), static_cast<JPH::EMotionType>(motionType), ToActivation(activation));
+        return vke_physics::PhysicsManager::SetMotionType(ToBodyID(bodyID), static_cast<JPH::EMotionType>(motionType), ToActivation(activation)) ? 1 : 0;
     }
 
     int32_t VKE_INTEROP_CDECL GetBodyMotionType(uint32_t bodyID)
@@ -283,21 +283,6 @@ namespace vke_interop
     uint32_t VKE_INTEROP_CDECL GetPhysicsBroadPhaseLayerCount()
     {
         return vke_physics::PhysicsManager::GetConfig().broadPhaseLayerCount;
-    }
-
-    uint32_t VKE_INTEROP_CDECL AddPhysicsObjectLayer(const char *name, uint32_t broadPhaseLayer)
-    {
-        return vke_physics::PhysicsManager::AddObjectLayer(name == nullptr ? "" : name, JPH::BroadPhaseLayer(static_cast<JPH::BroadPhaseLayer::Type>(broadPhaseLayer)));
-    }
-
-    uint32_t VKE_INTEROP_CDECL AddPhysicsBroadPhaseLayer(const char *name)
-    {
-        return vke_physics::PhysicsManager::AddBroadPhaseLayer(name == nullptr ? "" : name).GetValue();
-    }
-
-    void VKE_INTEROP_CDECL SetPhysicsObjectLayerBroadPhaseLayer(uint32_t objectLayer, uint32_t broadPhaseLayer)
-    {
-        vke_physics::PhysicsManager::SetObjectLayerBroadPhaseLayer(static_cast<JPH::ObjectLayer>(objectLayer), JPH::BroadPhaseLayer(static_cast<JPH::BroadPhaseLayer::Type>(broadPhaseLayer)));
     }
 
     uint32_t VKE_INTEROP_CDECL GetPhysicsObjectLayerBroadPhaseLayer(uint32_t objectLayer)
