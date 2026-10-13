@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
-struct Glyph
+struct Quad
 {
     vec4 quadRect; // xy = min, zw = max in target pixels
     vec4 uvRect;   // xy = min, zw = max in atlas pixels
@@ -9,12 +9,12 @@ struct Glyph
     uvec4 atlasInfo; // x = 0 static atlas, 1 dynamic atlas
 };
 
-layout(location = 0) in uint glyphID;
+layout(location = 0) in uint quadID;
 
-layout(set = 0, binding = 2, std430) readonly buffer GlyphBuffer
+layout(set = 0, binding = 2, std430) readonly buffer QuadBuffer
 {
-    Glyph glyphs[];
-} glyphBuffer;
+    Quad quads[];
+} quadBuffer;
 layout(push_constant) uniform PushConstants
 {
     mat4 model;
@@ -36,12 +36,12 @@ const vec2 quadCorners[6] = vec2[](
 
 void main()
 {
-    Glyph glyph = glyphBuffer.glyphs[glyphID];
+    Quad quad = quadBuffer.quads[quadID];
     vec2 corner = quadCorners[gl_VertexIndex];
 
-    vec2 localPos = mix(glyph.quadRect.xw, glyph.quadRect.zy, corner);
+    vec2 localPos = mix(quad.quadRect.xw, quad.quadRect.zy, corner);
     vec2 screenPos = (pc.model * vec4(localPos, 0.0, 1.0)).xy;
-    vec2 uv = mix(glyph.uvRect.xw, glyph.uvRect.zy, corner);
+    vec2 uv = mix(quad.uvRect.xw, quad.uvRect.zy, corner);
 
     vec2 ndc = vec2(
         screenPos.x / pc.viewportSize.x * 2.0 - 1.0,
@@ -50,6 +50,6 @@ void main()
     gl_Position = vec4(ndc, 0.0, 1.0);
 
     vUV = uv / pc.atlasSize;
-    vColor = glyph.color;
-    vAtlasType = glyph.atlasInfo.x;
+    vColor = quad.color;
+    vAtlasType = quad.atlasInfo.x;
 }

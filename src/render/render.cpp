@@ -17,7 +17,7 @@ namespace vke_render
         for (auto &pass : instance->subPasses)
             pass->Reset();
         instance->lightManager->Reset();
-        instance->glyphManager.Reset();
+        instance->quadManager.Reset();
         // Keep frame-graph synchronization counters and the swapchain intact.
         instance->hostCameraInfo = CameraInfo(0.1f, 1000.0f, glm::radians(60.0f), 1.0f,
                                               glm::mat4(1.0f), glm::mat4(1.0f), glm::vec3(0.0f));
@@ -139,7 +139,7 @@ namespace vke_render
         }
 
         lightManager->Update(currentFrame, cameraUpdated);
-        glyphManager.Sync(currentFrame);
+        quadManager.Sync(currentFrame);
 
         frameGraph->PrepareForExecute(currentFrame);
 

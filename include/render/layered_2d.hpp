@@ -2,7 +2,7 @@
 #define LAYERED_2D_RENDER_H
 
 #include <font.hpp>
-#include <render/glyph_manager.hpp>
+#include <render/quad_manager.hpp>
 #include <render/material.hpp>
 #include <render/pipeline.hpp>
 #include <render/subpass.hpp>
@@ -22,7 +22,7 @@ namespace vke_render
         glm::vec2 atlasSize{1.0f};
     };
 
-    class GlyphIDVertexBufferPool
+    class QuadIDVertexBufferPool
     {
     public:
         struct Allocation
@@ -36,7 +36,7 @@ namespace vke_render
         };
 
         bool Ensure(Allocation &allocation, uint32_t count);
-        void Update(const Allocation &allocation, const std::vector<GlyphID> &glyphIDs, uint32_t currentFrame);
+        void Update(const Allocation &allocation, const std::vector<QuadID> &quadIDs, uint32_t currentFrame);
         void Release(Allocation &allocation);
         VkBuffer GetBuffer(const Allocation &allocation, uint32_t currentFrame) const;
         VkDeviceSize GetOffset(const Allocation &allocation) const;
@@ -68,22 +68,22 @@ namespace vke_render
     class Layered2DRenderUnit
     {
     public:
-        Layered2DRenderUnit(vke_ds::id32_t id, const glm::mat4 &modelMatrix, GlyphIDVertexBufferPool *glyphIDPool)
-            : id(id), modelMatrix(modelMatrix), glyphIDPool(glyphIDPool) {}
+        Layered2DRenderUnit(vke_ds::id32_t id, const glm::mat4 &modelMatrix, QuadIDVertexBufferPool *quadIDPool)
+            : id(id), modelMatrix(modelMatrix), quadIDPool(quadIDPool) {}
         ~Layered2DRenderUnit();
 
         const vke_ds::id32_t id;
         glm::mat4 modelMatrix;
-        std::vector<GlyphID> glyphIDs;
+        std::vector<QuadID> quadIDs;
 
-        void SetGlyphIDs(std::vector<GlyphID> ids);
+        void SetQuadIDs(std::vector<QuadID> ids);
         void Render(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout,
                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize, uint32_t currentFrame);
 
     private:
-        GlyphIDVertexBufferPool *glyphIDPool;
-        GlyphIDVertexBufferPool::Allocation glyphIDAllocation;
-        uint32_t glyphIDUpdateCnt = 0;
+        QuadIDVertexBufferPool *quadIDPool;
+        QuadIDVertexBufferPool::Allocation quadIDAllocation;
+        uint32_t quadIDUpdateCnt = 0;
     };
 
     class Layered2DRenderInfo
@@ -137,16 +137,16 @@ namespace vke_render
     {
     public:
         Layered2DRenderer(RenderContext *ctx, VkDescriptorSet *globalDescriptorSets,
-                          GlyphManager *glyphManager)
+                          QuadManager *quadManager)
             : RenderPassBase(LAYERED_2D_RENDERER, ctx, globalDescriptorSets),
-              glyphManager(glyphManager) {}
+              quadManager(quadManager) {}
 
         void Reset() override
         {
             layers.clear();
             layerOrder.clear();
             units.clear();
-            glyphIDPool.Reset();
+            quadIDPool.Reset();
         }
 
         void Init(int subpassID, FrameGraph &frameGraph,
@@ -157,9 +157,9 @@ namespace vke_render
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
 
         bool AllocateUnit(vke_ds::id32_t unitID, const std::shared_ptr<Material> &material,
-                          const glm::mat4 &modelMatrix, const std::vector<GlyphID> &glyphIDs);
+                          const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs);
         void DestroyUnit(vke_ds::id32_t unitID);
-        bool UpdateUnitGlyphIDs(vke_ds::id32_t unitID, const std::vector<GlyphID> &glyphIDs);
+        bool UpdateUnitQuadIDs(vke_ds::id32_t unitID, const std::vector<QuadID> &quadIDs);
         bool AddUnitToLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID);
         void RemoveUnitFromLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID);
         void SetLayerOrder(const std::vector<vke_ds::id32_t> &backToFrontLayerIDs);
@@ -176,14 +176,14 @@ namespace vke_render
             vke_ds::id32_t layerID = std::numeric_limits<vke_ds::id32_t>::max();
         };
 
-        GlyphManager *glyphManager;
+        QuadManager *quadManager;
         VkDescriptorSet rendererDescriptorSets[MAX_FRAMES_IN_FLIGHT]{};
         std::shared_ptr<ShaderModuleSet> textShader;
         std::shared_ptr<Material> defaultMaterial;
         std::shared_ptr<vke_common::Font> font;
         std::unique_ptr<HostCoherentBuffer> dynamicAtlasStagingBuffers[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<Texture2D> dynamicAtlasTextures[MAX_FRAMES_IN_FLIGHT];
-        GlyphIDVertexBufferPool glyphIDPool;
+        QuadIDVertexBufferPool quadIDPool;
         std::map<vke_ds::id32_t, UnitState> units;
         std::map<vke_ds::id32_t, std::unique_ptr<Layered2DRenderLayer>> layers;
         std::vector<vke_ds::id32_t> layerOrder;

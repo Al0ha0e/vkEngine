@@ -34,7 +34,7 @@ namespace vke_component
 
             id = spatialManager->CreateUnit(getWorldBounds(), getZIndex());
             const vke_common::Spatial2DUnit *spatialUnit = spatialManager->GetUnit(id);
-            renderer->AllocateUnit(id, material, modelMatrix, glyphIDs);
+            renderer->AllocateUnit(id, material, modelMatrix, quadIDs);
             renderer->AddUnitToLayer(id, spatialUnit->layer);
 
             renderUnit = renderer->GetUnit(id);
@@ -48,7 +48,7 @@ namespace vke_component
         UIComponent(UIComponent &&other) noexcept
             : modelMatrix(other.modelMatrix),
               material(std::move(other.material)),
-              glyphIDs(std::exchange(other.glyphIDs, {})),
+              quadIDs(std::exchange(other.quadIDs, {})),
               id(std::exchange(other.id, INVALID_ID)),
               localBounds(other.localBounds),
               renderUnit(std::exchange(other.renderUnit, nullptr)) {}
@@ -60,7 +60,7 @@ namespace vke_component
                 Unload();
                 modelMatrix = other.modelMatrix;
                 material = std::move(other.material);
-                glyphIDs = std::exchange(other.glyphIDs, {});
+                quadIDs = std::exchange(other.quadIDs, {});
                 id = std::exchange(other.id, INVALID_ID);
                 localBounds = other.localBounds;
                 renderUnit = std::exchange(other.renderUnit, nullptr);
@@ -74,8 +74,8 @@ namespace vke_component
                 return;
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             renderer->DestroyUnit(id);
-            vke_render::Renderer::GetGlyphManager()->Release(glyphIDs);
-            glyphIDs.clear();
+            vke_render::Renderer::GetQuadManager()->Release(quadIDs);
+            quadIDs.clear();
             vke_common::Spatial2DLayerManager *spatialManager = vke_common::Spatial2DLayerManager::GetInstance();
             spatialManager->RemoveUnit(id);
             renderer->SetLayerOrder(spatialManager->GetLayerOrder());
@@ -100,32 +100,32 @@ namespace vke_component
         const std::shared_ptr<vke_render::Material> &GetMaterial() const { return material; }
 
     protected:
-        bool SetGeometry(std::vector<vke_render::GlyphInstanceGPU> newGlyphs,
+        bool SetGeometry(std::vector<vke_render::QuadInstanceGPU> newQuads,
                          const vke_common::AABB2D &newLocalBounds)
         {
-            if (!setGlyphs(std::move(newGlyphs)))
+            if (!setQuads(std::move(newQuads)))
                 return false;
 
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
-            if (!renderer->UpdateUnitGlyphIDs(id, glyphIDs))
+            if (!renderer->UpdateUnitQuadIDs(id, quadIDs))
                 return false;
             localBounds = newLocalBounds;
             syncSpatialLayer();
             return true;
         }
 
-        void SetGlyphColor(const glm::vec4 &color)
+        void SetQuadColor(const glm::vec4 &color)
         {
-            vke_render::GlyphManager *glyphManager = vke_render::Renderer::GetGlyphManager();
-            for (vke_render::GlyphID glyphID : glyphIDs)
-                glyphManager->UpdateColor(glyphID, color);
+            vke_render::QuadManager *quadManager = vke_render::Renderer::GetQuadManager();
+            for (vke_render::QuadID quadID : quadIDs)
+                quadManager->UpdateColor(quadID, color);
         }
 
         bool IsLoaded() const { return id != INVALID_ID; }
 
         glm::mat4 modelMatrix;
         std::shared_ptr<vke_render::Material> material;
-        std::vector<vke_render::GlyphID> glyphIDs;
+        std::vector<vke_render::QuadID> quadIDs;
 
     private:
         vke_ds::id32_t id = INVALID_ID;
@@ -171,16 +171,16 @@ namespace vke_component
             renderer->SetLayerOrder(spatialManager->GetLayerOrder());
         }
 
-        bool setGlyphs(std::vector<vke_render::GlyphInstanceGPU> newGlyphs)
+        bool setQuads(std::vector<vke_render::QuadInstanceGPU> newQuads)
         {
-            vke_render::GlyphManager *glyphManager = vke_render::Renderer::GetGlyphManager();
-            if (!glyphManager->CanAllocate(newGlyphs.size(), glyphIDs.size()))
+            vke_render::QuadManager *quadManager = vke_render::Renderer::GetQuadManager();
+            if (!quadManager->CanAllocate(newQuads.size(), quadIDs.size()))
                 return false;
 
-            glyphManager->Release(glyphIDs);
-            std::vector<vke_render::GlyphID> newGlyphIDs;
-            glyphManager->Allocate(newGlyphs, newGlyphIDs);
-            glyphIDs = std::move(newGlyphIDs);
+            quadManager->Release(quadIDs);
+            std::vector<vke_render::QuadID> newQuadIDs;
+            quadManager->Allocate(newQuads, newQuadIDs);
+            quadIDs = std::move(newQuadIDs);
             return true;
         }
     };

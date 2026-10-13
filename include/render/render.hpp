@@ -198,7 +198,7 @@ namespace vke_render
                 {
                     auto layered2DRenderer = std::make_unique<Layered2DRenderer>(
                         ctx, instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
-                        &instance->glyphManager);
+                        &instance->quadManager);
                     layered2DRenderer->Init(i, *(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
                     instance->subPassMap[LAYERED_2D_RENDERER] = instance->subPasses.size();
                     instance->subPasses.push_back(std::move(layered2DRenderer));
@@ -325,9 +325,9 @@ namespace vke_render
             return static_cast<vke_editor::WireframeCollisionPass *>(instance->subPasses[it->second].get());
         }
 
-        static GlyphManager *GetGlyphManager()
+        static QuadManager *GetQuadManager()
         {
-            return &instance->glyphManager;
+            return &instance->quadManager;
         }
 
         static HDRColorManager *GetHDRColorManager()
@@ -362,7 +362,7 @@ namespace vke_render
         std::unique_ptr<FrameGraph> frameGraph;
         std::unique_ptr<SkyboxManager> skyboxManager;
         std::unique_ptr<HDRColorManager> hdrColorManager;
-        GlyphManager glyphManager;
+        QuadManager quadManager;
         std::map<std::string, vke_ds::id32_t> blackboard;
         ResourceNodeIDMap currentResourceNodeID;
 

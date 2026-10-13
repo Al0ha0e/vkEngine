@@ -104,7 +104,7 @@ namespace vke_component
         {
             color = newColor;
             if (IsLoaded())
-                SetGlyphColor(newColor);
+                SetQuadColor(newColor);
         }
 
         const std::string &GetText() const { return text; }
@@ -117,8 +117,8 @@ namespace vke_component
 
         bool rebuild()
         {
-            std::vector<vke_render::GlyphInstanceGPU> glyphs;
-            glyphs.reserve(text.size());
+            std::vector<vke_render::QuadInstanceGPU> quads;
+            quads.reserve(text.size());
 
             int penX = 0;
             int baselineY = font->ascender;
@@ -148,7 +148,7 @@ namespace vke_component
                     const float maxX = minX + static_cast<float>(glyph->width);
                     const float maxY = minY + static_cast<float>(glyph->height);
 
-                    vke_render::GlyphInstanceGPU instance{};
+                    vke_render::QuadInstanceGPU instance{};
                     instance.quadRect = glm::vec4(minX, minY, maxX, maxY);
                     instance.uvRect = glm::vec4(
                         static_cast<float>(glyph->atlasX), static_cast<float>(glyph->atlasY),
@@ -156,7 +156,7 @@ namespace vke_component
                         static_cast<float>(glyph->atlasY + glyph->height));
                     instance.color = color;
                     instance.atlasInfo.x = static_cast<uint32_t>(glyph->atlasType);
-                    glyphs.push_back(instance);
+                    quads.push_back(instance);
 
                     minimum = glm::min(minimum, glm::vec2(minX, minY));
                     maximum = glm::max(maximum, glm::vec2(maxX, maxY));
@@ -168,7 +168,7 @@ namespace vke_component
             const vke_common::AABB2D bounds = hasBounds
                                                   ? vke_common::AABB2D(minimum, maximum)
                                                   : vke_common::AABB2D(glm::vec2(0.0f), glm::vec2(0.0f));
-            return SetGeometry(std::move(glyphs), bounds);
+            return SetGeometry(std::move(quads), bounds);
         }
     };
 }
