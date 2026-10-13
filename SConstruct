@@ -168,7 +168,6 @@ commonsrc = (
         "./src/render/profile.cpp",
         "./src/render/queue.cpp",
         "./src/editor/wireframe_collision_pass.cpp",
-        "./src/spatial_2d.cpp",
         "./src/component.cpp",
         "./src/scene.cpp",
         "./src/scene_data.cpp",

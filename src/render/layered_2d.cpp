@@ -155,25 +155,6 @@ namespace vke_render
         return *materialStates.emplace(material.get(), std::move(state)).first->second;
     }
 
-    void Layered2DRenderInfo::Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
-                                     const glm::vec2 &viewportSize, const glm::vec2 &atlasSize,
-                                     uint32_t currentFrame) const
-    {
-        if (units.empty())
-            return;
-        const auto &renderPipeline = materialState.pipeline;
-        const VkDescriptorSet commonDescriptorSet = materialState.commonDescriptorSet;
-        renderPipeline->Bind(commandBuffer);
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                renderPipeline->pipelineLayout, 0, 1, &rendererDescriptorSet, 0, nullptr);
-        if (commonDescriptorSet != VK_NULL_HANDLE)
-            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    renderPipeline->pipelineLayout, 1, 1, &commonDescriptorSet, 0, nullptr);
-        materialState.material->SetPushConstants(commandBuffer, renderPipeline->pipelineLayout);
-        for (const auto &entry : units)
-            entry.second->Render(commandBuffer, renderPipeline->pipelineLayout, viewportSize, atlasSize, currentFrame);
-    }
-
     void Layered2DRenderer::createGraphicsPipeline(Layered2DMaterialState &state)
     {
         VkPipelineRenderingCreateInfo renderingInfo{};
@@ -228,33 +209,6 @@ namespace vke_render
             state.material->shader, std::vector<uint32_t>{sizeof(QuadID)}, VK_VERTEX_INPUT_RATE_INSTANCE, pipelineInfo);
     }
 
-    void Layered2DRenderLayer::AddUnit(const Layered2DMaterialState &materialState, Layered2DRenderUnit *unit)
-    {
-        Material *material = materialState.material.get();
-        auto it = renderInfos.find(material);
-        if (it == renderInfos.end())
-            it = renderInfos.emplace(material, std::make_unique<Layered2DRenderInfo>(materialState)).first;
-        it->second->AddUnit(unit);
-    }
-
-    void Layered2DRenderLayer::RemoveUnit(Material *material, vke_ds::id32_t unitID)
-    {
-        auto it = renderInfos.find(material);
-        if (it == renderInfos.end())
-            return;
-        it->second->RemoveUnit(unitID);
-        if (it->second->Empty())
-            renderInfos.erase(it);
-    }
-
-    void Layered2DRenderLayer::Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
-                                      const glm::vec2 &viewportSize, const glm::vec2 &atlasSize,
-                                      uint32_t currentFrame) const
-    {
-        for (const auto &entry : renderInfos)
-            entry.second->Render(commandBuffer, rendererDescriptorSet, viewportSize, atlasSize, currentFrame);
-    }
-
     void Layered2DRenderer::Init(int subpassID, FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,
                                  ResourceNodeIDMap &currentResourceNodeID)
@@ -284,28 +238,21 @@ namespace vke_render
         createDescriptorSets();
     }
 
-    bool Layered2DRenderer::AllocateUnit(vke_ds::id32_t unitID, const std::shared_ptr<Material> &material,
-                                         const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs)
+    vke_ds::id32_t Layered2DRenderer::AllocateUnit(const std::shared_ptr<Material> &material,
+                                                  const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs)
     {
-        if (units.find(unitID) != units.end())
-            return false;
-
+        const vke_ds::id32_t unitID = unitAllocator.Alloc();
         UnitState state;
         state.materialState = &getOrCreateMaterialState(material == nullptr ? defaultMaterial : material);
         state.unit = std::make_unique<Layered2DRenderUnit>(unitID, modelMatrix, &quadIDPool);
         state.unit->SetQuadIDs(quadIDs);
         units.emplace(unitID, std::move(state));
-        return true;
+        return unitID;
     }
 
     void Layered2DRenderer::DestroyUnit(vke_ds::id32_t unitID)
     {
-        auto it = units.find(unitID);
-        if (it == units.end())
-            return;
-        if (it->second.layerID != std::numeric_limits<vke_ds::id32_t>::max())
-            RemoveUnitFromLayer(unitID, it->second.layerID);
-        units.erase(it);
+        units.erase(unitID);
     }
 
     bool Layered2DRenderer::UpdateUnitQuadIDs(vke_ds::id32_t unitID, const std::vector<QuadID> &quadIDs)
@@ -316,53 +263,6 @@ namespace vke_render
 
         it->second.unit->SetQuadIDs(quadIDs);
         return true;
-    }
-
-    bool Layered2DRenderer::AddUnitToLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID)
-    {
-        auto unitIt = units.find(unitID);
-        if (unitIt == units.end())
-            return false;
-        if (unitIt->second.layerID == layerID)
-            return true;
-        if (unitIt->second.layerID != std::numeric_limits<vke_ds::id32_t>::max())
-            RemoveUnitFromLayer(unitID, unitIt->second.layerID);
-
-        auto layerIt = layers.find(layerID);
-        if (layerIt == layers.end())
-        {
-            layerIt = layers.emplace(layerID, std::make_unique<Layered2DRenderLayer>(layerID)).first;
-            layerOrder.push_back(layerID);
-        }
-        layerIt->second->AddUnit(*unitIt->second.materialState, unitIt->second.unit.get());
-        unitIt->second.layerID = layerID;
-        return true;
-    }
-
-    void Layered2DRenderer::RemoveUnitFromLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID)
-    {
-        auto unitIt = units.find(unitID);
-        auto layerIt = layers.find(layerID);
-        if (unitIt == units.end() || layerIt == layers.end())
-            return;
-        layerIt->second->RemoveUnit(unitIt->second.materialState->material.get(), unitID);
-        unitIt->second.layerID = std::numeric_limits<vke_ds::id32_t>::max();
-        if (layerIt->second->Empty())
-        {
-            layers.erase(layerIt);
-            std::erase(layerOrder, layerID);
-        }
-    }
-
-    void Layered2DRenderer::SetLayerOrder(const std::vector<vke_ds::id32_t> &backToFrontLayerIDs)
-    {
-        layerOrder.clear();
-        for (vke_ds::id32_t layerID : backToFrontLayerIDs)
-            if (layers.find(layerID) != layers.end())
-                layerOrder.push_back(layerID);
-        for (const auto &entry : layers)
-            if (std::find(layerOrder.begin(), layerOrder.end(), entry.first) == layerOrder.end())
-                layerOrder.push_back(entry.first);
     }
 
     Layered2DRenderUnit *Layered2DRenderer::GetUnit(vke_ds::id32_t unitID)
@@ -418,8 +318,15 @@ namespace vke_render
                                    uint32_t currentFrame, uint32_t imageIndex)
     {
         syncDynamicAtlas(commandBuffer, currentFrame);
-        if (layers.empty())
+        if (units.empty())
             return;
+
+        std::vector<UnitState *> sorted;
+        sorted.reserve(units.size());
+        for (auto &entry : units)
+            sorted.push_back(&entry.second);
+        std::sort(sorted.begin(), sorted.end(), [](const UnitState *a, const UnitState *b)
+                  { return a->unit->modelMatrix[3].z < b->unit->modelMatrix[3].z; });
 
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -444,12 +351,23 @@ namespace vke_render
 
         const glm::vec2 viewportSize(static_cast<float>(context->width), static_cast<float>(context->height));
         const glm::vec2 atlasSize(static_cast<float>(font->atlasWidth), static_cast<float>(font->atlasHeight));
-        for (vke_ds::id32_t layerID : layerOrder)
+        const Layered2DMaterialState *boundMaterialState = nullptr;
+        for (const UnitState *draw : sorted)
         {
-            auto it = layers.find(layerID);
-            if (it != layers.end())
-                it->second->Render(commandBuffer, rendererDescriptorSets[currentFrame], viewportSize, atlasSize,
-                                   currentFrame);
+            const Layered2DMaterialState &state = *draw->materialState;
+            const VkPipelineLayout pipelineLayout = state.pipeline->pipelineLayout;
+            if (boundMaterialState != &state)
+            {
+                state.pipeline->Bind(commandBuffer);
+                vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                        pipelineLayout, 0, 1, &rendererDescriptorSets[currentFrame], 0, nullptr);
+                if (state.commonDescriptorSet != VK_NULL_HANDLE)
+                    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                            pipelineLayout, 1, 1, &state.commonDescriptorSet, 0, nullptr);
+                state.material->SetPushConstants(commandBuffer, pipelineLayout);
+                boundMaterialState = &state;
+            }
+            draw->unit->Render(commandBuffer, pipelineLayout, viewportSize, atlasSize, currentFrame);
         }
         vkCmdEndRendering(commandBuffer);
     }

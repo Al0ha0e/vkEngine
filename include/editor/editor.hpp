@@ -13,7 +13,6 @@
 #include <engine_state.hpp>
 #include <time.hpp>
 #include <script.hpp>
-#include <spatial_2d.hpp>
 #include <entt/entity/entity.hpp>
 #include <imgui.h>
 #include <map>

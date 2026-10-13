@@ -6,6 +6,7 @@
 #include <render/material.hpp>
 #include <render/pipeline.hpp>
 #include <render/subpass.hpp>
+#include <ds/id_allocator.hpp>
 #include <array>
 #include <limits>
 #include <map>
@@ -98,46 +99,6 @@ namespace vke_render
         VkDescriptorSet commonDescriptorSet = VK_NULL_HANDLE;
     };
 
-    class Layered2DRenderInfo
-    {
-    public:
-        explicit Layered2DRenderInfo(const Layered2DMaterialState &materialState)
-            : materialState(materialState) {}
-
-        std::map<vke_ds::id32_t, Layered2DRenderUnit *> units;
-
-        void AddUnit(Layered2DRenderUnit *unit) { units[unit->id] = unit; }
-        void RemoveUnit(vke_ds::id32_t unitID) { units.erase(unitID); }
-        bool Empty() const { return units.empty(); }
-        void Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
-                    const glm::vec2 &viewportSize, const glm::vec2 &atlasSize, uint32_t currentFrame) const;
-
-    private:
-        const Layered2DMaterialState &materialState;
-    };
-
-    class Layered2DRenderLayer
-    {
-    public:
-        explicit Layered2DRenderLayer(vke_ds::id32_t id) : id(id) {}
-
-        void Reset()
-        {
-            renderInfos.clear();
-        }
-
-        const vke_ds::id32_t id;
-
-        void AddUnit(const Layered2DMaterialState &materialState, Layered2DRenderUnit *unit);
-        void RemoveUnit(Material *material, vke_ds::id32_t unitID);
-        bool Empty() const { return renderInfos.empty(); }
-        void Render(VkCommandBuffer commandBuffer, VkDescriptorSet rendererDescriptorSet,
-                    const glm::vec2 &viewportSize, const glm::vec2 &atlasSize, uint32_t currentFrame) const;
-
-    private:
-        std::map<Material *, std::unique_ptr<Layered2DRenderInfo>> renderInfos;
-    };
-
     class Layered2DRenderer : public RenderPassBase
     {
     public:
@@ -148,11 +109,10 @@ namespace vke_render
 
         void Reset() override
         {
-            layers.clear();
-            layerOrder.clear();
             units.clear();
             materialStates.clear();
             quadIDPool.Reset();
+            unitAllocator = vke_ds::NaiveIDAllocator<vke_ds::id32_t>();
         }
 
         void Init(int subpassID, FrameGraph &frameGraph,
@@ -162,13 +122,10 @@ namespace vke_render
                     uint32_t currentFrame, uint32_t imageIndex) override;
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
 
-        bool AllocateUnit(vke_ds::id32_t unitID, const std::shared_ptr<Material> &material,
-                          const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs);
+        vke_ds::id32_t AllocateUnit(const std::shared_ptr<Material> &material,
+                                   const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs);
         void DestroyUnit(vke_ds::id32_t unitID);
         bool UpdateUnitQuadIDs(vke_ds::id32_t unitID, const std::vector<QuadID> &quadIDs);
-        bool AddUnitToLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID);
-        void RemoveUnitFromLayer(vke_ds::id32_t unitID, vke_ds::id32_t layerID);
-        void SetLayerOrder(const std::vector<vke_ds::id32_t> &backToFrontLayerIDs);
 
         Layered2DRenderUnit *GetUnit(vke_ds::id32_t unitID);
         std::shared_ptr<Material> GetDefaultMaterial() const { return defaultMaterial; }
@@ -179,7 +136,6 @@ namespace vke_render
         {
             std::unique_ptr<Layered2DRenderUnit> unit;
             const Layered2DMaterialState *materialState;
-            vke_ds::id32_t layerID = std::numeric_limits<vke_ds::id32_t>::max();
         };
 
         QuadManager *quadManager;
@@ -190,10 +146,9 @@ namespace vke_render
         std::unique_ptr<HostCoherentBuffer> dynamicAtlasStagingBuffers[MAX_FRAMES_IN_FLIGHT];
         std::unique_ptr<Texture2D> dynamicAtlasTextures[MAX_FRAMES_IN_FLIGHT];
         QuadIDVertexBufferPool quadIDPool;
+        vke_ds::NaiveIDAllocator<vke_ds::id32_t> unitAllocator;
         std::map<Material *, std::unique_ptr<Layered2DMaterialState>> materialStates;
         std::map<vke_ds::id32_t, UnitState> units;
-        std::map<vke_ds::id32_t, std::unique_ptr<Layered2DRenderLayer>> layers;
-        std::vector<vke_ds::id32_t> layerOrder;
 
         void constructFrameGraph(FrameGraph &frameGraph,
                                  std::map<std::string, vke_ds::id32_t> &blackboard,

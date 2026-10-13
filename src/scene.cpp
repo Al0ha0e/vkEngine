@@ -445,7 +445,6 @@ namespace vke_common
         vke_render::Renderer::Reset();
         ScriptManager::Reset();
         vke_audio::AudioManager::Reset();
-        Spatial2DLayerManager::Reset();
         // Plain C++ destruction releases owned resources, without lifecycle dispatch.
         // CharacterVirtual must die while its inner body and PhysicsSystem still exist.
         scene.registry.clear();

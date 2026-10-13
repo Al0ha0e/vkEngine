@@ -3,7 +3,6 @@
 
 #include <component/transform.hpp>
 #include <render/render.hpp>
-#include <spatial_2d.hpp>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -23,22 +22,15 @@ namespace vke_component
 
         explicit UIComponent(const vke_common::Transform &transform,
                              std::shared_ptr<vke_render::Material> componentMaterial)
-            : modelMatrix(transform.model), material(std::move(componentMaterial))
+            : material(std::move(componentMaterial))
         {
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
 
             if (material == nullptr)
                 material = renderer->GetDefaultMaterial();
 
-            vke_common::Spatial2DLayerManager *spatialManager = vke_common::Spatial2DLayerManager::GetInstance();
-
-            id = spatialManager->CreateUnit(getWorldBounds(), getZIndex());
-            const vke_common::Spatial2DUnit *spatialUnit = spatialManager->GetUnit(id);
-            renderer->AllocateUnit(id, material, modelMatrix, quadIDs);
-            renderer->AddUnitToLayer(id, spatialUnit->layer);
-
+            id = renderer->AllocateUnit(material, transform.model, quadIDs);
             renderUnit = renderer->GetUnit(id);
-            renderer->SetLayerOrder(spatialManager->GetLayerOrder());
         }
 
         virtual ~UIComponent() {}
@@ -46,11 +38,9 @@ namespace vke_component
         UIComponent(const UIComponent &) = delete;
         UIComponent &operator=(const UIComponent &) = delete;
         UIComponent(UIComponent &&other) noexcept
-            : modelMatrix(other.modelMatrix),
-              material(std::move(other.material)),
+            : material(std::move(other.material)),
               quadIDs(std::exchange(other.quadIDs, {})),
               id(std::exchange(other.id, INVALID_ID)),
-              localBounds(other.localBounds),
               renderUnit(std::exchange(other.renderUnit, nullptr)) {}
 
         UIComponent &operator=(UIComponent &&other) noexcept
@@ -58,11 +48,9 @@ namespace vke_component
             if (this != &other)
             {
                 Unload();
-                modelMatrix = other.modelMatrix;
                 material = std::move(other.material);
                 quadIDs = std::exchange(other.quadIDs, {});
                 id = std::exchange(other.id, INVALID_ID);
-                localBounds = other.localBounds;
                 renderUnit = std::exchange(other.renderUnit, nullptr);
             }
             return *this;
@@ -70,15 +58,12 @@ namespace vke_component
 
         void Unload()
         {
-            if (!IsLoaded())
+            if (!isLoaded())
                 return;
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
             renderer->DestroyUnit(id);
             vke_render::Renderer::GetQuadManager()->Release(quadIDs);
             quadIDs.clear();
-            vke_common::Spatial2DLayerManager *spatialManager = vke_common::Spatial2DLayerManager::GetInstance();
-            spatialManager->RemoveUnit(id);
-            renderer->SetLayerOrder(spatialManager->GetLayerOrder());
 
             id = INVALID_ID;
             renderUnit = nullptr;
@@ -86,90 +71,39 @@ namespace vke_component
 
         void OnTransformed(const vke_common::Transform &newTransform)
         {
-            modelMatrix = newTransform.model;
-            if (IsLoaded())
-            {
-                renderUnit->modelMatrix = modelMatrix;
-                syncSpatialLayer();
-            }
+            if (isLoaded())
+                renderUnit->modelMatrix = newTransform.model;
         }
 
         vke_ds::id32_t GetID() const { return id; }
-        const vke_common::AABB2D &GetLocalBounds() const { return localBounds; }
         vke_render::Layered2DRenderUnit *GetRenderUnit() const { return renderUnit; }
         const std::shared_ptr<vke_render::Material> &GetMaterial() const { return material; }
 
     protected:
-        bool SetGeometry(std::vector<vke_render::QuadInstanceGPU> newQuads,
-                         const vke_common::AABB2D &newLocalBounds)
+        bool setGeometry(std::vector<vke_render::QuadInstanceGPU> newQuads)
         {
             if (!setQuads(std::move(newQuads)))
                 return false;
 
             vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
-            if (!renderer->UpdateUnitQuadIDs(id, quadIDs))
-                return false;
-            localBounds = newLocalBounds;
-            syncSpatialLayer();
-            return true;
+            return renderer->UpdateUnitQuadIDs(id, quadIDs);
         }
 
-        void SetQuadColor(const glm::vec4 &color)
+        void setQuadColor(const glm::vec4 &color)
         {
             vke_render::QuadManager *quadManager = vke_render::Renderer::GetQuadManager();
             for (vke_render::QuadID quadID : quadIDs)
                 quadManager->UpdateColor(quadID, color);
         }
 
-        bool IsLoaded() const { return id != INVALID_ID; }
+        bool isLoaded() const { return id != INVALID_ID; }
 
-        glm::mat4 modelMatrix;
         std::shared_ptr<vke_render::Material> material;
         std::vector<vke_render::QuadID> quadIDs;
 
     private:
         vke_ds::id32_t id = INVALID_ID;
-        vke_common::AABB2D localBounds;
         vke_render::Layered2DRenderUnit *renderUnit = nullptr;
-
-        float getZIndex() const { return modelMatrix[3].z; }
-
-        vke_common::AABB2D getWorldBounds() const
-        {
-            const glm::vec2 corners[] = {
-                localBounds.min,
-                glm::vec2(localBounds.max.x, localBounds.min.y),
-                localBounds.max,
-                glm::vec2(localBounds.min.x, localBounds.max.y)};
-
-            glm::vec2 minimum(std::numeric_limits<float>::max());
-            glm::vec2 maximum(std::numeric_limits<float>::lowest());
-            for (const glm::vec2 &corner : corners)
-            {
-                const glm::vec2 point = glm::vec2(modelMatrix * glm::vec4(corner, 0.0f, 1.0f));
-                minimum = glm::min(minimum, point);
-                maximum = glm::max(maximum, point);
-            }
-            return vke_common::AABB2D(minimum, maximum);
-        }
-
-        void syncSpatialLayer()
-        {
-            vke_render::Layered2DRenderer *renderer = vke_render::Renderer::GetLayered2DRenderer();
-            vke_common::Spatial2DLayerManager *spatialManager = vke_common::Spatial2DLayerManager::GetInstance();
-
-            const vke_common::Spatial2DUnit *oldUnit = spatialManager->GetUnit(id);
-            const vke_ds::id32_t oldLayer = oldUnit->layer;
-            spatialManager->ReinsertUnit(id, getWorldBounds(), getZIndex());
-            const vke_common::Spatial2DUnit *newUnit = spatialManager->GetUnit(id);
-
-            if (oldLayer != newUnit->layer)
-            {
-                renderer->RemoveUnitFromLayer(id, oldLayer);
-                renderer->AddUnitToLayer(id, newUnit->layer);
-            }
-            renderer->SetLayerOrder(spatialManager->GetLayerOrder());
-        }
 
         bool setQuads(std::vector<vke_render::QuadInstanceGPU> newQuads)
         {

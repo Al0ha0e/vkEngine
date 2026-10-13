@@ -96,15 +96,15 @@ namespace vke_component
         void SetText(std::string_view newText)
         {
             text.assign(newText);
-            if (IsLoaded())
+            if (isLoaded())
                 rebuild();
         }
 
         void SetColor(const glm::vec4 &newColor)
         {
             color = newColor;
-            if (IsLoaded())
-                SetQuadColor(newColor);
+            if (isLoaded())
+                setQuadColor(newColor);
         }
 
         const std::string &GetText() const { return text; }
@@ -122,9 +122,6 @@ namespace vke_component
 
             int penX = 0;
             int baselineY = font->ascender;
-            glm::vec2 minimum(std::numeric_limits<float>::max());
-            glm::vec2 maximum(std::numeric_limits<float>::lowest());
-            bool hasBounds = false;
 
             for (uint32_t codepoint : vke_common::Font::DecodeUTF8(text))
             {
@@ -157,18 +154,11 @@ namespace vke_component
                     instance.color = color;
                     instance.atlasInfo.x = static_cast<uint32_t>(glyph->atlasType);
                     quads.push_back(instance);
-
-                    minimum = glm::min(minimum, glm::vec2(minX, minY));
-                    maximum = glm::max(maximum, glm::vec2(maxX, maxY));
-                    hasBounds = true;
                 }
                 penX += glyph->advanceX;
             }
 
-            const vke_common::AABB2D bounds = hasBounds
-                                                  ? vke_common::AABB2D(minimum, maximum)
-                                                  : vke_common::AABB2D(glm::vec2(0.0f), glm::vec2(0.0f));
-            return SetGeometry(std::move(quads), bounds);
+            return setGeometry(std::move(quads));
         }
     };
 }

@@ -54,7 +54,6 @@ namespace vke_editor
                              { instance->DrawGUI(); });
 
         vke_physics::PhysicsManager::Init(editorConfig.gameConfig->physicsConfig);
-        vke_common::Spatial2DLayerManager::Init();
         vke_render::Renderer::Init(EditorRenderer::GetInstance()->GetSceneRenderContext(),
                                    passes, customPasses, editorConfig.gameConfig->renderConfig);
         vke_common::ScriptManager::Init();
@@ -81,7 +80,6 @@ namespace vke_editor
         vke_common::SceneManager::Dispose();
         vke_common::ScriptManager::Dispose();
         vke_render::Renderer::Dispose();
-        vke_common::Spatial2DLayerManager::Dispose();
         vke_physics::PhysicsManager::Dispose();
         EditorRenderer::Dispose();
         vke_render::DescriptorSetAllocator::Dispose();
