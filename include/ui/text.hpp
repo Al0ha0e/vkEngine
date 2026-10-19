@@ -1,33 +1,34 @@
 #ifndef UI_TEXT_COMPONENT_H
 #define UI_TEXT_COMPONENT_H
 
-#include <json_validation.hpp>
-#include <component/ui.hpp>
+#include <ui/ui_renderable.hpp>
 #include <font.hpp>
-#include <nlohmann/json.hpp>
 #include <asset/asset_manager.hpp>
 #include <asset/asset_ref.hpp>
+#include <render/material.hpp>
+#include <cmath>
 #include <string>
 #include <string_view>
 
-namespace vke_component
+namespace vke_ui
 {
-    struct UITextData
+    struct UITextData final : UINodeData
     {
         std::string text;
         glm::vec4 color{1.0f};
         vke_common::AssetRef<vke_render::Material> material;
 
-        // Call before constructing from JSON; asset checks happen in ValidateAssets.
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            return Object(json).Strings({"text"}).Unsigneds({"material"}).Vectors({"color"}, 4).Result();
+            if (auto valid = Object(json).Strings({"text"}).Unsigneds({"material"}).Vectors({"color"}, 4).Result(); !valid)
+                return valid;
+            return validateCommonJSON(json);
         }
 
         UITextData() = default;
-        UITextData(const nlohmann::json &json)
-            : text(json.value("text", std::string())),
+        explicit UITextData(const nlohmann::json &json)
+            : UINodeData(json), text(json.value("text", std::string())),
               material(json.value("material", vke_common::AssetHandle{0}))
         {
             if (json.contains("color"))
@@ -37,17 +38,28 @@ namespace vke_component
                                   value[2].get<float>(), value[3].get<float>());
             }
         }
-        vke_common::SceneResult<void> ValidateAssets() const
+
+        UIType GetType() const override { return UIType::Text; }
+        std::unique_ptr<UINodeData> Clone() const override { return std::make_unique<UITextData>(*this); }
+
+        vke_common::SceneResult<void> Validate() const override
+        {
+            for (int i = 0; i < 4; ++i)
+                if (!std::isfinite(color[i])) return std::unexpected("text color must be finite");
+            return UINodeData::Validate();
+        }
+
+        vke_common::SceneResult<void> ValidateAssets() const override
         {
             using vke_common::AssetManager;
             if (material.Handle() != 0 && !material.Get())
                 if (auto result = AssetManager::ValidateMaterial(material.Handle()); !result)
                     return std::unexpected("material: " + result.error());
-            return AssetManager::ValidateFont(vke_common::BUILTIN_FONT_ARIAL_ID);
+            if (auto result = AssetManager::ValidateFont(vke_common::BUILTIN_FONT_ARIAL_ID); !result) return result;
+            return UINodeData::ValidateAssets();
         }
 
-        // Requires successful ValidateAssets() before loading.
-        vke_common::SceneResult<void> LoadAssets()
+        vke_common::SceneResult<void> LoadAssets() override
         {
             using vke_common::AssetManager;
             if (material.Handle() != 0 && !material.Get())
@@ -58,53 +70,52 @@ namespace vke_component
             }
             if (!AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
                 return std::unexpected("built-in font loading failed");
-            return {};
+            return UINodeData::LoadAssets();
         }
 
-        nlohmann::json ToJSON() const
+        nlohmann::json ToJSON() const override
         {
-            return {{"type", "uiText"},
-                    {"text", text},
-                    {"color", {color.r, color.g, color.b, color.a}},
-                    {"material", material.Handle()}};
+            auto json = UINodeData::ToJSON();
+            json["type"] = "uiText";
+            json["text"] = text;
+            json["color"] = {color.r, color.g, color.b, color.a};
+            json["material"] = material.Handle();
+            return json;
         }
     };
 
-    class UIText : public UIComponent
+    class UIText final : public UIRenderableComponent
     {
     public:
-        UIText(const UIText &) = delete;
-        UIText &operator=(const UIText &) = delete;
-        UIText(UIText &&) noexcept = default;
-        UIText &operator=(UIText &&) noexcept = default;
-
-        UIText(const vke_common::Transform &transform, const UITextData &componentData)
-            : UIComponent(transform, componentData.material.Get()),
-              text(componentData.text), color(componentData.color),
+        explicit UIText(const UITextData &data)
+            : UIRenderableComponent(data, data.material.Get()),
+              text(data.text), color(data.color),
               font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
         {
             rebuild();
         }
 
-        void FillData(UITextData &data) const
+        UIType GetType() const override { return UIType::Text; }
+        std::unique_ptr<UINodeData> ToData() const override
         {
-            data.text = text;
-            data.color = color;
-            data.material.SetAsset(GetMaterial());
+            auto data = std::make_unique<UITextData>();
+            fillData(*data);
+            data->text = text;
+            data->color = color;
+            data->material.SetAsset(material);
+            return data;
         }
 
         void SetText(std::string_view newText)
         {
             text.assign(newText);
-            if (isLoaded())
-                rebuild();
+            rebuild();
         }
 
         void SetColor(const glm::vec4 &newColor)
         {
             color = newColor;
-            if (isLoaded())
-                setQuadColor(newColor);
+            setQuadColor(newColor);
         }
 
         const std::string &GetText() const { return text; }

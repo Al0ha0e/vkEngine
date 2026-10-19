@@ -1,5 +1,6 @@
 #include <game_config.hpp>
 #include <engine.hpp>
+#include <ui/ui_manager.hpp>
 
 namespace vke_common
 {
@@ -18,15 +19,9 @@ namespace vke_common
         vke_common::TimeManager::Update();
         vke_common::SceneManager::GetInstance()->ProcessDestroyRequests();
 
-        if (state == EngineState::Paused)
-        {
-            vke_render::Renderer::GetInstance()->Update();
-            vke_common::InputManager::EndFrame();
-            return true;
-        }
-
-        UpdateSimulation(vke_common::TimeManager::GetDeltaTime(), fixedUpdateAccumulator);
-        vke_render::Renderer::GetInstance()->Update();
+        if (state != EngineState::Paused)
+            UpdateSimulation(vke_common::TimeManager::GetDeltaTime(), fixedUpdateAccumulator);
+        UpdatePresentation();
         vke_common::InputManager::EndFrame();
         return true;
     }
@@ -44,6 +39,14 @@ namespace vke_common
         vke_common::SceneManager::GetInstance()->LateUpdate(deltaTime);
         if (vke_common::SceneManager::IsRunning())
             vke_audio::AudioManager::Update(deltaTime);
+    }
+
+    void Engine::UpdatePresentation()
+    {
+        auto *renderer = vke_render::Renderer::GetInstance();
+        vke_ui::UIManager::Update(SceneManager::GetInstance()->registry,
+                                  glm::vec2(renderer->context->width, renderer->context->height));
+        renderer->Update();
     }
 
     void Engine::FixedUpdate(float deltaTime)

@@ -168,7 +168,7 @@ namespace vke_editor
         if (wireframePass)
             wireframePass->SetSelectedEntity(selectedEntity);
 
-        vke_render::Renderer::GetInstance()->Update();
+        vke_common::Engine::UpdatePresentation();
         EditorRenderer::GetInstance()->Update();
         vke_common::InputManager::EndFrame();
         return true;
@@ -464,7 +464,7 @@ namespace vke_editor
         drawSkeletonAnimatorComponent();
         drawRigidBodyComponent();
         drawSensorComponent();
-        drawUITextComponent();
+        drawCanvasComponent();
         drawAudioSourceComponent();
         drawAudioListenerComponent();
         showComponentMenu();
@@ -492,7 +492,7 @@ namespace vke_editor
             {"DirectionalLight", vke_common::ComponentType::DirectionalLight},
             {"PointLight", vke_common::ComponentType::PointLight},
             {"SpotLight", vke_common::ComponentType::SpotLight},
-            {"UIText", vke_common::ComponentType::UIText},
+            {"Canvas", vke_common::ComponentType::Canvas},
             {"AudioSource", vke_common::ComponentType::AudioSource},
             {"AudioListener", vke_common::ComponentType::AudioListener}};
 

@@ -167,7 +167,7 @@ namespace vke_common
                 SceneResult<void> result;
                 if (!(result = visitComponent.operator()<RenderableObjectData>()) ||
                     !(result = visitComponent.operator()<SkeletonAnimatorData>()) ||
-                    !(result = visitComponent.operator()<UITextData>()) ||
+                    !(result = visitComponent.operator()<CanvasData>()) ||
                     !(result = visitComponent.operator()<AudioSourceData>()))
                     return std::unexpected("entity " + std::to_string(id) + ": " + result.error());
             }

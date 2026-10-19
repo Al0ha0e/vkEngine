@@ -106,7 +106,7 @@ Or launch the editor with your project's config:
   - [ ] point light shadows
 - **UI**
   - [x] SDF Font
-  - [ ] UI transform: anchor, pivot, size, scale
+  - [x] UI transform: anchor, pivot, size, scale
   - [ ] basic widgets: text, image, panel, button
   - [ ] input/event handling: hover, click, focus
 - **Scene / ECS**:

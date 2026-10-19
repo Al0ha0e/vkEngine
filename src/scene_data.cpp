@@ -177,7 +177,7 @@ namespace vke_common
         {
             ([&] { if (const auto *value = registry.try_get<T>(source)) target.registry.emplace_or_replace<T>(destination, *value); }(), ...);
         };
-        copy(static_cast<std::tuple<TransformData, CameraData, RenderableObjectData, UITextData,
+        copy(static_cast<std::tuple<TransformData, CameraData, RenderableObjectData, CanvasData,
             SkeletonAnimatorData, RigidBodyData, SensorData, CharacterControllerData, AudioSourceData,
             AudioListenerData, DirectionalLightData, PointLightData, SpotLightData, ScriptDataList, PrefabReference> *>(nullptr));
     }

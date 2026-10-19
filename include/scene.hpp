@@ -15,7 +15,7 @@
 #include <component/rigidbody.hpp>
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
-#include <component/text.hpp>
+#include <component/canvas.hpp>
 #include <component/audio_source.hpp>
 #include <component/audio_listener.hpp>
 #include <component/light.hpp>
@@ -161,7 +161,7 @@ namespace vke_common
         SceneResult<void> AddComponent(entt::entity entity, const vke_component::DirectionalLightData &data);
         SceneResult<void> AddComponent(entt::entity entity, const vke_component::PointLightData &data);
         SceneResult<void> AddComponent(entt::entity entity, const vke_component::SpotLightData &data);
-        SceneResult<void> AddComponent(entt::entity entity, const vke_component::UITextData &data);
+        SceneResult<void> AddComponent(entt::entity entity, const vke_component::CanvasData &data);
         SceneResult<void> AddComponent(entt::entity entity, const vke_component::AudioSourceData &data);
         SceneResult<void> AddComponent(entt::entity entity, const vke_component::AudioListenerData &data);
         SceneResult<void> RemoveComponent(entt::entity entity, ComponentType componentType);
@@ -199,7 +199,7 @@ namespace vke_common
             visit.template operator()<vke_component::DirectionalLight>();
             visit.template operator()<vke_component::PointLight>();
             visit.template operator()<vke_component::SpotLight>();
-            visit.template operator()<vke_component::UIText>();
+            visit.template operator()<vke_component::Canvas>();
             visit.template operator()<vke_component::AudioSource>();
             visit.template operator()<vke_component::AudioListener>();
         }

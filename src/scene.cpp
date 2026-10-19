@@ -228,7 +228,7 @@ namespace vke_common
 
             fillComponentData.operator()<vke_component::Camera, vke_component::CameraData>();
             fillComponentData.operator()<vke_component::RenderableObject, vke_component::RenderableObjectData>();
-            fillComponentData.operator()<vke_component::UIText, vke_component::UITextData>();
+            fillComponentData.operator()<vke_component::Canvas, vke_component::CanvasData>();
             fillComponentData.operator()<vke_component::SkeletonAnimator, vke_component::SkeletonAnimatorData>();
             fillComponentData.operator()<vke_component::RigidBody, vke_component::RigidBodyData>();
             fillComponentData.operator()<vke_component::Sensor, vke_component::SensorData>();
@@ -331,7 +331,7 @@ namespace vke_common
         construct.operator()<vke_component::DirectionalLightData, vke_component::DirectionalLight>();
         construct.operator()<vke_component::PointLightData, vke_component::PointLight>();
         construct.operator()<vke_component::SpotLightData, vke_component::SpotLight>();
-        construct.operator()<vke_component::UITextData, vke_component::UIText>();
+        construct.operator()<vke_component::CanvasData, vke_component::Canvas>();
         construct.operator()<vke_component::AudioSourceData, vke_component::AudioSource>();
         construct.operator()<vke_component::AudioListenerData, vke_component::AudioListener>();
 
@@ -409,8 +409,8 @@ namespace vke_common
             removeNativeComponent(entity, ComponentType::Camera);
         if (HasComponent(entity, ComponentType::RenderableObject))
             removeNativeComponent(entity, ComponentType::RenderableObject);
-        if (HasComponent(entity, ComponentType::UIText))
-            removeNativeComponent(entity, ComponentType::UIText);
+        if (HasComponent(entity, ComponentType::Canvas))
+            removeNativeComponent(entity, ComponentType::Canvas);
         if (HasComponent(entity, ComponentType::SkeletonAnimator))
             removeNativeComponent(entity, ComponentType::SkeletonAnimator);
         if (HasComponent(entity, ComponentType::CharacterController))

@@ -17,9 +17,9 @@ namespace vkEngine.EngineCore
         PointLight = 8,
         SpotLight = 9,
         Script = 10,
-        UIText = 11,
         AudioSource = 12,
-        AudioListener = 13
+        AudioListener = 13,
+        Canvas = 14
     }
 
     public interface IScriptLifecycle
@@ -90,7 +90,7 @@ namespace vkEngine.EngineCore
             [typeof(DirectionalLight)] = ComponentType.DirectionalLight,
             [typeof(PointLight)] = ComponentType.PointLight,
             [typeof(SpotLight)] = ComponentType.SpotLight,
-            [typeof(UIText)] = ComponentType.UIText,
+            [typeof(Canvas)] = ComponentType.Canvas,
             [typeof(AudioSource)] = ComponentType.AudioSource,
             [typeof(AudioListener)] = ComponentType.AudioListener
 
@@ -105,7 +105,7 @@ namespace vkEngine.EngineCore
             [ComponentType.DirectionalLight] = typeof(DirectionalLight),
             [ComponentType.PointLight] = typeof(PointLight),
             [ComponentType.SpotLight] = typeof(SpotLight),
-            [ComponentType.UIText] = typeof(UIText),
+            [ComponentType.Canvas] = typeof(Canvas),
             [ComponentType.AudioSource] = typeof(AudioSource),
             [ComponentType.AudioListener] = typeof(AudioListener)
 

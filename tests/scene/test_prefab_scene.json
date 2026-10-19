@@ -88,9 +88,25 @@
       },
       "components": [
         {
-          "type": "uiText",
-          "text": "Left click: spawn a physics ball   |   Esc: exit",
-          "color": [1.0, 1.0, 1.0, 1.0]
+          "type": "canvas",
+          "mode": "screenSpace",
+          "referenceResolution": [1920, 1080],
+          "sortOrder": 12,
+          "children": [
+            {
+              "type": "uiText",
+              "text": "Left click: spawn a physics ball   |   Esc: exit",
+              "color": [1.0, 1.0, 1.0, 1.0],
+              "name": "Text",
+              "rectTransform": {
+                "offsetMin": [35, 35],
+                "offsetMax": [835, 135],
+                "pivot": [0, 0],
+                "scale": [1, 1],
+                "rotation": 0.0
+              }
+            }
+          ]
         }
       ]
     }

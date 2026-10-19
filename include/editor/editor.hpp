@@ -76,7 +76,7 @@ namespace vke_editor
         void drawSkeletonAnimatorComponent();
         void drawRigidBodyComponent();
         void drawSensorComponent();
-        void drawUITextComponent();
+        void drawCanvasComponent();
         void drawAudioSourceComponent();
         void drawAudioListenerComponent();
         void drawScriptComponents();

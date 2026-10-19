@@ -15,7 +15,7 @@ public sealed class FpsTextScript : EntityScript
 
     public override void Start()
     {
-        text = GetComponent<UIText>();
+        text = GetComponent<Canvas>()?.Find("Text") as UIText;
         UpdateText(0.0f);
     }
 

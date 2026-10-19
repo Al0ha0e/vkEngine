@@ -5,7 +5,7 @@
 #include <component/sensor.hpp>
 #include <component/character_controller.hpp>
 #include <component/light.hpp>
-#include <component/text.hpp>
+#include <component/canvas.hpp>
 #include <component/script.hpp>
 #include <scene.hpp>
 #include <reflect/value_view.hpp>
@@ -65,8 +65,8 @@ namespace vke_common
             return load.operator()<vke_component::CameraData>();
         if (type == "renderableObject")
             return load.operator()<vke_component::RenderableObjectData>();
-        if (type == "uiText")
-            return load.operator()<vke_component::UITextData>();
+        if (type == "canvas")
+            return load.operator()<vke_component::CanvasData>();
         if (type == "animator")
             return load.operator()<vke_component::SkeletonAnimatorData>();
         if (type == "rigidbody")
@@ -105,8 +105,8 @@ namespace vke_common
         if (registry.all_of<vke_component::RenderableObjectData>(entity))
             components.push_back(registry.get<vke_component::RenderableObjectData>(entity).ToJSON());
 
-        if (registry.all_of<vke_component::UITextData>(entity))
-            components.push_back(registry.get<vke_component::UITextData>(entity).ToJSON());
+        if (registry.all_of<vke_component::CanvasData>(entity))
+            components.push_back(registry.get<vke_component::CanvasData>(entity).ToJSON());
 
         if (registry.all_of<vke_component::SkeletonAnimatorData>(entity))
             components.push_back(registry.get<vke_component::SkeletonAnimatorData>(entity).ToJSON());
@@ -166,6 +166,8 @@ namespace vke_common
             return valid;
         if (registry.all_of<Component>(entity))
             return std::unexpected("component already exists");
+        if constexpr (requires { data.Validate(); })
+            if (auto valid = data.Validate(); !valid) return valid;
         if constexpr (requires { data.ValidateAssets(); })
         {
             if (auto valid = data.ValidateAssets(); !valid)
@@ -225,9 +227,9 @@ namespace vke_common
         return addComponent<vke_component::SpotLight>(entity, data);
     }
 
-    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::UITextData &data)
+    SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::CanvasData &data)
     {
-        return addComponent<vke_component::UIText>(entity, data);
+        return addComponent<vke_component::Canvas>(entity, data);
     }
 
     SceneResult<void> SceneManager::AddComponent(entt::entity entity, const vke_component::AudioSourceData &data)
@@ -265,8 +267,8 @@ namespace vke_common
             return AddComponent(entity, PointLightData{});
         case ComponentType::SpotLight:
             return AddComponent(entity, SpotLightData{});
-        case ComponentType::UIText:
-            return AddComponent(entity, UITextData{});
+        case ComponentType::Canvas:
+            return AddComponent(entity, CanvasData{});
         case ComponentType::AudioSource:
             return AddComponent(entity, AudioSourceData{});
         case ComponentType::AudioListener:
@@ -294,7 +296,7 @@ namespace vke_common
             return std::unexpected("component does not exist");
         // Unlike registration, removal can release buffers still referenced by submitted work:
         // animators own skinning buffers, and a renderable may own the last reference to its mesh.
-        // Camera/light/text removal only changes CPU state or returns slots to per-frame pools.
+        // Camera/light/Canvas removal only changes CPU state or returns slots to per-frame pools.
         if (componentType == ComponentType::RenderableObject || componentType == ComponentType::SkeletonAnimator)
             vke_render::Renderer::WaitIdle();
         removeNativeComponent(entity, componentType);
@@ -352,8 +354,8 @@ namespace vke_common
         case ComponentType::SpotLight:
             removeLight.operator()<vke_component::SpotLight>();
             break;
-        case ComponentType::UIText:
-            remove.operator()<vke_component::UIText>();
+        case ComponentType::Canvas:
+            remove.operator()<vke_component::Canvas>();
             break;
         case ComponentType::AudioSource:
             remove.operator()<vke_component::AudioSource>();
@@ -395,8 +397,8 @@ namespace vke_common
             return registry.all_of<vke_component::SpotLight>(entity);
         case ComponentType::Script:
             return ScriptManager::HasScripts(entity);
-        case ComponentType::UIText:
-            return registry.all_of<vke_component::UIText>(entity);
+        case ComponentType::Canvas:
+            return registry.all_of<vke_component::Canvas>(entity);
         case ComponentType::AudioSource:
             return registry.all_of<vke_component::AudioSource>(entity);
         case ComponentType::AudioListener:

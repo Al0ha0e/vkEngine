@@ -146,10 +146,26 @@
       },
       "components": [
         {
-          "type": "uiText",
-          "text": "FPS: 0.0",
-          "color": [0.95, 0.95, 0.95, 1.0],
-          "material": 0
+          "type": "canvas",
+          "mode": "screenSpace",
+          "referenceResolution": [1920, 1080],
+          "sortOrder": 12,
+          "children": [
+            {
+              "type": "uiText",
+              "text": "FPS: 0.0",
+              "color": [0.95, 0.95, 0.95, 1.0],
+              "material": 0,
+              "name": "Text",
+              "rectTransform": {
+                "offsetMin": [60.0, 60.0],
+                "offsetMax": [860.0, 160.0],
+                "pivot": [0, 0],
+                "scale": [1.0, 1.0],
+                "rotation": 0.0
+              }
+            }
+          ]
         },
         {
           "type": "script",

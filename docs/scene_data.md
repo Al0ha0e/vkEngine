@@ -77,7 +77,7 @@ reference.SetAsset(asset); // 从运行时资源提取句柄和指针
 
 `handle == 0` 表示空引用，是否允许为空由组件决定。非零句柄解析失败时返回错误。复制已解析的 AssetRef 共享资源所有权；动画播放进度等实例状态由运行时组件分别持有。
 
-RenderableObjectData、SkeletonAnimatorData、UITextData、AudioSourceData 中的材质、网格、骨骼、动画和音频引用均采用这一类型。实体对预制体的引用使用 `AssetRef<const SceneData>`，只读访问缓存数据。
+RenderableObjectData、SkeletonAnimatorData、AudioSourceData，以及 CanvasData 节点树中的 UITextData，其材质、网格、骨骼、动画和音频引用均采用这一类型。实体对预制体的引用使用 `AssetRef<const SceneData>`，只读访问缓存数据。
 
 ## 预制体展开与覆盖
 

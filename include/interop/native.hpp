@@ -6,7 +6,7 @@
 #include <interop/math.hpp>
 #include <interop/light.hpp>
 #include <interop/physics.hpp>
-#include <interop/text.hpp>
+#include <interop/ui.hpp>
 #include <interop/audio.hpp>
 
 namespace vke_interop
@@ -95,11 +95,6 @@ namespace vke_interop
         SetSkeletonAnimatorAnimationWeightFn SetSkeletonAnimatorAnimationWeight;
         GetSkeletonAnimatorAnimationWeightFn GetSkeletonAnimatorAnimationWeight;
         SetSkeletonAnimatorBlendWeightsFn SetSkeletonAnimatorBlendWeights;
-        GetUITextLengthFn GetUITextLength;
-        GetUITextTextFn GetUITextText;
-        SetUITextTextFn SetUITextText;
-        GetUITextColorFn GetUITextColor;
-        SetUITextColorFn SetUITextColor;
         GetDirectionalLightColorFn GetDirectionalLightColor;
         SetDirectionalLightColorFn SetDirectionalLightColor;
         GetDirectionalLightIntensityFn GetDirectionalLightIntensity;
@@ -203,6 +198,26 @@ namespace vke_interop
         void(VKE_INTEROP_CDECL *DestroyEntity)(uint32_t);
         int32_t(VKE_INTEROP_CDECL *IsEntityPendingDestroy)(uint32_t);
         int32_t(VKE_INTEROP_CDECL *InstantiatePrefab)(uint64_t, const Vector3<float> *, const Quaternion<float> *, const Vector3<float> *, uint32_t);
+        GetUITypeFn GetUIType;
+        FindUIChildFn FindUIChild;
+        GetUIChildCountFn GetUIChildCount;
+        GetUIChildFn GetUIChild;
+        CreateUINodeFn CreateUINode;
+        RemoveUINodeFn RemoveUINode;
+        SetUIParentFn SetUIParent;
+        SetUISiblingIndexFn SetUISiblingIndex;
+        GetUIRectTransformFn GetUIRectTransform;
+        SetUIRectTransformFn SetUIRectTransform;
+        GetUIResolvedSizeFn GetUIResolvedSize;
+        GetCanvasReferenceResolutionFn GetCanvasReferenceResolution;
+        SetCanvasReferenceResolutionFn SetCanvasReferenceResolution;
+        GetCanvasSortOrderFn GetCanvasSortOrder;
+        SetCanvasSortOrderFn SetCanvasSortOrder;
+        GetUITextLengthFn GetUITextLength;
+        GetUITextTextFn GetUITextText;
+        SetUITextTextFn SetUITextText;
+        GetUITextColorFn GetUITextColor;
+        SetUITextColorFn SetUITextColor;
     };
 }
 

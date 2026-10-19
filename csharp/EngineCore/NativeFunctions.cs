@@ -44,11 +44,6 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, float, void> SetSkeletonAnimatorAnimationWeight;
         public delegate* unmanaged[Cdecl]<UInt32, UInt32, float> GetSkeletonAnimatorAnimationWeight;
         public delegate* unmanaged[Cdecl]<UInt32, float*, UInt32, void> SetSkeletonAnimatorBlendWeights;
-        public delegate* unmanaged[Cdecl]<UInt32, UInt32> GetUITextLength;
-        public delegate* unmanaged[Cdecl]<UInt32, byte*, UInt32, UInt32> GetUITextText;
-        public delegate* unmanaged[Cdecl]<UInt32, byte*, UInt32, void> SetUITextText;
-        public delegate* unmanaged[Cdecl]<UInt32, NVec4*, void> GetUITextColor;
-        public delegate* unmanaged[Cdecl]<UInt32, NVec4*, void> SetUITextColor;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> GetDirectionalLightColor;
         public delegate* unmanaged[Cdecl]<UInt32, NVec3*, void> SetDirectionalLightColor;
         public delegate* unmanaged[Cdecl]<UInt32, float> GetDirectionalLightIntensity;
@@ -152,6 +147,26 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, void> DestroyEntity;
         public delegate* unmanaged[Cdecl]<UInt32, Int32> IsEntityPendingDestroy;
         public delegate* unmanaged[Cdecl]<UInt64, NVec3*, NQuat*, NVec3*, UInt32, Int32> InstantiatePrefab;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32> GetUIType;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, byte*, UInt32, UInt64> FindUIChild;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32> GetUIChildCount;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, UInt32, UInt64> GetUIChild;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32, byte*, UInt32, UInt64> CreateUINode;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32> RemoveUINode;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, UInt64, Int32> SetUIParent;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, UInt32, Int32> SetUISiblingIndex;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, RectTransform*, Int32> GetUIRectTransform;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, RectTransform*, Int32> SetUIRectTransform;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec2*, Int32> GetUIResolvedSize;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec2*, Int32> GetCanvasReferenceResolution;
+        public delegate* unmanaged[Cdecl]<UInt32, NVec2*, Int32> SetCanvasReferenceResolution;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32*, Int32> GetCanvasSortOrder;
+        public delegate* unmanaged[Cdecl]<UInt32, Int32, Int32> SetCanvasSortOrder;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32> GetUITextLength;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, byte*, UInt32, Int32> GetUITextText;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, byte*, UInt32, Int32> SetUITextText;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> GetUITextColor;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> SetUITextColor;
     }
 
     public static class NativeFunctionRegistry
@@ -169,7 +184,6 @@ namespace vkEngine.EngineCore
             EngineStateManager.RegisterNativeFunctions(functions);
             EntityScript.RegisterNativeFunctions(functions);
             SkeletonAnimator.RegisterNativeFunctions(functions);
-            UIText.RegisterNativeFunctions(functions);
             Light.RegisterNativeFunctions(functions);
             CharacterController.RegisterNativeFunctions(functions);
             RigidBody.RegisterNativeFunctions(functions);
