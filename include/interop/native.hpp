@@ -218,6 +218,14 @@ namespace vke_interop
         SetUITextTextFn SetUITextText;
         GetUITextColorFn GetUITextColor;
         SetUITextColorFn SetUITextColor;
+        GetUIImageTextureFn GetUIImageTexture;
+        SetUIImageTextureFn SetUIImageTexture;
+        GetUIImageColorFn GetUIImageColor;
+        SetUIImageColorFn SetUIImageColor;
+        GetUIImageUVRectFn GetUIImageUVRect;
+        SetUIImageUVRectFn SetUIImageUVRect;
+        GetUIImagePreserveAspectFn GetUIImagePreserveAspect;
+        SetUIImagePreserveAspectFn SetUIImagePreserveAspect;
     };
 }
 

@@ -1,0 +1,72 @@
+{
+  "prefabRoot": 1,
+  "objects": [
+    {
+      "id": 1,
+      "name": "UIToast",
+      "static": true,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 0],
+        "scl": [1, 1, 1],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "canvas",
+          "mode": "screenSpace",
+          "referenceResolution": [1600, 1000],
+          "sortOrder": 50,
+          "children": [
+            {
+              "type": "uiImage",
+              "name": "Toast",
+              "rectTransform": {
+                "anchorMin": [1, 0],
+                "anchorMax": [1, 0],
+                "offsetMin": [-490, 24],
+                "offsetMax": [-24, 118],
+                "pivot": [0, 0]
+              },
+              "color": [0.08, 0.38, 0.32, 0.98],
+              "texture": 0,
+              "children": [
+                {
+                  "type": "uiText",
+                  "name": "Title",
+                  "rectTransform": {
+                    "offsetMin": [16, 12],
+                    "offsetMax": [16, 12],
+                    "pivot": [0, 0],
+                    "scale": [0.44, 0.44]
+                  },
+                  "text": "UI PREFAB / SORT ORDER 50",
+                  "color": [0.9, 0.94, 1, 1],
+                  "children": []
+                },
+                {
+                  "type": "uiText",
+                  "name": "Detail",
+                  "rectTransform": {
+                    "offsetMin": [16, 53],
+                    "offsetMax": [16, 53],
+                    "pivot": [0, 0],
+                    "scale": [0.34, 0.34]
+                  },
+                  "text": "Whole entity is destroyed after 3 seconds.",
+                  "color": [0.9, 0.94, 1, 1],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "script",
+          "className": "TestProj.UIToastScript",
+          "data": {}
+        }
+      ]
+    }
+  ]
+}

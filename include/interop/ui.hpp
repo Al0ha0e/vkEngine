@@ -33,6 +33,15 @@ namespace vke_interop
     using GetUITextColorFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, Vector4<float> *);
     using SetUITextColorFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, const Vector4<float> *);
 
+    using GetUIImageTextureFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, uint64_t *);
+    using SetUIImageTextureFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, uint64_t);
+    using GetUIImageColorFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, Vector4<float> *);
+    using SetUIImageColorFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, const Vector4<float> *);
+    using GetUIImageUVRectFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, Vector4<float> *);
+    using SetUIImageUVRectFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, const Vector4<float> *);
+    using GetUIImagePreserveAspectFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, int32_t *);
+    using SetUIImagePreserveAspectFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, int32_t);
+
     int32_t VKE_INTEROP_CDECL GetUIType(uint32_t entity, uint64_t handle);
     uint64_t VKE_INTEROP_CDECL FindUIChild(uint32_t entity, uint64_t parent, const char *name, uint32_t length);
     int32_t VKE_INTEROP_CDECL GetUIChildCount(uint32_t entity, uint64_t parent);
@@ -54,4 +63,13 @@ namespace vke_interop
     int32_t VKE_INTEROP_CDECL SetUITextText(uint32_t entity, uint64_t handle, const char *text, uint32_t length);
     int32_t VKE_INTEROP_CDECL GetUITextColor(uint32_t entity, uint64_t handle, Vector4<float> *color);
     int32_t VKE_INTEROP_CDECL SetUITextColor(uint32_t entity, uint64_t handle, const Vector4<float> *color);
+
+    int32_t VKE_INTEROP_CDECL GetUIImageTexture(uint32_t entity, uint64_t handle, uint64_t *value);
+    int32_t VKE_INTEROP_CDECL SetUIImageTexture(uint32_t entity, uint64_t handle, uint64_t value);
+    int32_t VKE_INTEROP_CDECL GetUIImageColor(uint32_t entity, uint64_t handle, Vector4<float> *value);
+    int32_t VKE_INTEROP_CDECL SetUIImageColor(uint32_t entity, uint64_t handle, const Vector4<float> *value);
+    int32_t VKE_INTEROP_CDECL GetUIImageUVRect(uint32_t entity, uint64_t handle, Vector4<float> *value);
+    int32_t VKE_INTEROP_CDECL SetUIImageUVRect(uint32_t entity, uint64_t handle, const Vector4<float> *value);
+    int32_t VKE_INTEROP_CDECL GetUIImagePreserveAspect(uint32_t entity, uint64_t handle, int32_t *value);
+    int32_t VKE_INTEROP_CDECL SetUIImagePreserveAspect(uint32_t entity, uint64_t handle, int32_t value);
 }

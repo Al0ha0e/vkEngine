@@ -50,6 +50,7 @@ Run from the repository root. The engine expects a single game config json:
 ./out/engine.exe ./tests/cfg/test_render.json
 ./out/engine.exe ./tests/cfg/test_audio.json
 ./out/engine.exe ./tests/cfg/test_prefab.json
+./out/engine.exe ./tests/cfg/test_ui.json
 ```
 
 Some examples, including Sponza, require external assets not included in the repository.

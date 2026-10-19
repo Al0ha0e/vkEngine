@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ui/text.hpp>
+#include <ui/image.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <climits>
@@ -44,8 +45,8 @@ namespace vke_component
 
         static vke_common::SceneResult<void> ValidateResolution(const glm::vec2 &value)
         {
-            if (!std::isfinite(value.x) || !std::isfinite(value.y) || value.x <= 0 || value.y <= 0)
-                return std::unexpected("reference resolution must be finite and positive");
+            if (value.x <= 0 || value.y <= 0)
+                return std::unexpected("reference resolution must be positive");
             return {};
         }
 
@@ -249,6 +250,8 @@ namespace vke_component
             std::unique_ptr<vke_ui::UIComponent> owned;
             if (data.GetType() == vke_ui::UIType::Text)
                 owned = std::make_unique<vke_ui::UIText>(static_cast<const vke_ui::UITextData &>(data));
+            else if (data.GetType() == vke_ui::UIType::Image)
+                owned = std::make_unique<vke_ui::UIImage>(static_cast<const vke_ui::UIImageData &>(data));
             else
                 owned = std::make_unique<vke_ui::UIContainer>(static_cast<const vke_ui::UIContainerData &>(data));
             auto *node = owned.get();
@@ -276,7 +279,12 @@ namespace vke_component
             {
                 const auto minimum = rect.anchorMin * parentSize + rect.offsetMin;
                 const auto maximum = rect.anchorMax * parentSize + rect.offsetMax;
-                node.resolvedSize = glm::max(maximum - minimum, glm::vec2(0));
+                const auto size = glm::max(maximum - minimum, glm::vec2(0));
+                if (size != node.resolvedSize)
+                {
+                    node.resolvedSize = size;
+                    node.onSizeChanged();
+                }
                 const auto position = minimum + rect.pivot * node.resolvedSize - parentPivot * parentSize;
                 node.layoutMatrix = glm::translate(parentMatrix, glm::vec3(position, 0)) *
                     glm::rotate(glm::mat4(1), rect.rotation, glm::vec3(0, 0, 1)) *

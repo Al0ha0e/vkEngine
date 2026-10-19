@@ -22,7 +22,7 @@ namespace vke_render
     }
 
     void QuadIDVertexBufferPool::Update(const Allocation &allocation, const std::vector<QuadID> &quadIDs,
-                                         uint32_t currentFrame)
+                                        uint32_t currentFrame)
     {
         if (!allocation.Valid() || quadIDs.empty())
             return;
@@ -202,11 +202,102 @@ namespace vke_render
         blendState.pAttachments = &blendAttachment;
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
+        VkPipelineRasterizationStateCreateInfo rasterization{};
+        rasterization.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterization.cullMode = VK_CULL_MODE_NONE;
+
+        pipelineInfo.pRasterizationState = &rasterization;
         pipelineInfo.pNext = &renderingInfo;
         pipelineInfo.pDepthStencilState = &depthStencil;
         pipelineInfo.pColorBlendState = &blendState;
         state.pipeline = std::make_unique<GraphicsPipeline>(
             state.material->shader, std::vector<uint32_t>{sizeof(QuadID)}, VK_VERTEX_INPUT_RATE_INSTANCE, pipelineInfo);
+    }
+
+    Layered2DRenderer::~Layered2DRenderer()
+    {
+        for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
+        {
+            DescriptorSetAllocator::FreeDescriptorSet(imageDescriptorSets[frame]);
+            DescriptorSetAllocator::FreeDescriptorSet(rendererDescriptorSets[frame]);
+        }
+    }
+
+    void Layered2DRenderer::resetImageTextures()
+    {
+        imageTextureIndices.clear();
+        imageTextures.clear();
+        imageTextures.push_back({whiteTexture, 0});
+        freeImageTextureSlots.clear();
+        for (auto &textures : frameImageTextures)
+            textures.clear();
+        imageTexturesDirty.fill(true);
+    }
+
+    vke_common::SceneResult<uint32_t> Layered2DRenderer::RegisterImageTexture(const std::shared_ptr<Texture2D> &texture)
+    {
+        if (!texture)
+            return 0;
+        auto it = imageTextureIndices.find(texture.get());
+        if (it != imageTextureIndices.end())
+        {
+            ++imageTextures[it->second].references;
+            return it->second;
+        }
+        uint32_t index;
+        if (!freeImageTextureSlots.empty())
+        {
+            index = freeImageTextureSlots.back();
+            freeImageTextureSlots.pop_back();
+            imageTextures[index] = {texture, 1};
+        }
+        else
+        {
+            if (imageTextures.size() == DEFAULT_BINDLESS_CNT)
+                return std::unexpected("UI image texture table is full");
+            index = static_cast<uint32_t>(imageTextures.size());
+            imageTextures.push_back({texture, 1});
+        }
+        imageTextureIndices.emplace(texture.get(), index);
+        imageTexturesDirty.fill(true);
+        return index;
+    }
+
+    void Layered2DRenderer::UnregisterImageTexture(uint32_t index)
+    {
+        if (index == 0)
+            return;
+        auto &slot = imageTextures[index];
+        if (--slot.references != 0)
+            return;
+        imageTextureIndices.erase(slot.texture.get());
+        slot.texture.reset();
+        freeImageTextureSlots.push_back(index);
+        imageTexturesDirty.fill(true);
+    }
+
+    void Layered2DRenderer::syncImageTextures(uint32_t currentFrame)
+    {
+        if (!imageTexturesDirty[currentFrame])
+            return;
+        std::vector<std::shared_ptr<Texture2D>> textures;
+        textures.reserve(imageTextures.size());
+        std::vector<VkDescriptorImageInfo> infos;
+        infos.reserve(imageTextures.size());
+        for (const auto &slot : imageTextures)
+        {
+            const auto &texture = slot.texture ? slot.texture : whiteTexture;
+            textures.push_back(texture);
+            infos.push_back({texture->textureSampler, texture->textureImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+        }
+        VkWriteDescriptorSet write{};
+        ConstructDescriptorSetWrite(write, imageDescriptorSets[currentFrame], 1,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, infos.data(), 0,
+                                    static_cast<uint32_t>(infos.size()));
+        vkUpdateDescriptorSets(globalLogicalDevice, 1, &write, 0, nullptr);
+
+        frameImageTextures[currentFrame] = std::move(textures);
+        imageTexturesDirty[currentFrame] = false;
     }
 
     void Layered2DRenderer::Init(int subpassID, FrameGraph &frameGraph,
@@ -216,9 +307,18 @@ namespace vke_render
         RenderPassBase::Init(subpassID, frameGraph, blackboard, currentResourceNodeID);
         font = vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID);
         textShader = vke_common::AssetManager::LoadVertFragShader(vke_common::BUILTIN_VFSHADER_TEXT_ID);
-        defaultMaterial = std::make_shared<Material>();
+        defaultMaterial = std::make_shared<Material>(0);
         defaultMaterial->shader = textShader;
         defaultMaterial->renderMode = MaterialRenderMode::BLEND_MODE;
+
+        imageMaterial = std::make_shared<Material>(0);
+        imageMaterial->shader = vke_common::AssetManager::LoadVertFragShader(vke_common::BUILTIN_VFSHADER_UI_IMAGE_ID);
+        imageMaterial->renderMode = MaterialRenderMode::BLEND_MODE;
+        uint32_t white = 0xffffffff;
+        whiteTexture = std::make_shared<Texture2D>(0, &white, 1, 1,
+                                                   VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                   VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, false, false);
+        resetImageTextures();
 
         for (uint32_t frame = 0; frame < MAX_FRAMES_IN_FLIGHT; ++frame)
         {
@@ -239,7 +339,7 @@ namespace vke_render
     }
 
     vke_ds::id32_t Layered2DRenderer::AllocateUnit(const std::shared_ptr<Material> &material,
-                                                  const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs)
+                                                   const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs)
     {
         const vke_ds::id32_t unitID = unitAllocator.Alloc();
         UnitState state;
@@ -311,6 +411,12 @@ namespace vke_render
             ConstructDescriptorSetWrite(writes[2], rendererDescriptorSets[frame], 2,
                                         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &quadBufferInfo);
             vkUpdateDescriptorSets(globalLogicalDevice, 3, writes, 0, nullptr);
+
+            imageDescriptorSets[frame] = imageMaterial->shader->CreateDescriptorSet(0);
+            VkWriteDescriptorSet imageBufferWrite{};
+            ConstructDescriptorSetWrite(imageBufferWrite, imageDescriptorSets[frame], 0,
+                                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, &quadBufferInfo);
+            vkUpdateDescriptorSets(globalLogicalDevice, 1, &imageBufferWrite, 0, nullptr);
         }
     }
 
@@ -318,6 +424,7 @@ namespace vke_render
                                    uint32_t currentFrame, uint32_t imageIndex)
     {
         syncDynamicAtlas(commandBuffer, currentFrame);
+        syncImageTextures(currentFrame);
         if (units.empty())
             return;
 
@@ -359,8 +466,11 @@ namespace vke_render
             if (boundMaterialState != &state)
             {
                 state.pipeline->Bind(commandBuffer);
+                const VkDescriptorSet rendererSet = state.material == imageMaterial
+                                                        ? imageDescriptorSets[currentFrame]
+                                                        : rendererDescriptorSets[currentFrame];
                 vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        pipelineLayout, 0, 1, &rendererDescriptorSets[currentFrame], 0, nullptr);
+                                        pipelineLayout, 0, 1, &rendererSet, 0, nullptr);
                 if (state.commonDescriptorSet != VK_NULL_HANDLE)
                     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                             pipelineLayout, 1, 1, &state.commonDescriptorSet, 0, nullptr);

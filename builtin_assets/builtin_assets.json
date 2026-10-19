@@ -143,6 +143,13 @@
     "fragPath": "builtin_assets/shader/atmosphere_post_frag.spv"
   },
   {
+    "type": 2,
+    "id": 14,
+    "name": "UIImageShader",
+    "path": "builtin_assets/shader/ui_image_vert.spv",
+    "fragPath": "builtin_assets/shader/ui_image_frag.spv"
+  },
+  {
     "type": 3,
     "id": 1,
     "name": "SkyLUTGenerator",

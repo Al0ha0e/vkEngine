@@ -3,7 +3,6 @@
 
 #include <glm/vec2.hpp>
 #include <json_validation.hpp>
-#include <cmath>
 
 namespace vke_ui
 {
@@ -21,16 +20,11 @@ namespace vke_ui
         {
             for (int axis = 0; axis < 2; ++axis)
             {
-                if (!std::isfinite(anchorMin[axis]) || !std::isfinite(anchorMax[axis]) ||
-                    anchorMin[axis] < 0 || anchorMax[axis] > 1 || anchorMin[axis] > anchorMax[axis])
+                if (anchorMin[axis] < 0 || anchorMax[axis] > 1 || anchorMin[axis] > anchorMax[axis])
                     return std::unexpected("anchors must satisfy 0 <= min <= max <= 1");
-                if (!std::isfinite(pivot[axis]) || pivot[axis] < 0 || pivot[axis] > 1)
+                if (pivot[axis] < 0 || pivot[axis] > 1)
                     return std::unexpected("pivot must be within [0, 1]");
-                if (!std::isfinite(offsetMin[axis]) || !std::isfinite(offsetMax[axis]))
-                    return std::unexpected("offsets must be finite");
             }
-            if (!std::isfinite(scale.x) || !std::isfinite(scale.y) || !std::isfinite(rotation))
-                return std::unexpected("scale and rotation must be finite");
             return {};
         }
 

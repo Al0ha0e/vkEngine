@@ -107,12 +107,15 @@ namespace vke_render
             : RenderPassBase(LAYERED_2D_RENDERER, ctx, globalDescriptorSets),
               quadManager(quadManager) {}
 
+        ~Layered2DRenderer() override;
+
         void Reset() override
         {
             units.clear();
             materialStates.clear();
             quadIDPool.Reset();
             unitAllocator = vke_ds::NaiveIDAllocator<vke_ds::id32_t>();
+            resetImageTextures();
         }
 
         void Init(int subpassID, FrameGraph &frameGraph,
@@ -123,12 +126,15 @@ namespace vke_render
         void OnWindowResize(FrameGraph &frameGraph, RenderContext *ctx) override;
 
         vke_ds::id32_t AllocateUnit(const std::shared_ptr<Material> &material,
-                                   const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs);
+                                    const glm::mat4 &modelMatrix, const std::vector<QuadID> &quadIDs);
         void DestroyUnit(vke_ds::id32_t unitID);
         bool UpdateUnitQuadIDs(vke_ds::id32_t unitID, const std::vector<QuadID> &quadIDs);
 
         Layered2DRenderUnit *GetUnit(vke_ds::id32_t unitID);
         std::shared_ptr<Material> GetDefaultMaterial() const { return defaultMaterial; }
+        std::shared_ptr<Material> GetImageMaterial() const { return imageMaterial; }
+        vke_common::SceneResult<uint32_t> RegisterImageTexture(const std::shared_ptr<Texture2D> &texture);
+        void UnregisterImageTexture(uint32_t index);
         std::shared_ptr<vke_common::Font> GetFont() const { return font; }
 
     private:
@@ -138,8 +144,22 @@ namespace vke_render
             const Layered2DMaterialState *materialState;
         };
 
+        struct ImageTextureSlot
+        {
+            std::shared_ptr<Texture2D> texture;
+            uint32_t references = 0;
+        };
+
         QuadManager *quadManager;
         VkDescriptorSet rendererDescriptorSets[MAX_FRAMES_IN_FLIGHT]{};
+        VkDescriptorSet imageDescriptorSets[MAX_FRAMES_IN_FLIGHT]{};
+        std::array<bool, MAX_FRAMES_IN_FLIGHT> imageTexturesDirty{};
+        std::array<std::vector<std::shared_ptr<Texture2D>>, MAX_FRAMES_IN_FLIGHT> frameImageTextures;
+        std::shared_ptr<Material> imageMaterial;
+        std::shared_ptr<Texture2D> whiteTexture;
+        std::vector<ImageTextureSlot> imageTextures;
+        std::vector<uint32_t> freeImageTextureSlots;
+        std::unordered_map<Texture2D *, uint32_t> imageTextureIndices;
         std::shared_ptr<ShaderModuleSet> textShader;
         std::shared_ptr<Material> defaultMaterial;
         std::shared_ptr<vke_common::Font> font;
@@ -157,6 +177,8 @@ namespace vke_render
         const Layered2DMaterialState &getOrCreateMaterialState(const std::shared_ptr<Material> &material);
         void createGraphicsPipeline(Layered2DMaterialState &state);
         void syncDynamicAtlas(VkCommandBuffer commandBuffer, uint32_t currentFrame);
+        void syncImageTextures(uint32_t currentFrame);
+        void resetImageTextures();
     };
 }
 

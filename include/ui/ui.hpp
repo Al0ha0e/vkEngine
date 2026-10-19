@@ -20,7 +20,8 @@ namespace vke_ui
     enum class UIType : int32_t
     {
         Container = 1,
-        Text = 2
+        Text = 2,
+        Image = 3
     };
 
     struct UINodeData
@@ -160,6 +161,7 @@ namespace vke_ui
                 data.children.push_back(child->ToData());
         }
         virtual void unload() {}
+        virtual void onSizeChanged() {}
         virtual void updateRenderTransform(const glm::mat4 &matrix, float order) {}
 
     private:

@@ -46,6 +46,7 @@ namespace vke_common
     const AssetHandle BUILTIN_VFSHADER_SSAO_ID = 11;
     const AssetHandle BUILTIN_VFSHADER_SSAO_BLUR_ID = 12;
     const AssetHandle BUILTIN_VFSHADER_ATMOSPHERE_ID = 13;
+    const AssetHandle BUILTIN_VFSHADER_UI_IMAGE_ID = 14;
     const AssetHandle BUILTIN_COMPUTE_SHADER_SKYLUT_ID = 1;
     const AssetHandle BUILTIN_COMPUTE_SHADER_LIGHTCULL_ID = 2;
     const AssetHandle BUILTIN_COMPUTE_SHADER_IBL_LUT_ID = 3;

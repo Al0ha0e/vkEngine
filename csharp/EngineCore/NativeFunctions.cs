@@ -167,6 +167,14 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, UInt64, byte*, UInt32, Int32> SetUITextText;
         public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> GetUITextColor;
         public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> SetUITextColor;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, UInt64*, Int32> GetUIImageTexture;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, UInt64, Int32> SetUIImageTexture;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> GetUIImageColor;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> SetUIImageColor;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> GetUIImageUVRect;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec4*, Int32> SetUIImageUVRect;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32*, Int32> GetUIImagePreserveAspect;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32, Int32> SetUIImagePreserveAspect;
     }
 
     public static class NativeFunctionRegistry

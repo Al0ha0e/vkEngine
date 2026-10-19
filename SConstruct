@@ -326,6 +326,8 @@ shaders = [
     ["tone_mapping.frag", "tone_mapping_frag.spv"],
     ["text.frag", "text_frag.spv"],
     ["text.vert", "text_vert.spv"],
+    ["ui_image.vert", "ui_image_vert.spv"],
+    ["ui_image.frag", "ui_image_frag.spv"],
     ["shadow.frag", "shadow_frag.spv"],
     ["shadow.vert", "shadow_vert.spv"],
     ["shadow_skin.vert", "shadow_skin_vert.spv"],

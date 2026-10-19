@@ -561,7 +561,15 @@ namespace vke_common
             &vke_interop::GetUITextText,
             &vke_interop::SetUITextText,
             &vke_interop::GetUITextColor,
-            &vke_interop::SetUITextColor};
+            &vke_interop::SetUITextColor,
+            &vke_interop::GetUIImageTexture,
+            &vke_interop::SetUIImageTexture,
+            &vke_interop::GetUIImageColor,
+            &vke_interop::SetUIImageColor,
+            &vke_interop::GetUIImageUVRect,
+            &vke_interop::SetUIImageUVRect,
+            &vke_interop::GetUIImagePreserveAspect,
+            &vke_interop::SetUIImagePreserveAspect};
         csharpExports.registerNativeFunctions(&nativeFunctions);
     }
 }

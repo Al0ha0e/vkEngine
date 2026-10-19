@@ -38,27 +38,32 @@ namespace vke_editor
                 VKE_LOG_ERROR("Invalid Canvas resolution: {}", result.error());
         ImGui::InputInt("Sort order", &canvas->sortOrder);
 
-        auto addNode = [&](UIHandle parent, bool text)
+        auto addNode = [&](UIHandle parent, UIType type)
         {
             std::unique_ptr<UINodeData> data;
-            if (text)
+            if (type == UIType::Text)
             {
                 auto textData = std::make_unique<UITextData>();
                 textData->text = "Text";
                 data = std::move(textData);
             }
+            else if (type == UIType::Image)
+                data = std::make_unique<UIImageData>();
             else
                 data = std::make_unique<UIContainerData>();
-            data->name = text ? "Text" : "Container";
+            data->name = type == UIType::Text ? "Text" : type == UIType::Image ? "Image" : "Container";
             data->rectTransform.offsetMax = {400, 80};
             if (auto result = canvas->Add(*data, parent); !result)
                 VKE_LOG_ERROR("Failed to add UI node: {}", result.error());
         };
         if (ImGui::Button("Add Container"))
-            addNode(0, false);
+            addNode(0, UIType::Container);
         ImGui::SameLine();
         if (ImGui::Button("Add Text"))
-            addNode(0, true);
+            addNode(0, UIType::Text);
+        ImGui::SameLine();
+        if (ImGui::Button("Add Image"))
+            addNode(0, UIType::Image);
 
         std::function<void()> pendingEdit;
         std::function<void(UIComponent &, size_t, size_t)> drawNode;
@@ -67,7 +72,8 @@ namespace vke_editor
             const auto handle = node.handle;
             ImGui::PushID(&node);
             const bool opened = ImGui::TreeNodeEx("node", ImGuiTreeNodeFlags_DefaultOpen, "%s (%s)",
-                                                  node.name.c_str(), node.GetType() == UIType::Text ? "Text" : "Container");
+                                                  node.name.c_str(), node.GetType() == UIType::Text ? "Text" :
+                                                  node.GetType() == UIType::Image ? "Image" : "Container");
             if (opened)
             {
                 inputString("Name", node.name);
@@ -98,6 +104,42 @@ namespace vke_editor
                     auto color = text.GetColor();
                     if (ImGui::ColorEdit4("Color", glm::value_ptr(color)))
                         text.SetColor(color);
+                }
+                else if (node.GetType() == UIType::Image)
+                {
+                    auto &image = static_cast<UIImage &>(node);
+                    const auto texture = image.GetTexture();
+                    const auto *asset = vke_common::AssetManager::GetTextureAsset(texture);
+                    const std::string label = texture == 0 ? "0  <white>" :
+                        std::to_string(texture) + "  " + (asset ? asset->name : "<missing>");
+                    if (ImGui::BeginCombo("Texture", label.c_str()))
+                    {
+                        auto selectTexture = [&](vke_common::AssetHandle handle, const char *name)
+                        {
+                            if (ImGui::Selectable(name, handle == texture))
+                                if (auto result = image.SetTexture(handle); !result)
+                                    VKE_LOG_ERROR("Cannot set image texture: {}", result.error());
+                            if (handle == texture) ImGui::SetItemDefaultFocus();
+                        };
+                        selectTexture(0, "0  <white>");
+                        vke_common::AssetManager::IterateTextureAsset([&](const vke_common::TextureAsset &entry)
+                        {
+                            const auto choice = std::to_string(entry.id) + "  " + entry.name;
+                            selectTexture(entry.id, choice.c_str());
+                        });
+                        ImGui::EndCombo();
+                    }
+                    auto color = image.GetColor();
+                    if (ImGui::ColorEdit4("Color", glm::value_ptr(color)))
+                        if (auto result = image.SetColor(color); !result)
+                            VKE_LOG_ERROR("Invalid image color: {}", result.error());
+                    auto uv = image.GetUVRect();
+                    if (ImGui::InputFloat4("UV min/max", glm::value_ptr(uv)))
+                        if (auto result = image.SetUVRect(uv); !result)
+                            VKE_LOG_ERROR("Invalid image UV rectangle: {}", result.error());
+                    auto preserveAspect = image.GetPreserveAspect();
+                    if (ImGui::Checkbox("Preserve aspect", &preserveAspect))
+                        image.SetPreserveAspect(preserveAspect);
                 }
                 auto *parent = node.parent;
                 if (ImGui::BeginCombo("Parent", parent ? parent->name.c_str() : "Canvas"))
@@ -139,10 +181,13 @@ namespace vke_editor
                     { canvas->SetSiblingIndex(handle, index + 1); };
                 ImGui::EndDisabled();
                 if (ImGui::Button("Add Container"))
-                    addNode(handle, false);
+                    addNode(handle, UIType::Container);
                 ImGui::SameLine();
                 if (ImGui::Button("Add Text"))
-                    addNode(handle, true);
+                    addNode(handle, UIType::Text);
+                ImGui::SameLine();
+                if (ImGui::Button("Add Image"))
+                    addNode(handle, UIType::Image);
                 ImGui::SameLine();
                 if (ImGui::Button("Delete subtree"))
                     pendingEdit = [canvas, handle]()

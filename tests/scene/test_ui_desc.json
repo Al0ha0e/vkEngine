@@ -1,0 +1,22 @@
+[
+  {
+    "type": 0,
+    "id": 1024,
+    "name": "UIShowcasePortrait",
+    "path": "./tests/texture/texture.jpg",
+    "format": 43,
+    "usage": 4,
+    "layout": 5,
+    "minFilter": 1,
+    "magFilter": 1,
+    "addressMode": 2,
+    "anisotropy": false,
+    "genMipMap": true
+  },
+  {
+    "type": 7,
+    "id": 1024,
+    "name": "UIToastPrefab",
+    "path": "./tests/scene/test_ui_prefab.json"
+  }
+]

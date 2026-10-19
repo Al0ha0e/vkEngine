@@ -77,6 +77,11 @@ namespace vke_render
             }
         }
 
+        const QuadInstanceGPU &Get(QuadID quadID) const
+        {
+            return reinterpret_cast<const QuadInstanceGPU *>(cpuQuads.data)[quadID];
+        }
+
         void Update(QuadID quadID, const QuadInstanceGPU &quad)
         {
             const uint32_t bufferIndex = GetQuadBufferIndex(quadID);

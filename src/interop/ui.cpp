@@ -59,6 +59,7 @@ namespace vke_interop
         if (!canvas || (!name && length)) return 0;
         std::unique_ptr<vke_ui::UINodeData> data;
         if (type == static_cast<int32_t>(vke_ui::UIType::Text)) data = std::make_unique<vke_ui::UITextData>();
+        else if (type == static_cast<int32_t>(vke_ui::UIType::Image)) data = std::make_unique<vke_ui::UIImageData>();
         else if (type == static_cast<int32_t>(vke_ui::UIType::Container)) data = std::make_unique<vke_ui::UIContainerData>();
         else return 0;
         data->name.assign(name ? name : "", length);
@@ -194,9 +195,74 @@ namespace vke_interop
     int32_t VKE_INTEROP_CDECL SetUITextColor(uint32_t entity, uint64_t handle, const Vector4<float> *color)
     {
         auto *text = getText(entity, handle);
-        if (!text || !color || !std::isfinite(color->x) || !std::isfinite(color->y) ||
-            !std::isfinite(color->z) || !std::isfinite(color->w)) return 0;
+        if (!text || !color) return 0;
         text->SetColor({color->x, color->y, color->z, color->w});
+        return 1;
+    }
+
+    static vke_ui::UIImage *getImage(uint32_t entity, uint64_t handle)
+    {
+        auto *node = getNode(entity, handle);
+        return node && node->GetType() == vke_ui::UIType::Image ? static_cast<vke_ui::UIImage *>(node) : nullptr;
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUIImageTexture(uint32_t entity, uint64_t handle, uint64_t *value)
+    {
+        auto *image = getImage(entity, handle);
+        if (!image || !value) return 0;
+        *value = image->GetTexture();
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUIImageTexture(uint32_t entity, uint64_t handle, uint64_t value)
+    {
+        auto *image = getImage(entity, handle);
+        return image && image->SetTexture(value).has_value();
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUIImageColor(uint32_t entity, uint64_t handle, Vector4<float> *value)
+    {
+        auto *image = getImage(entity, handle);
+        if (!image || !value) return 0;
+        const auto &color = image->GetColor();
+        *value = {color.r, color.g, color.b, color.a};
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUIImageColor(uint32_t entity, uint64_t handle, const Vector4<float> *value)
+    {
+        auto *image = getImage(entity, handle);
+        return image && value && image->SetColor({value->x, value->y, value->z, value->w}).has_value();
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUIImageUVRect(uint32_t entity, uint64_t handle, Vector4<float> *value)
+    {
+        auto *image = getImage(entity, handle);
+        if (!image || !value) return 0;
+        const auto &uv = image->GetUVRect();
+        *value = {uv.x, uv.y, uv.z, uv.w};
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUIImageUVRect(uint32_t entity, uint64_t handle, const Vector4<float> *value)
+    {
+        auto *image = getImage(entity, handle);
+        return image && value && image->SetUVRect({value->x, value->y, value->z, value->w}).has_value();
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUIImagePreserveAspect(uint32_t entity, uint64_t handle, int32_t *value)
+    {
+        auto *image = getImage(entity, handle);
+        if (!image || !value) return 0;
+        *value = image->GetPreserveAspect();
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUIImagePreserveAspect(uint32_t entity, uint64_t handle, int32_t value)
+    {
+        auto *image = getImage(entity, handle);
+        if (!image || (value != 0 && value != 1)) return 0;
+        image->SetPreserveAspect(value != 0);
         return 1;
     }
 }

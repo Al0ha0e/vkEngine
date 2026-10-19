@@ -1,0 +1,1007 @@
+{
+  "objects": [
+    {
+      "id": 1,
+      "name": "UICamera",
+      "static": true,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 0],
+        "scl": [1, 1, 1],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "camera",
+          "fov": 60.0,
+          "width": 1280.0,
+          "height": 800.0,
+          "near": 0.1,
+          "far": 100.0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "BackgroundCanvas",
+      "static": true,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 0],
+        "scl": [1, 1, 1],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "canvas",
+          "mode": "screenSpace",
+          "referenceResolution": [1600, 1000],
+          "sortOrder": -100,
+          "children": [
+            {
+              "type": "uiImage",
+              "name": "Background",
+              "rectTransform": {
+                "anchorMin": [0, 0],
+                "anchorMax": [1, 1],
+                "pivot": [0, 0]
+              },
+              "color": [0.018, 0.03, 0.05, 1],
+              "texture": 0,
+              "children": []
+            },
+            {
+              "type": "uiImage",
+              "name": "TopLeft",
+              "rectTransform": {
+                "anchorMin": [0, 0],
+                "anchorMax": [0, 0],
+                "offsetMin": [8, 8],
+                "offsetMax": [18, 18]
+              },
+              "color": [0.15, 0.82, 0.85, 1],
+              "texture": 0,
+              "children": []
+            },
+            {
+              "type": "uiImage",
+              "name": "TopRight",
+              "rectTransform": {
+                "anchorMin": [1, 0],
+                "anchorMax": [1, 0],
+                "offsetMin": [-18, 8],
+                "offsetMax": [-8, 18]
+              },
+              "color": [0.15, 0.82, 0.85, 1],
+              "texture": 0,
+              "children": []
+            },
+            {
+              "type": "uiImage",
+              "name": "BottomLeft",
+              "rectTransform": {
+                "anchorMin": [0, 1],
+                "anchorMax": [0, 1],
+                "offsetMin": [8, -18],
+                "offsetMax": [18, -8]
+              },
+              "color": [0.15, 0.82, 0.85, 1],
+              "texture": 0,
+              "children": []
+            },
+            {
+              "type": "uiImage",
+              "name": "BottomRight",
+              "rectTransform": {
+                "anchorMin": [1, 1],
+                "anchorMax": [1, 1],
+                "offsetMin": [-18, -18],
+                "offsetMax": [-8, -8]
+              },
+              "color": [0.15, 0.82, 0.85, 1],
+              "texture": 0,
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "UIShowcase",
+      "static": true,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 0],
+        "scl": [1, 1, 1],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "canvas",
+          "mode": "screenSpace",
+          "referenceResolution": [1600, 1000],
+          "sortOrder": 0,
+          "children": [
+            {
+              "type": "uiContainer",
+              "name": "Board",
+              "rectTransform": {
+                "anchorMin": [0.5, 0.5],
+                "anchorMax": [0.5, 0.5],
+                "offsetMin": [-800, -500],
+                "offsetMax": [800, 500],
+                "pivot": [0, 0]
+              },
+              "children": [
+                {
+                  "type": "uiText",
+                  "name": "Title",
+                  "rectTransform": {
+                    "offsetMin": [32, 34],
+                    "offsetMax": [32, 34],
+                    "pivot": [0, 0],
+                    "scale": [0.85, 0.85]
+                  },
+                  "text": "vkEngine / UI SHOWCASE",
+                  "color": [0.9, 0.94, 1, 1],
+                  "children": []
+                },
+                {
+                  "type": "uiText",
+                  "name": "Subtitle",
+                  "rectTransform": {
+                    "offsetMin": [34, 87],
+                    "offsetMax": [34, 87],
+                    "pivot": [0, 0],
+                    "scale": [0.42, 0.42]
+                  },
+                  "text": "Screen-space Canvas  /  JSON scene + C# runtime",
+                  "color": [0.53, 0.65, 0.76, 1],
+                  "children": []
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Typography",
+                  "rectTransform": {
+                    "offsetMin": [32, 132],
+                    "offsetMax": [528, 472],
+                    "pivot": [0, 0]
+                  },
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "texture": 0,
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [20, 16],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "01 / SDF TEXT",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "Large",
+                      "rectTransform": {
+                        "offsetMin": [20, 59],
+                        "offsetMax": [20, 59],
+                        "pivot": [0, 0],
+                        "scale": [0.85, 0.85]
+                      },
+                      "text": "UI that scales",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "Unicode",
+                      "rectTransform": {
+                        "offsetMin": [20, 120],
+                        "offsetMax": [20, 120],
+                        "pivot": [0, 0],
+                        "scale": [0.52, 0.52]
+                      },
+                      "text": "UTF-8: café  naïve  Ω  Ж",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "Multiline",
+                      "rectTransform": {
+                        "offsetMin": [20, 166],
+                        "offsetMax": [20, 166],
+                        "pivot": [0, 0],
+                        "scale": [0.45, 0.45]
+                      },
+                      "text": "Explicit line breaks\nTinted text + alpha",
+                      "color": [0.98, 0.66, 0.3, 0.85],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "SmallTextBounds",
+                      "rectTransform": {
+                        "offsetMin": [20, 244],
+                        "offsetMax": [102, 278],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.14, 0.25, 0.32, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Overflow",
+                          "rectTransform": {
+                            "offsetMin": [0, 0],
+                            "offsetMax": [0, 0],
+                            "pivot": [0, 0],
+                            "scale": [0.45, 0.45]
+                          },
+                          "text": "Text extends beyond its rect",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "TextNote",
+                      "rectTransform": {
+                        "offsetMin": [20, 296],
+                        "offsetMax": [20, 296],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "Rect size does not wrap or clip text.",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Images",
+                  "rectTransform": {
+                    "offsetMin": [552, 132],
+                    "offsetMax": [1048, 472],
+                    "pivot": [0, 0]
+                  },
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "texture": 0,
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [20, 16],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "02 / TEXTURE + UV",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "StretchFrame",
+                      "rectTransform": {
+                        "offsetMin": [20, 64],
+                        "offsetMax": [160, 244],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.018, 0.03, 0.05, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "Stretch",
+                          "rectTransform": {
+                            "offsetMin": [0, 0],
+                            "offsetMax": [140, 180],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.9, 0.94, 1, 1],
+                          "texture": 1024,
+                          "preserveAspect": false,
+                          "uvRect": [0, 0, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "StretchLabel",
+                      "rectTransform": {
+                        "offsetMin": [20, 251],
+                        "offsetMax": [20, 251],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "STRETCH",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "AspectFrame",
+                      "rectTransform": {
+                        "offsetMin": [178, 64],
+                        "offsetMax": [318, 244],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.018, 0.03, 0.05, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "Aspect",
+                          "rectTransform": {
+                            "offsetMin": [0, 0],
+                            "offsetMax": [140, 180],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.9, 0.94, 1, 1],
+                          "texture": 1024,
+                          "preserveAspect": true,
+                          "uvRect": [0, 0, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "AspectLabel",
+                      "rectTransform": {
+                        "offsetMin": [178, 251],
+                        "offsetMax": [178, 251],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "I: FIT / STRETCH",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "CropFrame",
+                      "rectTransform": {
+                        "offsetMin": [336, 64],
+                        "offsetMax": [476, 244],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.018, 0.03, 0.05, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "Crop",
+                          "rectTransform": {
+                            "offsetMin": [0, 0],
+                            "offsetMax": [140, 180],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.9, 0.94, 1, 1],
+                          "texture": 1024,
+                          "preserveAspect": true,
+                          "uvRect": [0.2, 0.1, 0.8, 0.55],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "CropLabel",
+                      "rectTransform": {
+                        "offsetMin": [336, 251],
+                        "offsetMax": [336, 251],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "U: UV REGION",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "ImageKeys",
+                      "rectTransform": {
+                        "offsetMin": [20, 293],
+                        "offsetMax": [20, 293],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "I: fit/stretch   U: crop   T: texture",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Layout",
+                  "rectTransform": {
+                    "offsetMin": [1072, 132],
+                    "offsetMax": [1568, 472],
+                    "pivot": [0, 0]
+                  },
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "texture": 0,
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [20, 16],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "03 / ANCHORS + TRANSFORMS",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "AnchorFrame",
+                      "rectTransform": {
+                        "offsetMin": [20, 64],
+                        "offsetMax": [476, 158],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.025, 0.045, 0.07, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "StretchBar",
+                          "rectTransform": {
+                            "anchorMin": [0, 0],
+                            "anchorMax": [1, 0],
+                            "offsetMin": [12, 12],
+                            "offsetMax": [-12, 22],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.15, 0.82, 0.85, 1],
+                          "texture": 0,
+                          "children": []
+                        },
+                        {
+                          "type": "uiImage",
+                          "name": "Left",
+                          "rectTransform": {
+                            "offsetMin": [12, 45],
+                            "offsetMax": [54, 77],
+                            "pivot": [0, 0]
+                          },
+                          "color": [1, 0.53, 0.22, 1],
+                          "texture": 0,
+                          "children": []
+                        },
+                        {
+                          "type": "uiImage",
+                          "name": "Center",
+                          "rectTransform": {
+                            "anchorMin": [0.5, 0.5],
+                            "anchorMax": [0.5, 0.5],
+                            "offsetMin": [-25, -5],
+                            "offsetMax": [25, 27]
+                          },
+                          "color": [0.15, 0.82, 0.85, 1],
+                          "texture": 0,
+                          "children": []
+                        },
+                        {
+                          "type": "uiImage",
+                          "name": "Right",
+                          "rectTransform": {
+                            "anchorMin": [1, 1],
+                            "anchorMax": [1, 1],
+                            "offsetMin": [-54, -49],
+                            "offsetMax": [-12, -17]
+                          },
+                          "color": [0.6, 0.43, 1, 1],
+                          "texture": 0,
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiContainer",
+                      "name": "Spinner",
+                      "rectTransform": {
+                        "offsetMin": [78, 199],
+                        "offsetMax": [206, 267],
+                        "pivot": [0.5, 0.5],
+                        "rotation": 0.15
+                      },
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "RotatingPlate",
+                          "rectTransform": {
+                            "offsetMin": [0, 0],
+                            "offsetMax": [128, 68],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.1, 0.45, 0.55, 1],
+                          "texture": 0,
+                          "children": [
+                            {
+                              "type": "uiText",
+                              "name": "ChildLabel",
+                              "rectTransform": {
+                                "offsetMin": [10, 17],
+                                "offsetMax": [10, 17],
+                                "pivot": [0, 0],
+                                "scale": [0.42, 0.42]
+                              },
+                              "text": "Parent",
+                              "color": [0.9, 0.94, 1, 1],
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": "uiImage",
+                          "name": "OrbitChild",
+                          "rectTransform": {
+                            "offsetMin": [140, 14],
+                            "offsetMax": [166, 40],
+                            "pivot": [0, 0]
+                          },
+                          "color": [1, 0.53, 0.22, 1],
+                          "texture": 0,
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "Mirrored",
+                      "rectTransform": {
+                        "offsetMin": [344, 196],
+                        "offsetMax": [428, 280],
+                        "pivot": [0.5, 0.5],
+                        "scale": [-1, 1]
+                      },
+                      "color": [0.9, 0.94, 1, 1],
+                      "texture": 1024,
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "LayoutNote",
+                      "rectTransform": {
+                        "offsetMin": [20, 297],
+                        "offsetMax": [20, 297],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "Nested rotation / pivot / negative scale",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Hierarchy",
+                  "rectTransform": {
+                    "offsetMin": [32, 496],
+                    "offsetMax": [528, 836],
+                    "pivot": [0, 0]
+                  },
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "texture": 0,
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [20, 16],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "04 / RUNTIME TREE",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "DockA",
+                      "rectTransform": {
+                        "offsetMin": [20, 65],
+                        "offsetMax": [234, 215],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.025, 0.045, 0.07, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [12, 10],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "PARENT A",
+                          "color": [0.53, 0.65, 0.76, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "DockB",
+                      "rectTransform": {
+                        "offsetMin": [252, 65],
+                        "offsetMax": [476, 215],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.025, 0.045, 0.07, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [12, 10],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "PARENT B",
+                          "color": [0.53, 0.65, 0.76, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "TreeStatus",
+                      "rectTransform": {
+                        "offsetMin": [20, 232],
+                        "offsetMax": [20, 232],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "C# creates a container, image and text.",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "TreeKeys",
+                      "rectTransform": {
+                        "offsetMin": [20, 273],
+                        "offsetMax": [20, 273],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "N: remove/recreate subtree\nH: reparent, keeping RectTransform",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Ordering",
+                  "rectTransform": {
+                    "offsetMin": [552, 496],
+                    "offsetMax": [1048, 836],
+                    "pivot": [0, 0]
+                  },
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "texture": 0,
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [20, 16],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "05 / DRAW ORDER",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiContainer",
+                      "name": "Stack",
+                      "rectTransform": {
+                        "offsetMin": [20, 65],
+                        "offsetMax": [476, 247],
+                        "pivot": [0, 0]
+                      },
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "Blue",
+                          "rectTransform": {
+                            "offsetMin": [0, 0],
+                            "offsetMax": [246, 114],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.1, 0.35, 0.85, 0.85],
+                          "texture": 0,
+                          "children": [
+                            {
+                              "type": "uiText",
+                              "name": "Label",
+                              "rectTransform": {
+                                "offsetMin": [12, 12],
+                                "offsetMax": [12, 12],
+                                "pivot": [0, 0],
+                                "scale": [0.38, 0.38]
+                              },
+                          "text": "BLUE IMAGE",
+                              "color": [0.9, 0.94, 1, 1],
+                              "children": []
+                            }
+                          ]
+                        },
+                        {
+                          "type": "uiImage",
+                          "name": "Amber",
+                          "rectTransform": {
+                            "offsetMin": [110, 44],
+                            "offsetMax": [356, 158],
+                            "pivot": [0, 0]
+                          },
+                          "color": [1, 0.4, 0.1, 0.75],
+                          "texture": 0,
+                          "children": [
+                            {
+                              "type": "uiText",
+                              "name": "Label",
+                              "rectTransform": {
+                                "offsetMin": [12, 12],
+                                "offsetMax": [12, 12],
+                                "pivot": [0, 0],
+                                "scale": [0.38, 0.38]
+                              },
+                          "text": "AMBER IMAGE",
+                              "color": [0.9, 0.94, 1, 1],
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "OrderKeys",
+                      "rectTransform": {
+                        "offsetMin": [20, 274],
+                        "offsetMax": [20, 274],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "B: sibling order   O: overlay Canvas order",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "OrderStatus",
+                      "rectTransform": {
+                        "offsetMin": [20, 303],
+                        "offsetMax": [20, 303],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                  "text": "Canvas order: background -100 / main 0",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Live",
+                  "rectTransform": {
+                    "offsetMin": [1072, 496],
+                    "offsetMax": [1568, 836],
+                    "pivot": [0, 0]
+                  },
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "texture": 0,
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [20, 16],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "06 / LIVE UPDATES",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "Metrics",
+                      "rectTransform": {
+                        "offsetMin": [20, 65],
+                        "offsetMax": [20, 65],
+                        "pivot": [0, 0],
+                        "scale": [0.42, 0.42]
+                      },
+                      "text": "Waiting for first layout...",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "ProgressTrack",
+                      "rectTransform": {
+                        "offsetMin": [20, 178],
+                        "offsetMax": [476, 202],
+                        "pivot": [0, 0]
+                      },
+                      "color": [0.025, 0.045, 0.07, 1],
+                      "texture": 0,
+                      "children": [
+                        {
+                          "type": "uiImage",
+                          "name": "Progress",
+                          "rectTransform": {
+                            "anchorMin": [0, 0],
+                            "anchorMax": [0.5, 1],
+                            "pivot": [0, 0]
+                          },
+                          "color": [0.15, 0.82, 0.85, 1],
+                          "texture": 0,
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "AnimationStatus",
+                      "rectTransform": {
+                        "offsetMin": [20, 222],
+                        "offsetMax": [20, 222],
+                        "pivot": [0, 0],
+                        "scale": [0.42, 0.42]
+                      },
+                      "text": "Animation: running",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "LiveKeys",
+                      "rectTransform": {
+                        "offsetMin": [20, 273],
+                        "offsetMax": [20, 273],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "Space: pause animation   R: UI scale\nP: instantiate UI prefab (3 seconds)",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiText",
+                  "name": "Footer",
+                  "rectTransform": {
+                    "offsetMin": [32, 865],
+                    "offsetMax": [32, 865],
+                    "pivot": [0, 0],
+                    "scale": [0.43, 0.43]
+                  },
+                  "text": "Resize the window: corners stay anchored; the board keeps its reference scale.",
+                  "color": [0.9, 0.94, 1, 1],
+                  "children": []
+                },
+                {
+                  "type": "uiText",
+                  "name": "Contracts",
+                  "rectTransform": {
+                    "offsetMin": [32, 906],
+                    "offsetMax": [32, 906],
+                    "pivot": [0, 0],
+                    "scale": [0.36, 0.36]
+                  },
+                  "text": "Keyboard controls use Input. UI pointer events, clipping and automatic text wrapping are not implemented.",
+                  "color": [0.53, 0.65, 0.76, 1],
+                  "children": []
+                },
+                {
+                  "type": "uiText",
+                  "name": "Exit",
+                  "rectTransform": {
+                    "offsetMin": [32, 943],
+                    "offsetMax": [32, 943],
+                    "pivot": [0, 0],
+                    "scale": [0.4, 0.4]
+                  },
+                  "text": "Esc: exit",
+                  "color": [0.15, 0.82, 0.85, 1],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "script",
+          "className": "TestProj.UIShowcaseScript",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "OverlayCanvas",
+      "static": true,
+      "parent": 0,
+      "transform": {
+        "pos": [0, 0, 0],
+        "scl": [1, 1, 1],
+        "rot": [0, 0, 0, 1]
+      },
+      "components": [
+        {
+          "type": "canvas",
+          "mode": "screenSpace",
+          "referenceResolution": [1600, 1000],
+          "sortOrder": 10,
+          "children": [
+            {
+              "type": "uiImage",
+              "name": "OverlayBadge",
+              "rectTransform": {
+                "anchorMin": [0.5, 0.5],
+                "anchorMax": [0.5, 0.5],
+                "offsetMin": [-48, 169],
+                "offsetMax": [164, 229],
+                "pivot": [0, 0]
+              },
+              "color": [0.08, 0.7, 0.55, 0.9],
+              "texture": 0,
+              "children": [
+                {
+                  "type": "uiText",
+                  "name": "Label",
+                  "rectTransform": {
+                    "offsetMin": [10, 17],
+                    "offsetMax": [10, 17],
+                    "pivot": [0, 0],
+                    "scale": [0.37, 0.37]
+                  },
+                  "text": "CANVAS OVERLAY",
+                  "color": [0.9, 0.94, 1, 1],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "script",
+          "className": "TestProj.UIOverlayScript",
+          "data": {}
+        }
+      ]
+    }
+  ]
+}
