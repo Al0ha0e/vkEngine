@@ -18,6 +18,20 @@ namespace vke_interop
         float rotation;
     };
 
+    struct UITextLayoutOptions
+    {
+        float fontSize;
+        int32_t horizontalAlignment, verticalAlignment, wordWrap;
+    };
+    using GetUITextLayoutOptionsFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, UITextLayoutOptions *);
+    using SetUITextLayoutOptionsFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, const UITextLayoutOptions *);
+    using MeasureUITextFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, float, Vector2<float> *);
+    using GetUITextSizeFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, Vector2<float> *);
+    int32_t VKE_INTEROP_CDECL GetUITextLayoutOptions(uint32_t, uint64_t, UITextLayoutOptions *);
+    int32_t VKE_INTEROP_CDECL SetUITextLayoutOptions(uint32_t, uint64_t, const UITextLayoutOptions *);
+    int32_t VKE_INTEROP_CDECL MeasureUIText(uint32_t, uint64_t, float, Vector2<float> *);
+    int32_t VKE_INTEROP_CDECL GetUITextSize(uint32_t, uint64_t, Vector2<float> *);
+
     using GetUITypeFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t);
     using FindUIChildFn = uint64_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, const char *, uint32_t);
     using GetUIChildCountFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t);

@@ -573,7 +573,11 @@ namespace vke_common
             &vke_interop::GetUIInteraction,
             &vke_interop::SetUIInteraction,
             &vke_interop::GetUIButtonColor,
-            &vke_interop::SetUIButtonColor};
+            &vke_interop::SetUIButtonColor,
+            &vke_interop::GetUITextLayoutOptions,
+            &vke_interop::SetUITextLayoutOptions,
+            &vke_interop::MeasureUIText,
+            &vke_interop::GetUITextSize};
         csharpExports.registerNativeFunctions(&nativeFunctions);
     }
 }

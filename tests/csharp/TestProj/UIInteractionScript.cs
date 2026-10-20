@@ -152,10 +152,11 @@ public sealed class UIInteractionScript : EntityScript
         var message = canvas.CreateText("Message", panel);
         message.RectTransform = new RectTransform
         {
-            OffsetMin = new NVec2(24, 24), OffsetMax = new NVec2(596, 174),
-            Pivot = NVec2.Zero, Scale = new NVec2(0.48f, 0.48f)
+            OffsetMin = new NVec2(24, 24), OffsetMax = new NVec2(596, 198)
         };
-        message.Text = "SIMULATION PAUSED\nUpdate is stopped. UI events still run.\nThe non-interactable parent blocks input;\nits child buttons remain interactive.";
+        message.FontSize = 23;
+        message.WordWrap = true;
+        message.Text = "SIMULATION PAUSED\nUpdate is stopped. UI events still run.\nThe non-interactable parent blocks input; its child buttons remain interactive.";
         resumeButton = createModalButton("Resume", "Resume simulation", panel, 24, 278);
         exitButton = createModalButton("Exit", "Exit showcase", panel, 322, 274);
         resumeButton.Click += resume;
@@ -176,8 +177,13 @@ public sealed class UIInteractionScript : EntityScript
         var label = canvas.CreateText("Label", button);
         label.RectTransform = new RectTransform
         {
-            OffsetMin = new NVec2(16, 14), OffsetMax = new NVec2(width - 16, 44),
-            Pivot = NVec2.Zero, Scale = new NVec2(0.43f, 0.43f)
+            AnchorMax = new NVec2(1, 1),
+            OffsetMin = new NVec2(12, 4), OffsetMax = new NVec2(-12, -4)
+        };
+        label.LayoutOptions = new TextLayoutOptions
+        {
+            FontSize = 20, HorizontalAlignment = TextHorizontalAlignment.Center,
+            VerticalAlignment = TextVerticalAlignment.Middle, WordWrap = true
         };
         label.Text = caption;
         return button;

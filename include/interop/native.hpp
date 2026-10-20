@@ -230,6 +230,10 @@ namespace vke_interop
         SetUIInteractionFn SetUIInteraction;
         GetUIButtonColorFn GetUIButtonColor;
         SetUIButtonColorFn SetUIButtonColor;
+        GetUITextLayoutOptionsFn GetUITextLayoutOptions;
+        SetUITextLayoutOptionsFn SetUITextLayoutOptions;
+        MeasureUITextFn MeasureUIText;
+        GetUITextSizeFn GetUITextSize;
     };
 }
 

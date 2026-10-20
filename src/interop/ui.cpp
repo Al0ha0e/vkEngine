@@ -178,6 +178,45 @@ namespace vke_interop
         return text ? static_cast<int32_t>(text->GetText().size()) : -1;
     }
 
+    int32_t VKE_INTEROP_CDECL GetUITextLayoutOptions(uint32_t entity, uint64_t handle, UITextLayoutOptions *value)
+    {
+        auto *text = getText(entity, handle);
+        if (!text || !value) return 0;
+        const auto &options = text->GetLayoutOptions();
+        *value = {options.fontSize, static_cast<int32_t>(options.horizontalAlignment),
+                  static_cast<int32_t>(options.verticalAlignment), options.wordWrap};
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUITextLayoutOptions(uint32_t entity, uint64_t handle, const UITextLayoutOptions *value)
+    {
+        auto *text = getText(entity, handle);
+        if (!text || !value || (value->wordWrap != 0 && value->wordWrap != 1)) return 0;
+        return text->SetLayoutOptions({value->fontSize,
+            static_cast<vke_ui::TextHorizontalAlignment>(value->horizontalAlignment),
+            static_cast<vke_ui::TextVerticalAlignment>(value->verticalAlignment), value->wordWrap != 0}).has_value();
+    }
+
+    int32_t VKE_INTEROP_CDECL MeasureUIText(uint32_t entity, uint64_t handle, float maxWidth, Vector2<float> *value)
+    {
+        auto *text = getText(entity, handle);
+        if (!text || !value) return 0;
+        // -1 is the ABI's unconstrained measurement sentinel.
+        auto size = maxWidth == -1 ? vke_common::SceneResult<glm::vec2>(text->Measure()) : text->Measure(maxWidth);
+        if (!size) return 0;
+        *value = {size->x, size->y};
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUITextSize(uint32_t entity, uint64_t handle, Vector2<float> *value)
+    {
+        auto *text = getText(entity, handle);
+        if (!text || !value) return 0;
+        const auto size = text->GetTextSize();
+        *value = {size.x, size.y};
+        return 1;
+    }
+
     int32_t VKE_INTEROP_CDECL GetUITextText(uint32_t entity, uint64_t handle, char *buffer, uint32_t length)
     {
         auto *text = getText(entity, handle);

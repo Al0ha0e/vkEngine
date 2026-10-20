@@ -1,6 +1,6 @@
 {
-  "windowWidth": 1280,
-  "windowHeight": 1056,
+  "windowWidth": 1200,
+  "windowHeight": 990,
   "enableVulkanValidationLayers": false,
   "assetLUTPath": "./tests/scene/test_ui_desc.json",
   "defaultScenePath": "./tests/scene/test_ui_scene.json",

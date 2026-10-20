@@ -4,7 +4,7 @@
 
 UI 系统负责 Canvas、节点层级、RectTransform 布局、文字、图片、按钮和鼠标交互，并提供场景保存、编辑器和脚本接口。布局结果和几何数据交给 [2D 渲染系统](2d.md) 绘制。
 
-`UIRenderableComponent` 持有材质、渲染单元和 Quad ID。布局更新通过 `updateRenderTransform` 同步矩阵和绘制顺序，几何重建通过 `setGeometry` 更新 Quad 及其实例 ID 列表；卸载时释放渲染单元和 Quad 槽位。
+`UIRenderableComponent` 持有材质、渲染单元和 Quad ID。布局更新通过 `updateRenderTransform` 同步矩阵和绘制顺序；几何可原位更新已有 Quad，数量变化时通过 `setGeometry` 更新 Quad 及其实例 ID 列表。卸载时释放渲染单元和 Quad 槽位。
 
 文字颜色、图片颜色和 UV 存在 `QuadManager` 中，属性读取和 `ToData()` 从 Quad 取值。`UIImage` 单独持有纹理的 `AssetRef`，Quad 保存用于绘制的纹理表索引；序列化保存资源句柄。`UIButton` 保存各状态颜色，并将当前显示颜色写入 Quad。
 
@@ -84,9 +84,13 @@ Canvas 的父 pivot 为 `(0, 0)`。子节点按父节点未缩放的逻辑尺寸
 
 ## UIText
 
-`UIText` 使用内置 Arial 字体，将 UTF-8 文本转换为字形 Quad，支持显式换行。文字从布局矩形左上角开始排列，大小通过 RectTransform 的缩放调整；当前不提供自动换行或内容自适应布局。
+`UIText` 使用内置 Arial 字体，将 UTF-8 文本转换为字形 Quad，支持字号、水平与垂直对齐、显式换行和按矩形宽度自动换行。`fontSize` 使用 Canvas 逻辑单位，默认 48；RectTransform 的缩放作用于整个节点。布局矩形不随文字内容自动调整大小。
 
-`UITextData` 保存 `text`、`color` 和材质引用，材质句柄 0 使用默认文字材质。`SetText` 重建几何，`SetColor` 更新所有字形颜色。没有可见字形时保留一个零面积 Quad，使颜色在后续修改和重建中保持一致。
+`UITextData` 保存 `text`、`color`、材质引用和 `layout` 排版属性。JSON 使用 `fontSize`、`horizontalAlignment`（`left/center/right`）、`verticalAlignment`（`top/middle/bottom`）和 `wordWrap` 字段，默认左上对齐且关闭自动换行。材质句柄 0 使用默认文字材质。
+
+`SetText` 在内容变化时重建排版和几何，`SetLayoutOptions` 更新排版属性，`SetColor` 更新所有字形颜色。没有可见字形时保留一个零面积 Quad，使颜色在后续修改和重建中保持一致。`Measure()` 查询自然尺寸，`Measure(maxWidth)` 查询给定宽度下的换行尺寸；`GetTextSize()` 返回最近求解矩形下的排版尺寸。C# 对应 `LayoutOptions`、四个独立排版属性、两个 `Measure` 重载和 `TextSize`。
+
+分行规则、边界条件、尺寸定义和复杂度见 [文字排版算法](text_layout.md)。
 
 ## UIImage
 
@@ -166,10 +170,16 @@ var label = canvas.CreateText("Label", button);
 label.Text = "Pause";
 label.RectTransform = new RectTransform
 {
-    OffsetMin = new NVec2(16, 12),
-    OffsetMax = new NVec2(184, 58),
-    Pivot = NVec2.Zero,
-    Scale = new NVec2(0.5f, 0.5f)
+    AnchorMax = new NVec2(1, 1),
+    OffsetMin = new NVec2(16, 8),
+    OffsetMax = new NVec2(-16, -8)
+};
+label.LayoutOptions = new TextLayoutOptions
+{
+    FontSize = 24,
+    HorizontalAlignment = TextHorizontalAlignment.Center,
+    VerticalAlignment = TextVerticalAlignment.Middle,
+    WordWrap = true
 };
 ```
 
@@ -219,7 +229,7 @@ JSON 输入先校验，再按 `type` 构造具体节点数据；`CanvasData::Val
 
 ## 编辑器和 C#
 
-编辑器通过 `Scene > New Object > Empty` 创建实体，再通过 Inspector 的 `Add Component > Canvas` 添加 Canvas。Canvas Inspector 展示内部 UI 树，支持添加容器、文字、图片和按钮、删除子树、修改父节点、调整同级顺序，以及编辑布局、文字和颜色。图片和按钮节点可选择纹理、编辑 UV 区域和等比显示选项。所有节点可配置鼠标命中和交互开关，按钮可编辑各状态颜色。旋转输入显示角度，存储与 API 使用弧度。
+编辑器通过 `Scene > New Object > Empty` 创建实体，再通过 Inspector 的 `Add Component > Canvas` 添加 Canvas。Canvas Inspector 展示内部 UI 树，支持添加容器、文字、图片和按钮、删除子树、修改父节点、调整同级顺序，以及编辑布局、文字和颜色。文字节点可编辑字号、对齐和自动换行，并查看自然尺寸与当前排版尺寸；Add Button 创建的标签拉伸到按钮内边距区域并居中。图片和按钮节点可选择纹理、编辑 UV 区域和等比显示选项。所有节点可配置鼠标命中和交互开关，按钮可编辑各状态颜色。旋转输入显示角度，存储与 API 使用弧度。
 
 C# 的类型层级与原生节点对应。`GetComponent<Canvas>()` 获取场景组件，Canvas 通过实体 ID 定位，UIComponent 保存 Canvas 引用和节点 Handle。节点通过 `Find`、`Get`、`Children` 和各类 `Create*` 方法访问。
 
@@ -273,11 +283,11 @@ scons
 .\out\engine.exe .\tests\cfg\test_ui.json
 ```
 
-示例使用仓库自带字体和图片，参考分辨率为 1600 × 1320，初始窗口为 1280 × 1056。调整窗口大小可以观察居中的展示板、四角锚点和等比适配。场景位于 [test_ui_scene.json](../tests/scene/test_ui_scene.json)，资源表位于 [test_ui_desc.json](../tests/scene/test_ui_desc.json)。九个分区覆盖以下能力：
+示例使用仓库自带字体和图片，参考分辨率为 1600 × 1320，初始窗口为 1200 × 990。调整窗口大小可以观察居中的展示板、四角锚点和等比适配。场景位于 [test_ui_scene.json](../tests/scene/test_ui_scene.json)，资源表位于 [test_ui_desc.json](../tests/scene/test_ui_desc.json)。九个分区覆盖以下能力：
 
 | 分区 | 展示内容 |
 | --- | --- |
-| SDF Text | UTF-8、显式换行、缩放、颜色与透明度，以及文字超出布局矩形 |
+| Text Layout | 18 / 22 / 26 字号、456 / 300 宽度、九种对齐组合、自动换行开关，以及自然尺寸与当前排版尺寸 |
 | Texture + UV | 图片拉伸、等比适配、UV 裁切、纹理切换；可点击按钮操作 |
 | Anchors + Transforms | 锚点、父子旋转与缩放；点击旋转按钮和负缩放图片可观察事件 |
 | Runtime Tree | 创建容器、按钮和标签，换父级、删除子树及句柄失效；卡片可点击删除自身 |
@@ -288,6 +298,8 @@ scons
 | Pause + Lifecycle | 暂停模拟后的模态菜单、子节点独立交互、可点击关闭的纹理按钮预制体 |
 
 鼠标左键操作界面按钮。事件探针上按下后拖到外部释放可观察 Up，按住时按 D 禁用或切换窗口可观察 Cancel。事件区的 Hover / Press 显示最近事件目标的状态，Clicks 统计探针点击。
+
+文字区点击预览框可依次查看普通段落、超长单词和含显式换行的 UTF-8 文本。下方按钮切换字号、预览框宽度、水平/垂直对齐和自动换行；尺寸读数每 0.25 秒刷新，`Natural` 来自 `Measure()`，`Layout` 来自 `TextSize`，`Box` 是文字矩形的逻辑尺寸。关闭换行后可以观察文字溢出，重新开启后按当前宽度分行。按钮标签使用拉伸锚点与居中对齐，动态卡片和暂停菜单也使用字号及排版属性。
 
 字母快捷键需使用英文输入模式：I / U / T 切换图片适配、UV 和纹理；N / H 创建或移除子树、换父级；B / O 修改兄弟顺序、覆盖层 Canvas 顺序；R 切换展示板与覆盖层的参考分辨率；Space 暂停或恢复示例动画；P 创建预制体；D 切换探针交互；M 打开暂停菜单；运行中按 Esc 退出。
 

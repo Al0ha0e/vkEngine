@@ -140,12 +140,12 @@
                   "rectTransform": {
                     "offsetMin": [32, 34],
                     "offsetMax": [32, 34],
-                    "pivot": [0, 0],
-                    "scale": [0.85, 0.85]
+                    "pivot": [0, 0]
                   },
                   "text": "vkEngine / INTERACTIVE UI",
                   "color": [0.9, 0.94, 1, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 40.8
                 },
                 {
                   "type": "uiText",
@@ -153,12 +153,12 @@
                   "rectTransform": {
                     "offsetMin": [34, 87],
                     "offsetMax": [34, 87],
-                    "pivot": [0, 0],
-                    "scale": [0.42, 0.42]
+                    "pivot": [0, 0]
                   },
-                  "text": "Screen-space Canvas / mouse events / JSON + C# runtime",
+                  "text": "Screen-space Canvas / text layout + measurement / images / pointer events",
                   "color": [0.53, 0.65, 0.76, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 20.16
                 },
                 {
                   "type": "uiImage",
@@ -176,89 +176,192 @@
                       "name": "Heading",
                       "rectTransform": {
                         "offsetMin": [20, 16],
-                        "offsetMax": [20, 16],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "offsetMax": [476, 50],
+                        "pivot": [0, 0]
                       },
-                      "text": "01 / SDF TEXT",
+                      "text": "01 / TEXT LAYOUT",
+                      "fontSize": 24,
                       "color": [0.15, 0.82, 0.85, 1],
                       "children": []
                     },
                     {
-                      "type": "uiText",
-                      "name": "Large",
+                      "type": "uiButton",
+                      "name": "TextPreview",
                       "rectTransform": {
-                        "offsetMin": [20, 59],
-                        "offsetMax": [20, 59],
-                        "pivot": [0, 0],
-                        "scale": [0.85, 0.85]
-                      },
-                      "text": "UI that scales",
-                      "color": [0.9, 0.94, 1, 1],
-                      "children": []
-                    },
-                    {
-                      "type": "uiText",
-                      "name": "Unicode",
-                      "rectTransform": {
-                        "offsetMin": [20, 120],
-                        "offsetMax": [20, 120],
-                        "pivot": [0, 0],
-                        "scale": [0.52, 0.52]
-                      },
-                      "text": "UTF-8: café  naïve  Ω  Ж",
-                      "color": [0.9, 0.94, 1, 1],
-                      "children": []
-                    },
-                    {
-                      "type": "uiText",
-                      "name": "Multiline",
-                      "rectTransform": {
-                        "offsetMin": [20, 166],
-                        "offsetMax": [20, 166],
-                        "pivot": [0, 0],
-                        "scale": [0.45, 0.45]
-                      },
-                      "text": "Explicit line breaks\nTinted text + alpha",
-                      "color": [0.98, 0.66, 0.3, 0.85],
-                      "children": []
-                    },
-                    {
-                      "type": "uiImage",
-                      "name": "SmallTextBounds",
-                      "rectTransform": {
-                        "offsetMin": [20, 244],
-                        "offsetMax": [102, 278],
+                        "offsetMin": [20, 60],
+                        "offsetMax": [476, 210],
                         "pivot": [0, 0]
                       },
-                      "color": [0.14, 0.25, 0.32, 1],
                       "texture": 0,
+                      "color": [0.025, 0.055, 0.085, 1],
+                      "hoverColor": [0.035, 0.085, 0.12, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
                       "children": [
                         {
                           "type": "uiText",
-                          "name": "Overflow",
+                          "name": "Sample",
                           "rectTransform": {
-                            "offsetMin": [0, 0],
-                            "offsetMax": [0, 0],
-                            "pivot": [0, 0],
-                            "scale": [0.45, 0.45]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [12, 8],
+                            "offsetMax": [-12, -8]
                           },
-                          "text": "Text extends beyond its rect",
+                          "text": "Words wrap with the box. Alignment applies to every line.",
+                          "fontSize": 22,
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "FontSizeButton",
+                      "rectTransform": {
+                        "offsetMin": [20, 220],
+                        "offsetMax": [128, 256],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
+                          },
+                          "text": "Font: 22",
+                          "fontSize": 16,
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": [],
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "WidthButton",
+                      "rectTransform": {
+                        "offsetMin": [136, 220],
+                        "offsetMax": [244, 256],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
+                          },
+                          "text": "Width: 456",
+                          "fontSize": 16,
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": [],
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "AlignmentButton",
+                      "rectTransform": {
+                        "offsetMin": [252, 220],
+                        "offsetMax": [360, 256],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
+                          },
+                      "text": "Align: C/M",
+                          "fontSize": 16,
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": [],
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "WrapButton",
+                      "rectTransform": {
+                        "offsetMin": [368, 220],
+                        "offsetMax": [476, 256],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
+                          },
+                          "text": "Wrap: on",
+                          "fontSize": 16,
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": [],
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
                     {
                       "type": "uiText",
-                      "name": "TextNote",
+                      "name": "TextMetrics",
                       "rectTransform": {
-                        "offsetMin": [20, 296],
-                        "offsetMax": [20, 296],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "offsetMin": [20, 266],
+                        "offsetMax": [476, 310],
+                        "pivot": [0, 0]
                       },
-                      "text": "Rect size does not wrap or clip text.",
+                      "text": "Natural / layout size: enter Run mode\nWidth changes reflow the same text.",
+                      "fontSize": 17,
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "TextHint",
+                      "rectTransform": {
+                        "offsetMin": [20, 312],
+                        "offsetMax": [476, 334],
+                        "pivot": [0, 0]
+                      },
+                      "text": "Click text: paragraph / long word / UTF-8.",
+                      "fontSize": 16,
                       "color": [0.53, 0.65, 0.76, 1],
                       "children": []
                     }
@@ -281,12 +384,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [20, 16],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "02 / TEXTURE + UV",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiImage",
@@ -335,14 +438,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "T: texture",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -393,14 +499,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "I: fit",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -451,14 +560,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "U: crop",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -468,12 +580,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 293],
                         "offsetMax": [20, 293],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "pivot": [0, 0]
                       },
                       "text": "Buttons inherit texture, UV and image layout.",
                       "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 18.24
                     }
                   ]
                 },
@@ -494,12 +606,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [20, 16],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "03 / ANCHORS + TRANSFORMS",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiImage",
@@ -591,14 +703,17 @@
                               "type": "uiText",
                               "name": "ChildLabel",
                               "rectTransform": {
-                                "offsetMin": [10, 17],
-                                "offsetMax": [10, 17],
-                                "pivot": [0, 0],
-                                "scale": [0.42, 0.42]
+                                "anchorMax": [1, 1],
+                                "offsetMin": [8, 4],
+                                "offsetMax": [-8, -4]
                               },
                               "text": "Click me",
                               "color": [0.9, 0.94, 1, 1],
-                              "children": []
+                              "children": [],
+                              "fontSize": 20.16,
+                              "horizontalAlignment": "center",
+                              "verticalAlignment": "middle",
+                              "wordWrap": true
                             }
                           ],
                           "hoverColor": [0.12, 0.5, 0.58, 1],
@@ -641,12 +756,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 297],
                         "offsetMax": [20, 297],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "pivot": [0, 0]
                       },
                       "text": "Click rotated button / mirrored image: see log.",
                       "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 18.24
                     }
                   ]
                 },
@@ -667,12 +782,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [20, 16],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "04 / RUNTIME TREE",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiImage",
@@ -691,12 +806,12 @@
                           "rectTransform": {
                             "offsetMin": [12, 10],
                             "offsetMax": [12, 10],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "pivot": [0, 0]
                           },
                           "text": "PARENT A",
                           "color": [0.53, 0.65, 0.76, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24
                         }
                       ]
                     },
@@ -717,12 +832,12 @@
                           "rectTransform": {
                             "offsetMin": [12, 10],
                             "offsetMax": [12, 10],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "pivot": [0, 0]
                           },
                           "text": "PARENT B",
                           "color": [0.53, 0.65, 0.76, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24
                         }
                       ]
                     },
@@ -732,12 +847,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 232],
                         "offsetMax": [20, 232],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "pivot": [0, 0]
                       },
-                      "text": "C# creates a container, image and text.",
+                      "text": "C# creates a container, button and text.",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 18.24
                     },
                     {
                       "type": "uiButton",
@@ -759,14 +874,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "N: create / remove",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -790,14 +908,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "H: change parent",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     }
@@ -820,12 +941,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [20, 16],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "05 / DRAW ORDER",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiContainer",
@@ -853,12 +974,12 @@
                               "rectTransform": {
                                 "offsetMin": [12, 12],
                                 "offsetMax": [12, 12],
-                                "pivot": [0, 0],
-                                "scale": [0.38, 0.38]
+                                "pivot": [0, 0]
                               },
                               "text": "BLUE IMAGE",
                               "color": [0.9, 0.94, 1, 1],
-                              "children": []
+                              "children": [],
+                              "fontSize": 18.24
                             }
                           ]
                         },
@@ -879,12 +1000,12 @@
                               "rectTransform": {
                                 "offsetMin": [12, 12],
                                 "offsetMax": [12, 12],
-                                "pivot": [0, 0],
-                                "scale": [0.38, 0.38]
+                                "pivot": [0, 0]
                               },
                               "text": "AMBER IMAGE",
                               "color": [0.9, 0.94, 1, 1],
-                              "children": []
+                              "children": [],
+                              "fontSize": 18.24
                             }
                           ]
                         }
@@ -896,12 +1017,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 253],
                         "offsetMax": [460, 293],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "pivot": [0, 0]
                       },
                       "text": "O: move overlay Canvas above / below",
                       "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 17.28
                     },
                     {
                       "type": "uiButton",
@@ -923,14 +1044,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "B: swap siblings",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     }
@@ -953,12 +1077,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [20, 16],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "06 / LIVE UPDATES",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiText",
@@ -966,12 +1090,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 65],
                         "offsetMax": [20, 65],
-                        "pivot": [0, 0],
-                        "scale": [0.42, 0.42]
+                        "pivot": [0, 0]
                       },
                       "text": "Waiting for first layout...",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 20.16
                     },
                     {
                       "type": "uiImage",
@@ -1004,12 +1128,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 222],
                         "offsetMax": [20, 222],
-                        "pivot": [0, 0],
-                        "scale": [0.42, 0.42]
+                        "pivot": [0, 0]
                       },
                       "text": "Animation: running",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 20.16
                     },
                     {
                       "type": "uiButton",
@@ -1031,14 +1155,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "Space: animation",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -1062,14 +1189,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "P: UI prefab",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     }
@@ -1092,12 +1222,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [460, 66],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "07 / BUTTON + POINTER EVENTS",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiButton",
@@ -1119,14 +1249,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "Press / drag off / release",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -1150,14 +1283,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "Disable [D]",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -1167,12 +1303,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 134],
                         "offsetMax": [460, 184],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "pivot": [0, 0]
                       },
                       "text": "Hover: False | Press: False | Clicks: 0",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 18.24
                     },
                     {
                       "type": "uiText",
@@ -1180,12 +1316,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 170],
                         "offsetMax": [460, 220],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "pivot": [0, 0]
                       },
                       "text": "Move onto a target to see events.",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 17.28
                     },
                     {
                       "type": "uiText",
@@ -1193,12 +1329,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 278],
                         "offsetMax": [460, 328],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "pivot": [0, 0]
                       },
                       "text": "Down + release outside: Up only.\nHold + D / lose focus: Cancel.",
                       "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 17.28
                     }
                   ]
                 },
@@ -1219,12 +1355,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [460, 66],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "08 / HIT TEST + PASS THROUGH",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiButton",
@@ -1246,14 +1382,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "BACK TARGET",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -1277,12 +1416,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 222],
                         "offsetMax": [460, 272],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "pivot": [0, 0]
                       },
                       "text": "Back clicks: 0 | Front clicks: 0",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 18.24
                     },
                     {
                       "type": "uiText",
@@ -1290,12 +1429,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 250],
                         "offsetMax": [460, 300],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "pivot": [0, 0]
                       },
                       "text": "Mode 1: pass through",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 18.24
                     },
                     {
                       "type": "uiButton",
@@ -1317,14 +1456,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "Cycle: pass / block / invisible / active",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     }
@@ -1347,12 +1489,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 16],
                         "offsetMax": [460, 66],
-                        "pivot": [0, 0],
-                        "scale": [0.5, 0.5]
+                        "pivot": [0, 0]
                       },
                       "text": "09 / PAUSE + LIFECYCLE",
                       "color": [0.15, 0.82, 0.85, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 24.0
                     },
                     {
                       "type": "uiText",
@@ -1360,12 +1502,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 63],
                         "offsetMax": [460, 113],
-                        "pivot": [0, 0],
-                        "scale": [0.43, 0.43]
+                        "pivot": [0, 0]
                       },
                       "text": "Pause stops script Update.\nUI callbacks remain active.\nResume with the modal button.",
                       "color": [0.9, 0.94, 1, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 20.64
                     },
                     {
                       "type": "uiButton",
@@ -1387,14 +1529,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "M: pause + modal",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -1418,14 +1563,17 @@
                           "type": "uiText",
                           "name": "Label",
                           "rectTransform": {
-                            "offsetMin": [12, 10],
-                            "offsetMax": [452, 60],
-                            "pivot": [0, 0],
-                            "scale": [0.38, 0.38]
+                            "anchorMax": [1, 1],
+                            "offsetMin": [8, 4],
+                            "offsetMax": [-8, -4]
                           },
                           "text": "Spawn dismissible textured prefab",
                           "color": [0.9, 0.94, 1, 1],
-                          "children": []
+                          "children": [],
+                          "fontSize": 18.24,
+                          "horizontalAlignment": "center",
+                          "verticalAlignment": "middle",
+                          "wordWrap": true
                         }
                       ]
                     },
@@ -1435,12 +1583,12 @@
                       "rectTransform": {
                         "offsetMin": [20, 278],
                         "offsetMax": [460, 328],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "pivot": [0, 0]
                       },
                       "text": "Prefab: click to dismiss or wait 3s.\nRuntime card: click to delete its subtree.",
                       "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "children": [],
+                      "fontSize": 17.28
                     }
                   ]
                 },
@@ -1450,12 +1598,12 @@
                   "rectTransform": {
                     "offsetMin": [32, 1222],
                     "offsetMax": [1532, 1262],
-                    "pivot": [0, 0],
-                    "scale": [0.4, 0.4]
+                    "pivot": [0, 0]
                   },
-                  "text": "Click the controls. Drag off the event probe to release without a Click; D toggles its Interactable state.",
+                  "text": "Click the text preview to change content; use its controls to explore sizing, alignment and wrapping.",
                   "color": [0.9, 0.94, 1, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 19.2
                 },
                 {
                   "type": "uiText",
@@ -1463,12 +1611,12 @@
                   "rectTransform": {
                     "offsetMin": [32, 1260],
                     "offsetMax": [1532, 1300],
-                    "pivot": [0, 0],
-                    "scale": [0.36, 0.36]
+                    "pivot": [0, 0]
                   },
                   "text": "Resize: anchored layout | R: UI scale | O: overlay order | M: pause menu | Esc: exit (while running)",
                   "color": [0.53, 0.65, 0.76, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 17.28
                 },
                 {
                   "type": "uiText",
@@ -1476,12 +1624,12 @@
                   "rectTransform": {
                     "offsetMin": [32, 1290],
                     "offsetMax": [1532, 1330],
-                    "pivot": [0, 0],
-                    "scale": [0.32, 0.32]
+                    "pivot": [0, 0]
                   },
-                  "text": "Clipping, automatic text wrapping, keyboard focus and world-space Canvas are not implemented.",
+                  "text": "Clipping, automatic container layout, keyboard focus and world-space Canvas are not implemented.",
                   "color": [0.15, 0.82, 0.85, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 15.36
                 }
               ]
             }
@@ -1535,12 +1683,12 @@
                   "rectTransform": {
                     "offsetMin": [10, 17],
                     "offsetMax": [10, 17],
-                    "pivot": [0, 0],
-                    "scale": [0.37, 0.37]
+                    "pivot": [0, 0]
                   },
                   "text": "CANVAS OVERLAY",
                   "color": [0.9, 0.94, 1, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 17.76
                 }
               ]
             }

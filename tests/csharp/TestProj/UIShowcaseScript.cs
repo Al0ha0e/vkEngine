@@ -18,6 +18,14 @@ public sealed class UIShowcaseScript : EntityScript
     private UIText metrics = null!;
     private UIText treeStatus = null!;
     private UIText animationStatus = null!;
+    private UIButton textPreview = null!;
+    private UIText textSample = null!;
+    private UIText textMetrics = null!;
+    private UIText fontSizeLabel = null!;
+    private UIText widthLabel = null!;
+    private UIText alignmentLabel = null!;
+    private UIText wrapLabel = null!;
+    private int sampleIndex;
     private bool inDockB;
     private bool blueOnTop;
     private bool paused;
@@ -33,6 +41,23 @@ public sealed class UIShowcaseScript : EntityScript
         canvas = GetComponent<Canvas>()!;
         // Find searches direct children; cache the scene's named nodes once.
         var board = canvas.Find("Board")!;
+        var typography = canvas.Find("Typography", board)!;
+        textPreview = (UIButton)canvas.Find("TextPreview", typography)!;
+        textSample = (UIText)canvas.Find("Sample", textPreview)!;
+        textMetrics = (UIText)canvas.Find("TextMetrics", typography)!;
+        var fontButton = canvas.Find("FontSizeButton", typography)!;
+        var widthButton = canvas.Find("WidthButton", typography)!;
+        var alignmentButton = canvas.Find("AlignmentButton", typography)!;
+        var wrapButton = canvas.Find("WrapButton", typography)!;
+        fontSizeLabel = (UIText)canvas.Find("Label", fontButton)!;
+        widthLabel = (UIText)canvas.Find("Label", widthButton)!;
+        alignmentLabel = (UIText)canvas.Find("Label", alignmentButton)!;
+        wrapLabel = (UIText)canvas.Find("Label", wrapButton)!;
+        bindClick(textPreview, _ => cycleTextSample());
+        bindClick(fontButton, _ => cycleFontSize());
+        bindClick(widthButton, _ => toggleTextWidth());
+        bindClick(alignmentButton, _ => cycleTextAlignment());
+        bindClick(wrapButton, _ => toggleTextWrap());
         var images = canvas.Find("Images", board)!;
         portrait = (UIImage)canvas.Find("Aspect", canvas.Find("AspectFrame", images))!;
         crop = (UIImage)canvas.Find("Crop", canvas.Find("CropFrame", images))!;
@@ -101,7 +126,7 @@ public sealed class UIShowcaseScript : EntityScript
             progress.Color = new NVec4(0.15f + 0.7f * amount, 0.82f, 0.85f - 0.5f * amount, 1);
         }
 
-        // Text geometry is rebuilt only four times per second; transforms animate every frame.
+        // Refresh diagnostic labels four times per second; transforms animate every frame.
         ++frames;
         metricsTime += Time.DeltaTime;
         if (metricsTime >= 0.25f)
@@ -109,6 +134,11 @@ public sealed class UIShowcaseScript : EntityScript
             var size = canvas.ResolvedSize;
             var reference = canvas.ReferenceResolution;
             metrics.Text = $"FPS: {frames / metricsTime:0}\nCanvas: {size.x:0} x {size.y:0}\nReference: {reference.x:0} x {reference.y:0}";
+            var natural = textSample.Measure();
+            var laidOut = textSample.TextSize;
+            textMetrics.Text = $"Natural: {natural.x:0} x {natural.y:0} | Layout: {laidOut.x:0} x {laidOut.y:0}\n" +
+                $"Box: {textSample.ResolvedSize.x:0} x {textSample.ResolvedSize.y:0} | " +
+                (textSample.WordWrap ? "Word wrap; long words split." : "No wrap; overflow stays visible.");
             frames = 0;
             metricsTime = 0;
         }
@@ -132,6 +162,48 @@ public sealed class UIShowcaseScript : EntityScript
         paused = !paused;
         animationStatus.Text = paused ? "Animation: paused" : "Animation: running";
         animationStatus.Color = paused ? new NVec4(1, 0.53f, 0.22f, 1) : new NVec4(0.15f, 0.82f, 0.85f, 1);
+    }
+
+    private void cycleTextSample()
+    {
+        sampleIndex = (sampleIndex + 1) % 3;
+        textSample.Text = sampleIndex switch
+        {
+            0 => "Words wrap with the box. Alignment applies to every line.",
+            1 => "Supercalifragilisticexpialidocious\nLong words split at codepoints.",
+            _ => "UTF-8: café  naïve  Ω  Ж\nExplicit breaks + automatic wrapping."
+        };
+    }
+
+    private void cycleFontSize()
+    {
+        textSample.FontSize = textSample.FontSize switch { 18 => 22, 22 => 26, _ => 18 };
+        fontSizeLabel.Text = $"Font: {textSample.FontSize:0}";
+    }
+
+    private void toggleTextWidth()
+    {
+        var rect = textPreview.RectTransform;
+        float width = rect.OffsetMax.x - rect.OffsetMin.x == 456 ? 300 : 456;
+        rect.OffsetMax = new NVec2(rect.OffsetMin.x + width, rect.OffsetMax.y);
+        textPreview.RectTransform = rect;
+        widthLabel.Text = $"Width: {width:0}";
+    }
+
+    private void cycleTextAlignment()
+    {
+        var options = textSample.LayoutOptions;
+        int alignmentIndex = ((int)options.VerticalAlignment * 3 + (int)options.HorizontalAlignment + 1) % 9;
+        options.HorizontalAlignment = (TextHorizontalAlignment)(alignmentIndex % 3);
+        options.VerticalAlignment = (TextVerticalAlignment)(alignmentIndex / 3);
+        textSample.LayoutOptions = options;
+        alignmentLabel.Text = $"Align: {options.HorizontalAlignment.ToString()[0]}/{options.VerticalAlignment.ToString()[0]}";
+    }
+
+    private void toggleTextWrap()
+    {
+        textSample.WordWrap = !textSample.WordWrap;
+        wrapLabel.Text = textSample.WordWrap ? "Wrap: on" : "Wrap: off";
     }
 
     private void toggleAspect() => portrait.PreserveAspect = !portrait.PreserveAspect;
@@ -191,8 +263,13 @@ public sealed class UIShowcaseScript : EntityScript
         var label = canvas.CreateText("Label", background);
         label.RectTransform = new RectTransform
         {
-            OffsetMin = new NVec2(12, 15), OffsetMax = new NVec2(174, 68),
-            Pivot = NVec2.Zero, Scale = new NVec2(0.4f, 0.4f)
+            AnchorMax = new NVec2(1, 1),
+            OffsetMin = new NVec2(8, 4), OffsetMax = new NVec2(-8, -4)
+        };
+        label.LayoutOptions = new TextLayoutOptions
+        {
+            FontSize = 19.2f, HorizontalAlignment = TextHorizontalAlignment.Center,
+            VerticalAlignment = TextVerticalAlignment.Middle, WordWrap = true
         };
         label.Text = "Created in C#\nClick: remove me";
         updateTreeStatus();

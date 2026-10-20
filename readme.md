@@ -110,7 +110,7 @@ Or launch the editor with your project's config:
   - [x] UI transform: anchor, pivot, size, scale
   - [x] basic widgets: text, image, panel, button
   - [x] mouse input/events: hover, press, release, click
-  - [ ] text layout: font size, alignment, wrapping, measurement
+  - [x] text layout: font size, alignment, wrapping, measurement
   - [ ] automatic layout and content sizing
   - [ ] nested clipping and hit test integration
 - **Scene / ECS**:

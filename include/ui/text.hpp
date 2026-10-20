@@ -2,6 +2,7 @@
 #define UI_TEXT_COMPONENT_H
 
 #include <ui/ui_renderable.hpp>
+#include <ui/text_layout.hpp>
 #include <font.hpp>
 #include <asset/asset_manager.hpp>
 #include <asset/asset_ref.hpp>
@@ -11,17 +12,49 @@
 
 namespace vke_ui
 {
+    enum class TextHorizontalAlignment : int32_t { Left, Center, Right };
+    enum class TextVerticalAlignment : int32_t { Top, Middle, Bottom };
+
+    struct TextLayoutOptions
+    {
+        float fontSize = 48;
+        TextHorizontalAlignment horizontalAlignment = TextHorizontalAlignment::Left;
+        TextVerticalAlignment verticalAlignment = TextVerticalAlignment::Top;
+        bool wordWrap = false;
+
+        bool operator==(const TextLayoutOptions &) const = default;
+        vke_common::SceneResult<void> Validate() const
+        {
+            if (!std::isfinite(fontSize) || fontSize <= 0)
+                return std::unexpected("fontSize must be finite and positive");
+            if (horizontalAlignment < TextHorizontalAlignment::Left || horizontalAlignment > TextHorizontalAlignment::Right ||
+                verticalAlignment < TextVerticalAlignment::Top || verticalAlignment > TextVerticalAlignment::Bottom)
+                return std::unexpected("invalid text alignment");
+            return {};
+        }
+    };
+
     struct UITextData final : UINodeData
     {
         std::string text;
+        TextLayoutOptions layout;
         glm::vec4 color{1.0f};
         vke_common::AssetRef<vke_render::Material> material;
 
         static vke_common::SceneResult<void> ValidateJSON(const nlohmann::json &json)
         {
             using namespace vke_common::json_validation;
-            if (auto valid = Object(json).Strings({"text"}).Unsigneds({"material"}).Vectors({"color"}, 4).Result(); !valid)
+            if (auto valid = Object(json).Strings({"text", "horizontalAlignment", "verticalAlignment"})
+                .Numbers({"fontSize"}).Booleans({"wordWrap"}).Unsigneds({"material"}).Vectors({"color"}, 4).Result(); !valid)
                 return valid;
+            if (json.contains("fontSize") && json["fontSize"].get<float>() <= 0)
+                return std::unexpected("fontSize must be positive");
+            if (json.contains("horizontalAlignment") && json["horizontalAlignment"] != "left" &&
+                json["horizontalAlignment"] != "center" && json["horizontalAlignment"] != "right")
+                return std::unexpected("invalid horizontalAlignment");
+            if (json.contains("verticalAlignment") && json["verticalAlignment"] != "top" &&
+                json["verticalAlignment"] != "middle" && json["verticalAlignment"] != "bottom")
+                return std::unexpected("invalid verticalAlignment");
             return validateCommonJSON(json);
         }
 
@@ -30,6 +63,14 @@ namespace vke_ui
             : UINodeData(json), text(json.value("text", std::string())),
               material(json.value("material", vke_common::AssetHandle{0}))
         {
+            layout.fontSize = json.value("fontSize", 48.0f);
+            layout.wordWrap = json.value("wordWrap", false);
+            const auto horizontal = json.value("horizontalAlignment", std::string("left"));
+            layout.horizontalAlignment = horizontal == "left" ? TextHorizontalAlignment::Left :
+                horizontal == "center" ? TextHorizontalAlignment::Center : TextHorizontalAlignment::Right;
+            const auto vertical = json.value("verticalAlignment", std::string("top"));
+            layout.verticalAlignment = vertical == "top" ? TextVerticalAlignment::Top :
+                vertical == "middle" ? TextVerticalAlignment::Middle : TextVerticalAlignment::Bottom;
             if (json.contains("color"))
             {
                 const auto &value = json["color"];
@@ -40,6 +81,12 @@ namespace vke_ui
 
         UIType GetType() const override { return UIType::Text; }
         std::unique_ptr<UINodeData> Clone() const override { return std::make_unique<UITextData>(*this); }
+
+        vke_common::SceneResult<void> Validate() const override
+        {
+            if (auto valid = layout.Validate(); !valid) return valid;
+            return UINodeData::Validate();
+        }
 
         vke_common::SceneResult<void> ValidateAssets() const override
         {
@@ -71,6 +118,12 @@ namespace vke_ui
             auto json = UINodeData::ToJSON();
             json["type"] = "uiText";
             json["text"] = text;
+            json["fontSize"] = layout.fontSize;
+            json["wordWrap"] = layout.wordWrap;
+            constexpr const char *horizontal[] = {"left", "center", "right"};
+            constexpr const char *vertical[] = {"top", "middle", "bottom"};
+            json["horizontalAlignment"] = horizontal[static_cast<int>(layout.horizontalAlignment)];
+            json["verticalAlignment"] = vertical[static_cast<int>(layout.verticalAlignment)];
             json["color"] = {color.r, color.g, color.b, color.a};
             json["material"] = material.Handle();
             return json;
@@ -80,19 +133,7 @@ namespace vke_ui
     class UIText final : public UIRenderableComponent
     {
     public:
-        explicit UIText(const UITextData &data)
-            : UIRenderableComponent(data, data.material.Get()),
-              text(data.text),
-              font(vke_common::AssetManager::LoadFont(vke_common::BUILTIN_FONT_ARIAL_ID))
-        {
-            if (!rebuild(data.color))
-            {
-                vke_render::QuadInstanceGPU quad{};
-                quad.color = data.color;
-                setGeometry({quad});
-                VKE_LOG_ERROR("Cannot allocate UIText geometry for {}", name);
-            }
-        }
+        explicit UIText(const UITextData &data);
 
         UIType GetType() const override { return UIType::Text; }
         std::unique_ptr<UINodeData> ToData() const override
@@ -100,17 +141,18 @@ namespace vke_ui
             auto data = std::make_unique<UITextData>();
             fillData(*data);
             data->text = text;
+            data->layout = options;
             data->color = GetColor();
             data->material.SetAsset(material);
             return data;
         }
 
-        void SetText(std::string_view newText)
-        {
-            text.assign(newText);
-            if (!rebuild(GetColor()))
-                VKE_LOG_ERROR("Cannot allocate UIText geometry for {}", name);
-        }
+        void SetText(std::string_view newText);
+        vke_common::SceneResult<void> SetLayoutOptions(const TextLayoutOptions &value);
+        const TextLayoutOptions &GetLayoutOptions() const { return options; }
+        glm::vec2 Measure() const;
+        vke_common::SceneResult<glm::vec2> Measure(float maxWidth) const;
+        glm::vec2 GetTextSize() const { return {layout.width, layout.height}; }
 
         void SetColor(const glm::vec4 &newColor)
         {
@@ -125,60 +167,21 @@ namespace vke_ui
         }
 
     private:
+        struct Character
+        {
+            uint32_t codepoint;
+            float advance;
+            vke_common::Glyph glyph;
+        };
         std::string text;
         std::shared_ptr<vke_common::Font> font;
-
-        bool rebuild(glm::vec4 color)
-        {
-            std::vector<vke_render::QuadInstanceGPU> quads;
-            quads.reserve(text.size());
-
-            int penX = 0;
-            int baselineY = font->ascender;
-
-            for (uint32_t codepoint : vke_common::Font::DecodeUTF8(text))
-            {
-                if (codepoint == '\n')
-                {
-                    penX = 0;
-                    baselineY += font->lineHeight;
-                    continue;
-                }
-
-                vke_common::Glyph *glyph = font->GetOrCreateGlyph(codepoint);
-                if (glyph == nullptr)
-                    glyph = font->GetOrCreateGlyph('?');
-                if (glyph == nullptr)
-                    continue;
-
-                if (glyph->width > 0 && glyph->height > 0)
-                {
-                    const float minX = static_cast<float>(penX + glyph->bearingX);
-                    const float minY = static_cast<float>(baselineY - glyph->bearingY);
-                    const float maxX = minX + static_cast<float>(glyph->width);
-                    const float maxY = minY + static_cast<float>(glyph->height);
-
-                    vke_render::QuadInstanceGPU instance{};
-                    instance.quadRect = glm::vec4(minX, minY, maxX, maxY);
-                    instance.uvRect = glm::vec4(
-                        static_cast<float>(glyph->atlasX), static_cast<float>(glyph->atlasY),
-                        static_cast<float>(glyph->atlasX + glyph->width),
-                        static_cast<float>(glyph->atlasY + glyph->height));
-                    instance.color = color;
-                    instance.atlasInfo.x = static_cast<uint32_t>(glyph->atlasType);
-                    quads.push_back(instance);
-                }
-                penX += glyph->advanceX;
-            }
-
-            if (quads.empty())
-            {
-                vke_render::QuadInstanceGPU quad{};
-                quad.color = color;
-                quads.push_back(quad);
-            }
-            return setGeometry(std::move(quads));
-        }
+        TextLayoutOptions options;
+        std::vector<Character> characters;
+        TextLayout layout;
+        void prepareCharacters();
+        void updateLayout();
+        bool rebuildGeometry(glm::vec4 color);
+        void onSizeChanged() override;
     };
 }
 

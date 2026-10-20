@@ -59,10 +59,10 @@ namespace vke_editor
                 label->name = "Label";
                 label->text = "Button";
                 label->color = {0.1f, 0.1f, 0.1f, 1};
-                label->rectTransform.offsetMin = {16, 12};
-                label->rectTransform.offsetMax = {380, 60};
-                label->rectTransform.pivot = {0, 0};
-                label->rectTransform.scale = {0.5f, 0.5f};
+                label->rectTransform.anchorMax = {1, 1};
+                label->rectTransform.offsetMin = {16, 8};
+                label->rectTransform.offsetMax = {-16, -8};
+                label->layout = {24, TextHorizontalAlignment::Center, TextVerticalAlignment::Middle, true};
                 buttonData->children.push_back(std::move(label));
                 data = std::move(buttonData);
                 break;
@@ -145,6 +145,22 @@ namespace vke_editor
                     auto color = text.GetColor();
                     if (ImGui::ColorEdit4("Color", glm::value_ptr(color)))
                         text.SetColor(color);
+                    auto options = text.GetLayoutOptions();
+                    bool layoutChanged = ImGui::InputFloat("Font size", &options.fontSize);
+                    int horizontal = static_cast<int>(options.horizontalAlignment);
+                    int vertical = static_cast<int>(options.verticalAlignment);
+                    layoutChanged |= ImGui::Combo("Horizontal alignment", &horizontal, "Left\0Center\0Right\0");
+                    layoutChanged |= ImGui::Combo("Vertical alignment", &vertical, "Top\0Middle\0Bottom\0");
+                    layoutChanged |= ImGui::Checkbox("Word wrap", &options.wordWrap);
+                    options.horizontalAlignment = static_cast<TextHorizontalAlignment>(horizontal);
+                    options.verticalAlignment = static_cast<TextVerticalAlignment>(vertical);
+                    if (layoutChanged)
+                        if (auto result = text.SetLayoutOptions(options); !result)
+                            VKE_LOG_ERROR("Invalid text layout: {}", result.error());
+                    const auto naturalSize = text.Measure();
+                    const auto textSize = text.GetTextSize();
+                    ImGui::Text("Natural size: %.1f x %.1f", naturalSize.x, naturalSize.y);
+                    ImGui::Text("Text size: %.1f x %.1f", textSize.x, textSize.y);
                     break;
                 }
                 case UIType::Image:

@@ -179,6 +179,10 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32, Int32> SetUIInteraction;
         public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32, NVec4*, Int32> GetUIButtonColor;
         public delegate* unmanaged[Cdecl]<UInt32, UInt64, Int32, NVec4*, Int32> SetUIButtonColor;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, TextLayoutOptions*, Int32> GetUITextLayoutOptions;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, TextLayoutOptions*, Int32> SetUITextLayoutOptions;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, float, NVec2*, Int32> MeasureUIText;
+        public delegate* unmanaged[Cdecl]<UInt32, UInt64, NVec2*, Int32> GetUITextSize;
     }
 
     public static class NativeFunctionRegistry

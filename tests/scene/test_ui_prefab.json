@@ -55,12 +55,12 @@
                   "rectTransform": {
                     "offsetMin": [92, 12],
                     "offsetMax": [92, 12],
-                    "pivot": [0, 0],
-                    "scale": [0.44, 0.44]
+                    "pivot": [0, 0]
                   },
                   "text": "TEXTURED UI PREFAB",
                   "color": [0.9, 0.94, 1, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 21.12
                 },
                 {
                   "type": "uiText",
@@ -68,12 +68,12 @@
                   "rectTransform": {
                     "offsetMin": [92, 53],
                     "offsetMax": [92, 53],
-                    "pivot": [0, 0],
-                    "scale": [0.34, 0.34]
+                    "pivot": [0, 0]
                   },
                   "text": "Click portrait to dismiss / 3s simulation time.",
                   "color": [0.9, 0.94, 1, 1],
-                  "children": []
+                  "children": [],
+                  "fontSize": 16.32
                 }
               ]
             }
