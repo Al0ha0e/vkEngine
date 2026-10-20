@@ -1,5 +1,6 @@
 #include <scene.hpp>
 #include <engine_state.hpp>
+#include <ui/ui_manager.hpp>
 #include <algorithm>
 #include <unordered_set>
 
@@ -443,6 +444,7 @@ namespace vke_common
 
         // Drain rendering before dropping registrations or component-owned GPU buffers.
         vke_render::Renderer::Reset();
+        vke_ui::UIManager::Reset();
         ScriptManager::Reset();
         vke_audio::AudioManager::Reset();
         // Plain C++ destruction releases owned resources, without lifecycle dispatch.

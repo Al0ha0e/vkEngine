@@ -58,6 +58,7 @@ namespace vke_editor
                                    passes, customPasses, editorConfig.gameConfig->renderConfig);
         vke_common::ScriptManager::Init();
         instance->sceneManager = vke_common::SceneManager::Init();
+        vke_ui::UIManager::Init(instance->sceneManager->registry);
         vke_editor::EditorStateManager::SetState(vke_editor::EditorState::Edit);
 
         return instance;
@@ -77,6 +78,7 @@ namespace vke_editor
     {
         instance->disposeTexturePreviewDescriptorSets();
         instance->editSnapshot.reset();
+        vke_ui::UIManager::Dispose();
         vke_common::SceneManager::Dispose();
         vke_common::ScriptManager::Dispose();
         vke_render::Renderer::Dispose();
@@ -168,8 +170,20 @@ namespace vke_editor
         if (wireframePass)
             wireframePass->SetSelectedEntity(selectedEntity);
 
-        vke_common::Engine::UpdatePresentation();
-        EditorRenderer::GetInstance()->Update();
+        auto *editorRenderer = EditorRenderer::GetInstance();
+        vke_ui::UIPointerInput pointer;
+        editorRenderer->BeginFrame(pointer);
+        using vke_common::InputManager;
+        auto *window = vke_render::RenderEnvironment::GetInstance()->window;
+        pointer.active = EditorStateManager::GetState() == EditorState::Run &&
+                         vke_common::EngineStateManager::GetState() != vke_common::EngineState::Terminated &&
+                         glfwGetWindowAttrib(window, GLFW_FOCUSED) && !glfwGetWindowAttrib(window, GLFW_ICONIFIED) &&
+                         !InputManager::IsFocusLostThisFrame() && InputManager::GetCursorMode() != GLFW_CURSOR_DISABLED;
+        pointer.down = InputManager::IsMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT);
+        pointer.pressed = InputManager::IsMouseButtonPressed(GLFW_MOUSE_BUTTON_LEFT);
+        pointer.released = InputManager::IsMouseButtonReleased(GLFW_MOUSE_BUTTON_LEFT);
+        vke_common::Engine::UpdatePresentation(&pointer);
+        editorRenderer->Update();
         vke_common::InputManager::EndFrame();
         return true;
     }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <ui/text.hpp>
-#include <ui/image.hpp>
+#include <ui/button.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <climits>
@@ -248,12 +248,21 @@ namespace vke_component
         vke_ui::UIComponent *addPrepared(const vke_ui::UINodeData &data, vke_ui::UIComponent *parent)
         {
             std::unique_ptr<vke_ui::UIComponent> owned;
-            if (data.GetType() == vke_ui::UIType::Text)
+            switch (data.GetType())
+            {
+            case vke_ui::UIType::Text:
                 owned = std::make_unique<vke_ui::UIText>(static_cast<const vke_ui::UITextData &>(data));
-            else if (data.GetType() == vke_ui::UIType::Image)
+                break;
+            case vke_ui::UIType::Button:
+                owned = std::make_unique<vke_ui::UIButton>(static_cast<const vke_ui::UIButtonData &>(data));
+                break;
+            case vke_ui::UIType::Image:
                 owned = std::make_unique<vke_ui::UIImage>(static_cast<const vke_ui::UIImageData &>(data));
-            else
+                break;
+            case vke_ui::UIType::Container:
                 owned = std::make_unique<vke_ui::UIContainer>(static_cast<const vke_ui::UIContainerData &>(data));
+                break;
+            }
             auto *node = owned.get();
             node->handle = nextHandle++;
             node->parent = parent;
@@ -263,12 +272,7 @@ namespace vke_component
             return node;
         }
 
-        void unloadSubtree(vke_ui::UIComponent &node)
-        {
-            for (auto &child : node.children) unloadSubtree(*child);
-            node.unload();
-            nodes.erase(node.handle);
-        }
+        void unloadSubtree(vke_ui::UIComponent &node);
 
         void updateSubtree(vke_ui::UIComponent &node, const glm::vec2 &parentSize, const glm::vec2 &parentPivot,
                            const glm::mat4 &parentMatrix, bool parentChanged, uint32_t &drawOrder)

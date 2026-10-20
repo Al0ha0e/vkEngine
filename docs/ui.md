@@ -2,15 +2,15 @@
 
 ## 职责与渲染接口
 
-UI 系统负责 Canvas、节点层级、RectTransform 布局、文字和图片内容，以及场景保存、编辑器和脚本接口。底层 [2D 渲染系统](2d.md) 负责 Quad 存储、材质状态、渲染单元和 GPU 绘制。UI 系统将布局结果和几何数据提交给 2D 渲染器。
+UI 系统负责 Canvas、节点层级、RectTransform 布局、文字、图片、按钮和鼠标交互，并提供场景保存、编辑器和脚本接口。布局结果和几何数据交给 [2D 渲染系统](2d.md) 绘制。
 
-`UIRenderableComponent` 创建时向 `Layered2DRenderer` 分配渲染单元，持有材质和 Quad ID；布局更新时通过 `updateRenderTransform` 同步矩阵和绘制顺序。`UIText` 重建文字几何后通过 `setGeometry` 更新 Quad 与渲染单元的实例 ID 列表，颜色修改直接更新 Quad 颜色。节点卸载时释放渲染单元和 Quad 槽位。
+`UIRenderableComponent` 持有材质、渲染单元和 Quad ID。布局更新通过 `updateRenderTransform` 同步矩阵和绘制顺序，几何重建通过 `setGeometry` 更新 Quad 及其实例 ID 列表；卸载时释放渲染单元和 Quad 槽位。
 
-运行时颜色、UV 和纹理索引以 `QuadManager` 中的 Quad 为准，属性读取和 `ToData()` 从 Quad 取值。`UIText` 的所有字形共享颜色，重建时读取首个 Quad 的颜色；没有可见字形时保留一个零面积 Quad，保存颜色供后续修改和重建使用。`UIImage` 在修改 UV、切换纹理或重新布局时读取现有 Quad，只更新受影响的字段。`UITextData` 和 `UIImageData` 保存用于创建节点和序列化的属性快照。
+文字颜色、图片颜色和 UV 存在 `QuadManager` 中，属性读取和 `ToData()` 从 Quad 取值。`UIImage` 单独持有纹理的 `AssetRef`，Quad 保存用于绘制的纹理表索引；序列化保存资源句柄。`UIButton` 保存各状态颜色，并将当前显示颜色写入 Quad。
 
 ## Canvas 与 UI 节点
 
-`vke_component::Canvas` 是挂在场景实体上的组件，拥有一棵独立的 UI 树。场景组件接口使用 `ComponentType::Canvas`。UI 节点由 `unique_ptr<UIComponent>` 持有，父指针为非拥有引用；场景的 Transform 层级管理实体，Canvas 的层级管理 UI。
+`vke_component::Canvas` 是挂在场景实体上的组件，组件类型为 `ComponentType::Canvas`，拥有独立于实体 Transform 层级的 UI 树。UI 节点由 `unique_ptr<UIComponent>` 持有，父指针为非拥有引用。
 
 ```text
 Canvas（场景组件，拥有根节点列表）
@@ -22,21 +22,24 @@ UIComponent（节点基类）
 └─ UIRenderableComponent
    ├─ UIText
    └─ UIImage
+      └─ UIButton
 ```
 
 `include/ui/` 下的节点类型、RectTransform 和节点数据属于 `vke_ui` 命名空间；`Canvas` 与 `CanvasData` 位于 `include/component/canvas.hpp`，属于 `vke_component` 命名空间。
 
-`ui.hpp` 定义公共数据基类 `UINodeData`、运行时基类 `UIComponent`，以及容器的 `UIContainerData` 和 `UIContainer`；`text.hpp` 定义 `UITextData` 和 `UIText`，`image.hpp` 定义 `UIImageData` 和 `UIImage`。各数据类型与对应的 UI 组件位于同一头文件。节点类与 Canvas 的成员函数实现在各自头文件中；`src/ui/ui.cpp` 实现按节点类型分派的 JSON 校验和数据构造。`ui_manager.hpp` 定义 `UIManager`，其类内实现的静态 `Update` 入口负责收集、排序 Canvas 并调用画布更新；布局状态由 Canvas 和节点持有。
+节点类与对应的数据类型位于同一头文件：`ui.hpp` 定义基类与容器，`text.hpp`、`image.hpp`、`button.hpp` 分别定义文字、图片和按钮。`UIManager` 持有场景 registry 引用及悬停、按下目标，负责 Canvas 排序、布局调度和鼠标事件分发；Canvas 和节点保存布局状态。
 
-`UIComponent` 保存名称、RectTransform、父子关系和最近一次布局结果。`UIContainer` 提供布局容器；`UIRenderableComponent` 管理材质、渲染单元和 Quad；`UIText` 负责文字几何与颜色，`UIImage` 负责图片纹理、UV、颜色和适配布局的矩形。每个节点都可以有子节点。节点创建后地址稳定，Canvas 在 EnTT 存储中移动不会移动内部节点。
+引擎和编辑器在 `SceneManager::Init()` 后调用 `UIManager::Init(registry)`，在销毁场景管理器前调用 `UIManager::Dispose()`，使 registry 覆盖 UIManager 的生命周期。实例通过 `UIManager::GetInstance()` 访问。
 
-原生调用方直接访问节点的 `name`、`handle`、`parent`、`children`、`rectTransform` 和 `resolvedSize`。`name` 可直接修改；`handle` 由 Canvas 分配，层级修改使用 Canvas 的操作函数，以同步父子关系、句柄索引和资源释放。布局修改通过 `SetRectTransform` 校验并标脏，直接赋值 `rectTransform` 不会触发布局重算；`resolvedSize` 由布局系统写入。
+`UIComponent` 保存名称、RectTransform、父子关系、交互状态和最近一次布局结果。所有节点均可包含子节点，`UIContainer` 只提供布局和交互区域。节点创建后地址稳定，Canvas 在 EnTT 存储中移动不会移动内部节点。
 
-Canvas 通过哈希表把 `UIHandle` 映射到节点指针，句柄查找平均 O(1)。句柄为进程内单调分配的 64 位编号，0 表示 Canvas 根。删除、移除 Canvas、销毁实体和 Reset 会使对应节点句柄失效，新节点使用新的编号。句柄不参与序列化，场景恢复后须重新查询。原生节点指针只在节点存活期间有效。
+原生节点的 `name` 可直接修改。层级修改使用 Canvas 操作函数，以维护所有权和句柄索引；布局修改使用 `SetRectTransform` 校验并标脏，直接赋值 `rectTransform` 不会触发布局重算。`handle` 由 Canvas 分配，`resolvedSize` 由布局系统写入。
+
+Canvas 通过哈希表将 `UIHandle` 映射到节点指针，查找平均 O(1)。句柄为进程内单调分配的 64 位编号，父句柄 0 表示 Canvas 根。节点销毁后句柄失效，原生指针也随之失效；场景恢复后需重新查询节点。
 
 ## 屏幕空间
 
-当前支持 `screenSpace` 模式。Canvas 可以挂在任意场景实体上，宿主 Transform 不参与屏幕布局。所有 Canvas 使用当前渲染目标的像素尺寸，左上原点，X 向右，Y 向下。
+Canvas 当前支持 `screenSpace` 模式，JSON 的 `mode` 也仅接受此值。Canvas 可以挂在任意场景实体上，宿主 Transform 不参与屏幕布局。所有 Canvas 使用当前渲染目标的像素尺寸，左上原点，X 向右，Y 向下。
 
 `referenceResolution` 默认 `(1920, 1080)`，两个分量必须为正。画布等比适配，宽高比变化时扩大对应方向的逻辑范围：
 
@@ -45,8 +48,6 @@ scale = min(viewportWidth / referenceWidth, viewportHeight / referenceHeight)
 logicalSize = viewportPixelSize / scale
 canvasMatrix = Scale(scale, scale, 1)
 ```
-
-JSON 中的 `mode` 仅支持 `screenSpace`，其他值会返回错误。
 
 ## RectTransform
 
@@ -71,13 +72,25 @@ geometryMatrix = layoutMatrix * Translate(-pivot * size)
 
 Canvas 的父 pivot 为 `(0, 0)`。子节点按父节点未缩放的逻辑尺寸布局，视觉变换沿 UI 层级组合。零尺寸合法，负尺寸收敛为零。布局矩形不裁剪文字，也不随文字内容自动调整大小。
 
-`UIComponent::SetRectTransform` 校验输入并标脏；`Canvas::SetReferenceResolution` 标记整棵树需要重算。`Engine::Update` 和 `Editor::Update` 通过公共入口 `Engine::UpdatePresentation()` 调度绘制前更新：先将场景 registry 和当前渲染目标尺寸传给 `vke_ui::UIManager::Update(registry, viewportSize)`，再调用 `Renderer::Update()` 执行渲染。编辑、暂停和运行状态均执行这条路径。如果随后渲染时发生交换链重建，UI 布局在下一帧适配新尺寸。零尺寸目标保留上次结果。
+`SetRectTransform` 标记节点布局为脏，`Canvas::SetReferenceResolution` 标记整棵树为脏。`Engine::UpdatePresentation()` 在编辑、暂停和运行状态下均执行以下流程：
 
-每帧遍历节点，复杂度 O(n)，只重新计算脏节点及受父节点变化影响的子树布局。节点的 `resolvedSize` 保存最近一次求解结果，首次求解前为零。需要提前读取布局时，可以显式调用 `vke_ui::UIManager::Update(registry, viewportSize)`。
+1. `UIManager::Update(viewportSize)` 按当前渲染目标尺寸更新布局。
+2. `UIManager::ProcessPointer(viewportSize, input)` 处理鼠标事件。
+3. `Renderer::Update()` 绘制。
+
+交换链在渲染阶段重建时，布局在下一帧适配新尺寸；零尺寸目标保留上次布局结果。
+
+每次布局更新先排序 Canvas，再以 O(n) 遍历节点，仅重算脏节点及受父节点变化影响的子树。`resolvedSize` 保存最近一次求解结果，首次求解前为零。需要提前读取布局时，可调用 `UIManager::GetInstance()->Update(viewportSize)`。
+
+## UIText
+
+`UIText` 使用内置 Arial 字体，将 UTF-8 文本转换为字形 Quad，支持显式换行。文字从布局矩形左上角开始排列，大小通过 RectTransform 的缩放调整；当前不提供自动换行或内容自适应布局。
+
+`UITextData` 保存 `text`、`color` 和材质引用，材质句柄 0 使用默认文字材质。`SetText` 重建几何，`SetColor` 更新所有字形颜色。没有可见字形时保留一个零面积 Quad，使颜色在后续修改和重建中保持一致。
 
 ## UIImage
 
-`UIImage` 使用共享的内置图片材质，通过 Quad 中的纹理索引访问 2D Renderer 的 bindless 图片纹理表。每个 UIImage 使用一个 Quad，图片和文字按同一 Canvas 顺序绘制，每个节点独立提交 draw。尺寸变化调用 `onSizeChanged()`，图片原位更新 Quad；移动、旋转和缩放通过渲染单元矩阵更新。
+`UIImage` 使用一个 Quad 和共享的内置图片材质，通过纹理索引访问 2D Renderer 的图片纹理表。尺寸变化原位更新 Quad，移动、旋转和缩放更新渲染单元矩阵。图片和文字遵循相同的绘制顺序，每个可渲染节点独立提交一次 draw。
 
 `UIImageData` 的属性包括：
 
@@ -86,9 +99,9 @@ Canvas 的父 pivot 为 `(0, 0)`。子节点按父节点未缩放的逻辑尺寸
 - `uvRect`：`(minU, minV, maxU, maxV)`，默认 `(0, 0, 1, 1)`。各分量在 `[0, 1]` 内，每轴 minimum 不大于 maximum；坐标原点为图片左上角。
 - `preserveAspect`：默认 false，填满布局矩形；true 时根据纹理尺寸和 UV 区域计算宽高比，居中等比缩放到布局矩形内。空 UV 区域在等比模式下生成零尺寸几何。子节点始终按完整布局矩形定位。
 
-原生 `SetTexture(AssetHandle)` 校验并加载纹理，注册成功后更新图片，失败返回错误并保留原来的纹理和几何。`SetColor` 写入 Quad 颜色，`SetUVRect` 校验 UV 范围并更新 Quad，两者返回 `SceneResult<void>`；`SetPreserveAspect(bool)` 更新显示方式。资源校验和加载沿用节点数据的 `ValidateAssets` / `LoadAssets` 流程。
+原生 `SetTexture(AssetHandle)` 校验、加载并注册纹理，成功后替换图片，失败保留原纹理和几何。`SetColor` 修改颜色，`SetUVRect` 校验并修改 UV；三者返回 `SceneResult<void>`。`SetPreserveAspect(bool)` 更新适配方式。
 
-纹理表容纳 1024 个槽位，其中槽位 0 为白色纹理。同一纹理对象共享索引并按注册次数计数，删除节点或成功换图时注销旧纹理；最后一个使用者注销后，CPU 槽位立即可复用。各在飞行帧通过自己的纹理引用快照保留仍在使用的资源，待该帧完成并同步描述符后释放旧引用。换图先注册新纹理，表满且新纹理尚未注册时返回错误并保留原图。构造时注册失败的节点记录错误，使用零面积 Quad 保存颜色和 UV，可通过成功的 `SetTexture` 恢复。Quad 容量不足时记录分配错误并归还纹理注册；没有分配到 Quad 的图片节点读取默认颜色和 UV，换图、修改颜色和 UV 返回错误。帧描述符同步和资源生命周期见 [2D 渲染系统](2d.md)。
+构造时纹理注册失败会记录错误，节点保留颜色和 UV，但不显示图片，可通过成功的 `SetTexture` 恢复。Quad 分配失败时记录错误，后续纹理、颜色和 UV 修改返回错误。纹理表容量、共享索引和逐帧资源释放见 [2D 渲染系统](2d.md#图片纹理表与逐帧更新)。
 
 ```json
 {
@@ -103,23 +116,82 @@ Canvas 的父 pivot 为 `(0, 0)`。子节点按父节点未缩放的逻辑尺寸
 }
 ```
 
+## 鼠标命中与事件
+
+所有 UI 节点都有 `hitTestEnabled` 和 `interactable`，C# 属性为 `HitTestEnabled` 和 `Interactable`。图片、文字和容器默认关闭命中，按钮默认开启；交互默认开启。两个开关仅作用于自身，子节点独立配置。
+
+命中检测按 Canvas 排序和树遍历的逆序寻找最上层目标。`hitTestEnabled=false` 的节点透传鼠标；true 的节点命中后阻挡后方节点。`interactable=false` 的目标仍阻挡后方节点，但不会接收 Enter、Down、Up 或 Click；已有交互通过 Cancel / Exit 结束。透明度不影响命中。可以使用参与命中的容器作为弹窗遮挡层。
+
+命中检测将渲染目标像素坐标逆变换到节点局部空间，与布局矩形比较，因此包含父子旋转和缩放的影响。零尺寸或不可逆变换不命中。图片 `preserveAspect` 留白属于命中区域，父矩形不裁剪子节点的命中范围。
+
+当前支持单鼠标左键，C# 节点暴露以下事件：
+
+| 事件 | 触发条件 |
+| --- | --- |
+| `PointerEnter` / `PointerExit` | 鼠标进入或离开最上层可交互目标 |
+| `PointerDown` | 在目标上按下左键 |
+| `PointerUp` | 左键释放，发送给原按下目标，包括在目标外释放 |
+| `Click` | 在同一目标上按下和释放，释放后目标仍有效、可交互且位于鼠标下最上层 |
+| `PointerCancel` | 按下期间输入停用、命中或交互被关闭，或按键状态被重置 |
+
+按下后移出会保留按下目标，移回再释放可以点击；在外部释放只产生 Up。删除目标后事件停止。失焦和编辑器退出 Run 模式会清理交互状态，暂停模拟时仍处理鼠标事件，可用于暂停菜单。
+
+事件在脚本 Update / LateUpdate 之后、渲染之前同步分发。处理器可以删除节点、移除 Canvas、调整层级或创建节点；分发器通过实体 ID 和 UIHandle 重新查找目标，每次事件分发后更新布局，使修改在本帧绘制中生效。处理器暴露新控件时，本次按下不会转移给尚未收到 Enter 的控件。
+
+C# 的 `UIFunctions` 与 C++ 的 `CSharpUIFunctions` 对应，通过 `CSharpExports.UIFuncs` 导出事件分发和订阅清理入口。`UIManager` 通过 `ScriptManager::GetUIFunctions().dispatchPointerEvent` 调用托管处理器。
+
+订阅按节点句柄共享，通过 `Get` / `Find` 得到的不同托管包装可以取消同一订阅。每次事件使用订阅快照；处理器异常会被记录，其余处理器继续执行，目标失效后停止分发。节点销毁时自动清理订阅；脚本订阅其他长期存活节点时，应在 `Unload` 中解除订阅。
+
+`UIPointerEvent` 包含 `Target`、`Type` 和渲染目标像素坐标 `Position`。`IsHovered` / `IsPressed` 在调用处理器前更新，关闭命中或交互也会立即清零。UI 事件不会消费原始 `Input` 状态，游戏逻辑可独立读取。
+
+独立运行时按 GLFW 窗口尺寸与渲染目标尺寸的比例换算鼠标坐标。编辑器通过 `EditorRenderer::BeginFrame(pointer)` 获取 Scene 图片区域内的坐标和命中状态，再将运行状态与鼠标按键写入 `UIPointerInput`，传给 `Engine::UpdatePresentation(&pointer)`。编辑器仅在 Run 模式接收 UI 输入，新命中限于 Scene 图片区域，按下目标在区域外仍能收到释放或取消。窗口失焦、最小化或光标处于 `GLFW_CURSOR_DISABLED` 模式时停用输入。
+
+## UIButton
+
+`UIButton` 继承 `UIImage`，复用图片纹理、UV 和矩形几何。标签是普通 `UIText` 子节点，可独立编辑；编辑器的 Add Button 自动创建名为 Label 的文字子节点，C# `CreateButton` 创建按钮本身。
+
+按钮的 `color` 表示普通状态颜色，`hoverColor`、`pressedColor`、`disabledColor` 表示悬停、按下和禁用状态颜色。默认分别为白色、0.85 灰、0.65 灰和 0.4 灰，Alpha 均为 1。禁用状态优先；按下并位于鼠标下时使用按下颜色，移出后显示普通颜色。C# 使用继承的 `Color` 以及 `HoverColor`、`PressedColor`、`DisabledColor` 修改颜色。`Color` 的读取和序列化始终返回普通状态颜色，Quad 保存当前显示颜色。
+
+```csharp
+var button = canvas.CreateButton("Pause");
+button.RectTransform = new RectTransform
+{
+    OffsetMin = new NVec2(40, 40),
+    OffsetMax = new NVec2(240, 110)
+};
+button.Color = new NVec4(0.15f, 0.3f, 0.5f, 1);
+button.HoverColor = new NVec4(0.2f, 0.4f, 0.65f, 1);
+button.Click += e => { /* 处理点击 */ };
+var label = canvas.CreateText("Label", button);
+label.Text = "Pause";
+label.RectTransform = new RectTransform
+{
+    OffsetMin = new NVec2(16, 12),
+    OffsetMax = new NVec2(184, 58),
+    Pivot = NVec2.Zero,
+    Scale = new NVec2(0.5f, 0.5f)
+};
+```
+
+JSON 节点类型为 `uiButton`，在 `uiImage` 字段基础上增加 `hoverColor`、`pressedColor` 和 `disabledColor`。
+
 ## 顺序、操作与生命周期
 
-Canvas 按 `sortOrder` 从小到大排列，相同值按运行时实体 ID 排列。每棵 UI 树按先父后子、兄弟数组顺序遍历，后访问的节点后绘制。系统将遍历顺序写入渲染单元矩阵的 Z 平移，供现有 2D renderer 排序；该值不参与 UI 平面布局。`SetSiblingIndex` 调整同级节点顺序。
+Canvas 按 `sortOrder` 从小到大排列，相同值按运行时实体 ID 排列。每棵 UI 树按先父后子、兄弟数组顺序遍历，后访问的节点后绘制。遍历顺序写入渲染单元矩阵的 Z 平移，供 2D Renderer 排序。`SetSiblingIndex` 调整同级节点顺序，索引范围为 `[0, 同级节点数)`。
 
-`Canvas::Add(const UINodeData &, UIHandle parent = 0)` 接收具体类型的数据，校验节点子树、预检全部资源，再深复制数据、加载资源并创建节点；调用方的数据保持不变。`SetParent` 只允许同一 Canvas 内的节点，拒绝环，保留 RectTransform 输入并在新父矩形中重新求解；parent=0 表示画布根。`Find(name, parent)` 在指定父节点的直接子节点中查找，重复名称返回第一个匹配。`Get(handle)` 直接查找句柄。
+`Canvas::Add(const UINodeData &, UIHandle parent = 0)` 校验子树、预检资源，再深复制数据、加载资源并创建节点。`SetParent` 接受同一 Canvas 内的父节点或根句柄 0，拒绝形成环；移动后追加到新父节点的子列表末尾，保留 RectTransform 输入并重新布局。`Find(name, parent)` 查找直接子节点，重名时返回第一个匹配；`Get(handle)` 按句柄查找。
 
-`Remove(handle)` 销毁完整子树，递归释放渲染单元和 Quad，并使子树句柄失效。场景移除 Canvas 或销毁实体时调用 `Canvas::Unload`。移动赋值先卸载目标资源，再转移源树和句柄索引。所有树修改都在主线程进行，不允许在遍历受影响的 children 容器时修改层级。
+`Remove(handle)` 销毁完整子树，释放渲染资源、句柄索引和托管订阅。场景移除 Canvas 或销毁实体时调用 `Canvas::Unload`；移动赋值先卸载目标，再接管源树和索引。订阅清理不触发用户事件。所有树修改在主线程执行，遍历 `children` 时修改其层级会使迭代器失效。
 
-场景 Reset 先由 Renderer 批量清理渲染资源，再销毁 Canvas 与 UI 树；UI 节点析构不访问 Renderer。原生调用方必须按场景生命周期在单独销毁 Canvas 前调用 `Unload`。
+`SceneManager::Reset()` 依次重置 Renderer、UIManager 和脚本状态，再清空 registry：渲染资源批量释放，交互目标和托管订阅清空，Canvas 与节点随 registry 销毁。普通析构只释放节点自身拥有的 C++ 资源，原生调用方单独销毁 Canvas 前须调用 `Unload()`。ScriptManager 在场景创建前初始化、场景销毁后释放，以支持节点卸载时清理托管订阅。
 
 ## 保存与预制体
 
-`CanvasData` 保存参考分辨率、排序值和有序根节点列表。根节点及 `UINodeData::children` 使用 `unique_ptr<UINodeData>` 拥有具体类型的数据对象。`UINodeData` 保存名称、RectTransform 和子节点；`UIContainerData` 表示布局容器，`UITextData` 保存文字、颜色和通过 `AssetRef` 引用的材质，`UIImageData` 保存纹理引用、颜色、UV 和等比显示选项。数据对象的 `GetType()` 返回其具体类型，校验、资源预检、加载和 JSON 导出通过虚函数分派，并递归处理子节点。
+`CanvasData` 保存参考分辨率、排序值和有序根节点列表。节点数据以 `unique_ptr<UINodeData>` 组成树，公共字段为名称、RectTransform、`hitTestEnabled`、`interactable` 和子节点；具体类型增加各自的内容属性。
 
-JSON 输入先经过 `UINodeData::ValidateJSON` 校验，再由 `UINodeData::FromJSON` 根据 `type` 构造具体数据对象；两个入口都递归处理子节点。`CanvasData::ValidateJSON` 和 JSON 构造函数分别调用这两个阶段。原生代码可以直接构造 `UIContainerData`、`UITextData` 或 `UIImageData`，子节点列表中的空指针会被 `Validate()` 拒绝。
+JSON 输入先校验，再按 `type` 构造具体节点数据；`CanvasData::ValidateJSON` 和 JSON 构造函数分别通过 `UINodeData::ValidateJSON`、`UINodeData::FromJSON` 递归处理子树。原生代码可直接构造各类节点数据，`Validate()` 检查布局、类型专有约束和子树，`ValidateAssets()` / `LoadAssets()` 负责资源预检和加载。
 
-`UINodeData::Clone()` 保留具体类型并深复制子树；具体数据类型和 `CanvasData` 的复制构造、复制赋值同样深复制节点，已解析的资源仍通过 `AssetRef` 共享所有权。运行时节点通过 `ToData()` 返回对应的具体数据对象，`Canvas::FillData` 汇集完整数据树。场景导出、复制、预制体实例化和编辑器运行快照包含完整 UI 树；布局结果和运行时句柄不保存。
+`UINodeData::Clone()`、节点数据和 `CanvasData` 的复制操作均深复制子树，已解析的资源通过 `AssetRef` 共享。`ToData()` 和 `Canvas::FillData` 将运行时节点导出为数据树，供场景保存、复制、预制体和编辑器运行快照使用。布局结果、句柄、事件订阅及悬停、按下状态不保存。
 
 ```json
 {
@@ -143,13 +215,13 @@ JSON 输入先经过 `UINodeData::ValidateJSON` 校验，再由 `UINodeData::Fro
 }
 ```
 
-`uiContainer` 使用相同的公共字段，不包含文字与材质字段。UI 系统在场景实体的 `components` 数组中以 `canvas` 表示，`uiText`、`uiImage` 和 `uiContainer` 只允许出现在 Canvas 节点树内。
+场景实体的 `components` 数组使用 `canvas` 类型；其节点树使用 `uiContainer`、`uiText`、`uiImage` 和 `uiButton`，其中 `uiContainer` 仅包含公共字段。
 
 ## 编辑器和 C#
 
-编辑器通过 `Scene > New Object > Empty` 创建实体，再通过 Inspector 的 `Add Component > Canvas` 添加 Canvas。Canvas Inspector 展示内部 UI 树，支持添加容器、文字和图片、删除子树、修改父节点、调整同级顺序，以及编辑布局、文字和颜色。图片节点可选择纹理、编辑 UV 区域和等比显示选项。旋转输入显示角度，存储与 API 使用弧度。
+编辑器通过 `Scene > New Object > Empty` 创建实体，再通过 Inspector 的 `Add Component > Canvas` 添加 Canvas。Canvas Inspector 展示内部 UI 树，支持添加容器、文字、图片和按钮、删除子树、修改父节点、调整同级顺序，以及编辑布局、文字和颜色。图片和按钮节点可选择纹理、编辑 UV 区域和等比显示选项。所有节点可配置鼠标命中和交互开关，按钮可编辑各状态颜色。旋转输入显示角度，存储与 API 使用弧度。
 
-C# 的 Canvas 通过实体 ID 定位，UIComponent 保存 Canvas 引用和节点 Handle。UIContainer 继承 UIComponent，UIText 和 UIImage 通过 UIRenderableComponent 继承 UIComponent。`GetComponent<Canvas>()` 获取场景组件，节点通过 `Find`、`Get`、`Children`、`CreateContainer`、`CreateText` 和 `CreateImage` 访问。
+C# 的类型层级与原生节点对应。`GetComponent<Canvas>()` 获取场景组件，Canvas 通过实体 ID 定位，UIComponent 保存 Canvas 引用和节点 Handle。节点通过 `Find`、`Get`、`Children` 和各类 `Create*` 方法访问。
 
 ```csharp
 var canvas = GetComponent<Canvas>()!;
@@ -164,9 +236,11 @@ title.Text = "Hello";
 title.SetParent(null); // 移至画布根，保留布局输入
 ```
 
-`Find` 只查直接子节点，`Get` 和 `Find` 找不到时返回 null。`IsValid` 检查句柄是否仍有效；依赖原生节点的属性读取和修改失败时抛出 `InvalidOperationException`，跨 Canvas 指定父节点抛出 `ArgumentException`，`SetSiblingIndex` 的负数索引抛出 `ArgumentOutOfRangeException`。Children 返回本次查询的托管包装列表，元素仍引用原生节点，删除后须重新查询。原生和托管函数表需要一起构建部署。
+`Get` 和 `Find` 找不到节点时返回 null，`IsValid` 检查句柄是否有效。`Children` 是查询时的列表快照，其中的包装仍引用原生节点；层级变化后重新查询列表，已删除节点的包装失效。
 
-C# `UIImage.Texture` 使用 `UInt64` 资源句柄（0 为白色），`Color` 和 `UVRect` 使用 `NVec4`，`PreserveAspect` 使用 bool。属性修改失败时抛出 `InvalidOperationException`，图片颜色和 UV 存在 Quad 中。
+依赖原生节点的属性读写或修改操作失败时抛出 `InvalidOperationException`；跨 Canvas 指定父节点或删除节点抛出 `ArgumentException`；`SetSiblingIndex` 的负数索引抛出 `ArgumentOutOfRangeException`。
+
+C# `UIImage.Texture` 使用 `UInt64` 资源句柄（0 为白色），`Color` 和 `UVRect` 使用 `NVec4`，`PreserveAspect` 使用 bool。
 
 ```csharp
 var background = canvas.CreateImage("Background", panel);
@@ -180,6 +254,43 @@ background.PreserveAspect = false;
 background.SetSiblingIndex(0);
 ```
 
+`Canvas.Remove(node)` 同步删除节点及其子树，清理订阅；返回后，被删除节点的 `IsValid` 为 false。传入 null 抛出 `ArgumentNullException`。
+
+```csharp
+canvas.Remove(panel); // 同时删除 panel 下的 background；已移到画布根的 title 保留
+```
+
 ## 未实现功能
 
-世界空间 Canvas 尚未实现。当前文字顶点着色器直接把像素位置转换为 NDC，固定输出 Z=0、W=1；2D pass 只绑定颜色附件，关闭深度测试和深度写入。世界空间模式需要相机投影、透视除法以及场景深度集成。
+世界空间 Canvas、键盘焦点、事件冒泡、拖拽和滚轮控件尚未实现。
+
+## 综合示例
+
+按 [readme.md](../readme.md#build) 准备构建环境后，从仓库根目录运行：
+
+```powershell
+scons
+.\out\engine.exe .\tests\cfg\test_ui.json
+```
+
+示例使用仓库自带字体和图片，参考分辨率为 1600 × 1320，初始窗口为 1280 × 1056。调整窗口大小可以观察居中的展示板、四角锚点和等比适配。场景位于 [test_ui_scene.json](../tests/scene/test_ui_scene.json)，资源表位于 [test_ui_desc.json](../tests/scene/test_ui_desc.json)。九个分区覆盖以下能力：
+
+| 分区 | 展示内容 |
+| --- | --- |
+| SDF Text | UTF-8、显式换行、缩放、颜色与透明度，以及文字超出布局矩形 |
+| Texture + UV | 图片拉伸、等比适配、UV 裁切、纹理切换；可点击按钮操作 |
+| Anchors + Transforms | 锚点、父子旋转与缩放；点击旋转按钮和负缩放图片可观察事件 |
+| Runtime Tree | 创建容器、按钮和标签，换父级、删除子树及句柄失效；卡片可点击删除自身 |
+| Draw Order | 兄弟节点顺序、透明混合、多个 Canvas 的排序 |
+| Live Updates | 动态布局与颜色，定期更新文字，动画暂停与预制体创建 |
+| Button + Pointer Events | 普通、悬停、按下、禁用颜色；记录最近四次 Enter / Exit / Down / Up / Click / Cancel 事件及像素坐标 |
+| Hit Test + Pass Through | 前景图片依次切换透传、禁用遮挡、透明遮挡、可点击四种模式，分别统计前后层点击次数 |
+| Pause + Lifecycle | 暂停模拟后的模态菜单、子节点独立交互、可点击关闭的纹理按钮预制体 |
+
+鼠标左键操作界面按钮。事件探针上按下后拖到外部释放可观察 Up，按住时按 D 禁用或切换窗口可观察 Cancel。事件区的 Hover / Press 显示最近事件目标的状态，Clicks 统计探针点击。
+
+字母快捷键需使用英文输入模式：I / U / T 切换图片适配、UV 和纹理；N / H 创建或移除子树、换父级；B / O 修改兄弟顺序、覆盖层 Canvas 顺序；R 切换展示板与覆盖层的参考分辨率；Space 暂停或恢复示例动画；P 创建预制体；D 切换探针交互；M 打开暂停菜单；运行中按 Esc 退出。
+
+暂停菜单使用 `EngineState.Paused`，脚本 Update 和快捷键处理停止，鼠标事件继续分发。菜单的全屏容器设置 `HitTestEnabled=true`、`Interactable=false`，阻挡背景；子按钮仍可点击恢复运行或退出。预制体在三秒模拟时间后请求销毁，暂停期间计时停止；点击其中的图片按钮也会请求销毁实体，由下一帧的销毁队列处理。
+
+[UIShowcaseScript.cs](../tests/csharp/TestProj/UIShowcaseScript.cs) 负责基础展示、可点击控件和预制体生命周期；[UIInteractionScript.cs](../tests/csharp/TestProj/UIInteractionScript.cs) 负责事件记录、命中模式与暂停菜单。固定节点在 Start 中查询并缓存，事件订阅在 Unload 中解除；动态子树销毁时由 UI 系统释放其订阅。静态节点支持编辑器预览，事件和动态节点需要进入 Run 模式。

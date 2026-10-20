@@ -58,10 +58,23 @@ namespace vke_interop
         auto *canvas = getCanvas(entity);
         if (!canvas || (!name && length)) return 0;
         std::unique_ptr<vke_ui::UINodeData> data;
-        if (type == static_cast<int32_t>(vke_ui::UIType::Text)) data = std::make_unique<vke_ui::UITextData>();
-        else if (type == static_cast<int32_t>(vke_ui::UIType::Image)) data = std::make_unique<vke_ui::UIImageData>();
-        else if (type == static_cast<int32_t>(vke_ui::UIType::Container)) data = std::make_unique<vke_ui::UIContainerData>();
-        else return 0;
+        switch (static_cast<vke_ui::UIType>(type))
+        {
+        case vke_ui::UIType::Text:
+            data = std::make_unique<vke_ui::UITextData>();
+            break;
+        case vke_ui::UIType::Image:
+            data = std::make_unique<vke_ui::UIImageData>();
+            break;
+        case vke_ui::UIType::Button:
+            data = std::make_unique<vke_ui::UIButtonData>();
+            break;
+        case vke_ui::UIType::Container:
+            data = std::make_unique<vke_ui::UIContainerData>();
+            break;
+        default:
+            return 0;
+        }
         data->name.assign(name ? name : "", length);
         auto result = canvas->Add(*data, parent);
         return result ? (*result)->handle : 0;
@@ -203,7 +216,7 @@ namespace vke_interop
     static vke_ui::UIImage *getImage(uint32_t entity, uint64_t handle)
     {
         auto *node = getNode(entity, handle);
-        return node && node->GetType() == vke_ui::UIType::Image ? static_cast<vke_ui::UIImage *>(node) : nullptr;
+        return node && (node->GetType() == vke_ui::UIType::Image || node->GetType() == vke_ui::UIType::Button) ? static_cast<vke_ui::UIImage *>(node) : nullptr;
     }
 
     int32_t VKE_INTEROP_CDECL GetUIImageTexture(uint32_t entity, uint64_t handle, uint64_t *value)
@@ -264,5 +277,39 @@ namespace vke_interop
         if (!image || (value != 0 && value != 1)) return 0;
         image->SetPreserveAspect(value != 0);
         return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUIInteraction(uint32_t entity, uint64_t handle, int32_t *value)
+    {
+        auto *node = getNode(entity, handle);
+        if (!node || !value) return 0;
+        *value = (node->GetHitTestEnabled() ? 1 : 0) | (node->GetInteractable() ? 2 : 0) |
+                 (node->IsHovered() ? 4 : 0) | (node->IsPressed() ? 8 : 0);
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUIInteraction(uint32_t entity, uint64_t handle, int32_t value)
+    {
+        auto *node = getNode(entity, handle);
+        if (!node || value < 0 || value > 3) return 0;
+        node->SetHitTestEnabled((value & 1) != 0);
+        node->SetInteractable((value & 2) != 0);
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL GetUIButtonColor(uint32_t entity, uint64_t handle, int32_t state, Vector4<float> *value)
+    {
+        auto *node = getNode(entity, handle);
+        if (!node || node->GetType() != vke_ui::UIType::Button || state < 0 || state > 3 || !value) return 0;
+        const auto color = static_cast<vke_ui::UIButton *>(node)->GetStateColor(state);
+        *value = {color.r, color.g, color.b, color.a};
+        return 1;
+    }
+
+    int32_t VKE_INTEROP_CDECL SetUIButtonColor(uint32_t entity, uint64_t handle, int32_t state, const Vector4<float> *value)
+    {
+        auto *node = getNode(entity, handle);
+        if (!node || node->GetType() != vke_ui::UIType::Button || state < 0 || state > 3 || !value) return 0;
+        return static_cast<vke_ui::UIButton *>(node)->SetStateColor(state, {value->x, value->y, value->z, value->w}).has_value();
     }
 }

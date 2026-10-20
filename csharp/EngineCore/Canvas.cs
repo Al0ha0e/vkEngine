@@ -27,6 +27,7 @@ namespace vkEngine.EngineCore
             1 => new UIContainer(this, handle),
             2 => new UIText(this, handle),
             3 => new UIImage(this, handle),
+            4 => new UIButton(this, handle),
             _ => null
         };
 
@@ -65,6 +66,15 @@ namespace vkEngine.EngineCore
         public UIContainer CreateContainer(string name, UIComponent? parent = null) => (UIContainer)create(1, name, parent);
         public UIText CreateText(string name, UIComponent? parent = null) => (UIText)create(2, name, parent);
         public UIImage CreateImage(string name, UIComponent? parent = null) => (UIImage)create(3, name, parent);
+        public UIButton CreateButton(string name, UIComponent? parent = null) => (UIButton)create(4, name, parent);
+
+        public void Remove(UIComponent node)
+        {
+            ArgumentNullException.ThrowIfNull(node);
+            if (node.Canvas.Entity != Entity)
+                throw new ArgumentException("UI nodes must belong to the same Canvas.", nameof(node));
+            requireSuccess(NativeFunctionRegistry.Functions.RemoveUINode(Entity, node.Handle));
+        }
 
         public NVec2 ReferenceResolution
         {

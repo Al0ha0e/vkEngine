@@ -84,6 +84,7 @@ namespace vke_common
         void (*registerNativeFunctions)(vke_interop::NativeFunctions *);
         CSharpSceneManagerFunctions sceneManagerFunctions;
         vke_interop::CSharpPhysicsFunctions physicsFunctions;
+        vke_interop::CSharpUIFunctions uiFunctions;
 
         CSharpExports()
             : init(nullptr),
@@ -180,6 +181,11 @@ namespace vke_common
         static const vke_interop::CSharpPhysicsFunctions &GetPhysicsFunctions()
         {
             return instance->csharpExports.physicsFunctions;
+        }
+
+        static const vke_interop::CSharpUIFunctions &GetUIFunctions()
+        {
+            return instance->csharpExports.uiFunctions;
         }
 
         static SceneResult<std::vector<std::string>> GetScriptList(entt::entity entity);

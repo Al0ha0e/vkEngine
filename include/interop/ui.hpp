@@ -6,6 +6,12 @@
 
 namespace vke_interop
 {
+    struct CSharpUIFunctions
+    {
+        void (*dispatchPointerEvent)(uint32_t, uint64_t, int32_t, float, float) = nullptr;
+        void (*unregisterNodeCallbacks)(uint64_t) = nullptr;
+    };
+
     struct UIRectTransform
     {
         Vector2<float> anchorMin, anchorMax, offsetMin, offsetMax, pivot, scale;
@@ -72,4 +78,12 @@ namespace vke_interop
     int32_t VKE_INTEROP_CDECL SetUIImageUVRect(uint32_t entity, uint64_t handle, const Vector4<float> *value);
     int32_t VKE_INTEROP_CDECL GetUIImagePreserveAspect(uint32_t entity, uint64_t handle, int32_t *value);
     int32_t VKE_INTEROP_CDECL SetUIImagePreserveAspect(uint32_t entity, uint64_t handle, int32_t value);
+    using GetUIInteractionFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, int32_t *);
+    int32_t VKE_INTEROP_CDECL GetUIInteraction(uint32_t, uint64_t, int32_t *);
+    using SetUIInteractionFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, int32_t);
+    int32_t VKE_INTEROP_CDECL SetUIInteraction(uint32_t, uint64_t, int32_t);
+    using GetUIButtonColorFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, int32_t, Vector4<float> *);
+    int32_t VKE_INTEROP_CDECL GetUIButtonColor(uint32_t, uint64_t, int32_t, Vector4<float> *);
+    using SetUIButtonColorFn = int32_t(VKE_INTEROP_CDECL *)(uint32_t, uint64_t, int32_t, const Vector4<float> *);
+    int32_t VKE_INTEROP_CDECL SetUIButtonColor(uint32_t, uint64_t, int32_t, const Vector4<float> *);
 }

@@ -15,7 +15,7 @@
           "type": "camera",
           "fov": 60.0,
           "width": 1280.0,
-          "height": 800.0,
+          "height": 1056.0,
           "near": 0.1,
           "far": 100.0
         }
@@ -35,7 +35,7 @@
         {
           "type": "canvas",
           "mode": "screenSpace",
-          "referenceResolution": [1600, 1000],
+          "referenceResolution": [1600, 1320],
           "sortOrder": -100,
           "children": [
             {
@@ -120,7 +120,7 @@
         {
           "type": "canvas",
           "mode": "screenSpace",
-          "referenceResolution": [1600, 1000],
+          "referenceResolution": [1600, 1320],
           "sortOrder": 0,
           "children": [
             {
@@ -129,8 +129,8 @@
               "rectTransform": {
                 "anchorMin": [0.5, 0.5],
                 "anchorMax": [0.5, 0.5],
-                "offsetMin": [-800, -500],
-                "offsetMax": [800, 500],
+                "offsetMin": [-800, -660],
+                "offsetMax": [800, 660],
                 "pivot": [0, 0]
               },
               "children": [
@@ -143,7 +143,7 @@
                     "pivot": [0, 0],
                     "scale": [0.85, 0.85]
                   },
-                  "text": "vkEngine / UI SHOWCASE",
+                  "text": "vkEngine / INTERACTIVE UI",
                   "color": [0.9, 0.94, 1, 1],
                   "children": []
                 },
@@ -156,7 +156,7 @@
                     "pivot": [0, 0],
                     "scale": [0.42, 0.42]
                   },
-                  "text": "Screen-space Canvas  /  JSON scene + C# runtime",
+                  "text": "Screen-space Canvas / mouse events / JSON + C# runtime",
                   "color": [0.53, 0.65, 0.76, 1],
                   "children": []
                 },
@@ -316,17 +316,35 @@
                       ]
                     },
                     {
-                      "type": "uiText",
-                      "name": "StretchLabel",
+                      "type": "uiButton",
+                      "name": "TextureButton",
                       "rectTransform": {
-                        "offsetMin": [20, 251],
-                        "offsetMax": [20, 251],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "offsetMin": [20, 248],
+                        "offsetMax": [160, 284],
+                        "pivot": [0, 0]
                       },
-                      "text": "STRETCH",
-                      "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "T: texture",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
                     },
                     {
                       "type": "uiImage",
@@ -356,17 +374,35 @@
                       ]
                     },
                     {
-                      "type": "uiText",
-                      "name": "AspectLabel",
+                      "type": "uiButton",
+                      "name": "AspectButton",
                       "rectTransform": {
-                        "offsetMin": [178, 251],
-                        "offsetMax": [178, 251],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "offsetMin": [178, 248],
+                        "offsetMax": [318, 284],
+                        "pivot": [0, 0]
                       },
-                      "text": "I: FIT / STRETCH",
-                      "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "I: fit",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
                     },
                     {
                       "type": "uiImage",
@@ -396,17 +432,35 @@
                       ]
                     },
                     {
-                      "type": "uiText",
-                      "name": "CropLabel",
+                      "type": "uiButton",
+                      "name": "CropButton",
                       "rectTransform": {
-                        "offsetMin": [336, 251],
-                        "offsetMax": [336, 251],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "offsetMin": [336, 248],
+                        "offsetMax": [476, 284],
+                        "pivot": [0, 0]
                       },
-                      "text": "U: UV REGION",
-                      "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "U: crop",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
                     },
                     {
                       "type": "uiText",
@@ -417,7 +471,7 @@
                         "pivot": [0, 0],
                         "scale": [0.38, 0.38]
                       },
-                      "text": "I: fit/stretch   U: crop   T: texture",
+                      "text": "Buttons inherit texture, UV and image layout.",
                       "color": [0.53, 0.65, 0.76, 1],
                       "children": []
                     }
@@ -523,7 +577,7 @@
                       },
                       "children": [
                         {
-                          "type": "uiImage",
+                          "type": "uiButton",
                           "name": "RotatingPlate",
                           "rectTransform": {
                             "offsetMin": [0, 0],
@@ -542,11 +596,16 @@
                                 "pivot": [0, 0],
                                 "scale": [0.42, 0.42]
                               },
-                              "text": "Parent",
+                              "text": "Click me",
                               "color": [0.9, 0.94, 1, 1],
                               "children": []
                             }
-                          ]
+                          ],
+                          "hoverColor": [0.12, 0.5, 0.58, 1],
+                          "pressedColor": [0.03, 0.17, 0.24, 1],
+                          "disabledColor": [0.12, 0.14, 0.17, 1],
+                          "hitTestEnabled": true,
+                          "interactable": true
                         },
                         {
                           "type": "uiImage",
@@ -573,7 +632,8 @@
                       },
                       "color": [0.9, 0.94, 1, 1],
                       "texture": 1024,
-                      "children": []
+                      "children": [],
+                      "hitTestEnabled": true
                     },
                     {
                       "type": "uiText",
@@ -584,7 +644,7 @@
                         "pivot": [0, 0],
                         "scale": [0.38, 0.38]
                       },
-                      "text": "Nested rotation / pivot / negative scale",
+                      "text": "Click rotated button / mirrored image: see log.",
                       "color": [0.53, 0.65, 0.76, 1],
                       "children": []
                     }
@@ -680,17 +740,66 @@
                       "children": []
                     },
                     {
-                      "type": "uiText",
-                      "name": "TreeKeys",
+                      "type": "uiButton",
+                      "name": "ToggleTree",
                       "rectTransform": {
                         "offsetMin": [20, 273],
-                        "offsetMax": [20, 273],
-                        "pivot": [0, 0],
-                        "scale": [0.38, 0.38]
+                        "offsetMax": [236, 317],
+                        "pivot": [0, 0]
                       },
-                      "text": "N: remove/recreate subtree\nH: reparent, keeping RectTransform",
-                      "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "N: create / remove",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "MoveTree",
+                      "rectTransform": {
+                        "offsetMin": [260, 273],
+                        "offsetMax": [476, 317],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "H: change parent",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 },
@@ -747,7 +856,7 @@
                                 "pivot": [0, 0],
                                 "scale": [0.38, 0.38]
                               },
-                          "text": "BLUE IMAGE",
+                              "text": "BLUE IMAGE",
                               "color": [0.9, 0.94, 1, 1],
                               "children": []
                             }
@@ -773,7 +882,7 @@
                                 "pivot": [0, 0],
                                 "scale": [0.38, 0.38]
                               },
-                          "text": "AMBER IMAGE",
+                              "text": "AMBER IMAGE",
                               "color": [0.9, 0.94, 1, 1],
                               "children": []
                             }
@@ -785,27 +894,45 @@
                       "type": "uiText",
                       "name": "OrderKeys",
                       "rectTransform": {
-                        "offsetMin": [20, 274],
-                        "offsetMax": [20, 274],
+                        "offsetMin": [20, 253],
+                        "offsetMax": [460, 293],
                         "pivot": [0, 0],
                         "scale": [0.36, 0.36]
                       },
-                      "text": "B: sibling order   O: overlay Canvas order",
+                      "text": "O: move overlay Canvas above / below",
                       "color": [0.53, 0.65, 0.76, 1],
                       "children": []
                     },
                     {
-                      "type": "uiText",
-                      "name": "OrderStatus",
+                      "type": "uiButton",
+                      "name": "SwapOrder",
                       "rectTransform": {
-                        "offsetMin": [20, 303],
-                        "offsetMax": [20, 303],
-                        "pivot": [0, 0],
-                        "scale": [0.36, 0.36]
+                        "offsetMin": [20, 284],
+                        "offsetMax": [476, 322],
+                        "pivot": [0, 0]
                       },
-                  "text": "Canvas order: background -100 / main 0",
-                      "color": [0.53, 0.65, 0.76, 1],
-                      "children": []
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "B: swap siblings",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
                     }
                   ]
                 },
@@ -885,15 +1012,433 @@
                       "children": []
                     },
                     {
-                      "type": "uiText",
-                      "name": "LiveKeys",
+                      "type": "uiButton",
+                      "name": "AnimationButton",
                       "rectTransform": {
                         "offsetMin": [20, 273],
-                        "offsetMax": [20, 273],
+                        "offsetMax": [236, 317],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "Space: animation",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "PrefabButton",
+                      "rectTransform": {
+                        "offsetMin": [260, 273],
+                        "offsetMax": [476, 317],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "P: UI prefab",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Events",
+                  "rectTransform": {
+                    "offsetMin": [32, 860],
+                    "offsetMax": [528, 1200],
+                    "pivot": [0, 0]
+                  },
+                  "texture": 0,
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [460, 66],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "07 / BUTTON + POINTER EVENTS",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "Probe",
+                      "rectTransform": {
+                        "offsetMin": [20, 64],
+                        "offsetMax": [312, 118],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "Press / drag off / release",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "EnableProbe",
+                      "rectTransform": {
+                        "offsetMin": [328, 64],
+                        "offsetMax": [476, 118],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "Disable [D]",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "PointerState",
+                      "rectTransform": {
+                        "offsetMin": [20, 134],
+                        "offsetMax": [460, 184],
                         "pivot": [0, 0],
                         "scale": [0.38, 0.38]
                       },
-                      "text": "Space: pause animation   R: UI scale\nP: instantiate UI prefab (3 seconds)",
+                      "text": "Hover: False | Press: False | Clicks: 0",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "EventLog",
+                      "rectTransform": {
+                        "offsetMin": [20, 170],
+                        "offsetMax": [460, 220],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "Move onto a target to see events.",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "EventHint",
+                      "rectTransform": {
+                        "offsetMin": [20, 278],
+                        "offsetMax": [460, 328],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "Down + release outside: Up only.\nHold + D / lose focus: Cancel.",
+                      "color": [0.53, 0.65, 0.76, 1],
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Raycast",
+                  "rectTransform": {
+                    "offsetMin": [552, 860],
+                    "offsetMax": [1048, 1200],
+                    "pivot": [0, 0]
+                  },
+                  "texture": 0,
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [460, 66],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "08 / HIT TEST + PASS THROUGH",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "BackTarget",
+                      "rectTransform": {
+                        "offsetMin": [20, 90],
+                        "offsetMax": [476, 200],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "BACK TARGET",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiImage",
+                      "name": "FrontLayer",
+                      "rectTransform": {
+                        "offsetMin": [110, 66],
+                        "offsetMax": [386, 210],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.9, 0.35, 0.12, 0.65],
+                      "hitTestEnabled": false,
+                      "interactable": false,
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "HitCounts",
+                      "rectTransform": {
+                        "offsetMin": [20, 222],
+                        "offsetMax": [460, 272],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "Back clicks: 0 | Front clicks: 0",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "HitMode",
+                      "rectTransform": {
+                        "offsetMin": [20, 250],
+                        "offsetMax": [460, 300],
+                        "pivot": [0, 0],
+                        "scale": [0.38, 0.38]
+                      },
+                      "text": "Mode 1: pass through",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "CycleHitMode",
+                      "rectTransform": {
+                        "offsetMin": [20, 282],
+                        "offsetMax": [476, 322],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "Cycle: pass / block / invisible / active",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "uiImage",
+                  "name": "Lifecycle",
+                  "rectTransform": {
+                    "offsetMin": [1072, 860],
+                    "offsetMax": [1568, 1200],
+                    "pivot": [0, 0]
+                  },
+                  "texture": 0,
+                  "color": [0.055, 0.09, 0.135, 1],
+                  "children": [
+                    {
+                      "type": "uiText",
+                      "name": "Heading",
+                      "rectTransform": {
+                        "offsetMin": [20, 16],
+                        "offsetMax": [460, 66],
+                        "pivot": [0, 0],
+                        "scale": [0.5, 0.5]
+                      },
+                      "text": "09 / PAUSE + LIFECYCLE",
+                      "color": [0.15, 0.82, 0.85, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "PauseInfo",
+                      "rectTransform": {
+                        "offsetMin": [20, 63],
+                        "offsetMax": [460, 113],
+                        "pivot": [0, 0],
+                        "scale": [0.43, 0.43]
+                      },
+                      "text": "Pause stops script Update.\nUI callbacks remain active.\nResume with the modal button.",
+                      "color": [0.9, 0.94, 1, 1],
+                      "children": []
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "PauseMenu",
+                      "rectTransform": {
+                        "offsetMin": [20, 157],
+                        "offsetMax": [476, 205],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "M: pause + modal",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiButton",
+                      "name": "PrefabAgain",
+                      "rectTransform": {
+                        "offsetMin": [20, 220],
+                        "offsetMax": [476, 264],
+                        "pivot": [0, 0]
+                      },
+                      "texture": 0,
+                      "color": [0.08, 0.3, 0.37, 1],
+                      "hoverColor": [0.12, 0.5, 0.58, 1],
+                      "pressedColor": [0.03, 0.17, 0.24, 1],
+                      "disabledColor": [0.12, 0.14, 0.17, 1],
+                      "hitTestEnabled": true,
+                      "interactable": true,
+                      "children": [
+                        {
+                          "type": "uiText",
+                          "name": "Label",
+                          "rectTransform": {
+                            "offsetMin": [12, 10],
+                            "offsetMax": [452, 60],
+                            "pivot": [0, 0],
+                            "scale": [0.38, 0.38]
+                          },
+                          "text": "Spawn dismissible textured prefab",
+                          "color": [0.9, 0.94, 1, 1],
+                          "children": []
+                        }
+                      ]
+                    },
+                    {
+                      "type": "uiText",
+                      "name": "LifetimeNote",
+                      "rectTransform": {
+                        "offsetMin": [20, 278],
+                        "offsetMax": [460, 328],
+                        "pivot": [0, 0],
+                        "scale": [0.36, 0.36]
+                      },
+                      "text": "Prefab: click to dismiss or wait 3s.\nRuntime card: click to delete its subtree.",
                       "color": [0.53, 0.65, 0.76, 1],
                       "children": []
                     }
@@ -903,12 +1448,12 @@
                   "type": "uiText",
                   "name": "Footer",
                   "rectTransform": {
-                    "offsetMin": [32, 865],
-                    "offsetMax": [32, 865],
+                    "offsetMin": [32, 1222],
+                    "offsetMax": [1532, 1262],
                     "pivot": [0, 0],
-                    "scale": [0.43, 0.43]
+                    "scale": [0.4, 0.4]
                   },
-                  "text": "Resize the window: corners stay anchored; the board keeps its reference scale.",
+                  "text": "Click the controls. Drag off the event probe to release without a Click; D toggles its Interactable state.",
                   "color": [0.9, 0.94, 1, 1],
                   "children": []
                 },
@@ -916,12 +1461,12 @@
                   "type": "uiText",
                   "name": "Contracts",
                   "rectTransform": {
-                    "offsetMin": [32, 906],
-                    "offsetMax": [32, 906],
+                    "offsetMin": [32, 1260],
+                    "offsetMax": [1532, 1300],
                     "pivot": [0, 0],
                     "scale": [0.36, 0.36]
                   },
-                  "text": "Keyboard controls use Input. UI pointer events, clipping and automatic text wrapping are not implemented.",
+                  "text": "Resize: anchored layout | R: UI scale | O: overlay order | M: pause menu | Esc: exit (while running)",
                   "color": [0.53, 0.65, 0.76, 1],
                   "children": []
                 },
@@ -929,12 +1474,12 @@
                   "type": "uiText",
                   "name": "Exit",
                   "rectTransform": {
-                    "offsetMin": [32, 943],
-                    "offsetMax": [32, 943],
+                    "offsetMin": [32, 1290],
+                    "offsetMax": [1532, 1330],
                     "pivot": [0, 0],
-                    "scale": [0.4, 0.4]
+                    "scale": [0.32, 0.32]
                   },
-                  "text": "Esc: exit",
+                  "text": "Clipping, automatic text wrapping, keyboard focus and world-space Canvas are not implemented.",
                   "color": [0.15, 0.82, 0.85, 1],
                   "children": []
                 }
@@ -945,6 +1490,11 @@
         {
           "type": "script",
           "className": "TestProj.UIShowcaseScript",
+          "data": {}
+        },
+        {
+          "type": "script",
+          "className": "TestProj.UIInteractionScript",
           "data": {}
         }
       ]
@@ -963,7 +1513,7 @@
         {
           "type": "canvas",
           "mode": "screenSpace",
-          "referenceResolution": [1600, 1000],
+          "referenceResolution": [1600, 1320],
           "sortOrder": 10,
           "children": [
             {
@@ -972,8 +1522,8 @@
               "rectTransform": {
                 "anchorMin": [0.5, 0.5],
                 "anchorMax": [0.5, 0.5],
-                "offsetMin": [-48, 169],
-                "offsetMax": [164, 229],
+                "offsetMin": [-48, 9],
+                "offsetMax": [164, 69],
                 "pivot": [0, 0]
               },
               "color": [0.08, 0.7, 0.55, 0.9],

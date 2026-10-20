@@ -2,7 +2,7 @@ using System;
 
 namespace vkEngine.EngineCore
 {
-    public unsafe sealed class UIImage : UIRenderableComponent
+    public unsafe class UIImage : UIRenderableComponent
     {
         internal UIImage(Canvas canvas, UInt64 handle) : base(canvas, handle) {}
 

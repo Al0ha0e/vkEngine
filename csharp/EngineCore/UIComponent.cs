@@ -27,6 +27,52 @@ namespace vkEngine.EngineCore
         public bool IsValid => NativeFunctionRegistry.Functions.GetUIType(Canvas.Entity, Handle) != 0;
         public IReadOnlyList<UIComponent> Children => Canvas.GetChildren(this);
 
+        private int interaction
+        {
+            get
+            {
+                int value = 0;
+                RequireSuccess(NativeFunctionRegistry.Functions.GetUIInteraction(Canvas.Entity, Handle, &value));
+                return value;
+            }
+            set { RequireSuccess(NativeFunctionRegistry.Functions.SetUIInteraction(Canvas.Entity, Handle, value)); }
+        }
+        public bool HitTestEnabled { get => (interaction & 1) != 0; set => interaction = (interaction & 2) | (value ? 1 : 0); }
+        public bool Interactable { get => (interaction & 2) != 0; set => interaction = (interaction & 1) | (value ? 2 : 0); }
+        public bool IsHovered => (interaction & 4) != 0;
+        public bool IsPressed => (interaction & 8) != 0;
+
+        public event Action<UIPointerEvent> PointerEnter
+        {
+            add => UIManager.Add(this, UIPointerEventType.Enter, value);
+            remove => UIManager.Remove(Handle, UIPointerEventType.Enter, value);
+        }
+        public event Action<UIPointerEvent> PointerExit
+        {
+            add => UIManager.Add(this, UIPointerEventType.Exit, value);
+            remove => UIManager.Remove(Handle, UIPointerEventType.Exit, value);
+        }
+        public event Action<UIPointerEvent> PointerDown
+        {
+            add => UIManager.Add(this, UIPointerEventType.Down, value);
+            remove => UIManager.Remove(Handle, UIPointerEventType.Down, value);
+        }
+        public event Action<UIPointerEvent> PointerUp
+        {
+            add => UIManager.Add(this, UIPointerEventType.Up, value);
+            remove => UIManager.Remove(Handle, UIPointerEventType.Up, value);
+        }
+        public event Action<UIPointerEvent> Click
+        {
+            add => UIManager.Add(this, UIPointerEventType.Click, value);
+            remove => UIManager.Remove(Handle, UIPointerEventType.Click, value);
+        }
+        public event Action<UIPointerEvent> PointerCancel
+        {
+            add => UIManager.Add(this, UIPointerEventType.Cancel, value);
+            remove => UIManager.Remove(Handle, UIPointerEventType.Cancel, value);
+        }
+
         protected static void RequireSuccess(int result)
         {
             if (result == 0) throw new InvalidOperationException("UI node is invalid or the requested operation is not valid.");
@@ -53,7 +99,6 @@ namespace vkEngine.EngineCore
             }
         }
 
-        public void Remove() => RequireSuccess(NativeFunctionRegistry.Functions.RemoveUINode(Canvas.Entity, Handle));
         public void SetParent(UIComponent? parent) =>
             RequireSuccess(NativeFunctionRegistry.Functions.SetUIParent(Canvas.Entity, Handle, Canvas.ParentHandle(parent)));
         public void SetSiblingIndex(int index)

@@ -569,7 +569,11 @@ namespace vke_common
             &vke_interop::GetUIImageUVRect,
             &vke_interop::SetUIImageUVRect,
             &vke_interop::GetUIImagePreserveAspect,
-            &vke_interop::SetUIImagePreserveAspect};
+            &vke_interop::SetUIImagePreserveAspect,
+            &vke_interop::GetUIInteraction,
+            &vke_interop::SetUIInteraction,
+            &vke_interop::GetUIButtonColor,
+            &vke_interop::SetUIButtonColor};
         csharpExports.registerNativeFunctions(&nativeFunctions);
     }
 }

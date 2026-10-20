@@ -356,16 +356,16 @@ namespace vke_editor
         sceneResizeEventHub.DispatchEvent(&sceneRenderContext);
     }
 
-    void EditorRenderer::drawSceneViewport()
+    void EditorRenderer::drawSceneViewport(vke_ui::UIPointerInput &pointer)
     {
         ImGui::SetNextWindowSize(
             ImVec2(static_cast<float>(context->width) * 0.75f,
                    static_cast<float>(context->height) * 0.75f),
             ImGuiCond_Once);
         ImGui::SetNextWindowSizeConstraints(ImVec2(256.0f, 144.0f), ImVec2(FLT_MAX, FLT_MAX));
-        ImGui::Begin("Scene");
+        const bool visible = ImGui::Begin("Scene");
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-        if (viewportSize.x > 1.0f && viewportSize.y > 1.0f)
+        if (visible && viewportSize.x > 1.0f && viewportSize.y > 1.0f)
         {
             uint32_t width = static_cast<uint32_t>(viewportSize.x);
             uint32_t height = static_cast<uint32_t>(viewportSize.y);
@@ -373,14 +373,20 @@ namespace vke_editor
             ImGui::Image(
                 ImTextureRef((ImTextureID)sceneTextureDescriptorSets[currentFrame]),
                 viewportSize);
+            const auto origin = ImGui::GetItemRectMin();
+            // Give the scene image an input item so pointer presses cannot start dragging its window.
+            ImGui::SetCursorScreenPos(origin);
+            ImGui::InvisibleButton("ScenePointer", viewportSize, ImGuiButtonFlags_MouseButtonLeft);
+            const auto mouse = ImGui::GetMousePos();
+            pointer.position = glm::vec2(mouse.x - origin.x, mouse.y - origin.y) *
+                               glm::vec2(sceneRenderContext.width, sceneRenderContext.height) / glm::vec2(viewportSize.x, viewportSize.y);
+            pointer.inside = ImGui::IsItemHovered();
         }
         ImGui::End();
     }
 
-    void EditorRenderer::render()
+    void EditorRenderer::BeginFrame(vke_ui::UIPointerInput &pointer)
     {
-        uint32_t imageIndex = context->AcquireNextImage(currentFrame);
-
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -393,9 +399,15 @@ namespace vke_editor
         }
 
         if (EditorStateManager::GetState() == EditorState::Edit || EditorStateManager::GetState() == EditorState::Run)
-            drawSceneViewport();
+            drawSceneViewport(pointer);
         if (updateGUIFunc)
             updateGUIFunc();
+    }
+
+    void EditorRenderer::render()
+    {
+        uint32_t imageIndex = context->AcquireNextImage(currentFrame);
+
         ImGui::Render();
 
         VkCommandBuffer commandBuffer = commandBuffers[currentFrame];

@@ -9,6 +9,8 @@ public sealed class UIShowcaseScript : EntityScript
     private UIComponent dockA = null!;
     private UIComponent dockB = null!;
     private UIContainer? runtimeGroup;
+    private UIButton? runtimeButton;
+    private readonly List<(UIComponent Node, Action<UIPointerEvent> Handler)> clicks = new();
     private UIImage portrait = null!;
     private UIImage crop = null!;
     private UIImage blue = null!;
@@ -45,6 +47,14 @@ public sealed class UIShowcaseScript : EntityScript
         metrics = (UIText)canvas.Find("Metrics", live)!;
         animationStatus = (UIText)canvas.Find("AnimationStatus", live)!;
         progress = (UIImage)canvas.Find("Progress", canvas.Find("ProgressTrack", live))!;
+        bindClick(canvas.Find("TextureButton", images)!, _ => toggleTexture());
+        bindClick(canvas.Find("AspectButton", images)!, _ => toggleAspect());
+        bindClick(canvas.Find("CropButton", images)!, _ => toggleCrop());
+        bindClick(canvas.Find("ToggleTree", hierarchy)!, _ => toggleRuntimeGroup());
+        bindClick(canvas.Find("MoveTree", hierarchy)!, _ => moveRuntimeGroup());
+        bindClick(canvas.Find("SwapOrder", ordering)!, _ => swapOrder());
+        bindClick(canvas.Find("AnimationButton", live)!, _ => toggleAnimation());
+        bindClick(canvas.Find("PrefabButton", live)!, _ => spawnPrefab());
         createRuntimeGroup();
     }
 
@@ -57,44 +67,23 @@ public sealed class UIShowcaseScript : EntityScript
         }
 
         if (Input.IsKeyPressed(KeyCode.Space))
-        {
-            paused = !paused;
-            animationStatus.Text = paused ? "Animation: paused" : "Animation: running";
-            animationStatus.Color = paused ? new NVec4(1, 0.53f, 0.22f, 1) : new NVec4(0.15f, 0.82f, 0.85f, 1);
-        }
+            toggleAnimation();
         if (Input.IsKeyPressed(KeyCode.I))
-            portrait.PreserveAspect = !portrait.PreserveAspect;
+            toggleAspect();
         if (Input.IsKeyPressed(KeyCode.U))
-            crop.UVRect = crop.UVRect.x == 0 ? new NVec4(0.2f, 0.1f, 0.8f, 0.55f) : new NVec4(0, 0, 1, 1);
+            toggleCrop();
         if (Input.IsKeyPressed(KeyCode.T))
-            portrait.Texture = portrait.Texture == 0 ? 1024UL : 0;
+            toggleTexture();
         if (Input.IsKeyPressed(KeyCode.B))
-        {
-            blueOnTop = !blueOnTop;
-            blue.SetSiblingIndex(blueOnTop ? 1 : 0);
-        }
+            swapOrder();
         if (Input.IsKeyPressed(KeyCode.R))
-            canvas.ReferenceResolution = canvas.ReferenceResolution.x == 1600 ? new NVec2(1920, 1200) : new NVec2(1600, 1000);
+            canvas.ReferenceResolution = canvas.ReferenceResolution.x == 1600 ? new NVec2(1920, 1584) : new NVec2(1600, 1320);
         if (Input.IsKeyPressed(KeyCode.N))
-        {
-            if (runtimeGroup == null)
-                createRuntimeGroup();
-            else
-            {
-                UInt64 handle = runtimeGroup.Handle;
-                runtimeGroup.Remove();
-                treeStatus.Text = $"Removed: valid={runtimeGroup.IsValid}, Get=null: {canvas.Get(handle) == null}";
-                runtimeGroup = null;
-            }
-        }
-        if (Input.IsKeyPressed(KeyCode.H) && runtimeGroup != null)
-        {
-            inDockB = !inDockB;
-            runtimeGroup.SetParent(inDockB ? dockB : dockA);
-            updateTreeStatus();
-        }
+            toggleRuntimeGroup();
+        if (Input.IsKeyPressed(KeyCode.H))
+            moveRuntimeGroup();
         if (Input.IsKeyPressed(KeyCode.P))
-            SceneManager.InstantiatePrefab(1024, NVec3.Zero, NQuat.Identity, new NVec3(1, 1, 1));
+            spawnPrefab();
 
         if (!paused)
         {
@@ -125,6 +114,63 @@ public sealed class UIShowcaseScript : EntityScript
         }
     }
 
+    public override void Unload()
+    {
+        foreach (var (node, handler) in clicks) node.Click -= handler;
+        clicks.Clear();
+        if (runtimeButton != null) runtimeButton.Click -= onRuntimeClick;
+    }
+
+    private void bindClick(UIComponent node, Action<UIPointerEvent> handler)
+    {
+        node.Click += handler;
+        clicks.Add((node, handler));
+    }
+
+    private void toggleAnimation()
+    {
+        paused = !paused;
+        animationStatus.Text = paused ? "Animation: paused" : "Animation: running";
+        animationStatus.Color = paused ? new NVec4(1, 0.53f, 0.22f, 1) : new NVec4(0.15f, 0.82f, 0.85f, 1);
+    }
+
+    private void toggleAspect() => portrait.PreserveAspect = !portrait.PreserveAspect;
+    private void toggleCrop() => crop.UVRect = crop.UVRect.x == 0 ? new NVec4(0.2f, 0.1f, 0.8f, 0.55f) : new NVec4(0, 0, 1, 1);
+    private void toggleTexture() => portrait.Texture = portrait.Texture == 0 ? 1024UL : 0;
+    private void spawnPrefab() => SceneManager.InstantiatePrefab(1024, NVec3.Zero, NQuat.Identity, new NVec3(1, 1, 1));
+
+    private void swapOrder()
+    {
+        blueOnTop = !blueOnTop;
+        blue.SetSiblingIndex(blueOnTop ? 1 : 0);
+    }
+
+    private void toggleRuntimeGroup()
+    {
+        if (runtimeGroup == null) createRuntimeGroup();
+        else removeRuntimeGroup();
+    }
+
+    private void onRuntimeClick(UIPointerEvent e) => removeRuntimeGroup();
+
+    private void removeRuntimeGroup()
+    {
+        UInt64 handle = runtimeGroup!.Handle;
+        // Removing the ancestor during Click also invalidates the event target and its subscriptions.
+        canvas.Remove(runtimeGroup);
+        treeStatus.Text = $"Removed: valid={runtimeGroup.IsValid}, Get=null: {canvas.Get(handle) == null}";
+        runtimeGroup = null;
+        runtimeButton = null;
+    }
+
+    private void moveRuntimeGroup()
+    {
+        if (runtimeGroup == null) return;
+        inDockB = !inDockB;
+        runtimeGroup.SetParent(inDockB ? dockB : dockA);
+        updateTreeStatus();
+    }
+
     private void createRuntimeGroup()
     {
         runtimeGroup = canvas.CreateContainer("RuntimeGroup", inDockB ? dockB : dockA);
@@ -132,19 +178,23 @@ public sealed class UIShowcaseScript : EntityScript
         {
             OffsetMin = new NVec2(12, 48), OffsetMax = new NVec2(198, 132), Pivot = NVec2.Zero
         };
-        var background = canvas.CreateImage("Card", runtimeGroup);
+        var background = canvas.CreateButton("Card", runtimeGroup);
         background.RectTransform = new RectTransform
         {
             AnchorMax = new NVec2(1, 1), Pivot = NVec2.Zero
         };
         background.Color = new NVec4(0.08f, 0.5f, 0.52f, 0.9f);
+        background.HoverColor = new NVec4(0.12f, 0.7f, 0.65f, 1);
+        background.PressedColor = new NVec4(0.04f, 0.25f, 0.3f, 1);
+        runtimeButton = background;
+        runtimeButton.Click += onRuntimeClick;
         var label = canvas.CreateText("Label", background);
         label.RectTransform = new RectTransform
         {
             OffsetMin = new NVec2(12, 15), OffsetMax = new NVec2(174, 68),
             Pivot = NVec2.Zero, Scale = new NVec2(0.4f, 0.4f)
         };
-        label.Text = "Created in C#\nMove / remove me";
+        label.Text = "Created in C#\nClick: remove me";
         updateTreeStatus();
     }
 
@@ -169,15 +219,27 @@ public sealed class UIOverlayScript : EntityScript
         if (Input.IsKeyPressed(KeyCode.O))
             canvas.SortOrder = canvas.SortOrder == 10 ? -10 : 10;
         if (Input.IsKeyPressed(KeyCode.R))
-            canvas.ReferenceResolution = canvas.ReferenceResolution.x == 1600 ? new NVec2(1920, 1200) : new NVec2(1600, 1000);
+            canvas.ReferenceResolution = canvas.ReferenceResolution.x == 1600 ? new NVec2(1920, 1584) : new NVec2(1600, 1320);
     }
 }
 
 public sealed class UIToastScript : EntityScript
 {
     private float elapsed;
+    private UIButton dismiss = null!;
 
     public UIToastScript(UInt32 entity) : base(entity) { }
+
+    public override void Start()
+    {
+        var canvas = GetComponent<Canvas>()!;
+        dismiss = (UIButton)canvas.Find("Dismiss", canvas.Find("Toast"))!;
+        dismiss.Click += onDismiss;
+    }
+
+    public override void Unload() => dismiss.Click -= onDismiss;
+
+    private void onDismiss(UIPointerEvent e) => DestroyEntity();
 
     public override void Update()
     {

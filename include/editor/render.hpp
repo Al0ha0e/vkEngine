@@ -3,6 +3,7 @@
 
 #include <render/environment.hpp>
 #include <functional>
+#include <ui/ui.hpp>
 
 namespace vke_editor
 {
@@ -33,6 +34,8 @@ namespace vke_editor
         static void Dispose();
 
         void ResizeSceneViewport(uint32_t width, uint32_t height);
+
+        void BeginFrame(vke_ui::UIPointerInput &pointer);
 
         void Update()
         {
@@ -68,7 +71,7 @@ namespace vke_editor
         void removeSceneTextures();
         void createSceneRenderContext(uint32_t width, uint32_t height);
         void cleanupSceneRenderContext();
-        void drawSceneViewport();
+        void drawSceneViewport(vke_ui::UIPointerInput &pointer);
         void render();
     };
 }

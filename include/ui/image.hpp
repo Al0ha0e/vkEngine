@@ -6,7 +6,7 @@
 
 namespace vke_ui
 {
-    struct UIImageData final : UINodeData
+    struct UIImageData : UINodeData
     {
         vke_common::AssetRef<vke_render::Texture2D> texture;
         glm::vec4 color{1.0f};
@@ -88,7 +88,7 @@ namespace vke_ui
         }
     };
 
-    class UIImage final : public UIRenderableComponent
+    class UIImage : public UIRenderableComponent
     {
     public:
         explicit UIImage(const UIImageData &data)
@@ -111,11 +111,7 @@ namespace vke_ui
         std::unique_ptr<UINodeData> ToData() const override
         {
             auto data = std::make_unique<UIImageData>();
-            fillData(*data);
-            data->texture = texture;
-            data->color = GetColor();
-            data->uvRect = GetUVRect();
-            data->preserveAspect = preserveAspect;
+            fillImageData(*data);
             return data;
         }
 
@@ -139,7 +135,7 @@ namespace vke_ui
             return {};
         }
 
-        vke_common::SceneResult<void> SetColor(const glm::vec4 &value)
+        virtual vke_common::SceneResult<void> SetColor(const glm::vec4 &value)
         {
             if (quadIDs.empty()) return std::unexpected("image quad is not allocated");
             setQuadColor(value);
@@ -163,9 +159,19 @@ namespace vke_ui
         }
 
         vke_common::AssetHandle GetTexture() const { return texture.Handle(); }
-        glm::vec4 GetColor() const { return getQuad().color; }
+        virtual glm::vec4 GetColor() const { return getQuad().color; }
         glm::vec4 GetUVRect() const { return getQuad().uvRect; }
         bool GetPreserveAspect() const { return preserveAspect; }
+
+    protected:
+        void fillImageData(UIImageData &data) const
+        {
+            fillData(data);
+            data.texture = texture;
+            data.color = GetColor();
+            data.uvRect = GetUVRect();
+            data.preserveAspect = preserveAspect;
+        }
 
     private:
         vke_common::AssetRef<vke_render::Texture2D> texture;

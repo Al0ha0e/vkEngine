@@ -108,8 +108,11 @@ Or launch the editor with your project's config:
 - **UI**
   - [x] SDF Font
   - [x] UI transform: anchor, pivot, size, scale
-  - [ ] basic widgets: text, image, panel, button
-  - [ ] input/event handling: hover, click, focus
+  - [x] basic widgets: text, image, panel, button
+  - [x] mouse input/events: hover, press, release, click
+  - [ ] text layout: font size, alignment, wrapping, measurement
+  - [ ] automatic layout and content sizing
+  - [ ] nested clipping and hit test integration
 - **Scene / ECS**:
   - [x] scene loading and saving
   - [x] prefab instantiation
@@ -124,8 +127,8 @@ Or launch the editor with your project's config:
 - **Animation**:
   - [x] animation sampling
   - [x] GPU skinning
-  - [ ] blending
-  - [ ] root motion
+  - [x] blending
+  - [x] root motion
   - [ ] IK
 - **Scripting**:
   - [x] CoreCLR integration

@@ -161,6 +161,7 @@ namespace vkEngine.EngineCore
             RigidBody.ClearRegistered();
             Sensor.ClearRegistered();
             ClearScriptCollections();
+            UIManager.ClearRegistered();
             Console.WriteLine("SceneManager.Unload");
         }
 
@@ -180,6 +181,7 @@ namespace vkEngine.EngineCore
             ClearScriptCollections();
             RigidBody.ClearRegistered();
             Sensor.ClearRegistered();
+            UIManager.ClearRegistered();
         }
 
         [UnmanagedCallersOnly]

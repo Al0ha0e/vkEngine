@@ -11,6 +11,7 @@
 #include <engine_state.hpp>
 #include <time.hpp>
 #include <script.hpp>
+#include <ui/ui_manager.hpp>
 
 namespace vke_common
 {
@@ -53,6 +54,7 @@ namespace vke_common
             vke_render::Renderer::Init(ctx, passes, customPasses, gameConfig.renderConfig);
             ScriptManager::Init();
             SceneManager::Init();
+            vke_ui::UIManager::Init(SceneManager::GetInstance()->registry);
             return instance;
         }
 
@@ -77,6 +79,7 @@ namespace vke_common
 
         static void Dispose()
         {
+            vke_ui::UIManager::Dispose();
             SceneManager::Dispose();
             ScriptManager::Dispose();
             vke_render::Renderer::Dispose();
@@ -100,7 +103,7 @@ namespace vke_common
         bool Update();
 
         static void UpdateSimulation(float deltaTime, float &fixedUpdateAccumulator);
-        static void UpdatePresentation();
+        static void UpdatePresentation(const vke_ui::UIPointerInput *pointer = nullptr);
         static void FixedUpdate(float deltaTime);
 
         void MainLoop();

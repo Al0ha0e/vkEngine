@@ -36,6 +36,8 @@ namespace vke_common
 
         static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
+        static void WindowFocusCallback(GLFWwindow *window, int focused);
+
         static void CursorPosCallback(GLFWwindow *window, double xpos, double ypos);
 
         static void MouseButtonCallback(GLFWwindow *window, int button, int action, int mods);
@@ -53,6 +55,8 @@ namespace vke_common
         static bool IsMouseButtonPressed(int button);
 
         static bool IsMouseButtonReleased(int button);
+
+        static bool IsFocusLostThisFrame() { return RequireInstance().lostFocus; }
 
         static glm::vec2 GetMousePosition();
 
@@ -76,6 +80,7 @@ namespace vke_common
         glm::vec2 mouseDelta;
         glm::vec2 scrollDelta;
         bool hasMousePosition;
+        bool lostFocus = false;
 
         static InputManager &RequireInstance();
 

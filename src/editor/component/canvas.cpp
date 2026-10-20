@@ -41,17 +41,41 @@ namespace vke_editor
         auto addNode = [&](UIHandle parent, UIType type)
         {
             std::unique_ptr<UINodeData> data;
-            if (type == UIType::Text)
+            switch (type)
+            {
+            case UIType::Text:
             {
                 auto textData = std::make_unique<UITextData>();
+                textData->name = "Text";
                 textData->text = "Text";
                 data = std::move(textData);
+                break;
             }
-            else if (type == UIType::Image)
+            case UIType::Button:
+            {
+                auto buttonData = std::make_unique<UIButtonData>();
+                buttonData->name = "Button";
+                auto label = std::make_unique<UITextData>();
+                label->name = "Label";
+                label->text = "Button";
+                label->color = {0.1f, 0.1f, 0.1f, 1};
+                label->rectTransform.offsetMin = {16, 12};
+                label->rectTransform.offsetMax = {380, 60};
+                label->rectTransform.pivot = {0, 0};
+                label->rectTransform.scale = {0.5f, 0.5f};
+                buttonData->children.push_back(std::move(label));
+                data = std::move(buttonData);
+                break;
+            }
+            case UIType::Image:
                 data = std::make_unique<UIImageData>();
-            else
+                data->name = "Image";
+                break;
+            case UIType::Container:
                 data = std::make_unique<UIContainerData>();
-            data->name = type == UIType::Text ? "Text" : type == UIType::Image ? "Image" : "Container";
+                data->name = "Container";
+                break;
+            }
             data->rectTransform.offsetMax = {400, 80};
             if (auto result = canvas->Add(*data, parent); !result)
                 VKE_LOG_ERROR("Failed to add UI node: {}", result.error());
@@ -64,19 +88,34 @@ namespace vke_editor
         ImGui::SameLine();
         if (ImGui::Button("Add Image"))
             addNode(0, UIType::Image);
+        ImGui::SameLine();
+        if (ImGui::Button("Add Button"))
+            addNode(0, UIType::Button);
 
         std::function<void()> pendingEdit;
         std::function<void(UIComponent &, size_t, size_t)> drawNode;
         drawNode = [&](UIComponent &node, size_t index, size_t siblingCount)
         {
             const auto handle = node.handle;
+            const auto type = node.GetType();
+            const char *typeName = nullptr;
+            switch (type)
+            {
+            case UIType::Container: typeName = "Container"; break;
+            case UIType::Text: typeName = "Text"; break;
+            case UIType::Image: typeName = "Image"; break;
+            case UIType::Button: typeName = "Button"; break;
+            }
             ImGui::PushID(&node);
             const bool opened = ImGui::TreeNodeEx("node", ImGuiTreeNodeFlags_DefaultOpen, "%s (%s)",
-                                                  node.name.c_str(), node.GetType() == UIType::Text ? "Text" :
-                                                  node.GetType() == UIType::Image ? "Image" : "Container");
+                                                  node.name.c_str(), typeName);
             if (opened)
             {
                 inputString("Name", node.name);
+                bool hitTestEnabled = node.GetHitTestEnabled();
+                if (ImGui::Checkbox("Hit test enabled", &hitTestEnabled)) node.SetHitTestEnabled(hitTestEnabled);
+                bool interactable = node.GetInteractable();
+                if (ImGui::Checkbox("Interactable", &interactable)) node.SetInteractable(interactable);
                 auto rect = node.rectTransform;
                 bool changed = ImGui::InputFloat2("Anchor min", glm::value_ptr(rect.anchorMin));
                 changed |= ImGui::InputFloat2("Anchor max", glm::value_ptr(rect.anchorMax));
@@ -95,7 +134,9 @@ namespace vke_editor
                         VKE_LOG_ERROR("Invalid UI rectangle: {}", result.error());
                 const auto &size = node.resolvedSize;
                 ImGui::Text("Resolved size: %.1f x %.1f", size.x, size.y);
-                if (node.GetType() == UIType::Text)
+                switch (type)
+                {
+                case UIType::Text:
                 {
                     auto &text = static_cast<UIText &>(node);
                     auto value = text.GetText();
@@ -104,8 +145,10 @@ namespace vke_editor
                     auto color = text.GetColor();
                     if (ImGui::ColorEdit4("Color", glm::value_ptr(color)))
                         text.SetColor(color);
+                    break;
                 }
-                else if (node.GetType() == UIType::Image)
+                case UIType::Image:
+                case UIType::Button:
                 {
                     auto &image = static_cast<UIImage &>(node);
                     const auto texture = image.GetTexture();
@@ -133,6 +176,18 @@ namespace vke_editor
                     if (ImGui::ColorEdit4("Color", glm::value_ptr(color)))
                         if (auto result = image.SetColor(color); !result)
                             VKE_LOG_ERROR("Invalid image color: {}", result.error());
+                    if (type == UIType::Button)
+                    {
+                        auto &button = static_cast<UIButton &>(node);
+                        const char *labels[] = {"Hover color", "Pressed color", "Disabled color"};
+                        for (int i = 1; i <= 3; ++i)
+                        {
+                            auto stateColor = button.GetStateColor(i);
+                            if (ImGui::ColorEdit4(labels[i - 1], glm::value_ptr(stateColor)))
+                                if (auto result = button.SetStateColor(i, stateColor); !result)
+                                    VKE_LOG_ERROR("Cannot set button color: {}", result.error());
+                        }
+                    }
                     auto uv = image.GetUVRect();
                     if (ImGui::InputFloat4("UV min/max", glm::value_ptr(uv)))
                         if (auto result = image.SetUVRect(uv); !result)
@@ -140,6 +195,10 @@ namespace vke_editor
                     auto preserveAspect = image.GetPreserveAspect();
                     if (ImGui::Checkbox("Preserve aspect", &preserveAspect))
                         image.SetPreserveAspect(preserveAspect);
+                    break;
+                }
+                case UIType::Container:
+                    break;
                 }
                 auto *parent = node.parent;
                 if (ImGui::BeginCombo("Parent", parent ? parent->name.c_str() : "Canvas"))
@@ -188,6 +247,9 @@ namespace vke_editor
                 ImGui::SameLine();
                 if (ImGui::Button("Add Image"))
                     addNode(handle, UIType::Image);
+                ImGui::SameLine();
+                if (ImGui::Button("Add Button"))
+                    addNode(handle, UIType::Button);
                 ImGui::SameLine();
                 if (ImGui::Button("Delete subtree"))
                     pendingEdit = [canvas, handle]()

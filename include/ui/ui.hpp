@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <cmath>
 
 namespace vke_component
 {
@@ -21,13 +23,36 @@ namespace vke_ui
     {
         Container = 1,
         Text = 2,
-        Image = 3
+        Image = 3,
+        Button = 4
+    };
+
+    enum class PointerEvent : int32_t
+    {
+        Enter,
+        Exit,
+        Down,
+        Up,
+        Click,
+        Cancel
+    };
+
+    struct UIPointerInput
+    {
+        glm::vec2 position{0}; // Render target pixels, origin at top left.
+        bool active = false;
+        bool inside = false;
+        bool down = false;
+        bool pressed = false;
+        bool released = false;
     };
 
     struct UINodeData
     {
         std::string name;
         RectTransform rectTransform;
+        bool hitTestEnabled = false;
+        bool interactable = true;
         std::vector<std::unique_ptr<UINodeData>> children;
 
         virtual ~UINodeData() = default;
@@ -69,7 +94,7 @@ namespace vke_ui
 
         virtual nlohmann::json ToJSON() const
         {
-            nlohmann::json json{{"name", name}, {"rectTransform", rectTransform.ToJSON()}, {"children", nlohmann::json::array()}};
+            nlohmann::json json{{"name", name}, {"rectTransform", rectTransform.ToJSON()}, {"hitTestEnabled", hitTestEnabled}, {"interactable", interactable}, {"children", nlohmann::json::array()}};
             for (const auto &child : children)
                 json["children"].push_back(child->ToJSON());
             return json;
@@ -90,7 +115,7 @@ namespace vke_ui
     protected:
         static vke_common::SceneResult<void> validateCommonJSON(const nlohmann::json &json)
         {
-            if (auto valid = vke_common::json_validation::Object(json).Strings({"name"}).Result(); !valid)
+            if (auto valid = vke_common::json_validation::Object(json).Strings({"name"}).Booleans({"hitTestEnabled", "interactable"}).Result(); !valid)
                 return valid;
             if (json.contains("rectTransform"))
                 if (auto valid = RectTransform::ValidateJSON(json["rectTransform"]); !valid)
@@ -99,7 +124,8 @@ namespace vke_ui
         }
 
         UINodeData() = default;
-        explicit UINodeData(const nlohmann::json &json) : name(json.value("name", std::string()))
+        explicit UINodeData(const nlohmann::json &json) : name(json.value("name", std::string())),
+                                                          hitTestEnabled(json.value("hitTestEnabled", false)), interactable(json.value("interactable", true))
         {
             if (json.contains("rectTransform"))
                 rectTransform = RectTransform(json["rectTransform"]);
@@ -119,6 +145,8 @@ namespace vke_ui
                 copiedChildren.push_back(child ? child->Clone() : nullptr);
             name = other.name;
             rectTransform = other.rectTransform;
+            hitTestEnabled = other.hitTestEnabled;
+            interactable = other.interactable;
             children = std::move(copiedChildren);
             return *this;
         }
@@ -137,6 +165,33 @@ namespace vke_ui
         glm::vec2 resolvedSize{0.0f};
 
         virtual ~UIComponent() = default;
+        bool GetHitTestEnabled() const { return hitTestEnabled; }
+        void SetHitTestEnabled(bool value)
+        {
+            hitTestEnabled = value;
+            if (!value)
+                setPointerState(false, false);
+        }
+        bool GetInteractable() const { return interactable; }
+        void SetInteractable(bool value)
+        {
+            interactable = value;
+            if (!value)
+                hovered = pressed = false;
+            onPointerStateChanged();
+        }
+        bool IsHovered() const { return hovered; }
+        bool IsPressed() const { return pressed; }
+        bool ContainsPoint(const glm::vec2 &point) const
+        {
+            if (resolvedSize.x <= 0 || resolvedSize.y <= 0)
+                return false;
+            const float determinant = glm::determinant(glm::mat2(layoutMatrix));
+            if (determinant == 0 || !std::isfinite(determinant))
+                return false;
+            const auto local = glm::vec2(glm::inverse(layoutMatrix) * glm::vec4(point, 0, 1)) + rectTransform.pivot * resolvedSize;
+            return local.x >= 0 && local.y >= 0 && local.x < resolvedSize.x && local.y < resolvedSize.y;
+        }
         UIComponent(const UIComponent &) = delete;
         UIComponent &operator=(const UIComponent &) = delete;
 
@@ -152,20 +207,36 @@ namespace vke_ui
         virtual std::unique_ptr<UINodeData> ToData() const = 0;
 
     protected:
-        explicit UIComponent(const UINodeData &data) : name(data.name), rectTransform(data.rectTransform) {}
+        explicit UIComponent(const UINodeData &data) : name(data.name), rectTransform(data.rectTransform),
+                                                       hitTestEnabled(data.hitTestEnabled), interactable(data.interactable) {}
         void fillData(UINodeData &data) const
         {
             data.name = name;
             data.rectTransform = rectTransform;
+            data.hitTestEnabled = hitTestEnabled;
+            data.interactable = interactable;
             for (const auto &child : children)
                 data.children.push_back(child->ToData());
         }
+        virtual void onPointerStateChanged() {}
         virtual void unload() {}
         virtual void onSizeChanged() {}
         virtual void updateRenderTransform(const glm::mat4 &matrix, float order) {}
 
     private:
         friend class vke_component::Canvas;
+        friend class UIManager;
+        void setPointerState(bool over, bool down)
+        {
+            hovered = over;
+            pressed = down;
+            onPointerStateChanged();
+        }
+
+        bool hitTestEnabled;
+        bool interactable;
+        bool hovered = false;
+        bool pressed = false;
         bool layoutDirty = true;
         glm::mat4 layoutMatrix{1.0f};
     };

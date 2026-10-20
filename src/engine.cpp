@@ -41,11 +41,15 @@ namespace vke_common
             vke_audio::AudioManager::Update(deltaTime);
     }
 
-    void Engine::UpdatePresentation()
+    void Engine::UpdatePresentation(const vke_ui::UIPointerInput *pointer)
     {
         auto *renderer = vke_render::Renderer::GetInstance();
-        vke_ui::UIManager::Update(SceneManager::GetInstance()->registry,
-                                  glm::vec2(renderer->context->width, renderer->context->height));
+        const glm::vec2 viewportSize(renderer->context->width, renderer->context->height);
+        auto *uiManager = vke_ui::UIManager::GetInstance();
+        uiManager->Update(viewportSize);
+        const auto input = pointer ? *pointer : vke_ui::UIManager::BuildUIPointerInput(
+            vke_render::RenderEnvironment::GetInstance()->window, viewportSize);
+        uiManager->ProcessPointer(viewportSize, input);
         renderer->Update();
     }
 

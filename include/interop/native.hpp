@@ -226,6 +226,10 @@ namespace vke_interop
         SetUIImageUVRectFn SetUIImageUVRect;
         GetUIImagePreserveAspectFn GetUIImagePreserveAspect;
         SetUIImagePreserveAspectFn SetUIImagePreserveAspect;
+        GetUIInteractionFn GetUIInteraction;
+        SetUIInteractionFn SetUIInteraction;
+        GetUIButtonColorFn GetUIButtonColor;
+        SetUIButtonColorFn SetUIButtonColor;
     };
 }
 

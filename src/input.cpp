@@ -43,6 +43,7 @@ namespace vke_common
         instance->mousePosition = glm::vec2(0.0f, 0.0f);
         instance->hasMousePosition = false;
 
+        glfwSetWindowFocusCallback(window, &InputManager::WindowFocusCallback);
         glfwSetKeyCallback(window, &InputManager::KeyCallback);
         glfwSetCursorPosCallback(window, &InputManager::CursorPosCallback);
         glfwSetMouseButtonCallback(window, &InputManager::MouseButtonCallback);
@@ -88,6 +89,17 @@ namespace vke_common
                 input.keyReleased[key] = 1;
             input.keyDown[key] = 0;
         }
+    }
+
+    void InputManager::WindowFocusCallback(GLFWwindow *, int focused)
+    {
+        if (focused) return;
+        auto &input = RequireInstance();
+        input.keyDown.fill(0);
+        input.mouseButtonDown.fill(0);
+        input.ClearTransientState();
+        input.lostFocus = true;
+        input.hasMousePosition = false;
     }
 
     void InputManager::CursorPosCallback(GLFWwindow *window, double xpos, double ypos)
@@ -221,6 +233,7 @@ namespace vke_common
 
     void InputManager::ClearTransientState()
     {
+        lostFocus = false;
         keyPressed.fill(0);
         keyReleased.fill(0);
         mouseButtonPressed.fill(0);

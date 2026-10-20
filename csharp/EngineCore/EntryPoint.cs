@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 
 namespace vkEngine.EngineCore
 {
@@ -9,6 +9,7 @@ namespace vkEngine.EngineCore
         public delegate* unmanaged<NativeFunctions*, void> RegisterNativeFunctions;
         public SceneManagerFunctions SceneManagerFuncs;
         public PhysicsFunctions PhysicsFuncs;
+        public UIFunctions UIFuncs;
     }
 
     public static class EntryPoint
@@ -34,7 +35,8 @@ namespace vkEngine.EngineCore
                 Init = &Init,
                 RegisterNativeFunctions = &RegisterNativeFunctions,
                 SceneManagerFuncs = SceneManager.GetFunctions(),
-                PhysicsFuncs = Physics.GetFunctions()
+                PhysicsFuncs = Physics.GetFunctions(),
+                UIFuncs = UIManager.GetFunctions()
             };
         }
     }

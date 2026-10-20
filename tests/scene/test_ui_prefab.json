@@ -15,7 +15,7 @@
         {
           "type": "canvas",
           "mode": "screenSpace",
-          "referenceResolution": [1600, 1000],
+          "referenceResolution": [1600, 1320],
           "sortOrder": 50,
           "children": [
             {
@@ -24,23 +24,41 @@
               "rectTransform": {
                 "anchorMin": [1, 0],
                 "anchorMax": [1, 0],
-                "offsetMin": [-490, 24],
-                "offsetMax": [-24, 118],
+                "offsetMin": [-555, 24],
+                "offsetMax": [-89, 118],
                 "pivot": [0, 0]
               },
               "color": [0.08, 0.38, 0.32, 0.98],
               "texture": 0,
               "children": [
                 {
+                  "type": "uiButton",
+                  "name": "Dismiss",
+                  "rectTransform": {
+                    "offsetMin": [12, 12],
+                    "offsetMax": [76, 82],
+                    "pivot": [0, 0]
+                  },
+                  "texture": 1024,
+                  "color": [1, 1, 1, 1],
+                  "hoverColor": [0.6, 1, 1, 1],
+                  "pressedColor": [0.3, 0.6, 0.6, 1],
+                  "disabledColor": [0.12, 0.14, 0.17, 1],
+                  "hitTestEnabled": true,
+                  "interactable": true,
+                  "children": [],
+                  "preserveAspect": true
+                },
+                {
                   "type": "uiText",
                   "name": "Title",
                   "rectTransform": {
-                    "offsetMin": [16, 12],
-                    "offsetMax": [16, 12],
+                    "offsetMin": [92, 12],
+                    "offsetMax": [92, 12],
                     "pivot": [0, 0],
                     "scale": [0.44, 0.44]
                   },
-                  "text": "UI PREFAB / SORT ORDER 50",
+                  "text": "TEXTURED UI PREFAB",
                   "color": [0.9, 0.94, 1, 1],
                   "children": []
                 },
@@ -48,12 +66,12 @@
                   "type": "uiText",
                   "name": "Detail",
                   "rectTransform": {
-                    "offsetMin": [16, 53],
-                    "offsetMax": [16, 53],
+                    "offsetMin": [92, 53],
+                    "offsetMax": [92, 53],
                     "pivot": [0, 0],
                     "scale": [0.34, 0.34]
                   },
-                  "text": "Whole entity is destroyed after 3 seconds.",
+                  "text": "Click portrait to dismiss / 3s simulation time.",
                   "color": [0.9, 0.94, 1, 1],
                   "children": []
                 }
