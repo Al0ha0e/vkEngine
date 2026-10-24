@@ -67,6 +67,7 @@ namespace vke_render
         VkDescriptorSet GetShadowPassDescriptorSet(uint32_t currentFrame) const { return shadowPassDescriptorSets[currentFrame]; }
         VkDescriptorSet GetDeferredLightingDescriptorSet(uint32_t currentFrame) const { return deferredLightingDescriptorSets[currentFrame]; }
         const DirectionalShadowInfoCPU &GetDirectionalShadowInfo() const { return directionalShadowInfo; }
+        const SpotShadowInfoCPU &GetSpotShadowInfo(uint32_t slot) const { return spotShadowInfos[slot]; }
         bool IsSpotShadowSlotActive(uint32_t slot) const { return spotShadowLightEntities[slot] != entt::null; }
         const DirectionalShadowConfig &GetDirectionalConfig() const { return directionalConfig; }
         const SpotShadowConfig &GetSpotConfig() const { return spotConfig; }
