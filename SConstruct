@@ -24,7 +24,7 @@ print(dlls)
 print(selflibs)
 
 DEBUG = False
-ENABLE_FRAME_GRAPH_PROFILING = True
+ENABLE_FRAME_GRAPH_PROFILING = False
 
 ######################### CodeGen ######################
 

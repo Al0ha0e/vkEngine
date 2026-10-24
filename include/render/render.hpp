@@ -73,9 +73,8 @@ namespace vke_render
             instance->initDescriptorSet();
 
             instance->skyboxManager = std::make_unique<SkyboxManager>(
-                instance->globalDescriptorSets[GLOBAL_DESCRIPTOR_SET_NO_LIGHT],
                 instance->lightManager.get(),
-                renderConfig.atmosphere);
+                renderConfig.atmosphere, renderConfig.skyLUT);
             instance->skyboxManager->ConstructFrameGraph(*(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
             instance->lightManager->ConstructFrameGraph(*(instance->frameGraph), instance->blackboard, instance->currentResourceNodeID);
 

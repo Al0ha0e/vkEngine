@@ -139,6 +139,7 @@ namespace vke_render
         }
 
         lightManager->Update(currentFrame, cameraUpdated);
+        skyboxManager->Update(hostCameraInfo.viewPos.y);
         quadManager.Sync(currentFrame);
 
         frameGraph->PrepareForExecute(currentFrame);
